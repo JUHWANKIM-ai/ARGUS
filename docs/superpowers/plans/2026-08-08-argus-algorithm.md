@@ -392,7 +392,7 @@ git commit -m "feat: 예산 가드와 이중 종료 장치"
   - `to_eok(won) -> float` / `fmt_won(won) -> str`
   - `period_text(start, end) -> str`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_compute.py`:
 ```python
@@ -436,12 +436,12 @@ def test_share_rejects_zero_whole():
         share(1, 0)
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `python -m pytest tests/test_compute.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'argus.agent.compute'`
 
-- [ ] **Step 3: compute.py 구현**
+- [x] **Step 3: compute.py 구현**
 
 ```python
 """결정적 계산. LLM 이 신뢰할 수 없는 수치·기간 연산을 담당한다."""
@@ -490,12 +490,12 @@ def period_text(start: str, end: str) -> str:
     return format_duration(sd, ed)
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `python -m pytest tests/test_compute.py -v`
 Expected: PASS (7 passed)
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/argus/agent/compute.py tests/test_compute.py
