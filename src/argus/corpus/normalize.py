@@ -10,6 +10,7 @@ from argus.corpus.html_doc import extract_rows, extract_title, read_document
 
 _NUM = re.compile(r"-?[\d,]+(?:\.\d+)?")
 _TITLE_DATE = re.compile(r"^\(\d{4}[.\-]\d{2}[.\-]\d{2}\)\s*")
+_WS_ALL = re.compile(r"\s+")
 
 # 계약 서식 전용 라벨에 의존하는 doc_subtype. 나머지 343건은 서식이 다르다.
 CONTRACT_SUBTYPES = {"단일판매공급계약체결", "단일판매공급계약해지"}
@@ -33,12 +34,54 @@ def _clean(value: str | None) -> str | None:
     return None if stripped in {"-", "–", "—", ""} else stripped
 
 
-def _find(rows: list[list[str]], *keywords: str) -> str | None:
-    """라벨 셀에 키워드가 모두 들어간 행의 마지막 셀을 돌려준다."""
+def _labels(row: list[str]) -> str:
+    """값 셀(마지막)을 뺀 라벨 부분. 공백은 지운다.
+
+    계획서 원안은 행 전체를 이어 붙여 키워드를 찾았는데, 그러면 서술형 값이
+    라벨로 오인된다. 대표 사례가 정정공시의 '3. 정정사유 | 변경계약으로 인한
+    계약금액 및 계약기간 정정' 행이다. 여기에 '계약금액' 이 들어 있어서 진짜
+    금액 행보다 먼저 걸리고, 숫자 대신 문장이 잡혀 222건이 통째로 비었다.
+    라벨 칸만 보면 이 오염이 사라진다.
+
+    공백을 지우는 이유는 서식마다 '매출액대비(%)' 와 '매출액 대비(%)' 가
+    섞이기 때문이다.
+    """
+    return _WS_ALL.sub("", " ".join(row[:-1]))
+
+
+def _rows_matching(rows: list[list[str]], *keywords: str):
+    """라벨에 키워드가 모두 들어간 행들을 순서대로 준다."""
     for row in rows:
-        joined = " ".join(row)
-        if all(k in joined for k in keywords):
-            return _clean(row[-1])
+        if len(row) < 2:
+            continue  # 값 칸이 없는 서술 행
+        if all(_WS_ALL.sub("", k) in _labels(row) for k in keywords):
+            yield row
+
+
+def _find(rows: list[list[str]], *keywords: str) -> str | None:
+    """라벨이 맞는 행의 값 셀을 돌려준다. 값이 비었으면 다음 후보를 계속 본다."""
+    for row in _rows_matching(rows, *keywords):
+        value = _clean(row[-1])
+        if value is not None:
+            return value
+    return None
+
+
+def _find_number(rows: list[list[str]], *keywords: str) -> float | None:
+    """값이 숫자로 읽히는 첫 행을 찾는다. 숫자가 아니면 건너뛴다."""
+    for row in _rows_matching(rows, *keywords):
+        number = _to_number(_clean(row[-1]) or "")
+        if number is not None:
+            return number
+    return None
+
+
+def _find_date(rows: list[list[str]], *keywords: str):
+    """값이 날짜로 읽히는 첫 행을 찾는다."""
+    for row in _rows_matching(rows, *keywords):
+        parsed = parse_date(_clean(row[-1]) or "")
+        if parsed is not None:
+            return parsed
     return None
 
 
@@ -55,13 +98,21 @@ def normalize_exchange(doc: dict) -> dict:
     rows = extract_rows(html)
     title = extract_title(html)
 
-    amount = _to_number(_find(rows, "계약금액") or "")
-    ratio = _to_number(_find(rows, "매출액대비") or "")
-    start = parse_date(_find(rows, "시작일") or "")
-    end = parse_date(_find(rows, "종료일") or "")
-    # 라벨은 '확정일자' 가 아니라 '7. 계약(수주)일자' 다. 없으면 접수일로 폴백한다.
-    event = (parse_date(_find(rows, "계약", "일자") or "")
-             or parse_date(_find(rows, "수주", "일자") or "")
+    # 해지 서식은 '2. 해지내역 | 해지금액(원)' 을 쓴다. 체결 서식의 '계약금액' 과 별개다.
+    amount, amount_type = _find_number(rows, "계약금액"), "계약금액"
+    if amount is None:
+        terminated = _find_number(rows, "해지금액")
+        if terminated is not None:
+            amount, amount_type = terminated, "해지금액"
+
+    ratio = _find_number(rows, "매출액대비")
+    start = _find_date(rows, "시작일")
+    end = _find_date(rows, "종료일")
+    # 라벨은 '확정일자' 가 아니라 '7. 계약(수주)일자' 다. 해지 서식은 '6. 해지일자'.
+    # 어느 쪽도 없으면 접수일로 폴백한다.
+    event = (_find_date(rows, "계약", "일자")
+             or _find_date(rows, "수주", "일자")
+             or _find_date(rows, "해지일자")
              or parse_date(doc["rcept_dt"]))
 
     # 제목은 '법인명/서식명/(2023.01.31)서식명' 형태다. 날짜 접두어를 떼어낸다.
@@ -79,7 +130,7 @@ def normalize_exchange(doc: dict) -> dict:
         "is_correction": bool(doc["is_correction"]),
         "title": clean_title,
         "amount": int(amount) if amount is not None else None,
-        "amount_type": "계약금액",
+        "amount_type": amount_type,
         "ratio": ratio,
         "ratio_base": "매출액",
         "counterparty": _find(rows, "계약상대"),
