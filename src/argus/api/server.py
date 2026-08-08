@@ -4,6 +4,8 @@ from __future__ import annotations
 from fastapi import FastAPI, Query
 from pydantic import BaseModel
 
+from argus.agent.pipeline import answer_question
+
 app = FastAPI(title="ARGUS 공시 Agent")
 
 
@@ -25,11 +27,4 @@ def answer(
     question_id: str = Query(...),
     question: str = Query(...),
 ) -> AnswerResponse:
-    # TODO(Task 12+): 라우팅 -> 검색 -> critic -> HCX 생성으로 교체
-    return AnswerResponse(
-        question_id=question_id,
-        question=question,
-        retrieved_context="",
-        think_trace="skeleton",
-        answer="아직 구현되지 않았습니다.",
-    )
+    return AnswerResponse(**answer_question(question_id, question))

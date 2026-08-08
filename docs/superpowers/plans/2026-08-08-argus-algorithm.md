@@ -1290,7 +1290,7 @@ git commit -m "feat: critic 근거 판정"
 - Consumes: router · tools · safety · prompts · critic · budget · compute
 - Produces: `answer_question(question_id: str, question: str) -> dict` — 5키 응답
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_pipeline.py`:
 ```python
@@ -1320,12 +1320,12 @@ def test_injection_is_flagged_in_trace():
     assert "인젝션" in out["think_trace"]
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `python -m pytest tests/test_pipeline.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'argus.agent.pipeline'`
 
-- [ ] **Step 3: pipeline.py 구현**
+- [x] **Step 3: pipeline.py 구현**
 
 ```python
 """파이프라인 진입점. 고정 횟수 단계라 질문당 비용 상한이 계산된다."""
@@ -1413,7 +1413,7 @@ def _respond(question_id: str, question: str, evidence: str,
     }
 ```
 
-- [ ] **Step 4: server.py 연결**
+- [x] **Step 4: server.py 연결**
 
 `src/argus/api/server.py` 의 `answer` 함수 본문을 교체:
 ```python
@@ -1428,12 +1428,12 @@ def answer(
     return AnswerResponse(**answer_question(question_id, question))
 ```
 
-- [ ] **Step 5: 테스트 통과 확인**
+- [x] **Step 5: 테스트 통과 확인**
 
 Run: `python -m pytest tests/ -v`
 Expected: 전체 PASS
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add src/argus/agent/pipeline.py src/argus/api/server.py tests/test_pipeline.py
