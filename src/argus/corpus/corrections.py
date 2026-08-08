@@ -133,12 +133,27 @@ def latest_of(rcept_no: str, chains: dict[str, list[str]]) -> str:
 
 
 def attach_related(records: list[dict], chains: dict[str, list[str]]) -> list[dict]:
-    corrected = {c for v in chains.values() for c in v}
+    """체인의 마지막 문서만 is_latest=True 로 둔다.
+
+    접수번호는 시간순으로 증가하므로 [원본, *정정...] 의 마지막이 최신본이다.
+    원본과 중간 정정본은 모두 '대체됨(superseded)' 이다 — 검색이 낡은 원본을
+    최신으로 착각하면 정정된 금액 대신 옛 금액을 답하게 된다.
+    """
+    superseded: set[str] = set()
+    member_chain: dict[str, list[str]] = {}
+
+    for root, corrections in chains.items():
+        sequence = [root, *corrections]
+        superseded.update(sequence[:-1])
+        for rcept_no in sequence:
+            # 체인 어느 지점에서 조회해도 나머지 전부를 볼 수 있어야 한다
+            member_chain[rcept_no] = [x for x in sequence if x != rcept_no]
+
     out = []
     for record in records:
         rcept_no = record["rcept_no"]
         enriched = dict(record)
-        enriched["related"] = list(chains.get(rcept_no, []))
-        enriched["is_latest"] = rcept_no not in corrected
+        enriched["related"] = member_chain.get(rcept_no, [])
+        enriched["is_latest"] = rcept_no not in superseded
         out.append(enriched)
     return out

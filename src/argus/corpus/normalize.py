@@ -115,9 +115,18 @@ def normalize_exchange(doc: dict) -> dict:
              or _find_date(rows, "해지일자")
              or parse_date(doc["rcept_dt"]))
 
-    # 제목은 '법인명/서식명/(2023.01.31)서식명' 형태다. 날짜 접두어를 떼어낸다.
+    # <title> 은 서식명('단일판매ㆍ공급계약체결')뿐이라 검색어가 되지 못한다.
+    # 실제 내용은 '- 체결계약명 | 2500kVA 배전변압기 등 3,500대' 행에 있다.
+    # 이걸 제목으로 올려야 "변압기 공급계약" 같은 질의에 걸린다.
+    subject = (_find(rows, "체결계약명")
+               or _find(rows, "해지계약명")
+               or _find(rows, "계약명")
+               or _find(rows, "투자대상")
+               or _find(rows, "사고발생내용"))
+
     raw_title = title.split("/")[-1].strip() if title else doc["report_nm"]
-    clean_title = _TITLE_DATE.sub("", raw_title).strip() or doc["report_nm"]
+    form_name = _TITLE_DATE.sub("", raw_title).strip() or doc["report_nm"]
+    clean_title = f"{form_name} — {subject}" if subject else form_name
 
     return {
         "doc_id": doc["doc_id"],

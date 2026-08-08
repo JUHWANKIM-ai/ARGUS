@@ -20,6 +20,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--group", default="exchange")
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--out-dir", default=None,
+                        help="산출물 경로. 테스트는 tmp 를 지정해 실제 인덱스를 덮지 않는다")
     args = parser.parse_args()
 
     docs = filter_docs(doc_group=args.group)
@@ -41,7 +43,8 @@ def main() -> None:
     for record in records:
         record["markdown"] = to_markdown(record)
 
-    out_dir = settings().artifacts_root
+    out_dir = Path(args.out_dir) if args.out_dir else settings().artifacts_root
+    out_dir.mkdir(parents=True, exist_ok=True)
     jsonl = out_dir / f"{args.group}_records.jsonl"
     with jsonl.open("w", encoding="utf-8") as fh:
         for record in records:
