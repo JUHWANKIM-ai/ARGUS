@@ -55,7 +55,14 @@ def main() -> None:
             {
                 "doc_id": r["doc_id"],
                 "text": r["markdown"],
-                "meta": {"corp_name": r["corp_name"], "doc_subtype": r["doc_subtype"]},
+                "meta": {
+                    "corp_name": r["corp_name"],
+                    "doc_subtype": r["doc_subtype"],
+                    "rcept_dt": r["rcept_dt"],
+                    "year": str(r["rcept_dt"])[:4],
+                    "ym": str(r["rcept_dt"])[:6],
+                    "is_latest": r.get("is_latest", True),
+                },
             }
             for r in records
         ]

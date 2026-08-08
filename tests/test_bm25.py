@@ -24,6 +24,16 @@ def test_meta_filter_restricts_candidates():
     assert {h[0] for h in hits} <= {"a", "c"}
 
 
+def test_prefix_filter_narrows_by_period():
+    docs = [
+        {"doc_id": "a", "text": "변압기 공급", "meta": {"rcept_dt": "20230131"}},
+        {"doc_id": "b", "text": "변압기 공급", "meta": {"rcept_dt": "20240215"}},
+    ]
+    index = Bm25Index.build(docs)
+    hits = index.search("변압기", top_k=5, prefix={"rcept_dt": "2023"})
+    assert [d for d, _ in hits] == ["a"]
+
+
 def test_roundtrip_save_load(tmp_path):
     index = Bm25Index.build(DOCS)
     path = tmp_path / "idx.json"

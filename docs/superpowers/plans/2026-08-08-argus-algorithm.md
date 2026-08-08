@@ -22,6 +22,11 @@
 - **Self-Consistency 는 closed 질의에만.** 최종 답이 고정 답변 집합일 때만 유효하다는 것이 논문의 명시적 한계.
 - **CoT 는 난이도 '상' 질의에만.** 출력 토큰 30배로 실측됐다.
 - **모든 답변에 근거 표기**: `(근거: {보고서명} {기준연월}, 접수번호 {rcept_no}, {섹션경로})`
+- 🔴 **T1 n-ary 정밀 추출(LLM 기반 하이퍼엣지 생성)은 이 계획에서 절대 수행하지 않는다.**
+  코퍼스 전량 LLM 추출은 크레딧을 대량 소모하는 구간이며, 토큰 단가가 확정되고
+  과제 크레딧 20만원이 확보된 뒤 **별도 계획**으로만 진행한다.
+  현재 인덱스(`artifacts/exchange_records.jsonl`, 규칙 기반 1,469건)를 그대로 쓴다.
+- **Task 1~8 은 LLM 호출 0회로 완결된다.** 실제 호출은 Task 9 Step 6(수동 실측)이 처음이다.
 - **응답 스키마 5키 고정**: `question_id` `question` `retrieved_context` `think_trace` `answer`
 - **답변 불가 시** `"공시에서 확인되지 않습니다"` 를 명시하고 필요하면 역질문한다.
 - 커밋 접두사: `feat:` / `test:` / `chore:`
@@ -40,6 +45,193 @@
 | `src/argus/agent/safety.py` | 개인정보 마스킹, 프롬프트 인젝션 방어 |
 | `src/argus/agent/pipeline.py` | 전 단계 조립 (진입점) |
 | `src/argus/api/server.py` | `/answer` 를 pipeline 에 연결 (수정) |
+
+---
+
+## Task 0: 인덱스 메타 보강과 질의어 추출
+
+기반 계획 완료 후 실측에서 드러난 **검색 랭킹 실패**를 먼저 고친다. 이걸 안 고치면
+뒤의 모든 단계가 잘못된 근거 위에서 동작한다.
+
+**실측 (정답 문서 `20230131800162` 순위)**
+
+| 질의 | 순위 |
+|---|---|
+| Q-001 원문 질문 전체 | **14위 / 1,332** |
+| 원문 질문 + `corp_name` 필터 | **14위 / 26** ← 후보만 줄고 순서는 그대로 |
+| `배전변압기 2023` + `corp_name` 필터 | **1위 / 18** |
+
+원인 두 가지:
+1. 질문 32토큰 중 대부분이 전 문서 공통 보일러플레이트(`공급계약`·`계약금액`·`체결`)라 변별력이 묻힌다.
+2. **BM25 meta 에 `rcept_dt` 가 없고, 메타 필터가 완전일치 전용**이라 "2023년 1월"을 표현할 수 없다.
+
+**Files:**
+- Modify: `src/argus/retrieve/bm25.py`, `scripts/build_index.py`
+- Create: `src/argus/agent/query.py`, `tests/test_query.py`
+- Modify: `tests/test_bm25.py`
+
+**Interfaces:**
+- Produces:
+  - `Bm25Index.search(query, top_k, prefix: dict | None = None, **exact)` — `prefix={"rcept_dt": "202301"}` 지원
+  - `extract_terms(question: str) -> list[str]` — 공시 불용어 제거 후 변별력 있는 어휘만
+  - 인덱스 meta 에 `rcept_dt` · `year` · `ym` 추가
+
+- [x] **Step 1: 실패하는 테스트 작성**
+
+`tests/test_query.py`:
+```python
+from argus.agent.query import STOPWORDS, extract_terms
+
+
+def test_removes_boilerplate_terms():
+    terms = extract_terms("HD현대일렉트릭이 2023년 1월에 체결한 변압기 공급계약의 계약금액은 얼마인가?")
+    assert "변압기" in terms
+    for noise in ("공급계약", "계약금액", "체결", "얼마"):
+        assert noise not in terms
+
+
+def test_keeps_distinctive_nouns():
+    terms = extract_terms("삼성전자가 2025년 7월에 체결한 반도체 위탁생산 공급계약")
+    assert "반도체" in terms and "위탁생산" in terms
+
+
+def test_stopwords_cover_common_forms():
+    for word in ("공급계약", "계약금액", "매출액대비", "주요경영사항"):
+        assert word in STOPWORDS
+```
+
+`tests/test_bm25.py` 에 추가:
+```python
+def test_prefix_filter_narrows_by_period():
+    docs = [
+        {"doc_id": "a", "text": "변압기 공급", "meta": {"rcept_dt": "20230131"}},
+        {"doc_id": "b", "text": "변압기 공급", "meta": {"rcept_dt": "20240215"}},
+    ]
+    index = Bm25Index.build(docs)
+    hits = index.search("변압기", top_k=5, prefix={"rcept_dt": "2023"})
+    assert [d for d, _ in hits] == ["a"]
+```
+
+- [x] **Step 2: 테스트 실패 확인**
+
+Run: `python -m pytest tests/test_query.py tests/test_bm25.py -v`
+Expected: FAIL — `No module named 'argus.agent.query'`, `search() got an unexpected keyword argument 'prefix'`
+
+- [x] **Step 3: query.py 구현**
+
+```python
+"""질의어 추출. 공시 보일러플레이트를 걷어내 변별력 있는 어휘만 남긴다."""
+from __future__ import annotations
+
+import re
+
+# 전 문서에 공통으로 등장해 변별력이 없는 어휘 (실측 기반)
+STOPWORDS = {
+    "공급계약", "단일판매", "판매공급계약", "계약금액", "체결", "해지",
+    "매출액대비", "매출액", "최근매출액", "계약상대", "계약기간",
+    "주요경영사항", "투자판단", "신규시설투자", "공시", "보고서",
+    "얼마", "무엇", "어디", "언제", "누구", "인가", "인지", "이며",
+    "얼마인가", "정리해줘", "설명해줘", "알려줘", "존재하는가",
+}
+_TOKEN = re.compile(r"[0-9]+(?:[,.][0-9]+)*|[가-힣]+|[A-Za-z]+")
+_JOSA = re.compile(r"(이|가|은|는|을|를|의|에|에서|으로|로|와|과|도|만|이라|라)$")
+
+
+def _strip_josa(word: str) -> str:
+    if len(word) <= 2:
+        return word
+    return _JOSA.sub("", word)
+
+
+def extract_terms(question: str) -> list[str]:
+    terms: list[str] = []
+    for raw in _TOKEN.findall(question or ""):
+        word = _strip_josa(raw)
+        if len(word) < 2:
+            continue
+        if word in STOPWORDS:
+            continue
+        # 불용어가 접미로 붙은 복합어도 제거 ('의공급계약' 같은 잔재)
+        if any(word.endswith(s) and word != s for s in STOPWORDS if len(s) >= 4):
+            continue
+        if word not in terms:
+            terms.append(word)
+    return terms
+```
+
+- [x] **Step 4: bm25.py 에 prefix 필터 추가**
+
+`Bm25Index.search` 시그니처를 교체:
+```python
+    def search(self, query: str, top_k: int = 10,
+               prefix: dict | None = None, **meta_filters) -> list[tuple[str, float]]:
+        """meta_filters 는 완전일치, prefix 는 접두 일치.
+
+        기간 조건은 완전일치로 표현할 수 없다 — '2023년 1월' 은 rcept_dt 접두 '202301' 이다.
+        """
+        scores = self._bm25.get_scores(tokenize(query))
+        ranked = sorted(zip(self.doc_ids, scores, self.metas), key=lambda x: -x[1])
+        prefix = prefix or {}
+        out = []
+        for doc_id, score, meta in ranked:
+            if any(meta.get(k) != v for k, v in meta_filters.items()):
+                continue
+            if any(not str(meta.get(k, "")).startswith(v) for k, v in prefix.items()):
+                continue
+            if score <= 0:
+                continue
+            out.append((doc_id, float(score)))
+            if len(out) >= top_k:
+                break
+        return out
+```
+
+- [x] **Step 5: build_index.py 의 meta 확장**
+
+`Bm25Index.build(...)` 호출부의 `meta` 를 교체:
+```python
+                "meta": {
+                    "corp_name": r["corp_name"],
+                    "doc_subtype": r["doc_subtype"],
+                    "rcept_dt": r["rcept_dt"],
+                    "year": str(r["rcept_dt"])[:4],
+                    "ym": str(r["rcept_dt"])[:6],
+                    "is_latest": r.get("is_latest", True),
+                },
+```
+
+- [x] **Step 6: 테스트 통과 확인**
+
+Run: `python -m pytest tests/ -v`
+Expected: 전체 PASS
+
+- [x] **Step 7: 인덱스 재빌드 + 랭킹 개선 확인 (수동)**
+
+```bash
+python scripts/build_index.py --group exchange
+python -c "
+import json, sys; sys.path.insert(0,'src')
+from argus.config import settings
+from argus.retrieve.bm25 import Bm25Index
+from argus.agent.query import extract_terms
+idx = Bm25Index.load(settings().artifacts_root/'exchange_bm25.json')
+q = 'HD현대일렉트릭이 2023년 1월에 체결한 변압기 공급계약의 계약금액은 얼마인가?'
+terms = extract_terms(q)
+print('추출된 질의어:', terms)
+hits = idx.search(' '.join(terms), top_k=5,
+                  corp_name='HD현대일렉트릭', prefix={'rcept_dt': '202301'})
+ids = [d for d, _ in hits]
+print('골든 순위:', ids.index('exchange_20230131800162')+1 if 'exchange_20230131800162' in ids else None)
+"
+```
+**합격 기준: 골든 순위 1위.** 미달이면 `STOPWORDS` 를 실제 질문 분포에 맞춰 보강한다.
+
+- [x] **Step 8: 커밋**
+
+```bash
+git add src/argus/agent/query.py src/argus/retrieve/bm25.py scripts/build_index.py tests/test_query.py tests/test_bm25.py
+git commit -m "feat: 질의어 추출과 기간 prefix 필터 (검색 랭킹 개선)"
+```
 
 ---
 

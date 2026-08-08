@@ -50,14 +50,25 @@ class Bm25Index:
             [d.get("meta", {}) for d in docs],
         )
 
-    def search(self, query: str, top_k: int = 10, **meta_filters) -> list[tuple[str, float]]:
+    def search(self, query: str, top_k: int = 10,
+               prefix: dict | None = None, **meta_filters) -> list[tuple[str, float]]:
+        """meta_filters 는 완전일치, prefix 는 접두 일치.
+
+        기간 조건은 완전일치로 표현할 수 없다 — '2023년 1월' 은 rcept_dt 접두 '202301' 이다.
+        """
         scores = self._bm25.get_scores(tokenize(query))
         ranked = sorted(zip(self.doc_ids, scores, self.metas), key=lambda x: -x[1])
+        prefix = prefix or {}
         out = []
         for doc_id, score, meta in ranked:
             if any(meta.get(k) != v for k, v in meta_filters.items()):
                 continue
-            if score <= 0:
+            if any(not str(meta.get(k, "")).startswith(v) for k, v in prefix.items()):
+                continue
+            # BM25Okapi 는 코퍼스 절반 넘게 등장하는 어휘에 음수 IDF 를 준다.
+            # 음수 점수는 '매칭됐지만 흔한 어휘' 라는 뜻이지 미매칭이 아니다.
+            # 토큰이 하나도 겹치지 않을 때만 점수가 정확히 0 이 된다 — 그때만 거른다.
+            if score == 0:
                 continue
             out.append((doc_id, float(score)))
             if len(out) >= top_k:
