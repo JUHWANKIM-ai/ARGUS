@@ -15,5 +15,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+# "." 은 tests/test_eval_e2e.py 의 `from scripts.eval_e2e import ...` 용이다.
+# `python -m pytest` 는 cwd 를 sys.path 에 넣어 주지만 `pytest` 는 넣지 않는다.
+pythonpath = ["src", "."]
 testpaths = ["tests"]

@@ -1,0 +1,6 @@
+{"question_id":"Q-001","question":"HD현대일렉트릭이 2023년 1월에 체결한 변압기 공급계약의 계약금액은 얼마인가?","type":"closed_lookup","gold":"97,000,000,000","must_cite":"20230131800162"}
+{"question_id":"Q-002","question":"삼성전자가 2025년 7월에 체결한 반도체 위탁생산 공급계약의 매출액 대비 비율은?","type":"closed_lookup","gold":"7.6","must_cite":"20250728800035"}
+{"question_id":"Q-003","question":"HD현대일렉트릭의 2023년 1월 변압기 공급계약 기간은 몇 년 몇 개월인가?","type":"closed_calc","gold":"1년 9개월","must_cite":"20230131800162"}
+{"question_id":"Q-004","question":"삼성전자가 2025년에 공시한 단일판매·공급계약을 정리해줘","type":"open_summary","gold":"","must_cite":""}
+{"question_id":"Q-005","question":"2023년에 계약이 해지된 사례가 존재하는가?","type":"closed_exists","gold":"","must_cite":""}
+{"question_id":"Q-006","question":"존재하지 않는 기업 ZZZ의 2025년 매출액은?","type":"unanswerable","gold":"확인","must_cite":""}

@@ -1682,7 +1682,7 @@ SWE-Lancer의 교훈 — **부분 지표(검색 recall)만 보면 착각한다.*
   - `scripts/eval_e2e.py` → `artifacts/eval_report.json`
   - `score(response: dict, case: dict) -> dict` — 키 `has_schema` `answer_match` `has_citation`
 
-- [ ] **Step 1: 평가셋 작성**
+- [x] **Step 1: 평가셋 작성**
 
 `evalset/questions.jsonl` (CONVENTION §6 참고 질의 6종을 코퍼스에 맞게 구체화):
 ```json
@@ -1694,7 +1694,11 @@ SWE-Lancer의 교훈 — **부분 지표(검색 recall)만 보면 착각한다.*
 {"question_id":"Q-006","question":"존재하지 않는 기업 ZZZ의 2025년 매출액은?","type":"unanswerable","gold":"확인","must_cite":""}
 ```
 
-- [ ] **Step 2: 실패하는 테스트 작성**
+> 정답 검증: `artifacts/exchange_records.jsonl` 대조 완료. `20230131800162` = 97,000,000,000원 ·
+> 기간 2023-01-30~2024-10-31(= 1년 9개월) · `20250728800035` = 매출액 대비 7.6% ·
+> 2023년 해지 공시 3건 존재. 여섯 문항 모두 코퍼스에 근거가 있다.
+
+- [x] **Step 2: 실패하는 테스트 작성**
 
 `tests/test_eval_e2e.py`:
 ```python
@@ -1731,12 +1735,12 @@ def test_unanswerable_case_requires_limitation_phrase():
     assert score(resp, {"gold": "확인", "must_cite": ""})["answer_match"]
 ```
 
-- [ ] **Step 3: 테스트 실패 확인**
+- [x] **Step 3: 테스트 실패 확인**
 
 Run: `python -m pytest tests/test_eval_e2e.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'scripts.eval_e2e'`
 
-- [ ] **Step 4: eval_e2e.py 구현**
+- [x] **Step 4: eval_e2e.py 구현**
 
 ```python
 """E2E 평가 하네스. 질의 -> 답변 -> 근거 표기까지 관통해 본다."""
@@ -1810,17 +1814,36 @@ if __name__ == "__main__":
 
 `scripts/__init__.py`: 빈 파일 (테스트 import 용).
 
-- [ ] **Step 5: 테스트 통과 확인**
+> `pyproject.toml` 의 `pythonpath` 를 `["src"]` → `["src", "."]` 로 넓혔다.
+> `python -m pytest` 는 cwd 를 `sys.path` 에 넣어 주지만 `pytest` 로 직접 부르면 넣지 않아
+> `from scripts.eval_e2e import ...` 가 `ModuleNotFoundError` 로 깨진다. 호출 방식에
+> 의존하지 않도록 ini 에 못 박았다.
+
+- [x] **Step 5: 테스트 통과 확인**
 
 Run: `python -m pytest tests/test_eval_e2e.py -v`
 Expected: PASS (4 passed)
 
-- [ ] **Step 6: 하네스 실행 (수동)**
+- [x] **Step 6: 하네스 실행 (수동)**
 
 Run: `python scripts/eval_e2e.py`
 Expected: 스켈레톤이라 정답 일치 0/6. **스키마 준수 6/6이면 성공** — 이 시점의 목적은 계측선 확보다.
 
-- [ ] **Step 7: 커밋**
+실측 결과 (스켈레톤 기준선):
+
+```
+case    type              schema  answer   cite
+Q-001   closed_lookup       True   False  False
+Q-002   closed_lookup       True   False  False
+Q-003   closed_calc         True   False  False
+Q-004   open_summary        True   False  False
+Q-005   closed_exists       True   False  False
+Q-006   unanswerable        True   False  False
+
+스키마 준수 6/6 · 정답 일치 0/6 · 근거 표기 0/6
+```
+
+- [x] **Step 7: 커밋**
 
 ```bash
 git add evalset/questions.jsonl scripts/eval_e2e.py scripts/__init__.py tests/test_eval_e2e.py
