@@ -1560,7 +1560,7 @@ git commit -m "feat: T1 거래소공시 인덱스 빌드 CLI"
 - Consumes: `retrieve.bm25`, `clova.chat`
 - Produces: `app` (FastAPI). `GET /answer?question_id=&question=` → 5키 JSON. `GET /health` → `{"status": "ok"}`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_server.py`:
 ```python
@@ -1592,12 +1592,12 @@ def test_answer_requires_params():
     assert client.get("/answer").status_code == 422
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `python -m pytest tests/test_server.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'argus.api'`
 
-- [ ] **Step 3: server.py 구현**
+- [x] **Step 3: server.py 구현**
 
 `src/argus/api/__init__.py`: 빈 파일.
 
@@ -1639,12 +1639,12 @@ def answer(
     )
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `python -m pytest tests/test_server.py -v`
 Expected: PASS (4 passed)
 
-- [ ] **Step 5: 로컬 기동 확인 (수동)**
+- [x] **Step 5: 로컬 기동 확인 (수동)**
 
 Run: `uvicorn argus.api.server:app --host 0.0.0.0 --port 8000`
 그리고 다른 터미널에서:
@@ -1653,7 +1653,13 @@ curl -s "http://127.0.0.1:8000/answer?question_id=Q-001&question=테스트"
 ```
 Expected: 5키 JSON
 
-- [ ] **Step 6: 커밋**
+실측: `PYTHONPATH=src python -m uvicorn argus.api.server:app --host 127.0.0.1 --port 8123` 를
+백그라운드로 띄우고 curl 로 확인 → `/health` 는 `{"status":"ok"}`, `/answer` 는 5키 JSON.
+질의를 퍼센트 인코딩(`%ED%85%8C%EC%8A%A4%ED%8A%B8`)해 보내면 `question` 이
+`테스트`(테스트) 로 그대로 되돌아온다. Windows 콘솔에서 한글이 깨져 보이는 건
+Git Bash 의 CP949 인자 전달 문제이지 서버 인코딩 문제가 아니다.
+
+- [x] **Step 6: 커밋**
 
 ```bash
 git add src/argus/api/__init__.py src/argus/api/server.py tests/test_server.py
