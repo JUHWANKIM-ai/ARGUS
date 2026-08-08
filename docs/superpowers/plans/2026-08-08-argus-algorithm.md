@@ -928,7 +928,7 @@ git commit -m "feat: 도구 7종 (주최 측 참조 명세)"
   - `detect_injection(question: str) -> bool` — 지시 무시 유도 탐지
   - `sanitize_question(question: str) -> tuple[str, list[str]]` — 정제된 질문과 경고 목록
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_safety.py`:
 ```python
@@ -962,12 +962,12 @@ def test_sanitize_returns_warnings():
     assert warns
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `python -m pytest tests/test_safety.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'argus.agent.safety'`
 
-- [ ] **Step 3: safety.py 구현**
+- [x] **Step 3: safety.py 구현**
 
 ```python
 """안전성 계층. 평가지표 「안전성·신뢰성」 대응."""
@@ -1009,12 +1009,12 @@ def sanitize_question(question: str) -> tuple[str, list[str]]:
     return mask_pii(question or ""), warnings
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `python -m pytest tests/test_safety.py -v`
 Expected: PASS (5 passed)
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/argus/agent/safety.py tests/test_safety.py
