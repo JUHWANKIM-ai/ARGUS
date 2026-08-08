@@ -33,34 +33,54 @@ def score(response: dict, case: dict) -> dict:
     }
 
 
+def summarize(rows: list[dict]) -> dict:
+    n = max(len(rows), 1)
+    return {
+        "cases": len(rows),
+        "schema_ok": sum(r["has_schema"] for r in rows),
+        "answer_match": sum(r["answer_match"] for r in rows),
+        "has_citation": sum(r["has_citation"] for r in rows),
+        "total_llm_calls": sum(r.get("llm_calls", 0) for r in rows),
+        "avg_llm_calls_per_question": sum(r.get("llm_calls", 0) for r in rows) / n,
+        "total_prompt_tokens": sum(r.get("prompt_tokens", 0) for r in rows),
+        "total_completion_tokens": sum(r.get("completion_tokens", 0) for r in rows),
+    }
+
+
 def main() -> None:
     from fastapi.testclient import TestClient
 
     from argus.api.server import app
+    from argus.clova import CALL_LOG
 
     client = TestClient(app)
-    cases = load_cases()
     rows = []
-    for case in cases:
-        resp = client.get(
-            "/answer",
-            params={"question_id": case["question_id"], "question": case["question"]},
-        )
+    for case in load_cases():
+        CALL_LOG.clear()
+        resp = client.get("/answer", params={"question_id": case["question_id"],
+                                             "question": case["question"]})
         body = resp.json() if resp.status_code == 200 else {}
-        rows.append({"case": case["question_id"], "type": case["type"], **score(body, case)})
+        totals = CALL_LOG.totals()
+        rows.append({"case": case["question_id"], "type": case["type"],
+                     **score(body, case),
+                     "llm_calls": totals["calls"],
+                     "prompt_tokens": totals["prompt_tokens"],
+                     "completion_tokens": totals["completion_tokens"]})
 
+    summary = summarize(rows)
     out = ROOT / "artifacts" / "eval_report.json"
     out.parent.mkdir(exist_ok=True)
-    out.write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
+    out.write_text(json.dumps({"rows": rows, "summary": summary},
+                              ensure_ascii=False, indent=1), encoding="utf-8")
 
-    total = len(rows)
-    print(f"{'case':<8}{'type':<16}{'schema':>8}{'answer':>8}{'cite':>7}")
-    for row in rows:
-        print(f"{row['case']:<8}{row['type']:<16}{str(row['has_schema']):>8}"
-              f"{str(row['answer_match']):>8}{str(row['has_citation']):>7}")
-    print(f"\n스키마 준수 {sum(r['has_schema'] for r in rows)}/{total} · "
-          f"정답 일치 {sum(r['answer_match'] for r in rows)}/{total} · "
-          f"근거 표기 {sum(r['has_citation'] for r in rows)}/{total}")
+    print(f"{'case':<8}{'type':<16}{'schema':>8}{'answer':>8}{'cite':>7}{'calls':>7}{'tok':>8}")
+    for r in rows:
+        print(f"{r['case']:<8}{r['type']:<16}{str(r['has_schema']):>8}"
+              f"{str(r['answer_match']):>8}{str(r['has_citation']):>7}"
+              f"{r['llm_calls']:>7}{r['prompt_tokens'] + r['completion_tokens']:>8}")
+    print()
+    for k, v in summary.items():
+        print(f"  {k:<32} {v}")
 
 
 if __name__ == "__main__":

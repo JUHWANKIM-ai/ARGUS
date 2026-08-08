@@ -1453,7 +1453,7 @@ git commit -m "feat: 파이프라인 조립과 API 연결"
 **Interfaces:**
 - Produces: `artifacts/eval_report.json` 에 비용 필드 추가 — `llm_calls`, `prompt_tokens`, `completion_tokens`, `latency_s`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_eval_cost.py`:
 ```python
@@ -1476,12 +1476,12 @@ def test_eval_report_includes_cost_fields():
     assert s["avg_llm_calls_per_question"] == 2.0
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `python -m pytest tests/test_eval_cost.py -v`
 Expected: FAIL — `ImportError: cannot import name 'summarize'`
 
-- [ ] **Step 3: eval_e2e.py 에 비용 계측 추가**
+- [x] **Step 3: eval_e2e.py 에 비용 계측 추가**
 
 `scripts/eval_e2e.py` 의 `main()` 을 교체하고 `summarize()` 를 추가:
 ```python
@@ -1535,12 +1535,12 @@ def main() -> None:
         print(f"  {k:<32} {v}")
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `python -m pytest tests/test_eval_cost.py -v`
 Expected: PASS (2 passed)
 
-- [ ] **Step 5: 실측 실행 (수동, 크레딧 소모)**
+- [ ] **Step 5: 실측 실행 (수동, 크레딧 소모)** — SKIPPED (크레딧 확보 후 실행)
 
 Run: `python scripts/eval_e2e.py`
 
@@ -1549,7 +1549,7 @@ Run: `python scripts/eval_e2e.py`
 - 평균 토큰 → `notebooks/clova_budget.ipynb` 의 `calls_per_q` · `tok_in_per_call` 갱신
 - `answer_match` / `has_citation` 비율 — 이후 개선의 기준선
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add scripts/eval_e2e.py tests/test_eval_cost.py
