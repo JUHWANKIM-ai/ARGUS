@@ -1160,7 +1160,7 @@ git commit -m "feat: 시스템 프롬프트와 근거 표기 규격"
   - `judge(evidence: str, answer: str, budget=None) -> Verdict`
   - `quick_check(answer: str) -> dict` — LLM 없이 근거 표기 유무만 (무료 선검사)
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_critic.py`:
 ```python
@@ -1203,12 +1203,12 @@ def test_judge_survives_malformed_json(monkeypatch):
     assert v.passed is False and "파싱" in v.reason
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `python -m pytest tests/test_critic.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'argus.agent.critic'`
 
-- [ ] **Step 3: critic.py 구현**
+- [x] **Step 3: critic.py 구현**
 
 ```python
 """근거 지지 판정. 생성보다 싸고 정확한 검증 수단."""
@@ -1264,12 +1264,12 @@ def judge(evidence: str, answer: str, budget: Budget | None = None) -> Verdict:
     )
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `python -m pytest tests/test_critic.py -v`
 Expected: PASS (5 passed)
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/argus/agent/critic.py tests/test_critic.py
