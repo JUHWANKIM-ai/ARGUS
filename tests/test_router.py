@@ -34,3 +34,22 @@ def test_closed_calc_enables_sc_and_cot():
     r = route("삼성전자의 2024년 대비 2025년 영업이익 증가율은 몇 %인가?")
     assert r.use_cot is True
     assert r.use_sc is True
+
+
+def test_corpus_wide_existence_query_is_not_unanswerable():
+    """기업명이 없어도 '~존재하는가' 는 전역 질의다. 근거 404건이 실재한다."""
+    r = route("2023년에 계약이 해지된 사례가 존재하는가?")
+    assert r.kind != "unanswerable"
+    assert r.use_cot is True
+
+
+def test_ratio_lookup_stays_on_cheap_path():
+    """'매출액 대비 비율' 은 레코드에 있는 단일 값이다. CoT+SC 로 가면 비용만 뛴다."""
+    r = route("삼성전자가 2025년 7월에 체결한 공급계약의 매출액 대비 비율은?")
+    assert r.kind == "closed_lookup"
+    assert r.use_cot is False and r.use_sc is False
+
+
+def test_unknown_company_still_unanswerable():
+    """전역 질의 예외가 '범위 밖 기업' 판정을 무너뜨리면 안 된다."""
+    assert route("존재하지않는기업ZZZ의 2025년 매출액은?").kind == "unanswerable"

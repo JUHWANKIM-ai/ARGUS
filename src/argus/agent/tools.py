@@ -88,7 +88,13 @@ def read_section(doc_id: str, path: str) -> dict:
     return {"error": f"섹션 없음: {doc_id} / {path}"}
 
 
-def search_chunks(query: str, corp_name: str | None = None, top_k: int = 5) -> dict:
+def search_chunks(query: str, corp_name: str | None = None, top_k: int = 5,
+                  year: int | None = None, ym: str | None = None) -> dict:
+    """하이브리드 검색 폴백.
+
+    기간 조건이 랭킹을 좌우한다 — 실측에서 corp_name 만으로는 골든이 15/26 이지만
+    rcept_dt prefix 를 함께 걸면 1위가 된다. 도구 스펙에도 노출해야 한다.
+    """
     index = _index()
     if index is None:
         return {"error": "BM25 인덱스가 없습니다"}
@@ -96,7 +102,12 @@ def search_chunks(query: str, corp_name: str | None = None, top_k: int = 5) -> d
     if corp_name:
         resolved = resolve_company(corp_name)
         filters["corp_name"] = resolved["corp_name"] if resolved else corp_name
-    hits = index.search(query, top_k=top_k, **filters)
+    prefix = {}
+    if ym:
+        prefix["rcept_dt"] = str(ym).replace("-", "")[:6]
+    elif year:
+        prefix["rcept_dt"] = str(year)[:4]
+    hits = index.search(query, top_k=top_k, prefix=prefix or None, **filters)
     by_id = {r["doc_id"]: r for r in _records()}
     return {"count": len(hits),
             "chunks": [{"doc_id": d, "score": round(s, 3),
@@ -141,8 +152,12 @@ TOOL_SPECS = [
           {"doc_id": _STR}, ["doc_id"]),
     _spec("read_section", "특정 섹션 원문을 읽는다 (표는 마크다운)",
           {"doc_id": _STR, "path": _STR}, ["doc_id", "path"]),
-    _spec("search_chunks", "목차로 찾기 어려운 주제를 하이브리드 검색한다",
-          {"query": _STR, "corp_name": _STR, "top_k": _INT}, ["query"]),
+    _spec("search_chunks", "목차로 찾기 어려운 주제를 하이브리드 검색한다. "
+                           "기간(year/ym)을 주면 랭킹이 크게 좋아진다",
+          {"query": _STR, "corp_name": _STR, "top_k": _INT,
+           "year": {**_INT, "description": "접수 연도 (예: 2023)"},
+           "ym": {**_STR, "description": "접수 연월 (예: 202301). year 보다 우선"}},
+          ["query"]),
     _spec("get_history", "공시 정정 이력 체인을 추적한다",
           {"rcept_no": _STR}, ["rcept_no"]),
 ]

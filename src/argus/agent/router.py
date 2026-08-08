@@ -7,7 +7,10 @@ from dataclasses import dataclass, field
 from argus.corpus.manifest import load_universe, resolve_company
 
 _YEAR = re.compile(r"(20\d{2})\s*년?")
-_COMPARE_HINT = ("비교", "중 어", "더 큰", "더 많", "대비", "vs", "와 ", "과 ")
+# '대비'·'와 '·'과 ' 는 뺐다.
+#   - '매출액 대비 비율' 은 단일 지표 표현인데 비교로 잡혀 CoT+SC 경로로 가서 비용이 수 배 뛴다.
+#   - '와/과' 는 '계약과 ' 같은 데도 걸린다. 기업이 둘 이상인지는 len(companies) 로 이미 판정한다.
+_COMPARE_HINT = ("비교", "중 어", "더 큰", "더 많", "vs")
 _CALC_HINT = ("증감률", "증가율", "감소율", "비중", "몇 %", "몇 퍼센트", "합계", "총액", "차이")
 _OPEN_HINT = ("정리해", "설명해", "어떻게 변화", "요약해", "알려줘")
 _EXISTS_HINT = ("존재하는가", "있는가", "있나")
@@ -42,13 +45,18 @@ def route(question: str) -> Route:
     companies = _find_companies(question)
     years = sorted({int(y) for y in _YEAR.findall(question)})
 
-    if not companies:
-        return Route(kind="unanswerable", companies=[], years=years)
-
     is_open = any(h in question for h in _OPEN_HINT)
     is_calc = any(h in question for h in _CALC_HINT)
     is_compare = len(companies) >= 2 or any(h in question for h in _COMPARE_HINT)
     is_exists = any(h in question for h in _EXISTS_HINT)
+
+    if not companies:
+        # 기업명이 없어도 '~존재하는가' 는 코퍼스 전역 존재 질의다.
+        # 답변 불가로 단락시키면 근거가 있는데도 못 찾는다 (해지 사례 404건 실재).
+        if is_exists:
+            return Route(kind="complex_reason", difficulty="high", companies=[],
+                         years=years, use_cot=True, use_sc=True)
+        return Route(kind="unanswerable", companies=[], years=years)
 
     if is_open and (len(years) >= 2 or "변화" in question):
         return Route(kind="complex_reason", difficulty="high", companies=companies,

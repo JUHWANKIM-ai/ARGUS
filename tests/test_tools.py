@@ -36,3 +36,18 @@ def test_query_events_defaults_to_latest_only():
 
 def test_unknown_tool_returns_error():
     assert "error" in execute("no_such_tool", {})
+
+
+def test_search_chunks_accepts_period_filter():
+    """기간 필터가 랭킹을 좌우한다 — corp_name 만으로는 골든이 15/26 이었다."""
+    out = execute("search_chunks", {"query": "변압기", "corp_name": "HD현대일렉트릭",
+                                    "ym": "202301", "top_k": 5})
+    assert "error" not in out
+    assert out["count"] >= 1
+    assert out["chunks"][0]["doc_id"] == "exchange_20230131800162"
+
+
+def test_search_chunks_spec_exposes_period():
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "search_chunks")
+    props = spec["function"]["parameters"]["properties"]
+    assert "year" in props and "ym" in props
