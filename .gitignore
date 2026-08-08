@@ -43,9 +43,9 @@ __pycache__/
 *.pyc
 .venv/
 venv/
-docs/
 data/
 paper/
+# docs/ 는 추적한다 — 계획서·CONVENTION 이 산출물이다
 
 # 인덱스 산출물 (로컬 생성, 배포 시 별도 전송)
 artifacts/
