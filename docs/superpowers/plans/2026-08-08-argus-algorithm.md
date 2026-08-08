@@ -517,7 +517,7 @@ git commit -m "feat: 결정적 계산 레이어"
   - `Route` 데이터클래스: `kind: str` (`closed_lookup`/`multi_compare`/`complex_reason`/`unanswerable`), `difficulty: str` (`low`/`high`), `companies: list[str]`, `years: list[int]`, `use_cot: bool`, `use_sc: bool`, `by: str` (`rule`/`llm`)
   - `route(question: str) -> Route`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_router.py`:
 ```python
@@ -559,12 +559,12 @@ def test_closed_calc_enables_sc_and_cot():
     assert r.use_sc is True
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `python -m pytest tests/test_router.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'argus.agent.router'`
 
-- [ ] **Step 3: router.py 구현**
+- [x] **Step 3: router.py 구현**
 
 ```python
 """질의 라우터. 규칙으로 갈리면 LLM 을 쓰지 않는다."""
@@ -635,12 +635,12 @@ def route(question: str) -> Route:
                  years=years, use_cot=False, use_sc=False)
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `python -m pytest tests/test_router.py -v`
 Expected: PASS (6 passed)
 
-- [ ] **Step 5: 라우팅 분포 확인 (수동)**
+- [x] **Step 5: 라우팅 분포 확인 (수동)**
 
 Run:
 ```bash
@@ -655,7 +655,7 @@ for line in open('evalset/questions.jsonl', encoding='utf-8'):
 ```
 `closed_lookup` 비율이 곧 저비용 경로 비율이다. 30% 미만이면 규칙을 넓힌다.
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
 git add src/argus/agent/router.py tests/test_router.py
