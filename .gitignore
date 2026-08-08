@@ -21,3 +21,31 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+
+### ARGUS ###
+# 비밀정보 — 절대 커밋 금지
+.env
+.env.local
+*.pem
+*.key
+secrets/
+
+# 대용량 데이터 (5.2GB)
+data/dart-disclosures/
+
+# 논문 PDF (28MB)
+paper/**/*.pdf
+
+# 작업 산출물
+scratch/
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+.venv/
+venv/
+docs/
+data/
+paper/
+
+# 인덱스 산출물 (로컬 생성, 배포 시 별도 전송)
+artifacts/
