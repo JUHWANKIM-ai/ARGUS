@@ -1,0 +1,17 @@
+[Unit]
+Description=ARGUS 공시 Agent API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/argus
+EnvironmentFile=/opt/argus/.env
+ExecStart=/opt/argus/.venv/bin/uvicorn argus.api.server:app --host 0.0.0.0 --port 80
+Restart=always
+RestartSec=3
+StandardOutput=append:/var/log/argus.log
+StandardError=append:/var/log/argus.log
+
+[Install]
+WantedBy=multi-user.target

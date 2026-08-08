@@ -1,0 +1,6 @@
+# 배포 산출물은 Linux 로 그대로 scp 된다. Windows 작업 사본이 CRLF 로 체크아웃되면
+# `/bin/bash^M: bad interpreter` 로 죽으므로 LF 를 강제한다.
+* text=auto
+*.sh text eol=lf
+*.service text eol=lf
+Dockerfile text eol=lf

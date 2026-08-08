@@ -1864,7 +1864,7 @@ CONVENTION §9 제출 요건이다. **지금 만드는 게 그대로 제출물**
 - Consumes: Task 11의 `argus.api.server:app`
 - Produces: 실행 가능한 배포 스크립트 3종
 
-- [ ] **Step 1: setup.sh 작성**
+- [x] **Step 1: setup.sh 작성**
 
 ```bash
 #!/usr/bin/env bash
@@ -1896,7 +1896,7 @@ python3 -m venv "$APP_DIR/.venv"
 echo "setup 완료. .env 와 artifacts/ 를 $APP_DIR 에 배치한 뒤 argus.service 를 등록하세요."
 ```
 
-- [ ] **Step 2: argus.service 작성**
+- [x] **Step 2: argus.service 작성**
 
 ```ini
 [Unit]
@@ -1918,7 +1918,7 @@ StandardError=append:/var/log/argus.log
 WantedBy=multi-user.target
 ```
 
-- [ ] **Step 3: Dockerfile 작성**
+- [x] **Step 3: Dockerfile 작성**
 
 ```dockerfile
 FROM python:3.12-slim
@@ -1934,7 +1934,7 @@ EXPOSE 80
 CMD ["uvicorn", "argus.api.server:app", "--host", "0.0.0.0", "--port", "80"]
 ```
 
-- [ ] **Step 4: deploy/README.md 작성**
+- [x] **Step 4: deploy/README.md 작성**
 
 ```markdown
 # 배포 절차
@@ -1966,12 +1966,27 @@ docker run -d --env-file .env -p 80:80 argus
 ```
 ```
 
-- [ ] **Step 5: Dockerfile 빌드 검증 (수동)**
+- [ ] **Step 5: Dockerfile 빌드 검증 (수동)** — SKIPPED (개발 머신에 Docker 미설치, 8월 말 리허설로 이월)
 
 Run: `docker build -f deploy/Dockerfile -t argus-test .`
 Expected: 빌드 성공. Docker 미설치면 이 단계는 8월 말 리허설로 미룬다.
 
-- [ ] **Step 6: 커밋**
+Docker 없이 가능한 만큼은 대신 검증했다:
+
+- `bash -n deploy/setup.sh` — 문법 통과
+- `deploy/argus.service` — `configparser` 로 `[Unit]/[Service]/[Install]` 3섹션과 `ExecStart` 파싱 확인
+- Dockerfile 의 `RUN pip install --no-cache-dir -e .` 에 해당하는 패키징 단계를
+  `pyproject.toml` + `src/` 만 복사한 임시 컨텍스트에서 재현 → editable 설치 성공,
+  `argus` · `argus.api.server` · `argus.corpus.*` · `argus.retrieve.*` 전부 해소됨
+  (`--no-deps` 로 돌려 서드파티만 미설치). 즉 패키지 탐색(`where = ["src"]`)에 구멍은 없다.
+- 세 파일 모두 LF 개행 확인. `.gitattributes` 에 `*.sh`/`*.service`/`Dockerfile` 을
+  `eol=lf` 로 고정했다 — `core.autocrlf=true` 인 Windows 작업 사본에서 그대로 `scp` 하면
+  `/bin/bash^M: bad interpreter` 로 죽기 때문이다.
+
+**남은 미검증 항목**: 이미지 실제 빌드·기동, `COPY artifacts/`(빌드 컨텍스트에 `artifacts/`
+가 있어야 성공), systemd 등록.
+
+- [x] **Step 6: 커밋**
 
 ```bash
 git add deploy/ README.md
