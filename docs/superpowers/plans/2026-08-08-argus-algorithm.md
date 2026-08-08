@@ -678,7 +678,7 @@ git commit -m "feat: 질의 라우터 (규칙 우선, LLM 폴백)"
   - `execute(name: str, args: dict) -> dict` — 도구 실행기
   - 개별 함수: `resolve_company_tool`, `query_events`, `list_filings`, `list_sections`, `read_section`, `search_chunks`, `get_history`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_tools.py`:
 ```python
@@ -722,12 +722,12 @@ def test_unknown_tool_returns_error():
     assert "error" in execute("no_such_tool", {})
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `python -m pytest tests/test_tools.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'argus.agent.tools'`
 
-- [ ] **Step 3: tools.py 구현**
+- [x] **Step 3: tools.py 구현**
 
 ```python
 """도구 7종. CONVENTION §7.7 의 참조 명세를 따른다."""
@@ -901,12 +901,12 @@ def execute(name: str, args: dict) -> dict:
         return {"error": f"인자 오류: {exc}"}
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `python -m pytest tests/test_tools.py -v`
 Expected: PASS (6 passed)
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/argus/agent/tools.py tests/test_tools.py
