@@ -249,7 +249,7 @@ git commit -m "feat: 질의어 추출과 기간 prefix 필터 (검색 랭킹 개
   - `Budget.remaining() -> dict`
   - `should_terminate(text: str) -> bool` — 자연어 `TERMINATE` 감지
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_budget.py`:
 ```python
@@ -296,12 +296,12 @@ def test_should_terminate(text, expected):
     assert should_terminate(text) is expected
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `python -m pytest tests/test_budget.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'argus.agent'`
 
-- [ ] **Step 3: budget.py 구현**
+- [x] **Step 3: budget.py 구현**
 
 `src/argus/agent/__init__.py`: 빈 파일.
 
@@ -361,12 +361,12 @@ def should_terminate(text: str) -> bool:
     return "terminate" in (text or "").lower()
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `python -m pytest tests/test_budget.py -v`
 Expected: PASS (7 passed)
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/argus/agent/__init__.py src/argus/agent/budget.py tests/test_budget.py
