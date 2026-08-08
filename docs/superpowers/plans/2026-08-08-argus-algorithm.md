@@ -1037,7 +1037,7 @@ GPT-3 논문의 결론 — **few-shot exemplar 설계가 곧 성능**이다.
   - `build_answer_messages(question, evidence, use_cot) -> list[dict]`
   - `CITATION_RE: re.Pattern` — 근거 표기 검증용
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 `tests/test_prompts.py`:
 ```python
@@ -1072,12 +1072,12 @@ def test_citation_regex_rejects_missing_receipt():
     assert not CITATION_RE.search("매출액은 333조원입니다 (근거: 사업보고서)")
 ```
 
-- [ ] **Step 2: 테스트 실패 확인**
+- [x] **Step 2: 테스트 실패 확인**
 
 Run: `python -m pytest tests/test_prompts.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'argus.agent.prompts'`
 
-- [ ] **Step 3: prompts.py 구현**
+- [x] **Step 3: prompts.py 구현**
 
 ```python
 """시스템 프롬프트와 few-shot exemplar."""
@@ -1132,12 +1132,12 @@ def build_critic_messages(evidence: str, answer: str) -> list[dict]:
             {"role": "user", "content": user}]
 ```
 
-- [ ] **Step 4: 테스트 통과 확인**
+- [x] **Step 4: 테스트 통과 확인**
 
 Run: `python -m pytest tests/test_prompts.py -v`
 Expected: PASS (5 passed)
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add src/argus/agent/prompts.py tests/test_prompts.py
