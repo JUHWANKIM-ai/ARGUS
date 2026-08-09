@@ -106,11 +106,20 @@ policy §2의 전제("공시는 관계형 데이터")가 우리 코퍼스에서 
 
 ### B-1. 스키마 확장
 
+**축을 3개로 분리한다.** Error Analysis에서 축별로 나눠 봐야 하므로
+`closed_lookup` 처럼 유형과 답변형식이 뭉친 라벨을 쓰면 집계가 불가능하다.
+
 ```yaml
 question_id: Q-012
 question: "HD현대일렉트릭이 2023년 1월에 체결한 변압기 공급계약의 계약금액은?"
-type: closed_lookup          # 6종 (CONVENTION §6)
-difficulty: low              # low | high
+
+# ── 독립 축 3개 (CONVENTION §5·§6) ───────────────────────
+task_type:   search_extract   # search_extract | multi_compare | complex_reason
+answer_mode: closed           # closed | open
+difficulty:  하                # 상 | 중 | 하
+# ────────────────────────────────────────────────────────
+
+answerable: true             # false 면 정보한계 대응 문항
 answer: "97,000,000,000"
 answer_form: number_won      # number_won | number_pct | duration | list | narrative | refusal
 evidence:                    # 근거 문서 (복수 가능)
@@ -121,17 +130,48 @@ reasoning_steps:             # 필요한 추론 과정
   - "기간 필터: 202301"
   - "계약금액 필드 조회"
 required_tools: [resolve_company, search_chunks]
+doc_group: exchange          # exchange | periodic | major | holding
 split: dev                   # dev | heldout
 ```
 
-### B-2. 규모와 분포
+### B-2. 난이도 조작적 정의
 
-| 축 | 목표 |
+"상/중/하"를 감으로 붙이면 축이 무의미해진다. **필요한 문서 수·연산 수·이력 추적 여부**로 정의한다.
+
+| 난이도 | 정의 | 예 |
+|---|---|---|
+| **하** | 단일 문서 · 단일 필드 · 직접 조회 | "이 계약의 계약금액은?" |
+| **중** | 단일 문서 복수 필드 **또는** 복수 문서 단일 필드 · 1회 연산 | "매출액 대비 비율은?" · "2025년 공급계약 건수는?" |
+| **상** | 복수 문서 종합 · 다단계 연산 · **정정 이력 추적** · 시점 간 비교 | "정정 반영 후 최종 계약금액과 원본의 차이는?" |
+
+### B-3. 규모와 분포 — 3×2×3 그리드
+
+| | | 하 | 중 | 상 | 소계 |
+|---|---|---|---|---|---|
+| **search_extract** | closed | 3 | 3 | 3 | 9 |
+| | open | 3 | 3 | 3 | 9 |
+| **multi_compare** | closed | 3 | 3 | 3 | 9 |
+| | open | 3 | 3 | 3 | 9 |
+| **complex_reason** | closed | 3 | 3 | 3 | 9 |
+| | open | 3 | 3 | 3 | 9 |
+| | | | | **소계** | **54** |
+
+여기에 **정보한계 대응 6문항**(범위 밖 기업 2 · 기간 밖 2 · 공시에 없는 정보 2)을 더해 **총 60문항**.
+
+**축별 표본 수**
+
+| 축 | 셀당 |
 |---|---|
-| 총 문항 | **60문항** (유형 6종 × 난이도 2 × 5문항) |
-| 유형 | closed_lookup · closed_calc · closed_exists · multi_compare · open_summary · unanswerable |
-| 공시 유형 | exchange 24 · periodic 24 · major 6 · holding 6 |
-| 답변 불가 | 6문항 (범위 밖 기업 · 기간 밖 · 공시에 없는 정보) |
+| 난이도 | 상 18 · 중 18 · 하 18 |
+| 답변형식 | closed 27 · open 27 |
+| 과제유형 | 각 18 |
+
+> ⚠️ **3중 교차 셀은 n=3이라 셀 단위 결론을 내면 안 된다.**
+> Error Analysis는 **주변부(축별 18~27개)와 2원 교차(9개)** 까지만 해석한다.
+> 셀 단위로 보고 싶으면 문항을 90개(셀당 5)로 늘려야 하는데, D-28에 수작업으로는 무리다.
+
+**공시 유형 분포** — 위 그리드를 채우면서 `doc_group`도 균형을 맞춘다:
+exchange 24 · periodic 24 · major 6 · holding 6
 
 ### B-3. Train/Held-out 분리 — policy §7
 
@@ -281,24 +321,72 @@ MRR                                순위 품질
 
 ### H-1. 단계별 실패 귀속
 
-각 문항의 실패를 **가장 앞선 단계에 귀속**시킨다.
+각 문항의 실패를 **가장 앞선 단계에 귀속**시킨다. 뒤 단계는 앞이 실패하면 자동으로 실패하므로,
+첫 실패 지점만 세야 병목이 보인다.
 
-| 실패 유형 | 판정 |
-|---|---|
-| `RETRIEVAL` | 골든 근거가 top-k에 없음 |
-| `RANKING` | top-k엔 있으나 top-1이 아님 |
-| `REASONING` | 근거는 맞는데 답이 틀림 |
-| `TOOL` | 계산값 불일치 |
-| `CITATION` | 답은 맞는데 근거 표기 없음 |
-| `REFUSAL` | 답할 수 있는데 거부 / 없는데 답함 |
+| 실패 유형 | 판정 기준 | 무료? |
+|---|---|---|
+| `RETRIEVAL` | 골든 `rcept_no`가 후보 top-k에 없음 | ✅ |
+| `RANKING` | top-k엔 있으나 상위 3위 밖 | ✅ |
+| `TOOL` | 필요 도구 미호출 **또는** 계산값이 결정적 재계산과 불일치 | ✅ |
+| `REASONING` | 근거는 맞는데 답이 틀림 | closed는 ✅ / open은 judge |
+| `CITATION` | 답은 맞는데 접수번호 표기 없음 | ✅ |
+| `REFUSAL` | 답할 수 있는데 거부 · 없는데 답함 | ✅ |
 
-### H-2. 산출물
+`RETRIEVAL`·`RANKING`·`TOOL`·`CITATION`은 **골든셋과 대조만 하면 되므로 LLM 없이 판정**된다.
+`REASONING`만 open 문항에서 judge가 필요하다.
 
-`artifacts/error_analysis.json` — 문항별 실패 단계 + 병목 히스토그램
+### H-2. 축별 교차 집계 — 이게 핵심이다
+
+병목은 **전체 평균이 아니라 축별로 다르게 나타난다.** 단일 숫자로는 개선 방향이 안 나온다.
+
+**필수 집계 3종**
+
+```
+① 난이도 × 실패단계        상/중/난이도가 올라갈수록 어디서 깨지는가
+② 답변형식 × 실패단계      closed 와 open 의 실패 원인이 다른가
+③ 과제유형 × 실패단계      복합추론이 검색에서 깨지는가 추론에서 깨지는가
+```
+
+예상 형태 (Δ 해석용):
+
+| | RETRIEVAL | RANKING | TOOL | REASONING | CITATION | 정답률 |
+|---|---|---|---|---|---|---|
+| 하 (18) | | | | | | |
+| 중 (18) | | | | | | |
+| 상 (18) | | | | | | |
+| closed (27) | | | | | | |
+| open (27) | | | | | | |
+
+**해석 규칙**
+- 난이도가 올라갈수록 `RETRIEVAL`이 늘면 → **검색 리콜** 문제. Phase D·E 우선
+- 난이도와 무관하게 `RANKING`이 높으면 → **리랭커** 필요
+- `상`에서만 `REASONING`이 튀면 → 다단계 추론 한계. CoT·hop 예산 조정
+- `open`만 `CITATION`이 나쁘면 → **서술형 프롬프트에 근거 표기 강제**가 약함
+- `closed`가 `TOOL`에서 깨지면 → policy §4 위반. 계산이 LLM으로 새고 있다
+
+### H-3. Closed / Open 평가 분리 — policy §5
+
+**두 축을 같은 지표로 재면 안 된다.**
+
+| | 정답 판정 | 추가 지표 |
+|---|---|---|
+| **closed** | Exact Match (정규화 후) | Self-Consistency 일치율 |
+| **open** | LLM-as-a-Judge | Groundedness · Evidence Score |
+
+`answer_form`이 판정기를 결정한다 — `number_won`·`number_pct`·`duration`은 정규화 EM,
+`narrative`·`list`는 judge, `refusal`은 거부 문구 포함 여부.
+
+### H-4. 산출물
+
+- `artifacts/error_analysis.json` — 문항별 `first_failure` + 3축 라벨
+- `artifacts/error_matrix.md` — 위 교차표 3종
 
 **게이트 H**
-- [ ] 60문항 전부 실패 단계가 귀속됨
-- [ ] **병목 1위 단계가 특정됨** → 다음 스프린트 우선순위
+- [ ] 60문항 전부 `first_failure`가 귀속됨
+- [ ] **난이도 × 실패단계 / 답변형식 × 실패단계 / 과제유형 × 실패단계** 3표가 나옴
+- [ ] **병목 1위 단계가 축별로 특정됨** → 다음 스프린트 우선순위
+- [ ] closed/open이 서로 다른 지표로 채점됐다
 
 ---
 
