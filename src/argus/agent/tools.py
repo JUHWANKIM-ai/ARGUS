@@ -1,9 +1,16 @@
-"""도구 7종. CONVENTION §7.7 의 참조 명세를 따른다."""
+"""도구 14종 = 검색 7종 + 계산 7종.
+
+검색 7종은 CONVENTION §7.7 의 참조 명세를 따른다.
+계산 7종은 policy §4 ("LLM = Reasoning, Tool = Calculation") 을 강제하기 위해
+`compute.py` 의 결정적 함수를 function calling 스펙으로 노출한 것이다.
+노출되지 않은 계산 함수는 LLM 이 대신 계산하므로 §4 위반이다.
+"""
 from __future__ import annotations
 
 import json
 from functools import lru_cache
 
+from argus.agent import compute
 from argus.config import settings
 from argus.corpus.manifest import filter_docs, resolve_company
 from argus.retrieve.bm25 import Bm25Index
@@ -128,6 +135,62 @@ def get_history(rcept_no: str) -> dict:
                        "amount": c.get("amount")} for c in chain]}
 
 
+# --- 계산 도구 (policy §4) ---------------------------------------------------
+# 반환 형태를 통일한다. `rounded` 는 답변에 그대로 쓰라고 주는 값이고
+# `expr` 은 LLM 이 계산 과정을 설명할 때 쓰라고 주는 식이다 (LLM 은 재계산하지 않는다).
+
+_fmt = compute.fmt_num
+
+
+def _num_result(value: float, unit: str, expr: str, digits: int = 1) -> dict:
+    return {"value": value, "rounded": round(value, digits), "unit": unit, "expr": expr}
+
+
+def calc_pct_change(before: float, after: float) -> dict:
+    return _num_result(compute.pct_change(before, after), "%",
+                       f"({_fmt(after)} - {_fmt(before)}) / {_fmt(before)} × 100")
+
+
+def calc_share(part: float, whole: float) -> dict:
+    return _num_result(compute.share(part, whole), "%",
+                       f"{_fmt(part)} / {_fmt(whole)} × 100")
+
+
+def calc_total(values: list[float]) -> dict:
+    return _num_result(compute.total(values), "",
+                       " + ".join(_fmt(v) for v in values) or "0")
+
+
+def calc_mean(values: list[float]) -> dict:
+    return _num_result(compute.mean(values), "",
+                       f"({' + '.join(_fmt(v) for v in values)}) / {len(values)}")
+
+
+def calc_cagr(begin: float, end: float, years: float) -> dict:
+    return _num_result(compute.cagr(begin, end, years), "%",
+                       f"(({_fmt(end)} / {_fmt(begin)})^(1/{_fmt(years)}) - 1) × 100")
+
+
+def calc_compare(a: float, b: float) -> dict:
+    out = compute.compare(a, b)
+    return {"value": out["larger"], "unit": "", "expr": f"{_fmt(a)} vs {_fmt(b)}", **out}
+
+
+def calc_period(start: str, end: str) -> dict:
+    """계약기간 등 두 날짜 사이의 만 년·개월.
+
+    실측에서 HCX 가 Direct·CoT 모두 틀린 영역이다
+    (2025-07-24 ~ 2033-12-31 → 8년 5개월인데 9년 5개월로 답했다).
+    """
+    parts = compute.period_parts(start, end)
+    if parts is None:
+        return {"error": f"날짜를 해석할 수 없습니다: start={start!r} end={end!r}"}
+    years, months = parts
+    return {"value": f"{years}년 {months}개월", "years": years, "months": months,
+            "unit": "기간", "start": start, "end": end,
+            "expr": f"{start} ~ {end}"}
+
+
 def _spec(name: str, desc: str, props: dict, required: list[str]) -> dict:
     return {"type": "function",
             "function": {"name": name, "description": desc,
@@ -139,8 +202,9 @@ _STR = {"type": "string"}
 _INT = {"type": "integer"}
 _NUM = {"type": "number"}
 _BOOL = {"type": "boolean"}
+_NUMS = {"type": "array", "items": {"type": "number"}}
 
-TOOL_SPECS = [
+_RETRIEVAL_SPECS = [
     _spec("resolve_company", "기업 통용명을 DART corp_code·섹터로 변환한다",
           {"name": {**_STR, "description": "기업 통용명 (예: 현대차)"}}, ["name"]),
     _spec("query_events", "계약·투자·해지 등 정형 이벤트를 조회한다 (기본 최신 정정본)",
@@ -162,6 +226,36 @@ TOOL_SPECS = [
           {"rcept_no": _STR}, ["rcept_no"]),
 ]
 
+# policy §4 — 수치 연산은 전부 여기를 통과해야 한다. LLM 이 직접 계산하면 안 된다.
+_CALC_SPECS = [
+    _spec("calc_pct_change", "증감률(%)을 계산한다. 전기 대비 증가율·감소율은 반드시 이 도구를 쓴다",
+          {"before": {**_NUM, "description": "기준 시점 값 (0 불가)"},
+           "after": {**_NUM, "description": "비교 시점 값"}}, ["before", "after"]),
+    _spec("calc_share", "비중·구성비(%)를 계산한다. 매출액 대비 비율 등에 쓴다",
+          {"part": {**_NUM, "description": "부분 값"},
+           "whole": {**_NUM, "description": "전체 값 (0 불가)"}}, ["part", "whole"]),
+    _spec("calc_total", "여러 수치를 합산한다. 단위는 호출자가 맞춰서 넣는다",
+          {"values": {**_NUMS, "description": "합산할 수치 목록"}}, ["values"]),
+    _spec("calc_mean", "여러 수치의 산술평균을 계산한다",
+          {"values": {**_NUMS, "description": "평균낼 수치 목록 (비어 있으면 불가)"}}, ["values"]),
+    _spec("calc_cagr", "연평균 성장률 CAGR(%)을 계산한다. 여러 해에 걸친 성장률은 이 도구를 쓴다",
+          {"begin": {**_NUM, "description": "기초 값 (0 초과)"},
+           "end": {**_NUM, "description": "기말 값"},
+           "years": {**_NUM, "description": "경과 연수 (0 초과)"}}, ["begin", "end", "years"]),
+    _spec("calc_compare", "두 수치의 대소·차이·배수를 비교한다. 순위 판단에 쓴다",
+          {"a": {**_NUM, "description": "첫 번째 값"},
+           "b": {**_NUM, "description": "두 번째 값"}}, ["a", "b"]),
+    _spec("calc_period", "두 날짜 사이의 기간을 '몇 년 몇 개월'로 계산한다. "
+                         "계약기간 산정은 반드시 이 도구를 쓴다 (직접 계산하면 틀린다)",
+          {"start": {**_STR, "description": "시작일 (예: 2025-07-24)"},
+           "end": {**_STR, "description": "종료일 (예: 2033-12-31)"}}, ["start", "end"]),
+]
+
+TOOL_SPECS = _RETRIEVAL_SPECS + _CALC_SPECS
+
+RETRIEVAL_TOOLS = frozenset(s["function"]["name"] for s in _RETRIEVAL_SPECS)
+CALC_TOOLS = frozenset(s["function"]["name"] for s in _CALC_SPECS)
+
 _DISPATCH = {
     "resolve_company": resolve_company_tool,
     "query_events": query_events,
@@ -170,6 +264,13 @@ _DISPATCH = {
     "read_section": read_section,
     "search_chunks": search_chunks,
     "get_history": get_history,
+    "calc_pct_change": calc_pct_change,
+    "calc_share": calc_share,
+    "calc_total": calc_total,
+    "calc_mean": calc_mean,
+    "calc_cagr": calc_cagr,
+    "calc_compare": calc_compare,
+    "calc_period": calc_period,
 }
 
 
@@ -181,3 +282,6 @@ def execute(name: str, args: dict) -> dict:
         return fn(**args)
     except TypeError as exc:
         return {"error": f"인자 오류: {exc}"}
+    except ValueError as exc:
+        # 0 나눗셈·빈 목록 등 계산이 성립하지 않는 입력. 파이프라인을 죽이지 않는다.
+        return {"error": f"계산 오류: {exc}"}
