@@ -340,12 +340,33 @@ def _list_f1(answer: str, gold: str) -> float:
     return hit / len(items)
 
 
+#: 🔴 **우리가 붙인 경고문을 채점 대상에서 뺀다.** `pipeline._verify` 가 검증 실패 시
+#: 답변 끝에 `(주의: … — <사유>)` 를 붙이는데, 그 사유에 **재계산값이 박힌다**. `_num_hit`
+#: 은 답변 전체를 긁으므로 재계산값이 골든과 같으면 **틀린 답이 정답으로 채점된다.**
+#:
+#: 실측(2026-08-11): Q-097 의 `per_unit` 재계산값이 골든과 정확히 같다(207,684,631,210).
+#: 경고 없이 채점하면 False, 경고를 붙이면 True — 즉 **검증기가 정확해질수록 채점이
+#: 오염된다.** W1 이 자릿수 가드를 넣어 이 경로가 처음 열렸고, 막지 않으면 다음 재측정에서
+#: 부당 정답 1건이 생긴다.
+_VERIFY_TAIL = re.compile(r"\n*\(주의:[^)]*\)\s*$")
+
+
+def strip_verify_tail(answer: str) -> str:
+    """채점 전에 우리가 붙인 `(주의: …)` 꼬리를 뗀다. 모델이 쓴 것이 아니다."""
+    text = answer or ""
+    while True:
+        stripped = _VERIFY_TAIL.sub("", text).rstrip()
+        if stripped == text:
+            return text
+        text = stripped
+
+
 def score_closed(case: dict, answer: str) -> dict:
     """`answer_form` 별 정규화 EM. LLM 0회."""
     form = case.get("answer_form")
     gold = case.get("answer") or ""
     tolerance = case.get("tolerance") or 0
-    text = answer or ""
+    text = strip_verify_tail(answer)
 
     if form == "refusal":
         return {"correct": bool(_REFUSAL_RE.search(text)), "by": "refusal_phrase"}
@@ -437,7 +458,7 @@ def verify_answer_calc(case: dict, answer: str, records: dict[str, dict]) -> dic
     체인 안에서 정답이 갈린다). `skipped`(안 말함)와 `mismatches`(틀림)를 섞지 않는다 —
     섞으면 TOOL 귀속이 오염된다.
     """
-    from argus.agent.critic import verify_calculation
+    from argus.agent.critic import aggregate_calculation, verify_calculation
 
     reports = []
     for e in (case.get("evidence") or []):
@@ -448,14 +469,19 @@ def verify_answer_calc(case: dict, answer: str, records: dict[str, dict]) -> dic
         report["rcept_no"] = e["rcept_no"]
         reports.append(report)
 
-    checked = sorted({k for r in reports for k in r["checked"]})
-    skipped = sorted({k for r in reports for k in r["skipped"]})
-    explained = any(r["ok"] and r["checked"] for r in reports)
-    mismatch = bool(checked) and not explained
-    return {"checked": checked, "skipped": skipped, "explained_by_some_record": explained,
-            "mismatch": mismatch,
-            "reasons": [r["reason"] for r in reports if r["reason"]][:3],
-            "n_records": len(reports)}
+    # 🔴 손으로 쓴 세 줄을 `critic.aggregate_calculation()` 으로 교체한다.
+    # 종전 `mismatch = bool(checked) and not explained` 는 **자릿수 오류를 다른 레코드가
+    # 설명하면 묻어 버렸다** — Q-065 가 정확히 그 구멍으로 나갔다(Dukovany 를 10배 틀렸는데
+    # 같은 답변의 신한울 금액이 정확해서 통과). 체인 관용(`explained` 의 OR)은 그대로 두고
+    # `hard_kinds` 만 관용 밖으로 뺀다. 규칙이 두 곳에 있으면 갈리므로 정본은 critic 이다.
+    agg = aggregate_calculation(reports)
+    return {"checked": agg["checked"],
+            "skipped": sorted({k for r in reports for k in r["skipped"]}),
+            "explained_by_some_record": agg["explained"],
+            "hard_kinds": agg["hard_kinds"],
+            "mismatch": agg["failed"],
+            "reasons": agg.get("reasons", [])[:3],
+            "n_records": agg["n_records"]}
 
 
 # --- 실패 단계 귀속 -----------------------------------------------------------

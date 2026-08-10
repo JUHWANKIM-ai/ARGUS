@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from argus import ablation
 from argus.agent import tools
 from argus.agent.budget import Budget, BudgetExceeded
-from argus.agent.critic import (judge, quick_check, verify_calculation,
+from argus.agent.critic import (aggregate_calculation, judge, quick_check, verify_calculation,
                                 verify_completeness)
 from argus.agent.prompts import build_answer_messages
 from argus.agent.query import (SPLIT_TOP_K, STRATEGIES, path_hints, plan_hops,
@@ -1427,10 +1427,15 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str]) -> s
 
     # 레코드가 여러 건이면 **하나라도 설명되면 통과**다. 체인 안에서 원공시와 정정본의
     # 금액이 갈리므로(227,500 vs 114,800) 전건 일치를 요구하면 정답이 오답이 된다.
+    #
+    # 🔴 그 관용에 구멍이 있었다 — **자릿수 오류도 함께 묻혔다.** Q-065 는 Dukovany 금액을
+    # 10배로 틀렸는데 같은 답변의 신한울 금액이 정확해서 `explained=True` 로 통과했다.
+    # 체인 관용은 '같은 값의 다른 시점' 을 위한 것이고 자릿수 오류는 시점 문제가 아니다.
+    # 판정을 `critic.aggregate_calculation()` 한 곳으로 모은다 — 규칙이 두 곳에 있으면 갈린다
+    # (`scripts/error_analysis.verify_answer_calc` 도 같은 함수를 쓴다).
     reports = [verify_calculation(answer, record) for record in _evidence_records(evidence)]
-    checked = sorted({k for rep in reports for k in rep["checked"]})
-    explained = any(rep["ok"] and rep["checked"] for rep in reports)
-    calc_failed = bool(checked) and not explained
+    agg = aggregate_calculation(reports)
+    checked, calc_failed = agg["checked"], agg["failed"]
 
     complete = verify_completeness(question, answer, evidence, companies=r.companies)
 
@@ -1441,7 +1446,9 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str]) -> s
     if not kinds:
         return answer
 
-    reasons = [rep["reason"] for rep in reports if rep["reason"]][:1] if calc_failed else []
+    # 사유도 `aggregate_calculation` 이 정한 순서를 쓴다 — 자릿수 오류가 앞에 온다.
+    # 손으로 첫 사유를 뽑으면 무해한 이웃이 먼저 실려 경고가 약해진다.
+    reasons = agg["reasons"][:1] if calc_failed else []
     if complete["reason"]:
         reasons.append(complete["reason"])
     return answer + f'\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — {"; ".join(reasons)})'
