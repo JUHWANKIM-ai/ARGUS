@@ -77,7 +77,10 @@ OFF_GRID_TRACKS = ("info_limit", "regression", "valuechain")
 
 #: 실측 단가 (혼합). docs/clova_payment.md §4 의 미지수를 Phase H 스모크로 확정한 값.
 PRICE_WON_PER_1K = 7.02
-BUDGET_WON = 5_000.0
+#: 기본 상한. v1(42문항)은 5,000원이었고 v2(88문항)는 3,000원으로 내려잡았다 —
+#: 문항이 2배가 됐는데 상한을 내린 것은 요청 캐시 적중분만큼 실지출이 줄기 때문이다.
+#: **낮은 쪽을 기본값으로 둔다.** 더 써야 하는 실행은 `--budget-won` 으로 명시하게 만든다.
+BUDGET_WON = 3_000.0
 
 #: 스모크 5문항. **앞에서 5개를 자르지 않는다** — dev 앞머리는 전부 exchange 라
 #: 가장 싼 구간만 재고 전체를 8.4배로 곱하면 과소추정된다. 비용 양극단
@@ -111,7 +114,11 @@ _REFUSAL_RE = re.compile(
 # --- 입력 -------------------------------------------------------------------
 
 def load_dev_cases() -> list[dict]:
-    """dev 42문항. heldout 은 이 함수로도 다른 함수로도 열리지 않는다."""
+    """dev 78문항 (그리드 72 + 정보한계 6). 02 B-9 증설로 42 → 78 이 됐다.
+
+    heldout 은 이 함수로도 다른 함수로도 열리지 않는다. 회귀·밸류체인은 별도 파일이라
+    여기 들어오지 않는다 — `load_cohort()` 가 합친다.
+    """
     with DEV_PATH.open(encoding="utf-8") as fh:
         cases = [json.loads(line) for line in fh if line.strip()]
     _assert_dev_only(cases)
@@ -784,6 +791,8 @@ def crosstab(rows: list[dict]) -> dict:
                          ("answer_mode", ("closed", "open")),
                          ("difficulty", ("하", "중", "상"))):
         marginals[axis] = {v: _rate([r for r in grid if r[axis] == v]) for v in values}
+    # `answerable=false` **전부**다. 정보한계 트랙 6문항 + 회귀 트랙의 거절 문항(Q-070)이
+    # 함께 잡히므로 88문항에서 7건이 된다. 트랙별 수치는 아래 `by_track` 을 봐야 한다.
     limit = [r for r in rows if not r["answerable"]]
     # 트랙별 행. **합치지 않는다** — 회귀는 고친 실패의 감시이고 밸류체인은 아직
     # 원리상 못 푸는 문항을 품고 있어(Q-117), 그리드와 같은 분모에 넣으면 둘 다 거짓말이 된다.
@@ -797,6 +806,12 @@ def crosstab(rows: list[dict]) -> dict:
             "overall": _rate(rows)}
 
 
+def root_cause_counts(rows: list[dict]) -> dict:
+    """`단계/원인` 히스토그램. **[09](09-ablation.md) 의 arm 겨냥표가 여기서 나온다.**"""
+    return dict(Counter(f'{r["first_failure"]}/{r["root_cause"]}'
+                        for r in rows if r["first_failure"]))
+
+
 def new_sector_retrieval(rows: list[dict]) -> dict:
     """신규 6섹터의 `RETRIEVAL` 실패. **리랭커(Phase E) 재검토 조건의 판정값이다.**
 
@@ -804,8 +819,14 @@ def new_sector_retrieval(rows: list[dict]) -> dict:
     근거로 보류돼 있다. 그 근거는 **옛 14섹터에서 순위 실패가 사실상 없었다**는 관찰에
     기대고 있으므로, 새 섹터에서 순위·검색 실패가 쌓이면 근거가 흔들린다. 세어서 남긴다.
     """
-    failed = [r for r in rows
-              if r["first_failure"] == "RETRIEVAL" and r.get("sector") in NEW_SECTORS]
+    def hits(subset):
+        return [r for r in subset
+                if r["first_failure"] == "RETRIEVAL" and r.get("sector") in NEW_SECTORS]
+
+    # 문턱 판정은 **그리드만** 센다. 다른 arm 겨냥 수치가 전부 그리드 분모라 여기만 88문항
+    # 전체로 세면 같은 표 안에서 분모가 둘이 된다. 그리드 밖 건수는 따로 노출한다.
+    failed = hits(grid_rows(rows))
+    off_grid = hits([r for r in rows if r.get("track") != GRID_TRACK])
     by_sector: dict[str, list[str]] = defaultdict(list)
     for row in failed:
         by_sector[row["sector"]].append(row["question_id"])
@@ -814,7 +835,9 @@ def new_sector_retrieval(rows: list[dict]) -> dict:
             "triggers_reranker_review": len(failed) >= RERANKER_REVIEW_THRESHOLD,
             "sectors": list(NEW_SECTORS),
             "by_sector": {k: sorted(v) for k, v in sorted(by_sector.items())},
-            "question_ids": sorted(r["question_id"] for r in failed)}
+            "question_ids": sorted(r["question_id"] for r in failed),
+            "off_grid_n": len(off_grid),
+            "off_grid_question_ids": sorted(r["question_id"] for r in off_grid)}
 
 
 def difficulty_audit(rows: list[dict]) -> list[dict]:
@@ -911,7 +934,7 @@ def render_matrix(rows: list[dict], report: dict) -> str:
         if hist.get(label):
             out.append(f'| {label} | {hist[label]} | {note.get(label, "")} |')
 
-    out.append("\n## 근본 원인 — 6단계만으로는 arm 이 안 갈린다\n")
+    out.append("\n## 근본 원인 — 6단계만으로는 arm 이 안 갈린다 (**그리드만**)\n")
     out.append("| 단계 / 원인 | 건수 | 문항 | 겨냥할 arm |")
     out.append("|---|---|---|---|")
     arm = {
@@ -920,18 +943,34 @@ def render_matrix(rows: list[dict], report: dict) -> str:
         "RETRIEVAL/MULTI_POINT_QUERY": "**A4** — 시점·기업별 질의 분해",
         "RANKING/WRONG_SECTION": "**A3** — 목차 경로 리랭킹",
         "RANKING/LOW_RANK": "**A3** — 리랭커",
-        "GENERATION/INDEX_FIELD_MISSING": "**A1b** — major·holding 필드 추출",
+        "GENERATION/INDEX_FIELD_MISSING": "**A1b** — 필드 추출 (⚠ 계산 답이면 오라벨)",
         "GENERATION/REASONING": "**A4** — 다단계 추론",
+        "GENERATION/UNVERIFIED": "— 대조할 수치가 없다",
         "TOOL/TOOL": "**A5** — 계산 Tool",
-        "VERIFY/VERIFY": "**A6** — Verifier",
+        "VERIFY/VERIFY": "**A6** — Verifier (⚠ 계산 오류가 섞인다)",
     }
-    buckets: dict[str, list[str]] = defaultdict(list)
-    for row in rows:
-        if row["first_failure"]:
-            buckets[f'{row["first_failure"]}/{row["root_cause"]}'].append(
-                row["question_id"])
-    for key, ids in sorted(buckets.items(), key=lambda kv: -len(kv[1])):
-        out.append(f'| {key} | {len(ids)} | {" ".join(ids)} | {arm.get(key, "—")} |')
+
+    def bucket_table(subset: list[dict]) -> None:
+        buckets: dict[str, list[str]] = defaultdict(list)
+        for row in subset:
+            if row["first_failure"]:
+                buckets[f'{row["first_failure"]}/{row["root_cause"]}'].append(
+                    row["question_id"])
+        if not buckets:
+            out.append("| — | 0 | | |")
+        for key, ids in sorted(buckets.items(), key=lambda kv: -len(kv[1])):
+            out.append(f'| {key} | {len(ids)} | {" ".join(ids)} | {arm.get(key, "—")} |')
+
+    # 🔴 그리드만 센다. 회귀·밸류체인을 섞으면 arm 겨냥 건수가 부풀고, 09 가 그 수를 읽는다.
+    bucket_table(grid_rows(rows))
+    off_grid = [r for r in rows if r.get("track") != GRID_TRACK and r["first_failure"]]
+    if off_grid:
+        out.append("\n### 그리드 밖 트랙 (정답률·겨냥 건수에 합치지 않는다)\n")
+        out.append("| 단계 / 원인 | 건수 | 문항 | track |")
+        out.append("|---|---|---|---|")
+        for row in off_grid:
+            out.append(f'| {row["first_failure"]}/{row["root_cause"]} | 1 '
+                       f'| {row["question_id"]} | {row.get("track")} |')
 
     out.append("\n## 트랙별 (합치지 않는다)\n")
     out.append("| track | 정답/채점대상 | 정답률 | DATA_LIMIT | 비고 |")
@@ -1001,21 +1040,21 @@ def build_report(cases: list[dict], rows: list[dict], cohort: str = "") -> dict:
                                               if r.get("track") == t and r["first_failure"]))
                               for t in (GRID_TRACK,) + OFF_GRID_TRACKS
                               if any(r.get("track") == t for r in rows)},
-        "root_cause_histogram": dict(Counter(f'{r["first_failure"]}/{r["root_cause"]}'
-                                             for r in rows if r["first_failure"])),
+        "root_cause_histogram": root_cause_counts(rows),
+        # 🔴 arm 겨냥은 **이쪽**을 읽는다. 전체 히스토그램은 회귀·밸류체인이 섞여 있어
+        #    같은 이름으로 다른 분모를 세게 된다 (실측: VERIFY 전체 4건 중 1건이 회귀 트랙).
+        "root_cause_histogram_grid": root_cause_counts(grid_rows(rows)),
         "citation_rate": citation_rate(rows),
+        "citation_rate_grid": citation_rate(grid_rows(rows)),
         "by_doc_group": {g: _rate([r for r in rows if r["doc_group"] == g])
                          for g in sorted({r["doc_group"] for r in rows})},
+        "by_doc_group_grid": {g: _rate([r for r in grid_rows(rows) if r["doc_group"] == g])
+                              for g in sorted({r["doc_group"] for r in grid_rows(rows)})},
         "rows": rows,
     }
 
 
 # --- CLI ---------------------------------------------------------------------
-
-def _spend_so_far(rows: list[dict]) -> float:
-    return sum(cost_won(r["prompt_tokens"] + r.get("judge_tokens", 0),
-                        r["completion_tokens"]) for r in rows)
-
 
 def execute(cases: list[dict], judge: bool, force: bool, budget_won: float,
             cache=None) -> dict:

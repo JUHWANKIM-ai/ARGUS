@@ -437,6 +437,31 @@ def test_regression_and_valuechain_never_enter_the_grid_rate():
     assert cross["by_track"]["valuechain"]["n"] == 1
 
 
+def test_root_cause_histogram_is_reported_grid_scoped_too():
+    """🔴 09 의 arm 겨냥표가 이 값을 읽는다. 회귀가 섞이면 겨냥 건수가 부풀고,
+    실측에서 정확히 그랬다 — VERIFY 전체 4건 중 Q-065 는 회귀 트랙이라 그리드는 3건이다."""
+    rows = [_row("Q1", "search_extract", "closed", "중", False, "VERIFY"),
+            _row("R1", "search_extract", "closed", "중", False, "VERIFY",
+                 track="regression")]
+    report = ea.build_report([], rows)
+    assert report["root_cause_histogram"]["VERIFY/VERIFY"] == 2
+    assert report["root_cause_histogram_grid"]["VERIFY/VERIFY"] == 1
+    # 렌더된 표도 그리드만 세야 한다 — 문서가 이 표를 그대로 옮긴다.
+    text = ea.render_matrix(rows, report)
+    assert "그리드 밖 트랙" in text and "R1" in text
+
+
+def test_new_sector_threshold_counts_grid_only():
+    """문턱 판정 분모가 다른 arm 겨냥 수치와 같아야 한다 — 표 안에서 분모가 둘이면 안 된다."""
+    rows = [_row(f"Q{i}", "search_extract", "closed", "중", False, "RETRIEVAL", sector=s)
+            for i, s in enumerate(("게임", "로봇"))]
+    rows.append(_row("R1", "search_extract", "closed", "중", False, "RETRIEVAL",
+                     sector="철강", track="regression"))
+    audit = ea.new_sector_retrieval(rows)
+    assert audit["n"] == 2 and audit["triggers_reranker_review"] is False
+    assert audit["off_grid_n"] == 1 and audit["off_grid_question_ids"] == ["R1"]
+
+
 def test_difficulty_audit_ignores_off_grid_tracks():
     rows = [_row("Q1", "search_extract", "closed", "하", True),
             _row("R1", "search_extract", "closed", "하", False, "RETRIEVAL",
