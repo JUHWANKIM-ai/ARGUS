@@ -22,18 +22,23 @@ from scripts.validate_evalset import (  # noqa: E402
 )
 
 
+DEFAULT_OUT = ROOT / "artifacts/eda/counterparty_profile.json"
+RECORDS_PATH = ROOT / "artifacts/exchange_records.jsonl"
+
+
 def is_vague(raw: str) -> bool:
     return bool(ANON_COUNTERPARTY.search(raw))
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(ROOT / "artifacts/eda/counterparty_profile.json"))
-    args = ap.parse_args()
+def build_profile(out: Path = DEFAULT_OUT) -> dict:
+    """`exchange_records.jsonl` 에서 프로파일을 다시 계산해 `out` 에 쓰고 반환한다.
 
+    `main()` 의 argparse 를 거치지 않는 순수 함수라 테스트가 인자 없이 직접 부를 수 있다
+    (예: fixture 에서 산출물이 없을 때 값싸게 재생성).
+    """
     recs = [
         json.loads(l)
-        for l in (ROOT / "artifacts/exchange_records.jsonl").read_text(encoding="utf-8").splitlines()
+        for l in RECORDS_PATH.read_text(encoding="utf-8").splitlines()
         if l.strip()
     ]
     raw = [(r["counterparty"], r.get("corp_name")) for r in recs if r.get("counterparty")]
@@ -68,10 +73,19 @@ def main() -> None:
         "hub_candidates": len(hubs),
         "variants": variants,
     }
-    out = Path(args.out)
+    out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(prof, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"canonical {len(variants)} · singleton {prof['singleton_ratio']:.1%} · hub {len(hubs)}")
+    return prof
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default=str(DEFAULT_OUT))
+    args = ap.parse_args()
+    prof = build_profile(Path(args.out))
+    n, s, h = prof["unique_canonical"], prof["singleton_ratio"], prof["hub_candidates"]
+    print(f"canonical {n} · singleton {s:.1%} · hub {h}")
 
 
 if __name__ == "__main__":
