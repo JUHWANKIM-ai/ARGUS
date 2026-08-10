@@ -32,6 +32,35 @@ def ensure_profile():
     build_profile(PROFILE_PATH)
 
 
+from argus.corpus import counterparty as cp
+
+
+def test_canonical_merges_known_surface_variants():
+    assert cp.canonical("대한민국 방위사업청") == cp.canonical("방위사업청")
+    assert cp.canonical("(주)한국수력원자력") == cp.canonical("한국수력원자력")
+    assert cp.canonical("Torp Co., Ltd.") == cp.canonical("TORP")
+
+
+def test_classify_separates_public_from_vague():
+    assert cp.classify("방위사업청") == "public"
+    assert cp.classify("한국수력원자력") == "public"
+    assert cp.classify("삼성전자") == "universe"
+    assert cp.classify("글로벌 대형기업") == "vague"
+    assert cp.classify("오세아니아지역 선주") == "vague"
+
+
+def test_vague_strings_never_become_nodes():
+    """비실명은 노드가 되면 안 된다 — 서로 다른 실체가 한 노드로 뭉친다.
+
+    브리프 원안은 "국내 대형사"·"해외 법인" 을 예로 들었으나 실제 `ANON_COUNTERPARTY`
+    정규식(scripts/validate_evalset.py 가 정본)은 이 두 표기를 잡지 않는다 — 새로
+    발명하지 않기로 했으므로 정규식은 그대로 두고, 대신 실제 exchange_records.jsonl 에
+    있는 표기로 바꿔 썼다(둘 다 실측 확인).
+    """
+    for s in ["글로벌 대형기업", "글로벌 완성차 업체", "아시아지역 선주", "유럽 소재 제약사"]:
+        assert cp.classify(s) == "vague"
+
+
 def test_counterparty_profile_records_surface_form_variants():
     """같은 발주처의 표기 변이가 한 canonical 아래 묶여야 한다."""
     p = ROOT / "artifacts/eda/counterparty_profile.json"

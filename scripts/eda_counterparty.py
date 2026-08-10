@@ -1,9 +1,8 @@
 """counterparty 표기 실태 — 노드 승격 전에 무엇을 정규화해야 하는지 센다.
 
-정규화 규칙은 `validate_evalset.normalize_counterparty` 가 정본이다.
-비실명 판정은 별도 함수가 아니라 `validate_evalset.ANON_COUNTERPARTY` 정규식으로 있다
-(브리프가 가정한 `is_vague_counterparty` 라는 이름의 함수는 존재하지 않는다 — 실제 이름을 쓴다).
-T2 가 이 규칙을 `argus.corpus.counterparty` 로 옮기면 이 import 만 갈아끼운다.
+정규화·비실명 판정 규칙은 `argus.corpus.counterparty` 가 정본이다(Task 2 로 이관됨).
+`scripts/validate_evalset.py::normalize_counterparty` · `ANON_COUNTERPARTY` 는 이제
+그 모듈을 감싼 얇은 별칭이다.
 """
 from __future__ import annotations
 
@@ -14,12 +13,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))  # `from scripts import ...` 를 스크립트 직접 실행에서도 되게 한다
+sys.path.insert(0, str(ROOT / "src"))
 
-from scripts.validate_evalset import (  # noqa: E402
-    ANON_COUNTERPARTY,
-    normalize_counterparty as canonical,
-)
+from argus.corpus.counterparty import ANON_COUNTERPARTY, canonical  # noqa: E402
 
 
 DEFAULT_OUT = ROOT / "artifacts/eda/counterparty_profile.json"
