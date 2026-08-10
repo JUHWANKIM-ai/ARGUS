@@ -49,3 +49,6 @@ paper/
 
 # 인덱스 산출물 (로컬 생성, 배포 시 별도 전송)
 artifacts/
+
+# SDD 작업공간 (플랜별 원장·브리프·리뷰패키지)
+.superpowers/

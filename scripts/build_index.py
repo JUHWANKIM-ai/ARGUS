@@ -12,7 +12,7 @@ from argus.config import settings                      # noqa: E402
 from argus.corpus.corrections import attach_related, build_chains  # noqa: E402
 from argus.corpus.manifest import filter_docs          # noqa: E402
 from argus.corpus.markdown import to_markdown          # noqa: E402
-from argus.corpus.normalize import normalize_exchange  # noqa: E402
+from argus.corpus.normalize import normalize_doc       # noqa: E402
 from argus.retrieve.bm25 import Bm25Index              # noqa: E402
 
 
@@ -32,7 +32,7 @@ def main() -> None:
     records = []
     for i, doc in enumerate(docs, 1):
         try:
-            records.append(normalize_exchange(doc))
+            records.append(normalize_doc(doc))
         except Exception as exc:                       # noqa: BLE001
             print(f"  [skip] {doc['rcept_no']}: {type(exc).__name__} {exc}")
         if i % 200 == 0:
@@ -42,6 +42,13 @@ def main() -> None:
     records = attach_related(records, chains)
     for record in records:
         record["markdown"] = to_markdown(record)
+
+    matched = sum(1 for r in records if r.get("schema_matched"))
+    withheld = sum(1 for r in records if r.get("withheld"))
+    lengths = sorted(len(r["markdown"]) for r in records)
+    print(f"  schema_matched {matched}/{len(records)} ({matched / max(1, len(records)):.1%})"
+          f" · withheld {withheld}"
+          f" · 마크다운 길이 p50={lengths[len(lengths) // 2]} 최대={lengths[-1]}")
 
     out_dir = Path(args.out_dir) if args.out_dir else settings().artifacts_root
     out_dir.mkdir(parents=True, exist_ok=True)

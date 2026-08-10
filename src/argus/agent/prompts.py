@@ -14,8 +14,16 @@ _BASE_RULES = """당신은 DART 전자공시 원문만을 근거로 답하는 �
 3. 모든 답변 끝에 근거를 다음 형식으로 표기하십시오.
    (근거: {보고서명} {기준연월}, 접수번호 {14자리}, {섹션경로})
 4. 정정공시를 근거로 썼으면 정정본임을 밝히십시오.
-5. 미래 예측이나 투자 의견을 생성하지 마십시오.
-6. 개인정보(주민번호·전화번호·이메일)는 출력하지 마십시오."""
+5. 어느 시점의 값을 쓸지는 **질문이 정합니다.** 근거에 정정 체인이 함께 실려 있으면
+   질문이 지목한 시점의 공시를 값의 출처로 삼으십시오.
+   - "정정 후"·"정정 반영 후"·"최종"·"최신"·"얼마로 바뀌었는가" → 체인의 최신본
+   - "최초 공시 당시"·"원공시"·"정정 전" → 체인의 원공시(1번)
+   - 증감·차이·시간순 정리처럼 두 시점을 함께 묻는 질문 → 해당 시점 값을 모두 쓰십시오
+   - 정정을 언급하지 않고 특정 시점(결의일·공시일·제출일)만 지목한 질문
+     → 그 시점 공시에 기재된 값을 답하고, 이후 정정이 있었다는 사실을 덧붙이십시오
+   - 시점 표현이 없으면 최신본 값을 쓰고 정정 이력을 밝히십시오
+6. 미래 예측이나 투자 의견을 생성하지 마십시오.
+7. 개인정보(주민번호·전화번호·이메일)는 출력하지 마십시오."""
 
 _DIRECT = "\n\n답변은 간결하게, 질문이 요구한 것만 답하십시오."
 _COT = """
@@ -25,6 +33,19 @@ _COT = """
 
 SYSTEM_ANSWER = _BASE_RULES + _DIRECT
 SYSTEM_ANSWER_COT = _BASE_RULES + _COT
+
+#: open 문항 판정기 (02-golden-set B-5). closed 는 정규화 EM 이라 LLM 0회지만
+#: 서술형은 판정기가 없으면 채점 자체가 불가능하다. 합산 점수를 만들지 않으려고
+#: 3항목을 각각 0/1 로 받는다 — 어느 쪽이 나쁜지 사라지면 Phase H 가 무의미하다.
+SYSTEM_OPEN_JUDGE = """당신은 공시 분석 서술형 답변을 채점하는 심사자입니다.
+
+각각 0 또는 1 로 판정하십시오.
+- covers_key_points: 모범답안 요소를 빠짐없이 포함했는가
+- grounded: 모든 서술이 근거에서 확인되는가
+- no_fabrication: 근거에 없는 내용을 사실처럼 쓰지 않았는가
+
+반드시 아래 JSON 한 줄로만 답하십시오. 다른 말은 쓰지 마십시오.
+{"covers_key_points":0,"grounded":0,"no_fabrication":0,"reason":"한 문장"}"""
 
 SYSTEM_CRITIC = """당신은 공시 분석 답변의 근거를 검증하는 심사자입니다.
 
@@ -47,4 +68,19 @@ def build_answer_messages(question: str, evidence: str, use_cot: bool = False) -
 def build_critic_messages(evidence: str, answer: str) -> list[dict]:
     user = f"[근거]\n{evidence}\n\n[답변]\n{answer}"
     return [{"role": "system", "content": SYSTEM_CRITIC},
+            {"role": "user", "content": user}]
+
+
+#: 판정용 근거 절단 상한. 정기공시 근거는 한 문항이 12,000자라 그대로 다시 보내면
+#: 판정 한 번이 생성 한 번만큼 비싸진다. 채점은 요소 대조라 앞부분으로 충분하다.
+MAX_JUDGE_EVIDENCE_CHARS = 6_000
+
+
+def build_open_judge_messages(question: str, evidence: str,
+                              key_points: list[str] | None, answer: str) -> list[dict]:
+    """02-golden-set B-5 규격 그대로. 판정이 흔들리면 측정이 무의미하다."""
+    points = "\n".join(f"- {p}" for p in (key_points or [])) or "- (없음)"
+    user = (f"[근거]\n{(evidence or '')[:MAX_JUDGE_EVIDENCE_CHARS]}\n\n"
+            f"[질문]\n{question}\n\n[모범답안 요소]\n{points}\n\n[제출답변]\n{answer}")
+    return [{"role": "system", "content": SYSTEM_OPEN_JUDGE},
             {"role": "user", "content": user}]
