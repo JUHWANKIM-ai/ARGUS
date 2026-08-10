@@ -1244,6 +1244,64 @@ def test_recall_at_5_excludes_a_golden_that_only_ranks_sixth():
     assert len(positions["in_candidates"]) == 2   # 후보에는 둘 다 있다
 
 
+# --- 게이트 D 재측정 — full 코호트 88문항 (D-4b) ------------------------------
+# 평가셋이 42 → 88 문항으로 늘었다. `70/93` 사고는 "모집단·시점이 안 적혀 낡은 줄 몰랐다"
+# 였으므로, 새 코호트로 재는 줄에는 코호트 이름과 시점을 강제로 박아 둔다. 위 세 테스트
+# (measured 42 · dev 골든 총수 · 난이도 3행)는 v1 비교축이라 **그대로 둔다** — 이 아래
+# 테스트들은 그것과 별도로 `full 88` 줄에 대해서만 검사한다.
+
+_FULL_GATE_RE = re.compile(r"full 코호트 88문항.*?근거 회수\s*\*\*(\d+)\s*/\s*(\d+)", re.DOTALL)
+
+
+def test_gate_d_line_carries_a_cohort_label():
+    """모집단·시점이 안 적힌 게이트 수치는 낡는다 — 70/93 사건의 재발 방지."""
+    text = RETRIEVER_DOC.read_text(encoding="utf-8")
+    line = next(l for l in text.splitlines() if "Recall@5" in l and l.startswith("- ["))
+    assert "코호트" in line or "cohort" in line
+    assert "2026-" in line, "측정 시점이 없으면 다음에 또 낡는다"
+
+
+def test_gate_d_full_cohort_recall_matches_the_v2_artifact():
+    """`full 88` 줄의 분자·분모가 T7 산출물(`error_analysis_v2.json`)의 재집계와 같아야 한다.
+
+    손으로 적은 숫자가 실측 산출물과 갈리면 다음 사람이 어느 쪽을 믿어야 할지 모른다 —
+    v1 의 `측정 후 채택` 원칙을 이 코호트에도 그대로 적용한다.
+    """
+    data = json.loads((ROOT / "artifacts" / "eval" / "error_analysis_v2.json")
+                      .read_text(encoding="utf-8"))
+    assert data["cohort"] == "full"
+    assert data["n_cases"] == 88
+    rows = data["rows"]
+    # 게이트 D 의 full 코호트는 dev(그리드+정보한계) + 회귀 뿐이다 — heldout·valuechain 은
+    # 이 산출물 자체에 애초에 들어오지 않는다(scripts.error_analysis.load_cohort("full")).
+    assert set(r["track"] for r in rows) <= {"grid", "info_limit", "regression"}
+
+    total = sum(len(r.get("golden") or []) for r in rows)
+    hit = sum(1 for r in rows for g in (r.get("golden") or [])
+             if (r.get("golden_rank") or {}).get(g, 99) <= 5)
+
+    doc = RETRIEVER_DOC.read_text(encoding="utf-8")
+    match = _FULL_GATE_RE.search(doc)
+    assert match, "게이트 D 에 'full 코호트 88문항 … 골든 근거 회수 **n/m**' 줄이 없다"
+    doc_hit, doc_total = int(match.group(1)), int(match.group(2))
+    assert (doc_hit, doc_total) == (hit, total), (
+        f"문서의 full 88 코호트 값({doc_hit}/{doc_total})이 재집계값({hit}/{total})과 다르다")
+    assert hit / total >= 0.85, f"full 88 코호트가 게이트 0.85 를 통과해야 한다 ({hit}/{total})"
+
+
+def test_gate_d_excludes_valuechain_from_the_pass_population():
+    """밸류체인은 그리드 밖 실험 트랙이다 — heldout 과 다른 이유로 게이트 판정 모집단이 아니다.
+
+    2-hop 검색이 원리상 아직 안 되는 문항(Q-117)을 의도적으로 포함하므로, 게이트 통과/실패에
+    섞으면 "무엇이 아직 안 되는지" 신호가 통과 판정에 묻힌다 — heldout 을 뺀 것과는 다른
+    이유지만 결과적으로 같은 자리(게이트 미포함, 별도 관찰 행)에 둔다.
+    """
+    doc = RETRIEVER_DOC.read_text(encoding="utf-8")
+    line = next(l for l in doc.splitlines() if "valuechain" in l and "Recall@5" in l)
+    assert "게이트" in line
+    assert "미포함" in line or "제외" in line
+
+
 # --- 발주처 2-hop 근거 수집 ----------------------------------------------------
 # 밸류체인 fan-in/fan-out 문항은 '한 발주처와 계약한 상장사 전체' 를 요구한다.
 # BM25 자유텍스트로는 파트너 하나에 쏠려 열거가 성립하지 않는다 (실측 Q-110 2/6 · Q-114 0/5).
