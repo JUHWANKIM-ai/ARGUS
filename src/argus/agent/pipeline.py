@@ -418,9 +418,14 @@ def _expand_chain(picked: list[dict], seen: set, budget: Budget,
 #                              같은 문항이 뒤 hop 에서 찾던 골든을 잃는다.
 #   ③ 체인 씨앗이 안 된다     — `_chain_seeds` 는 검색 상위 2건이다(제동 ①). 발주처 열거는
 #                              순위가 아니므로 씨앗 자격이 없다. 차선을 나누면 자동으로 지켜진다.
+#   ④ 스텝을 먼저 안 쓴다     — 검색 사다리가 **다 돈 뒤에** 호출한다. 처음 판에서는 검색
+#                              루프 앞에 뒀는데, 공용 `Budget` 을 먼저 한 칸 쓰는 바람에
+#                              스텝을 많이 쓰는 질의(3기업 × 4단)가 `stop=step_budget` 으로
+#                              잘렸다. 근거·판정·씨앗을 다 갈라 놓고도 **예산 축 하나가
+#                              남아 있었다.** 뒤로 옮기면 그 축까지 닫힌다.
 #
-# 그 결과 **검색 차선은 발주처 hop 이 있든 없든 비트 단위로 같다** — 회귀가 구조적으로
-# 불가능하다. 실측으로도 밸류체인 9문항 전부에서 종전 근거 블록이 그대로 남는다.
+# 네 축을 다 닫아야 **검색 차선이 발주처 hop 유무와 무관하게 같다**고 말할 수 있다.
+# (③ 까지만 닫았을 때는 참이 아니었다 — 근거·판정·씨앗은 같아도 스텝이 달랐다.)
 #
 # **연도로 거르지 않는다.** `query_by_counterparty` 에 `year` 인자가 있지만 쓰지 않는다 —
 # 연도를 걸면 그 해에 계약이 없던 파트너가 집합에서 사라져 '몇 곳인가' 의 답이 틀린다.
@@ -438,14 +443,21 @@ def _partner_quota(n_partners: int) -> int:
     한 칸씩** 받는다 — fan-in 문항이 요구하는 것이 정확히 그 한 칸씩이다
     (실측 Q-110 2/6 → 5/6).
 
-    더 깊이 파지 않는 이유는 실측이다. 파트너가 둘뿐인 노드(삼성전자 66건 → 삼성E&A ·
+    깊이는 **폭을 넘지 않는다** (`min(n_partners, …)`). 열거할 것이 없는데 최대치를
+    가져가면 그건 열거가 아니라 한 기업 레코드 나열이다. 이게 없으면 파트너 1인 노드가
+    5칸을 가져가는데, 그런 노드가 **145개 중 120개(83%)** 다 (SATORP · 삼천리이에스 ·
+    SK하이닉스 …). 지금 코호트에는 파트너 1인 노드로 발화하는 문항이 없어 피해가 0이지만,
+    실측 근거가 없는 값은 남겨 두지 않는다.
+
+    더 깊이 파지 않는 이유도 실측이다. 파트너가 둘뿐인 노드(삼성전자 66건 → 삼성E&A ·
     삼성중공업)에서 quota 를 2 → 3 으로 늘려도 골든 적중은 그대로고(Q-114 1/5),
     5 로 늘리면 +1(2/5) 이지만 그 1건 값으로 **지금 맞히는 문항**에 무관 레코드가
     실린다 — 밸류체인 전수 실측에서 근거 블록이 105 → 118 로 늘고 그 증가분은
     Q-108(+2)·Q-113(+5) 처럼 골든이 0건 늘어난 문항에 쏠린다. 8 까지 늘리면 4/5 지만
     한 문항에 16블록이라 선을 한참 넘는다. 열거에 필요한 만큼만 담는다.
     """
-    return max(1, MAX_EVIDENCE // 2 // max(n_partners, 1))
+    width = max(n_partners, 1)
+    return max(1, min(width, MAX_EVIDENCE // 2 // width))
 
 
 def _partner_order(records: list[dict]) -> list[dict]:
@@ -933,10 +945,6 @@ def _gather_evidence(r, question: str = "",
         # 섹션에서 아무것도 못 찾으면 정형 레코드로 내려간다 (거래소공시에도 실려 있을 수 있다).
         group = "exchange"
 
-    # 발주처 hop 은 hop 0 에서 한 번. 사다리 밖의 스텝 1개라 재검색 예산을 쓰지 않는다.
-    if getattr(r, "counterparty", None) and arm.hop_ladder:
-        _gather_counterparty(r, budget, trace, _take_cp)
-
     cells = time_points(question, r.years) if arm.split_query else []
     plans = plan_hops(question, period, fallback_terms=r.companies, periods=cells)
     if not arm.hop_ladder:
@@ -1051,6 +1059,12 @@ def _gather_evidence(r, question: str = "",
                          f'n={out.get("count", 0)} top_score=- ids={ids or "-"}')
             for event in events:
                 _take(event.get("doc_id"), event.get("markdown"), None, corp)
+
+    # 발주처 hop. 사다리 **밖의 스텝 1개**이고, 검색이 예산을 다 쓴 뒤에 남는 것으로만
+    # 움직인다 (제동 ④). 순서를 뒤로 미뤄도 담기는 레코드는 같다 — 그래프 조회라
+    # 검색 상태에 의존하지 않는다.
+    if getattr(r, "counterparty", None) and arm.counterparty_hop:
+        _gather_counterparty(r, budget, trace, _take_cp)
 
     # 근거 절단은 체인을 먼저 살린다. 한화오션 잠수함은 검색 5건 + 체인 6건 = 11건이라
     # 도착 순서대로 자르면 **체인의 마지막 정정본**(=정답)이 잘려 나간다.

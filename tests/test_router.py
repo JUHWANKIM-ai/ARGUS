@@ -1,4 +1,37 @@
+from pathlib import Path
+
+import pytest
+
 from argus.agent.router import doc_group, out_of_corpus, route
+
+
+_GRAPH_PATH = Path(__file__).resolve().parents[1] / "artifacts/counterparty_graph.json"
+
+
+@pytest.fixture(autouse=True)
+def ensure_counterparty_graph():
+    """산출물이 없으면 값싸게 재생성한다 — `tests/test_tools.py::ensure_counterparty_graph`
+    와 같은 패턴 (`14b0953` 에서 같은 사유로 도입됐다).
+
+    `artifacts/` 는 gitignore 대상이라 신규 클론·격리 워크트리·CI 에는 파일이 없다.
+    발주처 테스트는 그 경우 **skip 이 아니라 하드 실패**한다 — 라우터가 빈 노드 목록을
+    받아 발주처를 하나도 못 찾기 때문이다.
+
+    만든 직후 **캐시를 푼다.** `router._counterparty_nodes` 와 `tools._counterparty_graph`
+    가 둘 다 `lru_cache` 라, 파일이 없던 시점에 한 번이라도 불리면 빈 값이 굳어
+    **뒤에 파일을 만들어도 안 풀린다** (파일 실행 순서에 따라 재현된다).
+    """
+    if _GRAPH_PATH.exists():
+        return
+    from scripts.build_counterparty_graph import RECORDS_PATH, build_graph
+    if not RECORDS_PATH.exists():
+        pytest.skip(f"{RECORDS_PATH} 이 없어 counterparty_graph.json 을 재생성할 수 없다.")
+    build_graph(_GRAPH_PATH)
+
+    from argus.agent import router as _router
+    from argus.agent import tools as _tools
+    _tools._counterparty_graph.cache_clear()
+    _router._counterparty_nodes.cache_clear()
 
 
 def test_out_of_universe_is_unanswerable():
@@ -129,11 +162,13 @@ def test_exchange_stays_exchange():
 
 
 # --- 발주처(counterparty) 라우팅 ------------------------------------------------
-# 판정은 **그래프 노드 이름과의 일치**로만 한다 — 정규식으로 회사명을 추측하지 않는다.
-# 노드 이름만으로는 dev 42문항 중 24문항이 걸린다(실측). 그래서 제동 둘을 함께 건다:
-#   ① 문서군이 exchange 일 것   — 그래프 모집단이 거래소공시다 (§7.7 ②)
-#   ② 발주 관계 어휘가 있을 것  — '계약상대'·'발주'·'수주'
-# 둘을 걸면 dev 42문항 발화가 **0건**이다 (실측, LLM 0회).
+# 이름은 **그래프 노드와의 일치**로만 정한다 — 정규식으로 회사명을 추측하지 않는다.
+# 노드 이름만으로 걸리는 문항 수(분모 명시, canonical 기준 실측):
+#   dev 42문항(측정 코호트) **20** · dev 78문항(파일 전체) **24** · 회귀 10문항 **3**
+# 그래서 제동 둘을 함께 건다:
+#   ① 문서군이 exchange 일 것 — 그래프 모집단이 거래소공시다 (§7.7 ②)
+#   ② 역할 결속 — 발주 방향 표지('계약상대'·'발주')가 **노드 이름 바로 뒤**에 올 것
+# 둘을 걸면 dev 42 · dev 78 · 회귀 10 발화가 전부 **0건**이다 (실측, LLM 0회).
 
 def test_counterparty_query_routes_to_the_graph():
     r = route("한국수력원자력이 발주한 계약을 수주한 기업들의 계약금액을 비교해줘")
@@ -144,6 +179,28 @@ def test_counterparty_is_none_for_ordinary_company_queries():
     """노드 이름이 들어 있어도 발주 관계를 묻지 않으면 2-hop 은 오염이다."""
     assert route("삼성전자의 2025년 연결기준 매출액은 얼마인가?").counterparty is None
     assert route("삼성SDI가 2025년 3월에 결의한 유상증자의 총 조달 규모는?").counterparty is None
+
+
+def test_a_company_that_received_the_order_is_not_the_counterparty():
+    """어휘를 문장 어디서나 찾으면 **받는 쪽**이 발주처로 잡힌다.
+
+    셋 다 노드이고 '수주'·'계약금액' 어휘도 있지만 셋 다 공시한 쪽이다. 노드 뒤에
+    붙은 것이 '가 … 수주한' 이면 발주처가 아니다 — 역할 결속이 이걸 가른다.
+    """
+    r = route("삼성전자와 SK하이닉스와 현대자동차가 2024년에 수주한 계약의 계약금액을 비교해줘")
+    assert r.counterparty is None
+
+
+def test_counterparty_survives_when_it_is_also_a_named_universe_company():
+    """`route.companies` 를 통째로 배제하면 안 되는 이유.
+
+    발주처가 질문에도 등장하는 universe 기업일 수 있다. 배제하면 겨냥한 Q-114 가
+    통째로 되돌아간다 — 배제해야 하는 것은 '질문에 나온 기업' 이 아니라
+    '받는 쪽으로 나온 기업' 이다.
+    """
+    r = route("삼성전자를 계약상대로 하는 공급계약을 공시한 상장사는 어디인가?")
+    assert "삼성전자" in r.companies
+    assert r.counterparty == "삼성전자"
 
 
 def test_counterparty_does_not_fire_outside_exchange():

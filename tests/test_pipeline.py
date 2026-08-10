@@ -12,6 +12,33 @@ from argus.agent.router import route
 from scripts import validate_evalset as V
 
 ROOT = Path(__file__).resolve().parents[1]
+_GRAPH_PATH = Path(__file__).resolve().parents[1] / "artifacts/counterparty_graph.json"
+
+
+@pytest.fixture(autouse=True)
+def ensure_counterparty_graph():
+    """산출물이 없으면 값싸게 재생성한다 — `tests/test_tools.py::ensure_counterparty_graph`
+    와 같은 패턴 (`14b0953` 에서 같은 사유로 도입됐다).
+
+    `artifacts/` 는 gitignore 대상이라 신규 클론·격리 워크트리·CI 에는 파일이 없다.
+    발주처 테스트는 그 경우 **skip 이 아니라 하드 실패**한다 — 라우터가 빈 노드 목록을
+    받아 발주처를 하나도 못 찾기 때문이다.
+
+    만든 직후 **캐시를 푼다.** `router._counterparty_nodes` 와 `tools._counterparty_graph`
+    가 둘 다 `lru_cache` 라, 파일이 없던 시점에 한 번이라도 불리면 빈 값이 굳어
+    **뒤에 파일을 만들어도 안 풀린다** (파일 실행 순서에 따라 재현된다).
+    """
+    if _GRAPH_PATH.exists():
+        return
+    from scripts.build_counterparty_graph import RECORDS_PATH, build_graph
+    if not RECORDS_PATH.exists():
+        pytest.skip(f"{RECORDS_PATH} 이 없어 counterparty_graph.json 을 재생성할 수 없다.")
+    build_graph(_GRAPH_PATH)
+
+    from argus.agent import router as _router
+    from argus.agent import tools as _tools
+    _tools._counterparty_graph.cache_clear()
+    _router._counterparty_nodes.cache_clear()
 
 AMOUNT_Q = "HD현대일렉트릭이 2023년 1월에 체결한 변압기 공급계약의 계약금액은 얼마인가?"
 
@@ -1298,3 +1325,42 @@ def test_counterparty_note_carries_the_partner_roster_without_rcept_numbers():
     assert "상장사 2곳" in note
     assert "삼성E&A 47건" in note and "삼성중공업 19건" in note
     assert not re.search(r"\d{14}", note)
+
+
+def test_counterparty_hop_does_not_eat_the_search_step_budget(monkeypatch):
+    """검색이 스텝을 다 쓰는 질의에서 검색 호출 수가 발주처 hop 유무와 같아야 한다.
+
+    처음 판은 검색 루프 **앞에서** 공용 `Budget` 을 한 칸 먼저 썼다. 근거 칸·충분성
+    판정·체인 씨앗을 다 갈라 놓고도 **예산 축 하나가 남아 있어서**, 스텝을 많이 쓰는
+    질의(3기업 × 4단)가 발주처 hop 때문에 `stop=step_budget` 으로 한 칸 일찍 잘렸다.
+    사다리 뒤로 옮겨 그 축까지 닫는다 — 검색이 먼저 먹고 남는 것으로 움직인다.
+    """
+    from dataclasses import replace
+
+    from argus import ablation
+
+    q, _ = pipeline.sanitize_question(
+        "한국수력원자력이 발주한 계약을 두산에너빌리티와 한전기술과 현대건설이 "
+        "각각 얼마에 수주했는가?")
+    r = route(q)
+    assert r.counterparty and len(r.companies) >= 3
+
+    original = pipeline.tools.execute
+
+    def counted(seen):
+        def run(name, args):
+            seen.append(name)
+            # 검색이 아무것도 못 찾으면 사다리가 끝까지 돌며 스텝을 태운다.
+            return {"count": 0, "chunks": []} if name == "search_chunks" \
+                else original(name, args)
+        return run
+
+    def searches(arm) -> int:
+        seen: list[str] = []
+        monkeypatch.setattr(pipeline.tools, "execute", counted(seen))
+        with ablation.use(arm):
+            pipeline._gather_evidence(r, q, Budget())
+        return seen.count("search_chunks")
+
+    off = replace(ablation.A6, name="A6-cp-off", counterparty_hop=False)
+    assert searches(ablation.A6) == searches(off)
