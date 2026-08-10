@@ -14,9 +14,11 @@ from pathlib import Path
 import pytest
 
 from scripts.eda_counterparty import RECORDS_PATH, build_profile
+from scripts.build_counterparty_graph import BOILERPLATE_NOTE, build_graph
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE_PATH = ROOT / "artifacts/eda/counterparty_profile.json"
+GRAPH_PATH = ROOT / "artifacts/counterparty_graph.json"
 
 
 @pytest.fixture(autouse=True)
@@ -30,6 +32,24 @@ def ensure_profile():
             "exchange_records.jsonl 을 먼저 만들어야 한다 (원본 5.2GB 필요)."
         )
     build_profile(PROFILE_PATH)
+
+
+@pytest.fixture(autouse=True)
+def ensure_graph():
+    """산출물이 없으면 값싸게 재생성한다 — `ensure_profile` 과 같은 패턴.
+
+    `artifacts/` 는 gitignore 대상이라 신규 클론·격리 워크트리·CI 에서는 파일이 없을 수
+    있다. `build_graph()` 는 `exchange_records.jsonl` 만 있으면 재생성 비용이 싸다
+    (1,469줄 스캔, LLM 호출 없음).
+    """
+    if GRAPH_PATH.exists():
+        return
+    if not RECORDS_PATH.exists():
+        pytest.skip(
+            f"{RECORDS_PATH} 이 없어 counterparty_graph.json 을 재생성할 수 없다 — "
+            "exchange_records.jsonl 을 먼저 만들어야 한다 (원본 5.2GB 필요)."
+        )
+    build_graph(GRAPH_PATH)
 
 
 from argus.corpus import counterparty as cp
@@ -111,3 +131,127 @@ def test_counterparty_profile_records_surface_form_variants():
 
     # 1회 등장이 절반을 넘는다는 사실이 기록돼야 한다
     assert prof["singleton_ratio"] > 0.5
+
+
+# ── Task 3: counterparty 2-hop 그래프 ──────────────────────────────────────
+
+
+def test_graph_excludes_singletons_and_vague():
+    """1회 등장(56.8%)과 비실명은 노드가 되지 않는다."""
+    g = json.loads((ROOT / "artifacts/counterparty_graph.json").read_text(encoding="utf-8"))
+    assert g["stats"]["min_count"] == 2
+    for n in g["nodes"]:
+        assert n["count"] >= 2
+        assert n["kind"] != "vague"
+
+
+def test_graph_reproduces_measured_value_chains():
+    """실측으로 확인된 밸류체인이 그대로 나와야 한다."""
+    g = json.loads((ROOT / "artifacts/counterparty_graph.json").read_text(encoding="utf-8"))
+    by_canon = {n["canonical"]: set(n["partners"]) for n in g["nodes"]}
+
+    from argus.corpus.counterparty import canonical
+
+    khnp = by_canon[canonical("한국수력원자력")]
+    assert {"두산에너빌리티", "한전기술", "현대건설"} <= khnp
+
+    dapa = by_canon[canonical("방위사업청")]
+    assert {"한화오션", "HD현대중공업", "한국항공우주"} <= dapa
+    # 변이 5조각이 합쳐져야 91건이 된다 — 안 합치면 어느 조각도 허브가 못 된다
+    assert next(n for n in g["nodes"] if n["canonical"] == canonical("방위사업청"))["count"] >= 80
+
+
+def test_pairs_record_the_intermediary():
+    """어느 발주처를 거쳐 이어졌는지 남아야 근거로 인용할 수 있다.
+
+    브리프 기대값은 `nodes >= 157` 였으나 실측(B1 보일러플레이트 필터 적용 후)은
+    **145** 다. 157은 "계약상대는 경영상 비밀유지 사유로 …" 류 안내문 11개가 실수로
+    노드가 된 오염 수치였다 — B1 필터 없이 돌리면 정확히 156개가 나오고(157에도 못
+    미친다), 그 156개 중 11개를 눈으로 확인하면 전부 회사명이 아니라 안내문 문장이다.
+    `pairs`는 44로 브리프값과 일치한다 — 오염 노드 11개는 전부 partners 0~1개라
+    pairs 생성에 관여하지 않았다(순수하게 node 수만 오염시켰다).
+    """
+    g = json.loads((ROOT / "artifacts/counterparty_graph.json").read_text(encoding="utf-8"))
+    assert g["stats"]["pairs"] >= 44        # 직접 20쌍 → 2-hop 44쌍 (실측)
+    assert g["stats"]["nodes"] >= 140       # 실측 145. 브리프의 157은 B1 오염 포함 수치였다
+    for p in g["pairs"]:
+        assert p["via"], f"중개 노드가 비어 있다: {p}"
+
+
+def test_graph_matches_the_evalset_normalizer():
+    """문항 검증(C12)과 런타임이 같은 정규화를 써야 한다.
+
+    갈리면 `validate_evalset` 이 통과시킨 문항을 파이프라인이 못 찾는다.
+    """
+    import scripts.validate_evalset as V
+    from argus.corpus.counterparty import canonical
+    for s in ("대한민국 방위사업청", "㈜한국수력원자력", "주식회사 유토개발2차",
+              "한국토지주택공사(LH)", "(주)포스코이앤씨"):
+        assert canonical(s) == V.normalize_counterparty(s)
+
+
+def test_boilerplate_secrecy_notices_are_excluded_from_nodes():
+    """B1 — "계약상대는 경영상 비밀유지 사유로 …" 안내문 전체가 counterparty 값으로
+    들어간 사례(실측 27종 표기·34건)는 회사명이 아니다. 같은 문장이 반복되면
+    canonical()이 겹쳐 count>=2 로 노드가 될 뻔했다 — 실측: 필터 없이 돌리면 정확히
+    이런 문장 11개가 노드로 승격된다(각각 count=2, partners 0~1개).
+    """
+    g = json.loads((ROOT / "artifacts/counterparty_graph.json").read_text(encoding="utf-8"))
+    for n in g["nodes"]:
+        assert not BOILERPLATE_NOTE.search(n["display"]), (
+            f"보일러플레이트 안내문이 노드로 승격됐다: {n['display']!r}"
+        )
+    # 거른 것은 조용히 버리지 않고 사유와 함께 기록한다.
+    assert g["stats"]["boilerplate_excluded_unique"] >= 20
+    assert g["stats"]["boilerplate_excluded_occurrences"] >= g["stats"]["boilerplate_excluded_unique"]
+    assert len(g["excluded_boilerplate"]) == g["stats"]["boilerplate_excluded_unique"]
+    for item in g["excluded_boilerplate"]:
+        assert item["raw"] and item["count"] >= 1 and item["reason"]
+
+
+def test_boilerplate_filter_does_not_cut_real_company_names():
+    """B1 필터가 실명 회사를 자르면 안 된다 — exchange_records.jsonl 유일 원문 462건
+    전량 대조로 확인한다. 길이가 긴 실명 표기(예: 국가명+기관 영문 병기)가 오탐되지
+    않아야 한다.
+    """
+    real_long_names = [
+        "China National Chemical Engineering & Construction Corporation Seven, Ltd.",
+        "타이중시 정부 도시철도공정국(Rapid Transit System Bureau of Taichung City Government)",
+        "뭄바이광역개발청 (Mumbai Metropolitan Region Development Authority)",
+        "브라질 상파울루 메트로(COMPANHIA DO METROPOLITANO DE SAO PAULO-METRO)",
+        "방위사업청 (Defense Acquisition Program Administration)",
+        "한국항공우주산업㈜ (KOREA AEROSPACE INDUSTRIES, LTD.)",
+    ]
+    for s in real_long_names:
+        assert not BOILERPLATE_NOTE.search(s), f"실명 회사가 오탐됐다: {s!r}"
+
+
+def test_country_plus_generic_noun_hubs_are_reported_not_silently_promoted():
+    """B2 — "사우디 소재 EPC"·"중동지역국가 국방부" 류(국가/지역 + 일반명사)가 실제
+    코퍼스에 존재한다. `classify()`는 고치지 않았으므로(Task 2 결정 유지) 이 값들이
+    노드로 올라오는지만 확인한다.
+
+    실측: "중동지역국가 국방부"는 count=2로 노드가 되지만 partners는 1개
+    (한화에어로스페이스)뿐이라 pairs를 생성하지 않는다 — 아직 서로 다른 실체를
+    합치는 오염은 없다. "사우디 소재 EPC"는 count=1이라 min_count 문턱을 못 넘는다.
+    반면 "필리핀 국방부"·"인도네시아 국방부"는 형태는 같아도 특정 가능한 단일
+    실체(그 나라의 국방부)라 2개사 이상의 정당한 허브로 남는다.
+    """
+    g = json.loads((ROOT / "artifacts/counterparty_graph.json").read_text(encoding="utf-8"))
+    by_canon = {n["canonical"]: n for n in g["nodes"]}
+
+    from argus.corpus.counterparty import canonical
+
+    mideast = by_canon.get(canonical("중동지역국가 국방부"))
+    assert mideast is not None, "실측과 다르다 — '중동지역국가 국방부'가 더 이상 노드가 아니다"
+    assert len(mideast["partners"]) <= 1, (
+        "여러 universe 기업이 같은 '중동지역국가 국방부'에 걸렸다 — 서로 다른 실체가 "
+        f"한 노드로 합쳐졌을 위험: {mideast['partners']}"
+    )
+    assert canonical("사우디 소재 EPC") not in by_canon, (
+        "실측과 다르다 — '사우디 소재 EPC'가 count>=2로 승격됐다. partners 수를 확인해야 한다"
+    )
+
+    philippines = by_canon.get(canonical("필리핀 국방부"))
+    assert philippines is not None
+    assert set(philippines["partners"]) >= {"HD현대중공업", "한국항공우주"}
