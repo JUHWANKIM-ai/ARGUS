@@ -8,6 +8,7 @@
 여기 테스트는 전부 `_gather_evidence` / `shape_evidence` 를 직접 부른다. 생성은 타지
 않으므로 CLOVA 호출이 0 이고, `conftest.block_clova_network` 가 그걸 강제한다.
 """
+import json
 from dataclasses import replace
 
 import pytest
@@ -689,3 +690,86 @@ def test_counterparty_hop_is_independent_of_the_hop_ladder():
     trace = " | ".join(trace_lines)
     assert "strat=counterparty" in trace
     assert not ablation.enabled("hop_ladder", solo)
+
+
+# --- heldout — 되돌릴 수 없는 조작은 코드가 막아야 한다 ---------------------------
+# 🔴 heldout 18문항은 **최종 구성 1회용**이다. "1회만" 을 문서에 적어 두는 것으로는 두 번째
+# 실행을 못 막는다 — 다음 세션의 우리가 같은 명령을 다시 치면 heldout 이 조용히 개발셋이
+# 되고 그것은 되돌릴 수 없다. 아래 테스트는 그 제동이 실제로 걸리는지만 본다. LLM 0회.
+
+def test_heldout_loader_refuses_anything_that_is_not_heldout(tmp_path, monkeypatch):
+    """split 검사가 살아 있는가. dev 문항이 섞이면 낙폭이 dev 성능으로 희석된다."""
+    from scripts import ablation as runner
+
+    bad = tmp_path / "evalset"
+    bad.mkdir()
+    (bad / "heldout.jsonl").write_text(
+        '{"question_id":"Q-002","split":"dev"}\n', encoding="utf-8")
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    with pytest.raises(SystemExit, match="heldout 아닌 split"):
+        runner.load_heldout()
+
+
+def test_heldout_is_the_18_question_file_and_nothing_else():
+    from scripts import ablation as runner
+
+    cases = runner.load_heldout()
+    assert len(cases) == 18
+    assert {c["split"] for c in cases} == {"heldout"}
+    assert {c.get("track") for c in cases} == {"grid"}
+
+
+def test_the_arm_loop_never_reaches_the_heldout_file():
+    """🔴 `--heldout` 없이는 열리지 않는다. 코호트 세 개 중 어느 것도 heldout 을 안 준다."""
+    from scripts import ablation as runner
+    from scripts import error_analysis as ea
+
+    held = {c["question_id"] for c in runner.load_heldout()}
+    for cohort in ea.COHORTS:
+        ids = {c["question_id"] for c in runner.load_cases(cohort)}
+        assert ids & held == set(), f"{cohort} 코호트가 heldout 을 물고 있다"
+
+
+def test_a_second_paid_heldout_run_is_refused(tmp_path):
+    """🔴 이 테스트가 이 파일에서 가장 값비싼 것을 지킨다 — 산출물이 있으면 거부한다."""
+    from scripts import ablation as runner
+
+    (tmp_path / runner.HELDOUT_LEDGER).write_text(
+        json.dumps({"use": 2, "arm": "A8", "correct": 15, "n_scored": 18,
+                    "rate": 0.833, "generated": "2026-08-10T22:38:00"}),
+        encoding="utf-8")
+    with pytest.raises(SystemExit, match="최종 구성 1회용"):
+        runner.assert_heldout_unused(tmp_path, offline=False)
+
+
+def test_a_rescore_is_allowed_because_offline_proves_zero_llm_calls(tmp_path):
+    """`--offline` 은 요청 캐시 미적중이 예외라 **LLM 0회가 증명된다** — heldout 을
+    새로 '여는' 것이 아니므로 거부 대상이 아니다."""
+    from scripts import ablation as runner
+
+    (tmp_path / runner.HELDOUT_LEDGER).write_text('{"use": 2}', encoding="utf-8")
+    runner.assert_heldout_unused(tmp_path, offline=True)          # 예외가 없어야 한다
+
+
+def test_the_first_heldout_run_is_not_blocked(tmp_path):
+    from scripts import ablation as runner
+
+    runner.assert_heldout_unused(tmp_path, offline=False)
+
+
+def test_the_use_count_carries_the_v1_run(tmp_path):
+    """🔴 몇 회째인지가 코드에 있어야 한다. 문서에만 적으면 산출물만 보는 사람이
+    '아직 안 썼다' 로 읽는다. v1 은 A6 으로 1회 썼고 15/18 이었다."""
+    from scripts import ablation as runner
+
+    assert len(runner.HELDOUT_HISTORY) == 1
+    first = runner.HELDOUT_HISTORY[0]
+    assert (first["use"], first["arm"], first["correct"], first["n_scored"]) == (
+        1, "A6", 15, 18)
+
+
+def test_the_heldout_folder_name_is_not_mistaken_for_an_arm():
+    """폴더는 `A8_heldout_run` 이고 **구성은 `A8`** 이다. 폴더 이름을 arm 으로 적으면
+    `ARMS` 에 없는 이름이 되어 `arm_config` 가 비고, 어떤 구성으로 쟀는지가 사라진다."""
+    assert "A8_heldout_run" not in ablation.ARMS
+    assert "A8" in ablation.ARMS

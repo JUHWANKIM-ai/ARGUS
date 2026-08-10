@@ -3,7 +3,8 @@
     python scripts/ablation.py --dry                 # LLM 0회 리허설 (검색 차이만 본다)
     python scripts/ablation.py --arm A8              # arm 하나 실행 (크레딧 지출)
     python scripts/ablation.py --run                 # RUN_ORDER 전부 (A8 -> A0)
-    python scripts/ablation.py --heldout             # 🔴 최종 구성 1회만
+    python scripts/ablation.py --heldout --arm A8 \
+        --out artifacts/ablation/v2/heldout --budget 1000    # 🔴 최종 구성 1회만
     python scripts/ablation.py                       # 캐시만으로 재집계 (LLM 0회)
 
 v2 (88문항 · A8 추가):
@@ -24,6 +25,8 @@ v2 는 88문항을 재면서 **같은 이름을 덮지 않아야** 한다 — �
 🔴 크레딧 규칙을 코드로 강제한다.
 
 1. **heldout 은 `--heldout` 없이는 열리지 않는다.** arm 루프는 dev 42문항만 본다.
+   그리고 `--heldout` 은 **arm 을 하나만** 받고, **산출물이 이미 있으면 거부**한다
+   (`assert_heldout_unused`). 문서에 "1회만" 을 적어 두는 것으로는 두 번째 실행을 못 막는다.
 2. **두 겹으로 캐시한다.**
    ① 응답 파일 — arm 별 `artifacts/ablation/<arm>/responses/Q-xxx.json`.
    ② **요청 캐시** — 요청 본문 해시로 CLOVA 응답 원문을 저장한다. 온도 0.0 이라
@@ -56,6 +59,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT))
+
 
 from argus import ablation                                        # noqa: E402
 from scripts import error_analysis as ea                          # noqa: E402
@@ -194,6 +198,43 @@ def load_heldout() -> list[dict]:
     return cases
 
 
+#: heldout 사용 원장 파일명. **이것이 있으면 유료 실행을 거부한다** (아래 함수).
+HELDOUT_LEDGER = "heldout_run.json"
+
+#: 🔴 **이미 쓴 이력.** heldout 의 값은 "몇 번 열었는가" 에 달려 있으므로 횟수를 코드가
+#: 들고 있어야 한다 — 문서에만 적으면 다음 사람이 산출물만 보고 '아직 안 썼다' 로 읽는다.
+HELDOUT_HISTORY = (
+    {"use": 1, "date": "2026-08-09", "arm": "A6", "track": "Ablation v1",
+     "correct": 15, "n_scored": 18, "rate": 0.833,
+     "dev_grid": "31/36 (86.1%)", "gap_pp": -2.8,
+     "artifact": "artifacts/ablation/A6_heldout_run"},
+)
+
+
+def assert_heldout_unused(root: Path, offline: bool) -> None:
+    """🔴 "최종 1회" 를 **코드가** 강제한다. 산출물이 이미 있으면 유료 실행을 거부한다.
+
+    문서에 "1회만" 을 적어 두는 것으로는 두 번째 실행을 막지 못한다 — 다음 사람이(또는
+    다음 세션의 내가) 같은 명령을 다시 치면 heldout 이 조용히 개발셋이 되고, 그것은
+    **되돌릴 수 없다**. 되돌릴 수 없는 조작은 프로세스가 아니라 코드로 막아야 한다.
+
+    `--offline` 은 예외다. 요청 캐시 미적중이 `RuntimeError` 라 **LLM 0회가 증명되므로**,
+    그 경로는 heldout 을 새로 '여는' 것이 아니라 이미 산 응답을 재집계할 뿐이다.
+    """
+    ledger = root / HELDOUT_LEDGER
+    if not ledger.exists() or offline:
+        return
+    saved = json.loads(ledger.read_text(encoding="utf-8"))
+    raise SystemExit(
+        f"🔴 heldout 은 최종 구성 1회용입니다 — 이미 결과가 있습니다: {ledger}\n"
+        f"   {saved.get('use')}회째 · arm {saved.get('arm')} · "
+        f"{saved.get('correct')}/{saved.get('n_scored')} "
+        f"({saved.get('rate')}) · {saved.get('generated')}\n"
+        "   재집계만 하려면 `--offline` 을 붙이세요 (요청 캐시 적중만 허용 = LLM 0회).\n"
+        "   그래도 새로 측정해야 한다면 그것은 arm 을 하나 더 재는 일이 아니라 "
+        "**평가셋을 하나 더 만드는 일**입니다.")
+
+
 def index_snapshot() -> dict:
     """인덱스 파일 해시. arm 간 비교의 전제라 실행마다 다시 찍고 대조한다."""
     out = {}
@@ -269,6 +310,138 @@ def run_arm(arm: str, cases: list[dict], cache: RequestCache,
 
     return {"arm": arm, "n_run": len(rows), "stopped_at": stopped,
             "spent_won": round(cache.fresh_won - started_won, 1), "runs": rows}
+
+
+def run_heldout(final_arm: str, cache: RequestCache, records: dict,
+                stop_won: float, force: bool = False) -> dict:
+    """🔴 heldout 18문항을 **최종 구성 하나로** 돌린다. arm 을 여러 개 받지 않는다.
+
+    폴더는 `<arm>_heldout_run/` 이고 **구성은 `<arm>` 그대로**다 (v1 이 `A6_heldout_run/`
+    에 남기면서 `report["arm"] == "A6"` 으로 적어 둔 것과 같은 규약). 폴더 이름을 arm 으로
+    적어 버리면 `ablation.ARMS` 에 없는 이름이 되어 `arm_config` 가 빈 사전이 되고,
+    그러면 **어떤 구성으로 쟀는지가 산출물에서 사라진다.**
+    """
+    cases = load_heldout()
+    folder = f"{final_arm}_heldout_run"
+    run_path = arm_dir(folder) / "run.json"
+    previous = (json.loads(run_path.read_text(encoding="utf-8"))
+                if run_path.exists() else {})
+    live = run_arm(folder, cases, cache, stop_won, force, config=final_arm)
+    # 🔴 재집계(`--offline`)는 0원을 쓴다. 그 0 을 그대로 덮으면 **실지출 기록이 사라진다**
+    #    (`_spend_meta` 가 같은 사고로 한 번 덮인 적이 있다). 앞의 값을 권위값으로 남긴다.
+    if not live["spent_won"] and previous.get("spent_won"):
+        live["spent_won_rescore"] = live["spent_won"]
+        live["spent_won"] = previous["spent_won"]
+        live["spent_won_source"] = "최초 유료 실행 기록 (이번은 재집계 — LLM 0회)"
+    run_path.write_text(json.dumps(live, ensure_ascii=False, indent=1), encoding="utf-8")
+    report = score_arm(folder, cases, records)
+    report["arm"] = final_arm
+    report["arm_config"] = vars(ablation.ARMS[final_arm])
+    report["split"] = "heldout"
+    report["this_run"] = live
+    (arm_dir(folder) / "report.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    return report
+
+
+def _grid_overall(report: dict | None) -> dict | None:
+    return ((report or {}).get("crosstab") or {}).get("grid_overall")
+
+
+def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
+    """일반화 낙폭과 **몇 회째 사용인지**를 한 파일에 박는다.
+
+    🔴 비교 축을 산출물이 직접 들고 있게 한다. v1 heldout 은 **A6 시점**이고 v2 는 A8 이며,
+    dev 쪽 분모도 36 vs 72 로 다르다 — 그 세 가지를 문서에만 적어 두면 다음 사람이 낙폭
+    두 개를 같은 축으로 읽는다. heldout 18문항은 **v1·v2 가 같은 18문항**이라, 낙폭의
+    분모만은 유일하게 안 바뀐 값이다.
+    """
+    held = _grid_overall(report) or {}
+    v1_root = ROOT / "artifacts" / "ablation"
+    v1_held = _grid_overall(_load_report(v1_root, "A6_heldout_run")) or {}
+    v1_dev = _grid_overall(_load_report(v1_root, "A6")) or {}
+    # dev 쪽 기준선은 **부모 폴더**의 같은 arm 이다 (`v2/heldout` -> `v2/A8`).
+    v2_dev = _grid_overall(_load_report(root.parent, final_arm)) or {}
+
+    def gap(dev: dict, hold: dict) -> float | None:
+        if dev.get("rate") is None or hold.get("rate") is None:
+            return None
+        return round((hold["rate"] - dev["rate"]) * 100, 1)
+
+    gap_v2, gap_v1 = gap(v2_dev, held), gap(v1_dev, v1_held)
+
+    # 🔴 **세 번째 축.** v2 dev 는 분모가 72 로 늘었으므로, v1(36) 과 나란히 읽을 수 있는
+    #    dev 값은 `measured 36` 이다. 낙폭이 축마다 다르게 나오므로 셋을 다 남긴다 —
+    #    하나만 적으면 그것이 "그 낙폭" 으로 굳고, 가장 유리한 축이 뽑히기 쉽다.
+    dev_m36 = None
+    try:
+        from scripts.validate_evalset import measured_dev_cohort
+        v2_dev_report = _load_report(root.parent, final_arm)
+        if v2_dev_report:
+            dev_m36 = _grid_rate(v2_dev_report["rows"], set(measured_dev_cohort()))
+    except Exception:                                          # noqa: BLE001
+        dev_m36 = None
+
+    # 🔴 heldout 쪽 수가 v1 과 같은지 본다. 같으면 낙폭이 좁아진 몫은 **전부 dev 쪽 변화**다.
+    def wrong_ids(report: dict | None) -> list[str]:
+        return sorted(r["question_id"] for r in (report or {}).get("rows", [])
+                      if not r.get("correct"))
+
+    v1_full = _load_report(v1_root, "A6_heldout_run")
+    ledger = {
+        "generated": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "use": len(HELDOUT_HISTORY) + 1,
+        "note": ("🔴 heldout 은 최종 구성 1회용이다. 이 원장이 있으면 러너가 "
+                 "유료 실행을 거부한다 (`assert_heldout_unused`)."),
+        "arm": final_arm,
+        "arm_config": vars(ablation.ARMS[final_arm]),
+        "n_cases": report.get("n_cases"),
+        "correct": held.get("correct"),
+        "n_scored": held.get("n_scored"),
+        "rate": held.get("rate"),
+        "dev_grid": {"correct": v2_dev.get("correct"), "n_scored": v2_dev.get("n_scored"),
+                     "rate": v2_dev.get("rate"), "source": f"{root.parent.name}/{final_arm}"},
+        "gap_pp": gap_v2,
+        #: v1(36) 과 나란히 읽는 축. 🔴 **재생(replay)이라 독립 측정이 아니다** (§12).
+        "dev_grid_measured36": (
+            {"correct": dev_m36.get("correct"), "n_scored": dev_m36.get("n_scored"),
+             "rate": dev_m36.get("rate"), "gap_pp": gap(dev_m36, held),
+             "caveat": "재생(replay) — 답변이 A7 과 바이트 동일. 독립 측정이 아니다"}
+            if dev_m36 else None),
+        "wrong_ids": wrong_ids(report),
+        "wrong_ids_v1": wrong_ids(v1_full),
+        "same_failures_as_v1": wrong_ids(report) == wrong_ids(v1_full),
+        "v1": {"arm": "A6",
+               "heldout": {"correct": v1_held.get("correct"),
+                           "n_scored": v1_held.get("n_scored"),
+                           "rate": v1_held.get("rate")},
+               "dev_grid": {"correct": v1_dev.get("correct"),
+                            "n_scored": v1_dev.get("n_scored"),
+                            "rate": v1_dev.get("rate")},
+               "gap_pp": gap_v1},
+        # 🔴 축이 다르다는 사실을 값 옆에 붙여 둔다 — 표만 옮겨 적히면 이 문장이 사라진다.
+        "axis_caveat": ("v1 낙폭은 **A6 시점 · dev 분모 36**, v2 낙폭은 **A8 · dev 분모 72** 다. "
+                        "heldout 18문항만 두 판에서 동일하다. 두 낙폭의 차를 Δ 로 읽지 않는다."),
+        "overfit_threshold_pp": -10.0,
+        # 🔴 판정은 **가장 나쁜 축**으로 한다. 유리한 축으로 판정하면 과적합 검사가
+        #    검사이기를 그만둔다.
+        "gap_pp_worst": min([g for g in (gap_v2, gap(dev_m36, held))
+                             if g is not None] or [None]),
+        "history": list(HELDOUT_HISTORY),
+        "overfit_signal": None,          # 아래에서 채운다 (worst 축 기준)
+        "spent_won": (report.get("this_run") or {}).get("spent_won"),
+        "arm_cost_won": (report.get("totals") or {}).get("cost_won"),
+        "failure_histogram": report.get("failure_histogram"),
+        "root_cause_histogram": report.get("root_cause_histogram_grid")
+                                or report.get("root_cause_histogram"),
+    }
+    worst = ledger["gap_pp_worst"]
+    ledger["overfit_signal"] = bool(
+        worst is not None and worst <= ledger["overfit_threshold_pp"])
+    root.mkdir(parents=True, exist_ok=True)
+    (root / HELDOUT_LEDGER).write_text(
+        json.dumps(ledger, ensure_ascii=False, indent=1), encoding="utf-8")
+    return ledger
 
 
 def _spend_meta(root: Path, cache: "RequestCache", live: dict) -> dict:
@@ -715,6 +888,18 @@ def _pp(before, after) -> str:
     return f"{(after - before) * 100:+.1f}%p"
 
 
+def _pp_of(value) -> str:
+    """이미 %p 단위인 값. `None` 을 `0.0` 으로 찍지 않는다 — 낙폭 0 과 미측정은 다르다."""
+    return "—" if value is None else f"{value:+.1f}%p"
+
+
+def _frac(cell: dict | None) -> str:
+    cell = cell or {}
+    if cell.get("n_scored") is None:
+        return "—"
+    return f'{cell.get("correct")}/{cell.get("n_scored")} ({_pct(cell.get("rate"))})'
+
+
 def spend_from_runs(root: Path, recursive: bool = False) -> dict:
     """이 폴더의 arm 들이 실제로 결제한 몫. `run.json` 의 `spent_won` 합이다.
 
@@ -769,8 +954,18 @@ def render_gate(root: Path, budget_cap: float) -> str:
              f'**{meta.get("n_cases", 0)}문항**'
              + (f' ({cohort_note})' if cohort_note else "")
              + ' · 모델 HCX-005 · 온도 0.0\n')
-    o.append("🔴 **heldout 낙폭은 이 문서에 없다 — Task 10 몫이다.** "
-             "여기서 `evalset/heldout.jsonl` 을 열지 않았다.\n")
+    # 🔴 heldout 은 **최종 1회**라 이 문서가 두 상태를 가진다. 문구를 하드코딩하면
+    #    측정 후에도 "아직 안 쟀다" 가 찍히거나 그 반대가 된다 — 원장 파일로 가른다.
+    heldout_ledger = root / "heldout" / HELDOUT_LEDGER
+    held = (json.loads(heldout_ledger.read_text(encoding="utf-8"))
+            if heldout_ledger.exists() else None)
+    if held:
+        o.append(f'🔴 **heldout 낙폭 {_pp_of(held["gap_pp"])}** — §14. '
+                 f'heldout 18문항을 **{held["use"]}회째** 열었고 최종 구성 '
+                 f'`{held["arm"]}` 1회다.\n')
+    else:
+        o.append("🔴 **heldout 낙폭은 이 문서에 없다 — Task 10 몫이다.** "
+                 "여기서 `evalset/heldout.jsonl` 을 열지 않았다.\n")
 
     # --- 0. arm 구성 확인 — 무엇이 실제로 켜졌는가 ---
     o.append("\n## 0. arm 구성 — 켠 것이 실제로 켜졌는가\n")
@@ -818,10 +1013,27 @@ def render_gate(root: Path, budget_cap: float) -> str:
                  f'| {t["total_tokens"]:,} | {t["cost_won"]:,.1f} '
                  f'| {"—" if fresh is None else f"{fresh:,.1f}"} |')
         arm_sum += t["cost_won"]
-    # `spend` 는 재귀 합이므로 밸류체인 몫이 이미 들어 있다 — 다시 더하면 이중계상이다.
+    # 🔴 heldout 도 이 폴더 안에서 결제됐으므로 `spend["won"]`(재귀 합)에 이미 들어 있다.
+    #    표에 행을 안 내면 `arm_sum` 만 빠져서 "캐시가 막은 금액" 이 그만큼 작게 찍힌다
+    #    (heldout 은 캐시 적중 0 이라 막은 금액에 기여가 없어야 한다).
+    held_report = _load_report(root / "heldout", f'{held["arm"]}_heldout_run') if held else None
+    if held_report:
+        t = held_report["totals"]
+        o.append(f'| {held["arm"]}/heldout (18문항 · §14) | {t["llm_calls"]} '
+                 f'| {t["prompt_tokens"]:,} | {t["completion_tokens"]:,} '
+                 f'| {t["judge_tokens"]:,} | {t["total_tokens"]:,} '
+                 f'| {t["cost_won"]:,.1f} | {held["spent_won"] or 0:,.1f} |')
+        arm_sum += t["cost_won"]
+    # `spend` 는 재귀 합이므로 밸류체인·heldout 몫이 이미 들어 있다 — 다시 더하면 이중계상이다.
     total_spend = spend["won"]
     o.append(f'| **합계 (캐시 없었다면)** | | | | | | **{arm_sum:,.0f}** | |')
     o.append(f'| **실제 결제 (하위 코호트 포함)** | | | | | | | **{total_spend:,.1f}** |')
+    if held_report:
+        o.append(f'\n🔴 **사다리 실행분과 heldout 을 갈라 읽는다.** 위 총액 '
+                 f'{total_spend:,.1f}원 = 사다리·LOO·밸류체인 '
+                 f'{total_spend - (held["spent_won"] or 0):,.1f}원 + heldout '
+                 f'{held["spent_won"] or 0:,.1f}원(§14). 앞엣것이 Ablation v2 측정 비용이고, '
+                 "뒤엣것은 **최종 1회** 몫이라 회계가 다르다.\n")
     o.append(f'\n상한 {budget_cap:,.0f}원 대비 **{total_spend / budget_cap * 100:.1f}%** '
              f'사용 (80% 정지선 {budget_cap * 0.8:,.0f}원). '
              f'요청 캐시가 **{arm_sum - total_spend:,.0f}원**을 막았다.\n')
@@ -1279,6 +1491,59 @@ def render_gate(root: Path, budget_cap: float) -> str:
              "새로 올렸는데 골든 0건, A3 는 겨냥점 1건. 다만 **A3 겨냥점의 종류가 바뀌었다**: "
              "v1 의 `WRONG_SECTION` 은 해소됐고, 신규 섹터에서 `RANKING/LOW_RANK` "
              "(Q-094, rank 8·9) 가 새로 섰다.\n")
+
+    # --- 14. heldout — 게이트 I 의 마지막 항목 ---
+    o.append("\n## 14. heldout 최종 측정 — 일반화 낙폭\n")
+    if not held:
+        o.append("🔴 **아직 열지 않았다.** `evalset/heldout.jsonl` 18문항은 최종 구성 "
+                 "1회용이고, 이 트랙은 그것을 열지 않았다. 게이트 I 의 6번째 항목은 "
+                 "여기서 비어 있다.\n")
+    else:
+        dev = held["dev_grid"]
+        o.append(f'🔴 **{held["use"]}회째 사용이다.** v1 에서 `A6` 으로 1회 썼고 '
+                 f'(15/18 = 83.3%), 이번이 두 번째이자 최종 구성 `{held["arm"]}` 1회다. '
+                 "arm 별로 돌리지 않았다 — 그러면 heldout 이 개발셋이 되고 되돌릴 수 없다. "
+                 f'원장 `heldout/{HELDOUT_LEDGER}` 이 있으면 러너가 두 번째 유료 실행을 '
+                 "거부한다 (`assert_heldout_unused`).\n")
+        o.append("🔴 **낙폭은 축마다 다르게 나온다.** dev 쪽 분모가 v1 36 → v2 72 로 "
+                 "늘었으므로 세 축을 다 낸다 — 하나만 적으면 그것이 '그 낙폭' 으로 굳고, "
+                 "가장 유리한 축이 뽑히기 쉽다. heldout 쪽 18문항만 두 판에서 동일하다.\n")
+        o.append("| 축 | 구성 | dev 그리드 | heldout | 낙폭 |")
+        o.append("|---|---|---|---|---|")
+        v1 = held["v1"]
+        o.append(f'| v1 · dev 36 | {v1["arm"]} | {_frac(v1["dev_grid"])} '
+                 f'| {_frac(v1["heldout"])} | {_pp_of(v1["gap_pp"])} |')
+        o.append(f'| **v2 · dev 72 (증설 후 · 이번 판의 축)** | **{held["arm"]}** '
+                 f'| {_frac(dev)} | **{_frac(held)}** | **{_pp_of(held["gap_pp"])}** |')
+        m36 = held.get("dev_grid_measured36")
+        if m36:
+            o.append(f'| v2 · measured 36 (v1 과 같은 문항, **재생**) | {held["arm"]} '
+                     f'| {_frac(m36)} | {_frac(held)} | **{_pp_of(m36["gap_pp"])}** |')
+        o.append(f'\n🔴 **비교 축.** {held["axis_caveat"]}\n')
+        if m36:
+            o.append(f'🔴 **가장 큰 낙폭은 `measured 36` 축의 {_pp_of(m36["gap_pp"])} 다** — '
+                     "v1 과 문항이 같은 유일한 축이므로 **판정은 이 수로 해야 한다.** "
+                     f'다만 이 축의 dev 값은 {m36["caveat"]} (§12).\n')
+        if held.get("same_failures_as_v1"):
+            o.append("🔴 **heldout 쪽 수가 v1 과 글자 하나 안 다르다** — "
+                     f'{_frac(held)} 이고 틀린 문항도 같은 '
+                     f'{", ".join(held["wrong_ids"])} 다. 그러므로 '
+                     f'`{_pp_of(v1["gap_pp"])} → {_pp_of(held["gap_pp"])}` 로 낙폭이 좁아진 '
+                     "몫은 **일반화가 좋아진 것이 아니라 dev 쪽 정답률이 내려간 것**이다 "
+                     "(문항 증설로 84.7%). 좁아진 낙폭을 개선으로 읽으면 안 된다.\n")
+        worst = min([g for g in (held["gap_pp"],
+                                (m36 or {}).get("gap_pp")) if g is not None] or [None])
+        o.append(f'**판정** — 가장 나쁜 축의 낙폭 {_pp_of(worst)} '
+                 f'(과적합 임계 {_pp_of(held["overfit_threshold_pp"])}): '
+                 + ("🔴 **dev 과적합 신호다.** 원인 분석을 "
+                    "`09-ablation.md` §I-7 에 남겼다.\n"
+                    if worst is not None and worst <= held["overfit_threshold_pp"]
+                    else "**과적합 신호가 아니다.** 다만 `measured 36` 축이 임계에 "
+                         "가장 가깝고, 그 축의 dev 값은 재생이다.\n"))
+        o.append(f'실지출 **{held["spent_won"] or 0:,.1f}원** (상한 1,000원) · '
+                 f'arm 비용 {held["arm_cost_won"] or 0:,.1f}원 · '
+                 f'실패 단계 `{json.dumps(held["failure_histogram"], ensure_ascii=False)}` · '
+                 f'근본 원인 `{json.dumps(held["root_cause_histogram"], ensure_ascii=False)}`\n')
     return "\n".join(o) + "\n"
 
 
@@ -1339,7 +1604,26 @@ def run_retrieval(args) -> None:
     print(f'-> {base / "retrieval.md"}')
 
 
+def _utf8_console() -> None:
+    """🔴 Windows 콘솔 기본 코드페이지(cp949)는 `—`·`✓` 를 못 찍어 **실행이 다 끝난 뒤
+    마지막 print 에서** UnicodeEncodeError 로 죽는다. 산출물은 이미 디스크에 있으니 측정
+    손실은 없지만 측정이 **실패한 것처럼 보이고**, heldout 처럼 다시 못 돌리는 실행에서는
+    그 착각이 위험하다.
+
+    🔴 **import 시점에 하지 않는다.** pytest 의 capture 는 sys.stdout 을 기본 인코딩으로
+    쓴 임시파일로 갈아 두므로, 모듈 import 만으로 이걸 utf-8 로 바꾸면 pytest 가 자기
+    캡처를 되읽을 때 `UnicodeDecodeError` 로 죽는다 (실제로 그렇게 1,163건이 깨졌다).
+    그래서 CLI 진입점 안에서만 부른다.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")        # type: ignore[union-attr]
+        except (AttributeError, OSError, ValueError):
+            pass
+
+
 def main() -> None:
+    _utf8_console()
     parser = argparse.ArgumentParser(description="Phase I ablation (dev 전용)")
     parser.add_argument("--arm", "--arms", dest="arm", default="",
                         help="쉼표 구분 arm 이름. 비면 실행 안 함")
@@ -1398,7 +1682,40 @@ def main() -> None:
         json.dumps(snapshot, ensure_ascii=False, indent=1), encoding="utf-8")
 
     if args.heldout:
-        raise SystemExit("🔴 heldout 은 이 트랙(Task 9)의 몫이 아닙니다 — Task 10 이 엽니다.")
+        # 🔴 arm 을 **하나만** 받는다. 여러 개를 허용하면 heldout 이 개발셋이 되고
+        #    그것은 되돌릴 수 없다 — 인자 형태에서부터 막는다.
+        finals = [a.strip() for a in args.arm.split(",") if a.strip()]
+        if len(finals) != 1:
+            raise SystemExit(
+                "🔴 `--heldout` 은 **최종 구성 하나**만 받습니다 (예: `--arm A8`). "
+                f"받은 것: {finals or '없음'}\n"
+                "   arm 별로 돌리면 heldout 이 개발셋이 되고 그것은 되돌릴 수 없습니다.")
+        if finals[0] not in ablation.ARMS:
+            raise SystemExit(f"그런 arm 이 없습니다: {finals[0]} (있는 것: "
+                             f"{sorted(ablation.ARMS)})")
+        assert_heldout_unused(OUT_DIR, args.offline)
+        print(f"\n=== heldout 18문항 · 최종 구성 {finals[0]} · "
+              f"{len(HELDOUT_HISTORY) + 1}회째 사용 · "
+              f"정지선 {stop_won:,.0f}원 (상한 {budget_cap:,.0f}) ===")
+        report = run_heldout(finals[0], cache, records, stop_won, args.force)
+        ledger = write_heldout_ledger(OUT_DIR, finals[0], report)
+        print(f'\nheldout {_frac(ledger)} · dev 그리드 {_frac(ledger["dev_grid"])} '
+              f'· 낙폭 {_pp_of(ledger["gap_pp"])}')
+        m36 = ledger.get("dev_grid_measured36") or {}
+        print(f'  v2 measured 36 축(=v1 과 같은 문항, 재생) {_frac(m36)} '
+              f'· 낙폭 {_pp_of(m36.get("gap_pp"))}')
+        print(f'  v1(A6) 낙폭 {_pp_of(ledger["v1"]["gap_pp"])} · '
+              f'{ledger["axis_caveat"]}')
+        print(f'  가장 나쁜 축 {_pp_of(ledger["gap_pp_worst"])} → '
+              + ("🔴 dev 과적합 신호" if ledger["overfit_signal"]
+                 else "과적합 신호 없음 (임계 −10.0%p)"))
+        if ledger.get("same_failures_as_v1"):
+            print("  🔴 heldout 쪽 수가 v1 과 동일하다 — 틀린 문항도 같은 "
+                  f'{ledger["wrong_ids"]}. 낙폭이 좁아진 몫은 dev 쪽 변화다.')
+        print(f'  실지출 {ledger["spent_won"]:,.1f}원 · 요청 캐시 적중 {cache.hits} / '
+              f'미적중 {cache.misses}')
+        print(f'-> {OUT_DIR / HELDOUT_LEDGER}')
+        return
 
     cases = load_cases(args.cohort, args.snapshot)
     if args.only:

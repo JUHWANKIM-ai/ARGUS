@@ -1,0 +1,89 @@
+{
+ "generated": "2026-08-10T22:43:38",
+ "use": 2,
+ "note": "🔴 heldout 은 최종 구성 1회용이다. 이 원장이 있으면 러너가 유료 실행을 거부한다 (`assert_heldout_unused`).",
+ "arm": "A8",
+ "arm_config": {
+  "name": "A8",
+  "retrieval": "all",
+  "schema_fields": true,
+  "dense": false,
+  "hop_ladder": true,
+  "chain_hop": true,
+  "counterparty_hop": true,
+  "split_query": true,
+  "calc_values": true,
+  "verifier": true
+ },
+ "n_cases": 18,
+ "correct": 15,
+ "n_scored": 18,
+ "rate": 0.833,
+ "dev_grid": {
+  "correct": 61,
+  "n_scored": 72,
+  "rate": 0.847,
+  "source": "v2/A8"
+ },
+ "gap_pp": -1.4,
+ "dev_grid_measured36": {
+  "correct": 33,
+  "n_scored": 36,
+  "rate": 0.917,
+  "gap_pp": -8.4,
+  "caveat": "재생(replay) — 답변이 A7 과 바이트 동일. 독립 측정이 아니다"
+ },
+ "wrong_ids": [
+  "Q-021",
+  "Q-057",
+  "Q-058"
+ ],
+ "wrong_ids_v1": [
+  "Q-021",
+  "Q-057",
+  "Q-058"
+ ],
+ "same_failures_as_v1": true,
+ "v1": {
+  "arm": "A6",
+  "heldout": {
+   "correct": 15,
+   "n_scored": 18,
+   "rate": 0.833
+  },
+  "dev_grid": {
+   "correct": 31,
+   "n_scored": 36,
+   "rate": 0.861
+  },
+  "gap_pp": -2.8
+ },
+ "axis_caveat": "v1 낙폭은 **A6 시점 · dev 분모 36**, v2 낙폭은 **A8 · dev 분모 72** 다. heldout 18문항만 두 판에서 동일하다. 두 낙폭의 차를 Δ 로 읽지 않는다.",
+ "overfit_threshold_pp": -10.0,
+ "gap_pp_worst": -8.4,
+ "history": [
+  {
+   "use": 1,
+   "date": "2026-08-09",
+   "arm": "A6",
+   "track": "Ablation v1",
+   "correct": 15,
+   "n_scored": 18,
+   "rate": 0.833,
+   "dev_grid": "31/36 (86.1%)",
+   "gap_pp": -2.8,
+   "artifact": "artifacts/ablation/A6_heldout_run"
+  }
+ ],
+ "overfit_signal": false,
+ "spent_won": 673.8,
+ "arm_cost_won": 673.8,
+ "failure_histogram": {
+  "VERIFY": 2,
+  "RETRIEVAL": 1
+ },
+ "root_cause_histogram": {
+  "VERIFY/VERIFY": 2,
+  "RETRIEVAL/MULTI_POINT_QUERY": 1
+ }
+}
