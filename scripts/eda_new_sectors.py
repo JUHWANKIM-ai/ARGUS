@@ -22,7 +22,7 @@ import json
 import random
 import sys
 import time
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # eda_documents 재사용
