@@ -1,0 +1,1171 @@
+"""Phase H — 오류 분석. dev 문항을 관통시키고 실패를 **첫 단계에 귀속**한다.
+
+    python scripts/error_analysis.py --cohort full --limit 5   # 스모크 (비용 실측)
+    python scripts/error_analysis.py --cohort full --run       # dev 78 + 회귀 10
+    python scripts/error_analysis.py --cohort measured         # 캐시만으로 재집계 (LLM 0회)
+
+🔴 이 스크립트는 실제 CLOVA 를 호출한다. 규칙 넷을 코드로 강제한다.
+
+1. **heldout 은 열지 않는다.** 경로 상수가 dev 쪽 세 파일뿐이고 `_assert_dev_only()` 가
+   split 을 검사한다. heldout 은 최종 구성에서 딱 1회만 쓴다.
+2. **모든 응답을 디스크에 캐시한다.** 온도 0.0 이라 재실행해도 같은 답이 나오는데
+   크레딧은 두 번 나간다. `--force` 없이는 캐시를 다시 쓴다. 응답 파일이 없어도
+   **요청 캐시**(`artifacts/ablation/cache`)에 같은 프롬프트가 있으면 호출하지 않는다.
+3. **예산 상한에서 멈춘다.** 실측 usage 를 누적해 `--budget-won` 을 넘으면 그 자리에서
+   중단하고 부분 결과를 남긴다. 추정치가 아니라 API 응답의 usage 필드다.
+4. **v1 산출물을 덮지 않는다.** `error_analysis.json` 은 42문항 시절의 비교 기준선이고
+   `validate_evalset.measured_dev_cohort()` 가 그 파일에서 코호트를 읽는다. v2 는
+   `error_analysis_v2.json` 과 `responses_v2/` · `judge_v2/` 로 자기 자리를 쓴다.
+
+## 코호트를 인자로 뺀 이유
+
+v1 은 dev 42문항을 쟀는데 그 뒤로 두 가지가 동시에 움직였다 — 평가셋이 78+10 으로 늘었고
+(02 B-9 증설 · H-6 회귀 트랙), 시스템에 A7(거절 강제)과 발주처 2-hop 이 들어갔다.
+전수만 재면 **문항이 늘어난 효과와 시스템이 좋아진 효과가 섞여** 어느 쪽인지 못 가른다.
+`--cohort measured` 가 v1 과 같은 42문항을 현재 시스템으로 다시 재서 그 축을 복원한다.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+import time
+from collections import Counter, defaultdict
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+#: `scripts.validate_evalset` · `scripts.ablation` 를 스크립트로 직접 실행할 때도
+#: import 할 수 있어야 한다 (python scripts/... 는 scripts/ 만 sys.path 에 올린다).
+sys.path.insert(0, str(ROOT))
+
+#: dev 만 읽는다. heldout 경로는 이 파일 어디에도 없다.
+DEV_PATH = ROOT / "evalset" / "questions.jsonl"
+#: 그리드 밖 트랙. 전부 split=dev 다 (02-golden-set B-8 · B-10).
+#: **정답률에 섞지 않는다** — 별도 행으로만 낸다. 섞으면 축별 분모가 오염돼
+#: v1 42문항과 비교할 수 있는 축이 하나도 안 남는다.
+REGRESSION_PATH = ROOT / "evalset" / "regression.jsonl"
+VALUECHAIN_PATH = ROOT / "evalset" / "valuechain.jsonl"
+
+OUT_DIR = ROOT / "artifacts" / "eval"
+#: v1(Phase H, 42문항) 캐시. **읽기 전용으로 남긴다.** `scripts/ablation.py` 가
+#: 이 두 이름을 arm 폴더로 돌려 쓰므로 기본값은 옛 자리 그대로 둔다.
+RESPONSE_DIR = OUT_DIR / "responses"
+JUDGE_DIR = OUT_DIR / "judge"
+
+#: v2 재측정 캐시. **폴더를 가른다** — 같은 폴더에 쌓으면 A6 시절 응답이 재사용돼
+#: `--cohort measured` 가 현재 시스템이 아니라 v1 을 다시 출력한다(= 두 효과 분리 불가).
+V2_RESPONSE_DIR = OUT_DIR / "responses_v2"
+V2_JUDGE_DIR = OUT_DIR / "judge_v2"
+V1_REPORT_NAME = "error_analysis.json"
+V2_REPORT_NAME = "error_analysis_v2.json"
+
+#: `scripts/ablation.py` 가 쓰는 요청 캐시. 요청 본문 해시 -> 응답 원문이라
+#: **프롬프트가 한 글자도 안 바뀐 문항은 다시 결제되지 않는다.** dev42 는 발주처 hop
+#: 발화가 0건이라(T5 실측) A7 실행 때와 프롬프트가 같고, 그만큼이 그대로 캐시 적중이다.
+REQUEST_CACHE_DIR = ROOT / "artifacts" / "ablation" / "cache"
+
+#: 01-eda 재실행이 새로 넣은 6섹터. 여기서 `RETRIEVAL` 실패가 이 문턱 이상이면
+#: 보류 중인 리랭커(Phase E)의 재검토 조건이 발동한다 — 08 §H-8.
+NEW_SECTORS = ("게임", "로봇", "소비재·유통", "자동차·모빌리티", "철강", "통신")
+RERANKER_REVIEW_THRESHOLD = 3
+
+#: 그리드 3축 결론의 모집단. 나머지 트랙은 별도 행이다.
+GRID_TRACK = "grid"
+OFF_GRID_TRACKS = ("info_limit", "regression", "valuechain")
+
+#: 실측 단가 (혼합). docs/clova_payment.md §4 의 미지수를 Phase H 스모크로 확정한 값.
+PRICE_WON_PER_1K = 7.02
+BUDGET_WON = 5_000.0
+
+#: 스모크 5문항. **앞에서 5개를 자르지 않는다** — dev 앞머리는 전부 exchange 라
+#: 가장 싼 구간만 재고 전체를 8.4배로 곱하면 과소추정된다. 비용 양극단
+#: (근거 1건 exchange ~ 근거 12,000자 periodic) 과 LLM 0회 경로를 함께 넣는다.
+SMOKE_IDS = ("Q-001", "Q-035", "Q-043", "Q-046", "Q-037")
+
+#: 정기공시 본문 부재 — 뷰어 셸만 수집된 문서 (데이터 상한, 우리 실패가 아니다).
+SHELL_ONLY_DOCS = frozenset({"periodic_20260619000667", "periodic_20240514001522"})
+
+#: 실패 단계. 앞선 단계가 실패하면 뒤는 자동으로 실패하므로 **첫 실패만** 센다.
+STAGES = ("ROUTING", "RETRIEVAL", "RANKING", "TOOL", "GENERATION", "VERIFY")
+#: 우리 시스템의 실패가 아니다. 정답률 분모에서 분리한다.
+DATA_LIMIT = "DATA_LIMIT"
+#: 답할 수 없는데 지어냈다. 데이터 상한이 아니라 진짜 실패다.
+HALLUCINATION = "HALLUCINATION"
+ALL_LABELS = STAGES + (DATA_LIMIT, HALLUCINATION)
+
+_BUDGET_RE = re.compile(r"budget steps=(\d+) hops=(\d+) llm=(\d+) tokens=(\d+)")
+_ROUTE_RE = re.compile(r"route=(\w+) difficulty=(\w+)")
+_CRITIC_RE = re.compile(r"critic supported=(\w+)")
+_RCEPT_RE = re.compile(r"\d{14}")
+#: 한계 고지 표현. 파이프라인 고정 문구(`확인되지 않습니다`)만 잡으면 **모델이 자기 말로
+#: 거절한 것을 환각으로 오분류한다** — 실측 Q-040 이 정확히 그랬다
+#: ("2026년 반기보고서에 기재될 매출액 정보가 포함되어 있지 않습니다" = 올바른 거절).
+_REFUSAL_RE = re.compile(
+    r"확인되지\s*않|확인할\s*수\s*없|제공되지\s*않|찾을\s*수\s*없|알\s*수\s*없"
+    r"|포함되어\s*있지\s*않|포함되지\s*않|기재되어\s*있지\s*않|기재되지\s*않"
+    r"|존재하지\s*않|나와\s*있지\s*않|답변.{0,6}할\s*수\s*없")
+
+
+# --- 입력 -------------------------------------------------------------------
+
+def load_dev_cases() -> list[dict]:
+    """dev 42문항. heldout 은 이 함수로도 다른 함수로도 열리지 않는다."""
+    with DEV_PATH.open(encoding="utf-8") as fh:
+        cases = [json.loads(line) for line in fh if line.strip()]
+    _assert_dev_only(cases)
+    return cases
+
+
+def _assert_dev_only(cases: list[dict]) -> None:
+    bad = sorted({c.get("split") for c in cases} - {"dev"})
+    if bad:
+        raise SystemExit(f"dev 아닌 split 이 섞였습니다: {bad} — heldout 오염 방지로 중단합니다")
+
+
+def _load_track(path: Path) -> list[dict]:
+    """그리드 밖 트랙 파일. split 검사는 dev 파일과 똑같이 건다."""
+    if not path.exists():
+        raise SystemExit(f"트랙 파일이 없습니다: {path}")
+    with path.open(encoding="utf-8") as fh:
+        cases = [json.loads(line) for line in fh if line.strip()]
+    _assert_dev_only(cases)
+    return cases
+
+
+#: 코호트 이름 -> 무엇을 재는가.
+COHORTS = ("measured", "full", "valuechain")
+
+
+def load_cohort(name: str) -> list[dict]:
+    """`--cohort` 가 고르는 문항 집합.
+
+    measured   v1(Phase H)이 **실제로 잰** 42문항. 손으로 적지 않고 v1 산출물에서
+               읽는다 — `validate_evalset.measured_dev_cohort()` 와 같은 출처를 써야
+               게이트 D 의 분모와 이 코호트가 갈라지지 않는다.
+    full       dev 78 + 회귀 10 = 88문항. 회귀 10은 **정답률에 섞지 않고** 별도 행이다.
+    valuechain 밸류체인 12문항. counterparty 2-hop 이 있어야 풀리는 트랙이라 역시 별도 행.
+    """
+    if name not in COHORTS:
+        raise SystemExit(f"코호트는 {COHORTS} 중 하나여야 합니다: {name!r}")
+    if name == "valuechain":
+        return _load_track(VALUECHAIN_PATH)
+
+    dev = load_dev_cases()
+    if name == "full":
+        return dev + _load_track(REGRESSION_PATH)
+
+    from scripts.validate_evalset import measured_dev_cohort
+    wanted = measured_dev_cohort()
+    picked = [c for c in dev if c["question_id"] in wanted]
+    missing = wanted - {c["question_id"] for c in picked}
+    if missing:
+        raise SystemExit(f"v1 코호트 문항이 questions.jsonl 에서 사라졌습니다: {sorted(missing)}")
+    return picked
+
+
+def load_sectors() -> dict[str, str]:
+    """corp_name -> sector. 신규 6섹터의 실패를 세려면 문항에 섹터가 붙어야 한다."""
+    import csv
+
+    path = ROOT / "data" / "dart-disclosures" / "universe.csv"
+    if not path.exists():
+        return {}
+    with path.open(encoding="utf-8-sig", newline="") as fh:
+        return {row["corp_name"]: row["sector"] for row in csv.DictReader(fh)}
+
+
+def case_sector(case: dict, sectors: dict[str, str]) -> str:
+    """문항의 섹터. 여러 기업이면 첫 기업 기준이고, 못 찾으면 빈 문자열이다."""
+    for name in (case.get("corp_name") or []):
+        if name in sectors:
+            return sectors[name]
+    return ""
+
+
+def _load_records() -> dict[str, dict]:
+    """정형 레코드를 rcept_no 로 색인. 계산 재검증과 데이터 상한 판정의 원값이다."""
+    out: dict[str, dict] = {}
+    for group in ("exchange", "major", "holding"):
+        path = ROOT / "artifacts" / f"{group}_records.jsonl"
+        if not path.exists():
+            continue
+        with path.open(encoding="utf-8") as fh:
+            for line in fh:
+                if line.strip():
+                    row = json.loads(line)
+                    out[row["rcept_no"]] = row
+    return out
+
+
+# --- 데이터 상한 판정 ---------------------------------------------------------
+# 원본에 값이 없는 것과 우리가 못 찾은 것을 섞으면 병목 판정이 통째로 틀어진다.
+
+_ASK_VALUE = re.compile(r"금액|얼마|비중|비율|몇\s*%|규모")
+
+
+def data_limit_flags(case: dict, records: dict[str, dict]) -> dict:
+    """골든 근거가 어떤 상한에 걸려 있는가. `blocking` 만 정답률 분모에서 뺀다.
+
+    플래그가 있다고 곧 상한이 아니다 — Q-007 은 `※관련공시` 가 2022년을 가리키지만
+    답(투자대상)은 레코드 본문에 있다. **질문이 요구하는 값이 없을 때만** 막힌다.
+    """
+    golden = [e["rcept_no"] for e in (case.get("evidence") or [])]
+    withheld, no_amount, shell_only = [], [], []
+    for rcept_no in golden:
+        record = records.get(rcept_no)
+        if record is None:
+            if f"periodic_{rcept_no}" in SHELL_ONLY_DOCS:
+                shell_only.append(rcept_no)
+            continue
+        if record.get("withheld"):
+            withheld.append(rcept_no)
+        if record.get("amount") is None:
+            no_amount.append(rcept_no)
+
+    asks_value = bool(_ASK_VALUE.search(case.get("question") or ""))
+    # 값을 물었는데 골든 근거 **전부**가 유보라 원본에 값이 없다 → 우리 실패가 아니다.
+    blocked_by_withheld = bool(golden) and asks_value and len(withheld) == len(golden)
+    blocking = blocked_by_withheld or bool(shell_only)
+    return {"withheld": withheld, "no_amount": no_amount, "shell_only": shell_only,
+            "asks_value": asks_value, "blocking": blocking}
+
+
+# --- 채점 (closed = EM · open = judge) ---------------------------------------
+# policy §5 — 두 축을 합산한 단일 점수를 만들지 않는다. 합치면 어느 쪽이 나쁜지 사라진다.
+
+_MONEY_RE = re.compile(r"(-?\d[\d,]*(?:\.\d+)?)\s*(조원|억원|백만원|만원|천원|조|억|원)?")
+_SCALE = {"원": 1.0, "천원": 1e3, "만원": 1e4, "백만원": 1e6, "억": 1e8,
+          "억원": 1e8, "조": 1e12, "조원": 1e12, None: 1.0, "": 1.0}
+#: boolean 판정. **결론은 마지막에 온다** — 모델은 "A가 B보다 큽니다 … 따라서 B는
+#: A보다 작습니다" 처럼 두 극성을 다 쓴다(실측 Q-047). 전체 텍스트에 둘 다 있다고
+#: '판정 불가'로 버리면 맞은 답을 틀렸다고 세게 된다. 첫 문장이 네/아니오면 그것이
+#: 결론이고(실측 Q-025 "네, … 했습니다"), 아니면 **마지막 극성 표지**를 결론으로 본다.
+# 과거형(`있었습니다`·`없었습니다`)을 빠뜨리면 정확한 답이 no_verdict 로 샌다.
+# 실측: Q-026 답변 `"… 정정공시는 없었습니다."` 가 어느 대안에도 안 걸려 오답으로 집계됐다.
+_AFFIRM_RE = re.compile(r"있습니다|있었|있다|있음|했습니다|하였습니다|되었습니다|이루어졌"
+                        r"|그렇습니다|맞습니다|더\s*크|크다|큽니다|많습니다|초과")
+_DENY_RE = re.compile(r"없습니다|없었|없다|없음|아닙니다|아니오|아니요|하지\s*않"
+                      r"|않았|않습니다|더\s*작|작다|작습니다|적습니다|미만")
+_LEAD_YES = re.compile(r"^\s*(?:네|예|그렇습니다|맞습니다)\b|^\s*(?:네|예)[,.\s]")
+_LEAD_NO = re.compile(r"^\s*(?:아니(?:오|요|다|랍니다|니다))[,.\s]|^\s*아닙니다")
+_CITATION_TAIL = re.compile(r"\(\s*근거\s*:.*$", re.DOTALL)
+
+
+def boolean_verdict(answer: str) -> bool | None:
+    """답변의 예/아니오. 판정할 수 없으면 None (오답과 구분한다)."""
+    text = _CITATION_TAIL.sub("", answer or "").strip()
+    if _LEAD_NO.search(text):
+        return False
+    if _LEAD_YES.search(text):
+        return True
+    last_yes = max((m.start() for m in _AFFIRM_RE.finditer(text)), default=-1)
+    last_no = max((m.start() for m in _DENY_RE.finditer(text)), default=-1)
+    if last_yes < 0 and last_no < 0:
+        return None
+    return last_yes > last_no
+
+
+def _numbers(text: str) -> list[float]:
+    out = []
+    for m in _MONEY_RE.finditer(text or ""):
+        raw = m.group(1)
+        try:
+            value = float(raw.replace(",", ""))
+        except ValueError:
+            continue
+        out.append(value * _SCALE.get(m.group(2), 1.0))
+        if m.group(2):                      # 단위 없이 쓴 값도 후보로 남긴다
+            out.append(value)
+    return out
+
+
+def _num_hit(answer: str, gold: str, tolerance: float) -> bool:
+    try:
+        target = float(str(gold).replace(",", "").replace("%", ""))
+    except ValueError:
+        return False
+    tol = max(abs(target) * (tolerance or 0) / 100.0, 0.05)
+    return any(abs(v - target) <= tol for v in _numbers(answer))
+
+
+def _list_f1(answer: str, gold: str) -> float:
+    items = [t.strip() for t in re.split(r"[,·]", gold or "") if t.strip()]
+    if not items:
+        return 0.0
+    hit = sum(1 for t in items if t in (answer or ""))
+    return hit / len(items)
+
+
+def score_closed(case: dict, answer: str) -> dict:
+    """`answer_form` 별 정규화 EM. LLM 0회."""
+    form = case.get("answer_form")
+    gold = case.get("answer") or ""
+    tolerance = case.get("tolerance") or 0
+    text = answer or ""
+
+    if form == "refusal":
+        return {"correct": bool(_REFUSAL_RE.search(text)), "by": "refusal_phrase"}
+    if form in ("number_won", "number_pct"):
+        return {"correct": _num_hit(text, gold, tolerance), "by": f"em:{form}"}
+    if form == "duration":
+        squash = lambda s: re.sub(r"\s+", "", s or "")            # noqa: E731
+        return {"correct": squash(gold) in squash(text), "by": "em:duration"}
+    if form == "boolean":
+        want_yes = gold in ("예", "있다", "그렇다", "맞다")
+        said = boolean_verdict(text)
+        if said is None:
+            return {"correct": False, "by": "boolean:no_verdict"}
+        return {"correct": said == want_yes, "by": "boolean"}
+    if form == "list":
+        f1 = _list_f1(text, gold)
+        return {"correct": f1 >= 0.999, "f1": round(f1, 3), "by": "list_f1"}
+    return {"correct": bool(gold) and gold in text, "by": "substring"}
+
+
+def has_citation(answer: str, case: dict) -> bool:
+    """골든 접수번호가 답변에 표기됐는가. `must_cite` 가 비면 형식만 본다."""
+    golden = {e["rcept_no"] for e in (case.get("evidence") or [])}
+    if not golden:
+        return bool(_RCEPT_RE.search(answer or ""))
+    return any(rcept_no in (answer or "") for rcept_no in golden)
+
+
+# --- hop 귀속 ----------------------------------------------------------------
+
+def golden_positions(case: dict, hops: list[dict]) -> dict:
+    """골든이 hop 후보 어디에 있었는가. RETRIEVAL / RANKING 을 가르는 값이다."""
+    golden = [e["rcept_no"] for e in (case.get("evidence") or [])]
+    best_rank: dict[str, int] = {}
+    for hop in hops:
+        for rank, doc_id in enumerate(hop["ids"], start=1):
+            for rcept_no in golden:
+                if rcept_no in doc_id:
+                    prev = best_rank.get(rcept_no)
+                    if prev is None or rank < prev:
+                        best_rank[rcept_no] = rank
+    return {"golden": golden, "rank": best_rank,
+            "in_candidates": sorted(best_rank),
+            "top3": sorted(r for r, k in best_rank.items() if k <= 3)}
+
+
+def _blocks(retrieved_context: str) -> list[str]:
+    """근거 블록. 마크다운 `## ` 헤더 하나가 근거 한 건이다."""
+    text = retrieved_context or ""
+    parts = re.split(r"(?m)^##\s", text)
+    return [p for p in parts if p.strip()]
+
+
+def evidence_hit(case: dict, retrieved_context: str) -> dict:
+    """골든 근거가 **프롬프트에 실제로 실렸는가**. 후보에 있는 것과 다르다.
+
+    정기공시는 **문서가 아니라 섹션이 근거 단위**다. 골든이 목차 경로까지 지정하면
+    경로도 맞아야 실린 것으로 센다 — 문서만 맞히고 엉뚱한 섹션을 담은 경우를
+    GENERATION 으로 세면 랭킹 병목이 통째로 사라진다 (실측 Q-052 가 그랬다).
+    """
+    from argus.retrieve.bm25 import norm_path
+
+    blocks = _blocks(retrieved_context)
+    golden, present, doc_only = [], [], []
+    for item in (case.get("evidence") or []):
+        rcept_no = item["rcept_no"]
+        golden.append(rcept_no)
+        section = item.get("section")
+        hit_doc = any(rcept_no in b for b in blocks)
+        if not section:
+            hit_section = hit_doc
+        else:
+            wanted = norm_path(section)
+            hit_section = any(rcept_no in b and wanted in norm_path(b.split("\n", 1)[0])
+                              for b in blocks)
+        if hit_section:
+            present.append(rcept_no)
+        elif hit_doc:
+            doc_only.append(rcept_no)
+    return {"n_golden": len(golden), "n_present": len(present), "present": present,
+            "doc_only": doc_only,
+            "any": bool(present), "all": bool(golden) and len(present) == len(golden)}
+
+
+def verify_answer_calc(case: dict, answer: str, records: dict[str, dict]) -> dict:
+    """골든 레코드 원값으로 답변 수치를 재계산 대조한다. LLM 0회.
+
+    골든이 여러 건이면 **하나라도 설명되면 통과**다 (원공시 227,500 vs 정정본 114,800 처럼
+    체인 안에서 정답이 갈린다). `skipped`(안 말함)와 `mismatches`(틀림)를 섞지 않는다 —
+    섞으면 TOOL 귀속이 오염된다.
+    """
+    from argus.agent.critic import verify_calculation
+
+    reports = []
+    for e in (case.get("evidence") or []):
+        record = records.get(e["rcept_no"])
+        if record is None:
+            continue
+        report = verify_calculation(answer or "", record)
+        report["rcept_no"] = e["rcept_no"]
+        reports.append(report)
+
+    checked = sorted({k for r in reports for k in r["checked"]})
+    skipped = sorted({k for r in reports for k in r["skipped"]})
+    explained = any(r["ok"] and r["checked"] for r in reports)
+    mismatch = bool(checked) and not explained
+    return {"checked": checked, "skipped": skipped, "explained_by_some_record": explained,
+            "mismatch": mismatch,
+            "reasons": [r["reason"] for r in reports if r["reason"]][:3],
+            "n_records": len(reports)}
+
+
+# --- 실패 단계 귀속 -----------------------------------------------------------
+
+def attribute(case: dict, trace_facts: dict, correct: bool, limits: dict,
+              positions: dict, hit: dict, calc: dict) -> dict:
+    """첫 실패 지점 하나만 돌려준다. 뒤 단계는 앞이 깨지면 자동으로 깨진다."""
+    if correct:
+        return {"stage": None, "why": "correct"}
+
+    # ① 답할 수 없는 질문에 답을 지어냈다. 데이터 상한이 아니라 진짜 실패다.
+    if case.get("answerable") is False:
+        return {"stage": HALLUCINATION,
+                "why": "answerable=false 인데 거절하지 않고 답을 생성했다"}
+
+    # ② 원본에 값이 없다. 우리 실패가 아니므로 정답률 분모에서 뺀다.
+    if limits["blocking"]:
+        reason = "공시유보" if limits["withheld"] else "정기공시 본문 부재"
+        return {"stage": DATA_LIMIT, "why": f"{reason} — 원본에 값이 없다"}
+
+    # 골든이 여러 건이면 **하나만 빠져도 답이 안 된다**. Q-046 은 제53기·제57기 두 건이
+    # 필요한데 한 건만 실렸고, `any` 로 보면 GENERATION 으로 잘못 귀속된다.
+    golden = positions.get("golden") or []
+    missing_candidates = [g for g in golden if g not in positions["in_candidates"]]
+    missing_evidence = [g for g in golden if g not in (hit.get("present") or [])]
+
+    # ③ 라우팅. 여기서 틀리면 아래 단계는 볼 필요가 없다.
+    route = trace_facts["route"]
+    if route == "unanswerable":
+        return {"stage": "ROUTING", "why": "답할 수 있는 질문을 unanswerable 로 단락시켰다"}
+    missing_corps = [c for c in (case.get("corp_name") or [])
+                     if c not in trace_facts["corps"]]
+    if missing_corps and not positions["in_candidates"]:
+        return {"stage": "ROUTING", "why": f"기업 추출 실패: {missing_corps}"}
+    if trace_facts["group"] and trace_facts["group"] != case.get("doc_group") \
+            and not positions["in_candidates"]:
+        return {"stage": "ROUTING",
+                "why": f'문서군 오라우팅: {case.get("doc_group")} -> {trace_facts["group"]}'}
+
+    # ④ 검색 — 골든이 모든 hop 의 ids 어디에도 없다.
+    if missing_candidates:
+        return {"stage": "RETRIEVAL",
+                "why": f"골든 {len(missing_candidates)}/{len(golden)} 건이 "
+                       f"어떤 hop 후보에도 없다: {missing_candidates}"}
+
+    # ⑤ 순위 — 후보엔 있으나 근거 칸까지 못 올라왔다 (정기공시는 문서는 맞고 섹션이 틀렸다).
+    if missing_evidence:
+        wrong_section = [g for g in missing_evidence if g in (hit.get("doc_only") or [])]
+        detail = (f"문서는 맞고 섹션이 틀렸다 {wrong_section}" if wrong_section
+                  else f'rank={ {g: positions["rank"].get(g) for g in missing_evidence} }')
+        return {"stage": "RANKING", "why": f"후보에는 있으나 근거로 실리지 못했다 ({detail})"}
+
+    # ⑥ 계산 — 결정적 재계산과 불일치.
+    if calc["mismatch"]:
+        return {"stage": "TOOL", "why": "; ".join(calc["reasons"]) or "재계산 불일치"}
+
+    # ⑦ 검증 — critic 이 돌았는데 틀린 답을 통과시켰다.
+    if trace_facts["critic_supported"] is True:
+        return {"stage": "VERIFY", "why": "critic 이 supported=True 로 오답을 통과시켰다"}
+
+    # ⑧ 근거는 맞는데 답이 틀렸다.
+    return {"stage": "GENERATION",
+            "why": "골든 근거가 프롬프트에 실렸는데 답이 틀렸다"}
+
+
+# --- 근본 원인 세분 (6단계만으로는 처방이 갈리지 않는다) -----------------------
+# 같은 RETRIEVAL 이라도 '인덱스에 없다'(A2 임베딩)와 '에이전트가 안 물어봤다'(A4 루프)는
+# 처방이 정반대다. 같은 GENERATION 이라도 '근거에 값이 아예 없다'(A1b 인덱스 커버리지)와
+# '값은 있는데 추론이 틀렸다'(A4)는 다른 문제다. 기계로 갈라 둔다.
+
+#: 유의 수치. 4자리 미만은 연도·월·순번과 구별이 안 되고, 14자리는 접수번호다.
+_SIGNIFICANT = re.compile(r"\d[\d,]{4,}(?:\.\d+)?|\d+\.\d+")
+
+
+def _gold_numbers(case: dict) -> list[str]:
+    """골든이 요구하는 수치. 이게 근거에 하나도 없으면 답을 만들 방법이 없다."""
+    source = [case.get("answer") or ""] + list(case.get("answer_key_points") or [])
+    out = []
+    for text in source:
+        for raw in _SIGNIFICANT.findall(text):
+            value = raw.replace(",", "")
+            if len(value.split(".")[0]) == 14:          # 접수번호는 답이 아니다
+                continue
+            out.append(value)
+    return out
+
+
+def gold_value_in_evidence(case: dict, retrieved_context: str) -> bool | None:
+    """골든 수치가 근거 텍스트에 실려 있었는가. 대조할 수치가 없으면 None."""
+    wanted = _gold_numbers(case)
+    if not wanted:
+        return None
+    haystack = (retrieved_context or "").replace(",", "")
+    return any(value in haystack for value in wanted)
+
+
+def root_cause(stage: str | None, case: dict, positions: dict, hit: dict,
+               related: dict[str, list[str]], has_gold_value: bool | None) -> str:
+    """실패 단계 안에서 **어느 arm 이 겨냥해야 하는가**를 가른다."""
+    if stage is None:
+        return ""
+    if stage == "RETRIEVAL":
+        found = set(positions["in_candidates"])
+        chain = {r for f in found for r in related.get(f, [])}
+        missing = [g for g in (positions.get("golden") or []) if g not in found]
+        if missing and all(g in chain for g in missing):
+            return "CHAIN_NOT_TRAVERSED"      # related 로 이미 연결돼 있다. get_history 면 끝
+        if any(g in chain for g in missing):
+            return "CHAIN_PARTIAL"
+        return "MULTI_POINT_QUERY"            # 다른 시점·다른 기업을 한 번 더 물었어야 했다
+    if stage == "RANKING":
+        return "WRONG_SECTION" if hit.get("doc_only") else "LOW_RANK"
+    if stage == "GENERATION":
+        if has_gold_value is False:
+            return "INDEX_FIELD_MISSING"      # 근거에 값 자체가 없다 — 생성기 잘못이 아니다
+        return "REASONING" if has_gold_value else "UNVERIFIED"
+    return stage
+
+
+def parse_trace(think_trace: str) -> dict:
+    """think_trace 에서 라우팅·예산·critic 사실만 뽑는다."""
+    from argus.agent.pipeline import parse_hops
+
+    hops = parse_hops(think_trace or "")
+    route = _ROUTE_RE.search(think_trace or "")
+    budget = _BUDGET_RE.search(think_trace or "")
+    critic = _CRITIC_RE.search(think_trace or "")
+    corps = sorted({c for hop in hops for c in hop["corp"]})
+    group = "periodic" if "group=periodic" in (think_trace or "") else ""
+    if not group and hops:
+        group = "exchange"
+    return {
+        "hops": hops,
+        "route": route.group(1) if route else "",
+        "route_difficulty": route.group(2) if route else "",
+        "corps": corps,
+        "group": group,
+        "n_hops": int(budget.group(2)) if budget else 0,
+        "n_steps": int(budget.group(1)) if budget else 0,
+        "n_llm": int(budget.group(3)) if budget else 0,
+        "budget_tokens": int(budget.group(4)) if budget else 0,
+        "critic_supported": (critic.group(1) == "True") if critic else None,
+        "out_of_range": "stop=out_of_range" in (think_trace or ""),
+    }
+
+
+# --- 실행 (크레딧 지출 구간) ---------------------------------------------------
+
+def cost_won(prompt_tokens: int, completion_tokens: int) -> float:
+    return (prompt_tokens + completion_tokens) / 1000.0 * PRICE_WON_PER_1K
+
+
+def _call_rows(records) -> list[dict]:
+    return [{"tag": r.tag, "prompt_tokens": r.prompt_tokens,
+             "completion_tokens": r.completion_tokens,
+             "latency_s": round(r.latency_s, 3), "finish": r.finish}
+            for r in records]
+
+
+#: 429 재시도. 전수 실행 중 한 번의 rate limit 으로 죽으면 **이미 쓴 크레딧이 날아간다**
+#: (응답은 캐시되지만 실행이 중단되고 나머지 문항이 안 돈다). 지수 백오프로 넘긴다.
+RETRY_ATTEMPTS = 5
+RETRY_BASE_S = 8.0
+#: 문항 사이 간격. 실측 429 는 연속 호출에서만 났다.
+PACE_S = 1.0
+
+
+def _is_rate_limit(exc: Exception) -> bool:
+    return "429" in str(exc) or "42901" in str(exc)
+
+
+def with_retry(fn, *args, **kwargs):
+    """rate limit 만 재시도한다. 다른 실패는 그대로 올린다 — 조용히 삼키면 안 된다."""
+    for attempt in range(RETRY_ATTEMPTS):
+        try:
+            return fn(*args, **kwargs)
+        except RuntimeError as exc:
+            if not _is_rate_limit(exc) or attempt == RETRY_ATTEMPTS - 1:
+                raise
+            delay = RETRY_BASE_S * (2 ** attempt)
+            print(f"    429 rate limit — {delay:.0f}s 대기 후 재시도 "
+                  f"({attempt + 1}/{RETRY_ATTEMPTS - 1})")
+            time.sleep(delay)
+    raise RuntimeError("도달 불가")
+
+
+def run_case(case: dict, force: bool = False) -> tuple[dict, bool]:
+    """한 문항을 관통시키고 디스크에 남긴다. 캐시가 있으면 **호출하지 않는다**."""
+    RESPONSE_DIR.mkdir(parents=True, exist_ok=True)
+    path = RESPONSE_DIR / f'{case["question_id"]}.json'
+    if path.exists() and not force:
+        return json.loads(path.read_text(encoding="utf-8")), True
+
+    from argus.agent.pipeline import answer_question
+    from argus.clova import CALL_LOG
+
+    CALL_LOG.clear()
+    started = time.time()
+    response = answer_question(case["question_id"], case["question"])
+    latency = time.time() - started
+    # 파이프라인은 상류 장애를 삼키고 한계 고지로 5키를 채운다 (게이트 F). 그건 **모델의
+    # 거절이 아니라 전송 실패**다. 캐시에 쓰면 영원히 오답으로 굳으므로 여기서 되던진다.
+    failure = re.search(r"생성 실패: (.+?)(?: \| |$)", response.get("think_trace", ""))
+    if failure:
+        raise RuntimeError(f'{case["question_id"]} 생성 실패 — {failure.group(1)[:200]}')
+    calls = _call_rows(CALL_LOG.records)
+    record = {
+        "question_id": case["question_id"],
+        "response": response,
+        "calls": calls,
+        "prompt_tokens": sum(c["prompt_tokens"] for c in calls),
+        "completion_tokens": sum(c["completion_tokens"] for c in calls),
+        "llm_calls": len(calls),
+        "latency_s": round(latency, 3),
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+    path.write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
+    return record, False
+
+
+def run_judge(case: dict, response: dict, force: bool = False) -> tuple[dict, bool]:
+    """open 문항 채점 (B-5). closed 는 여기 오지 않는다 — EM 이 LLM 0회다."""
+    JUDGE_DIR.mkdir(parents=True, exist_ok=True)
+    path = JUDGE_DIR / f'{case["question_id"]}.json'
+    if path.exists() and not force:
+        return json.loads(path.read_text(encoding="utf-8")), True
+
+    from argus.agent.critic import judge_open
+    from argus.clova import CALL_LOG
+
+    CALL_LOG.clear()
+    verdict = judge_open(case["question"], response.get("retrieved_context", ""),
+                         case.get("answer_key_points"), response.get("answer", ""))
+    calls = _call_rows(CALL_LOG.records)
+    record = {
+        "question_id": case["question_id"],
+        "covers_key_points": verdict.covers_key_points,
+        "grounded": verdict.grounded,
+        "no_fabrication": verdict.no_fabrication,
+        "correct": verdict.correct,
+        "reason": verdict.reason,
+        "calls": calls,
+        "prompt_tokens": sum(c["prompt_tokens"] for c in calls),
+        "completion_tokens": sum(c["completion_tokens"] for c in calls),
+    }
+    path.write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
+    return record, False
+
+
+# --- 집계 --------------------------------------------------------------------
+
+def analyse(cases: list[dict], records: dict[str, dict]) -> list[dict]:
+    """캐시된 응답만으로 귀속을 끝낸다. LLM 0회 — 재집계는 공짜여야 한다."""
+    related = {k: (v.get("related") or []) for k, v in records.items()}
+    sectors = load_sectors()
+    rows = []
+    for case in cases:
+        path = RESPONSE_DIR / f'{case["question_id"]}.json'
+        if not path.exists():
+            continue
+        run = json.loads(path.read_text(encoding="utf-8"))
+        response = run["response"]
+        answer = response.get("answer", "")
+        facts = parse_trace(response.get("think_trace", ""))
+        limits = data_limit_flags(case, records)
+        positions = golden_positions(case, facts["hops"])
+        hit = evidence_hit(case, response.get("retrieved_context", ""))
+        calc = verify_answer_calc(case, answer, records)
+
+        judge_path = JUDGE_DIR / f'{case["question_id"]}.json'
+        judged = json.loads(judge_path.read_text(encoding="utf-8")) \
+            if judge_path.exists() else None
+
+        if case.get("answer_mode") == "open":
+            correct = bool(judged and judged["correct"])
+            scored = {"by": "judge", "judged": judged is not None}
+        else:
+            scored = score_closed(case, answer)
+            correct = scored["correct"]
+
+        failure = attribute(case, facts, correct, limits, positions, hit, calc)
+        has_gold_value = gold_value_in_evidence(case, response.get("retrieved_context", ""))
+        cause = root_cause(failure["stage"], case, positions, hit, related, has_gold_value)
+        rows.append({
+            "question_id": case["question_id"],
+            "task_type": case.get("task_type"),
+            "answer_mode": case.get("answer_mode"),
+            "difficulty": case.get("difficulty"),
+            "doc_group": case.get("doc_group"),
+            # 트랙은 집계의 분모를 가르는 값이다 — 없으면 회귀·밸류체인이 그리드에 섞인다.
+            "track": case.get("track"),
+            "sector": case_sector(case, sectors),
+            "corp_name": case.get("corp_name") or [],
+            "answerable": case.get("answerable"),
+            "answer_form": case.get("answer_form"),
+            "correct": correct,
+            "scored_by": scored.get("by"),
+            "judge": judged and {k: judged[k] for k in
+                                 ("covers_key_points", "grounded", "no_fabrication", "reason")},
+            "first_failure": failure["stage"],
+            "root_cause": cause,
+            "failure_why": failure["why"],
+            "gold_value_in_evidence": has_gold_value,
+            "has_citation": has_citation(answer, case),
+            "route": facts["route"],
+            "route_group": facts["group"],
+            "route_corps": facts["corps"],
+            "n_hops": facts["n_hops"],
+            "n_steps": facts["n_steps"],
+            "n_llm_calls": run["llm_calls"],
+            "prompt_tokens": run["prompt_tokens"],
+            "completion_tokens": run["completion_tokens"],
+            "judge_tokens": (judged or {}).get("prompt_tokens", 0)
+                            + (judged or {}).get("completion_tokens", 0),
+            "latency_s": run["latency_s"],
+            "calls": run["calls"],
+            "golden": positions["golden"],
+            "golden_rank": positions["rank"],
+            "golden_in_candidates": positions["in_candidates"],
+            "golden_in_evidence": hit["present"],
+            "golden_evidence_all": hit["all"],
+            "calc_checked": calc["checked"],
+            "calc_skipped": calc["skipped"],
+            "calc_mismatch": calc["mismatch"],
+            "calc_reasons": calc["reasons"],
+            "data_limit": limits,
+            "answer": answer,
+            "think_trace": response.get("think_trace", ""),
+        })
+    return rows
+
+
+def _rate(rows: list[dict]) -> dict:
+    """정답률. **DATA_LIMIT 은 분모에서 뺀다** — 원본에 값이 없는 것은 우리 실패가 아니다."""
+    scored = [r for r in rows if r["first_failure"] != DATA_LIMIT]
+    n = len(scored)
+    ok = sum(1 for r in scored if r["correct"])
+    return {"n": len(rows), "n_scored": n, "correct": ok,
+            "rate": round(ok / n, 3) if n else None,
+            "data_limit": len(rows) - n,
+            "stages": {s: sum(1 for r in rows if r["first_failure"] == s)
+                       for s in ALL_LABELS if any(r["first_failure"] == s for r in rows)}}
+
+
+def grid_rows(rows: list[dict]) -> list[dict]:
+    """3축 결론의 모집단. **`track == "grid"` 만이다.**
+
+    옛 필터는 `answerable and task_type` 이었다. 정보한계 6문항만 그리드 밖이던 시절엔
+    그것으로 충분했지만, 회귀 10·밸류체인 12는 **answerable=true 이고 3축 라벨도 채워져
+    있어** 그대로 두면 그리드 정답률에 섞여 들어간다. 섞이면 축별 분모가 v1 과 달라져
+    "문항이 늘어난 효과"조차 읽을 수 없게 된다.
+    """
+    return [r for r in rows if r.get("track") == GRID_TRACK]
+
+
+def crosstab(rows: list[dict]) -> dict:
+    """3축 18셀 + 축별 주변합. 셀 단위 결론은 금지(표본 4)지만 주변합은 읽을 수 있다."""
+    grid = grid_rows(rows)
+    cells: dict[str, dict] = {}
+    for task in ("search_extract", "multi_compare", "complex_reason"):
+        for mode in ("closed", "open"):
+            for diff in ("하", "중", "상"):
+                sub = [r for r in grid if r["task_type"] == task
+                       and r["answer_mode"] == mode and r["difficulty"] == diff]
+                cells[f"{task}|{mode}|{diff}"] = _rate(sub)
+    marginals = {}
+    for axis, values in (("task_type", ("search_extract", "multi_compare", "complex_reason")),
+                         ("answer_mode", ("closed", "open")),
+                         ("difficulty", ("하", "중", "상"))):
+        marginals[axis] = {v: _rate([r for r in grid if r[axis] == v]) for v in values}
+    limit = [r for r in rows if not r["answerable"]]
+    # 트랙별 행. **합치지 않는다** — 회귀는 고친 실패의 감시이고 밸류체인은 아직
+    # 원리상 못 푸는 문항을 품고 있어(Q-117), 그리드와 같은 분모에 넣으면 둘 다 거짓말이 된다.
+    by_track = {t: _rate([r for r in rows if r.get("track") == t])
+                for t in (GRID_TRACK,) + OFF_GRID_TRACKS
+                if any(r.get("track") == t for r in rows)}
+    return {"cells": cells, "marginals": marginals,
+            "grid_overall": _rate(grid),
+            "info_limit": _rate(limit),
+            "by_track": by_track,
+            "overall": _rate(rows)}
+
+
+def new_sector_retrieval(rows: list[dict]) -> dict:
+    """신규 6섹터의 `RETRIEVAL` 실패. **리랭커(Phase E) 재검토 조건의 판정값이다.**
+
+    Phase E 는 "겨냥할 실패 1건 · Δ 상한 2.8%p · McNemar 불일치쌍 1개는 판정 불가" 를
+    근거로 보류돼 있다. 그 근거는 **옛 14섹터에서 순위 실패가 사실상 없었다**는 관찰에
+    기대고 있으므로, 새 섹터에서 순위·검색 실패가 쌓이면 근거가 흔들린다. 세어서 남긴다.
+    """
+    failed = [r for r in rows
+              if r["first_failure"] == "RETRIEVAL" and r.get("sector") in NEW_SECTORS]
+    by_sector: dict[str, list[str]] = defaultdict(list)
+    for row in failed:
+        by_sector[row["sector"]].append(row["question_id"])
+    return {"n": len(failed),
+            "threshold": RERANKER_REVIEW_THRESHOLD,
+            "triggers_reranker_review": len(failed) >= RERANKER_REVIEW_THRESHOLD,
+            "sectors": list(NEW_SECTORS),
+            "by_sector": {k: sorted(v) for k, v in sorted(by_sector.items())},
+            "question_ids": sorted(r["question_id"] for r in failed)}
+
+
+def difficulty_audit(rows: list[dict]) -> list[dict]:
+    """'하' 셀 정답률이 '상' 셀보다 낮으면 라벨이 틀린 것이다 (02-golden-set B-3)."""
+    grid = grid_rows(rows)
+    out = []
+    for task in ("search_extract", "multi_compare", "complex_reason"):
+        for mode in ("closed", "open"):
+            by_diff = {}
+            for diff in ("하", "중", "상"):
+                sub = [r for r in grid if r["task_type"] == task
+                       and r["answer_mode"] == mode and r["difficulty"] == diff]
+                by_diff[diff] = sub
+            low = by_diff["하"]
+            high = by_diff["상"]
+            low_ok = sum(r["correct"] for r in low)
+            high_ok = sum(r["correct"] for r in high)
+            if low and high and (low_ok / len(low)) < (high_ok / len(high)):
+                out.append({
+                    "cell": f"{task}|{mode}",
+                    "low": {"ids": [r["question_id"] for r in low],
+                            "correct": low_ok, "n": len(low),
+                            "failures": [r["first_failure"] for r in low]},
+                    "high": {"ids": [r["question_id"] for r in high],
+                             "correct": high_ok, "n": len(high)},
+                    "verdict": "'하' 가 '상' 보다 낮다 — 라벨 재조정 후보",
+                })
+    return out
+
+
+def totals(rows: list[dict]) -> dict:
+    prompt = sum(r["prompt_tokens"] for r in rows)
+    completion = sum(r["completion_tokens"] for r in rows)
+    judge = sum(r["judge_tokens"] for r in rows)
+    return {
+        "questions": len(rows),
+        "llm_calls": sum(r["n_llm_calls"] for r in rows),
+        "prompt_tokens": prompt,
+        "completion_tokens": completion,
+        "judge_tokens": judge,
+        "total_tokens": prompt + completion + judge,
+        "cost_won": round((prompt + completion + judge) / 1000.0 * PRICE_WON_PER_1K, 1),
+        "price_won_per_1k": PRICE_WON_PER_1K,
+        "latency_s_total": round(sum(r["latency_s"] for r in rows), 1),
+        "latency_s_mean": round(sum(r["latency_s"] for r in rows) / max(len(rows), 1), 2),
+        "hops_total": sum(r["n_hops"] for r in rows),
+        "steps_max": max((r["n_steps"] for r in rows), default=0),
+    }
+
+
+# --- 보고 --------------------------------------------------------------------
+
+def _cell(rate: dict) -> str:
+    if not rate["n"]:
+        return "—"
+    stages = " ".join(f"{k}{v}" for k, v in sorted(rate["stages"].items()) if v)
+    head = f'{rate["correct"]}/{rate["n_scored"]}'
+    return f"{head} {stages}".strip() if stages else head
+
+
+def render_matrix(rows: list[dict], report: dict) -> str:
+    cross, out = report["crosstab"], []
+    out.append("# Phase H — 3축 교차집계 (dev)\n")
+    out.append(f'생성 {time.strftime("%Y-%m-%d %H:%M")} · 자동 생성물 '
+               "(`scripts/error_analysis.py`)\n")
+    out.append("셀 표기 = `정답/채점대상` + 실패단계. **채점 대상에서 DATA_LIMIT 은 뺐다.**\n")
+
+    out.append("\n## 18셀\n")
+    out.append("| task_type | mode | 하 | 중 | 상 |")
+    out.append("|---|---|---|---|---|")
+    for task in ("search_extract", "multi_compare", "complex_reason"):
+        for mode in ("closed", "open"):
+            cells = [_cell(cross["cells"][f"{task}|{mode}|{d}"]) for d in ("하", "중", "상")]
+            out.append(f'| {task} | {mode} | {" | ".join(cells)} |')
+
+    out.append("\n## 축별 주변합\n")
+    for axis, table in cross["marginals"].items():
+        out.append(f"\n### {axis}\n")
+        out.append("| 값 | 정답률 | " + " | ".join(STAGES) + " | DATA_LIMIT |")
+        out.append("|---|---|" + "---|" * (len(STAGES) + 1))
+        for value, rate in table.items():
+            stages = " | ".join(str(rate["stages"].get(s, 0)) for s in STAGES)
+            pct = f'{rate["rate"]:.3f}' if rate["rate"] is not None else "—"
+            out.append(f'| {value} | {pct} ({rate["correct"]}/{rate["n_scored"]}) '
+                       f'| {stages} | {rate["data_limit"]} |')
+
+    out.append("\n## 실패 단계 히스토그램\n")
+    hist = Counter(r["first_failure"] for r in rows if r["first_failure"])
+    out.append("| 단계 | 건수 | 비고 |")
+    out.append("|---|---|---|")
+    note = {DATA_LIMIT: "**정답률 분모에서 제외** — 원본에 값이 없다",
+            HALLUCINATION: "**진짜 실패** — 거절해야 할 질문에 답을 지어냄"}
+    for label in ALL_LABELS:
+        if hist.get(label):
+            out.append(f'| {label} | {hist[label]} | {note.get(label, "")} |')
+
+    out.append("\n## 근본 원인 — 6단계만으로는 arm 이 안 갈린다\n")
+    out.append("| 단계 / 원인 | 건수 | 문항 | 겨냥할 arm |")
+    out.append("|---|---|---|---|")
+    arm = {
+        "RETRIEVAL/CHAIN_NOT_TRAVERSED": "**A4** — `get_history` 로 정정 체인을 밟는 hop",
+        "RETRIEVAL/CHAIN_PARTIAL": "**A4** — 체인 + 후속공시 연결 규칙",
+        "RETRIEVAL/MULTI_POINT_QUERY": "**A4** — 시점·기업별 질의 분해",
+        "RANKING/WRONG_SECTION": "**A3** — 목차 경로 리랭킹",
+        "RANKING/LOW_RANK": "**A3** — 리랭커",
+        "GENERATION/INDEX_FIELD_MISSING": "**A1b** — major·holding 필드 추출",
+        "GENERATION/REASONING": "**A4** — 다단계 추론",
+        "TOOL/TOOL": "**A5** — 계산 Tool",
+        "VERIFY/VERIFY": "**A6** — Verifier",
+    }
+    buckets: dict[str, list[str]] = defaultdict(list)
+    for row in rows:
+        if row["first_failure"]:
+            buckets[f'{row["first_failure"]}/{row["root_cause"]}'].append(
+                row["question_id"])
+    for key, ids in sorted(buckets.items(), key=lambda kv: -len(kv[1])):
+        out.append(f'| {key} | {len(ids)} | {" ".join(ids)} | {arm.get(key, "—")} |')
+
+    out.append("\n## 트랙별 (합치지 않는다)\n")
+    out.append("| track | 정답/채점대상 | 정답률 | DATA_LIMIT | 비고 |")
+    out.append("|---|---|---|---|---|")
+    track_note = {
+        GRID_TRACK: "3축 결론은 **이 행에서만** 낸다",
+        "info_limit": "거절이 정답. 지어내면 HALLUCINATION",
+        "regression": "고친 실패의 감시 — 정답률에 섞지 않는다",
+        "valuechain": "현재 시스템이 원리상 못 푸는 문항 포함 (Q-117)",
+    }
+    for name, rate in cross.get("by_track", {}).items():
+        pct = f'{rate["rate"]:.3f}' if rate["rate"] is not None else "—"
+        out.append(f'| {name} | {rate["correct"]}/{rate["n_scored"]} | {pct} '
+                   f'| {rate["data_limit"]} | {track_note.get(name, "")} |')
+
+    out.append("\n## 정보한계 문항 (answerable=false)\n")
+    limit = cross["info_limit"]
+    out.append(f'거절 정답 {limit["correct"]}/{limit["n"]} · '
+               f'환각 {limit["stages"].get(HALLUCINATION, 0)}\n')
+
+    out.append("\n## 신규 6섹터 RETRIEVAL 실패 — 리랭커(Phase E) 재검토 조건\n")
+    audit = report["new_sector_retrieval"]
+    verdict = ("🔴 **발동** — Phase E 보류 근거를 다시 본다"
+               if audit["triggers_reranker_review"] else "미발동 — 보류 유지")
+    out.append(f'{" · ".join(audit["sectors"])}\n')
+    out.append(f'RETRIEVAL 실패 **{audit["n"]}건** (문턱 {audit["threshold"]}) → {verdict}\n')
+    if audit["by_sector"]:
+        out.append("| 섹터 | 문항 |")
+        out.append("|---|---|")
+        for sector, ids in audit["by_sector"].items():
+            out.append(f'| {sector} | {" ".join(ids)} |')
+
+    out.append("\n## 비용 (실측 usage)\n")
+    cost = report["totals"]
+    out.append("| 항목 | 값 |")
+    out.append("|---|---|")
+    for key in ("questions", "llm_calls", "prompt_tokens", "completion_tokens",
+                "judge_tokens", "total_tokens", "cost_won", "latency_s_mean",
+                "hops_total", "steps_max"):
+        out.append(f"| {key} | {cost[key]} |")
+    return "\n".join(out) + "\n"
+
+
+def citation_rate(rows: list[dict]) -> float | None:
+    """거절 문항은 표기할 근거가 없다. 분모에 넣으면 표기율이 그냥 깎인다."""
+    cited = [r for r in rows if r["answerable"]]
+    return round(sum(r["has_citation"] for r in cited) / len(cited), 3) if cited else None
+
+
+def build_report(cases: list[dict], rows: list[dict], cohort: str = "") -> dict:
+    return {
+        "generated": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "split": "dev",
+        "cohort": cohort,
+        "n_cases": len(cases),
+        "n_analysed": len(rows),
+        "totals": totals(rows),
+        "crosstab": crosstab(rows),
+        "new_sector_retrieval": new_sector_retrieval(rows),
+        "difficulty_audit": difficulty_audit(rows),
+        "failure_histogram": dict(Counter(r["first_failure"] for r in rows
+                                          if r["first_failure"])),
+        # v1(42문항)과 나란히 읽을 수 있는 것은 **그리드만** 세었을 때다.
+        "failure_histogram_grid": dict(Counter(r["first_failure"] for r in grid_rows(rows)
+                                               if r["first_failure"])),
+        "by_track_failures": {t: dict(Counter(r["first_failure"] for r in rows
+                                              if r.get("track") == t and r["first_failure"]))
+                              for t in (GRID_TRACK,) + OFF_GRID_TRACKS
+                              if any(r.get("track") == t for r in rows)},
+        "root_cause_histogram": dict(Counter(f'{r["first_failure"]}/{r["root_cause"]}'
+                                             for r in rows if r["first_failure"])),
+        "citation_rate": citation_rate(rows),
+        "by_doc_group": {g: _rate([r for r in rows if r["doc_group"] == g])
+                         for g in sorted({r["doc_group"] for r in rows})},
+        "rows": rows,
+    }
+
+
+# --- CLI ---------------------------------------------------------------------
+
+def _spend_so_far(rows: list[dict]) -> float:
+    return sum(cost_won(r["prompt_tokens"] + r.get("judge_tokens", 0),
+                        r["completion_tokens"]) for r in rows)
+
+
+def execute(cases: list[dict], judge: bool, force: bool, budget_won: float,
+            cache=None) -> dict:
+    """호출 구간. 문항마다 실측 usage 를 누적하고 상한에서 멈춘다.
+
+    `cache` 가 있으면 **상한 판정에 그쪽 실지출을 쓴다.** 요청 캐시가 적중한 문항은
+    돈이 나가지 않았는데, 응답 파일 미적중만 보고 세면 안 쓴 돈으로 예산을 태워
+    남은 문항을 못 돌린다 (= 부분 결과로 끝난다).
+    """
+    spent, live = 0.0, []
+    for case in cases:
+        run, cached = with_retry(run_case, case, force=force)
+        judged = None
+        if judge and case.get("answer_mode") == "open":
+            judged, judge_cached = with_retry(run_judge, case, run["response"], force=force)
+            if not judge_cached:
+                spent += cost_won(judged["prompt_tokens"], judged["completion_tokens"])
+                time.sleep(PACE_S)
+        if not cached:
+            spent += cost_won(run["prompt_tokens"], run["completion_tokens"])
+            time.sleep(PACE_S)
+        live.append({"question_id": case["question_id"], "cached": cached,
+                     "llm_calls": run["llm_calls"],
+                     "prompt_tokens": run["prompt_tokens"],
+                     "completion_tokens": run["completion_tokens"],
+                     "judge_tokens": (judged or {}).get("prompt_tokens", 0)
+                                     + (judged or {}).get("completion_tokens", 0),
+                     "latency_s": run["latency_s"]})
+        real = cache.fresh_won if cache is not None else spent
+        mark = "cache" if cached else f"{real:,.0f}원"
+        print(f'  {case["question_id"]}  calls={run["llm_calls"]} '
+              f'tok={run["prompt_tokens"]}+{run["completion_tokens"]} '
+              f'{run["latency_s"]:.1f}s  실지출 {mark}')
+        if real > budget_won:
+            print(f"\n🔴 예산 상한 {budget_won:,.0f}원 초과 — 중단합니다 (실지출 {real:,.0f}원)")
+            break
+    return {"spent_won": round(spent, 1), "runs": live}
+
+
+def resolve_out(name: str) -> Path:
+    """산출물 경로. 🔴 **v1 파일 이름은 거부한다.**
+
+    `error_analysis.json` 은 42문항 시절의 비교 기준선이고
+    `validate_evalset.measured_dev_cohort()` 가 그 파일에서 코호트를 읽는다. 덮으면
+    비교 대상이 사라지는 동시에 게이트 D 의 분모가 조용히 바뀐다.
+    """
+    path = Path(name) if name else (OUT_DIR / V2_REPORT_NAME)
+    if not path.is_absolute():
+        path = ROOT / path
+    if path.name == V1_REPORT_NAME:
+        raise SystemExit(f"{V1_REPORT_NAME} 은 v1 비교 기준선입니다 — {V2_REPORT_NAME} 을 쓰세요")
+    return path
+
+
+def _use_v2_dirs() -> None:
+    """응답·판정 캐시를 v2 자리로 돌린다. v1 폴더는 손대지 않는다."""
+    global RESPONSE_DIR, JUDGE_DIR
+    RESPONSE_DIR = V2_RESPONSE_DIR
+    JUDGE_DIR = V2_JUDGE_DIR
+
+
+def _install_request_cache(offline: bool):
+    """요청 본문 해시 캐시. 같은 프롬프트를 두 번 결제하지 않기 위한 것이다.
+
+    `scripts/ablation.py` 의 구현을 **그대로 재사용**한다 — 두 벌로 두면 키 계산이
+    갈라져 캐시가 반으로 쪼개지고, 그 순간 이미 산 응답을 다시 사게 된다.
+    (지연 import: ablation 이 이 모듈을 import 하므로 최상단에 두면 순환한다.)
+    """
+    from scripts.ablation import RequestCache
+
+    cache = RequestCache(REQUEST_CACHE_DIR, offline=offline)
+    cache.install()
+    return cache
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Phase H 오류 분석 (dev 전용)")
+    parser.add_argument("--cohort", default="measured", choices=COHORTS,
+                        help="measured=v1 이 잰 42문항 · full=dev 78+회귀 10 · valuechain=12")
+    parser.add_argument("--out", default="",
+                        help=f"산출물 경로 (기본 artifacts/eval/{V2_REPORT_NAME})")
+    parser.add_argument("--run", action="store_true", help="코호트 전수 실행 (크레딧 지출)")
+    parser.add_argument("--smoke", action="store_true", help="스모크 5문항만 실행")
+    parser.add_argument("--limit", type=int, default=0,
+                        help="앞에서 N문항만 실행 (비용 실측용)")
+    parser.add_argument("--only", default="", help="쉼표 구분 question_id 만 실행")
+    parser.add_argument("--no-judge", action="store_true", help="open judge 생략")
+    parser.add_argument("--force", action="store_true", help="캐시 무시 (재과금)")
+    parser.add_argument("--offline", action="store_true",
+                        help="요청 캐시 미적중 시 중단 (크레딧 0원 확인용)")
+    parser.add_argument("--budget-won", type=float, default=BUDGET_WON)
+    args = parser.parse_args()
+
+    out_path = resolve_out(args.out)
+    _use_v2_dirs()
+    cases = load_cohort(args.cohort)
+    records = _load_records()
+
+    targets = []
+    if args.only:
+        wanted = {q.strip() for q in args.only.split(",") if q.strip()}
+        targets = [c for c in cases if c["question_id"] in wanted]
+    elif args.smoke:
+        targets = [c for c in cases if c["question_id"] in SMOKE_IDS]
+    elif args.limit:
+        targets = cases[:args.limit]
+    elif args.run:
+        targets = cases
+
+    live = None
+    if targets:
+        print(f"코호트 {args.cohort} {len(cases)}문항 중 {len(targets)}문항 실행 "
+              f"· 상한 {args.budget_won:,.0f}원 · 단가 {PRICE_WON_PER_1K}원/1K")
+        print(f"  응답 캐시 {RESPONSE_DIR} · 요청 캐시 {REQUEST_CACHE_DIR}")
+        cache = _install_request_cache(args.offline)
+        live = execute(targets, judge=not args.no_judge, force=args.force,
+                       budget_won=args.budget_won, cache=cache)
+        # 🔴 실지출은 **요청 캐시를 미적중한 분**뿐이다. execute() 의 누계는 응답 파일
+        #    캐시만 보므로 요청 캐시 적중분까지 지출로 세어 과대보고된다. 둘 다 남긴다.
+        live["request_cache"] = {"hits": cache.hits, "misses": cache.misses,
+                                 "fresh_prompt_tokens": cache.fresh_prompt,
+                                 "fresh_completion_tokens": cache.fresh_completion,
+                                 "fresh_won": round(cache.fresh_won, 1)}
+        print(f'\n요청 캐시 적중 {cache.hits} · 미적중 {cache.misses}')
+        print(f'실지출 {cache.fresh_won:,.1f}원 '
+              f'(응답 파일 미적중 기준 누계 {live["spent_won"]:,.1f}원)')
+
+    rows = analyse(cases, records)
+    report = build_report(cases, rows, cohort=args.cohort)
+    if live:
+        report["this_run"] = live
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    matrix_path = out_path.with_suffix(".md")
+    matrix_path.write_text(render_matrix(rows, report), encoding="utf-8")
+
+    print(f'\n코호트 {args.cohort} · 분석 {len(rows)}/{len(cases)} 문항')
+    print(json.dumps(report["totals"], ensure_ascii=False, indent=1))
+    print("실패 단계(전체):", report["failure_histogram"])
+    print("실패 단계(그리드):", report["failure_histogram_grid"])
+    for name, rate in report["crosstab"]["by_track"].items():
+        print(f'  {name}: {rate["correct"]}/{rate["n_scored"]} '
+              f'(DATA_LIMIT {rate["data_limit"]})')
+    audit = report["new_sector_retrieval"]
+    print(f'신규 6섹터 RETRIEVAL 실패 {audit["n"]}건 '
+          f'-> 리랭커 재검토 {"발동" if audit["triggers_reranker_review"] else "미발동"}')
+    print(f"-> {out_path}")
+    print(f"-> {matrix_path}")
+
+
+if __name__ == "__main__":
+    main()
