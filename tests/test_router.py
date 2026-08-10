@@ -207,6 +207,26 @@ def test_conjunctive_particles_do_not_bind_the_role():
         assert route(question).counterparty is None, question
 
 
+def test_marker_before_the_node_is_not_bound():
+    """표지 **선행**형(`"발주처 X"`)은 결속으로 읽지 않는다 — 기각한 확장의 경계.
+
+    넓히면 미탐 1건(`"발주처 한국수력원자력…"`)을 얻지만 오탐 3건을 만든다.
+    기전은 `와|과` 때와 같다 — **떨어져 있는 것을 인접으로 읽는다.** 이번엔 정규식이
+    아니라 `canonical()` 이 문장부호를 지워 없던 인접이 생긴다 (아래 두 번째 단언이
+    그 기전이다). 셋 다 그 노드가 **공시한 쪽**이라 발화하면 엉뚱한 근거를 싣는다.
+    """
+    for question in (
+        "이 계약의 핵심 변수는 발주처. 삼성전자가 공시한 건수는?",
+        "관건은 계약상대. 두산에너빌리티가 낸 공시를 정리해줘.",
+        "주요 발주처, 삼성전자가 공시한 계약 건수는?",
+    ):
+        assert route(question).counterparty is None, question
+
+    # 왜 순진하게 넓히면 안 되는가 — 정규화가 문장 경계를 지운다.
+    from argus.corpus.counterparty import canonical
+    assert "발주처삼성전자" in canonical("…는 발주처. 삼성전자가 공시한")
+
+
 def test_genitive_particle_still_binds_the_role():
     """`의` 는 남긴다 — '한국수력원자력의 발주' 는 관형격이라 그 노드가 발주 주체다."""
     assert route("한국수력원자력의 발주 계약을 수주한 상장사는?").counterparty         == "한국수력원자력"
