@@ -1,6 +1,7 @@
 """Phase H 귀속 로직 회귀. **LLM 0회** — conftest 의 block_clova_network 를 우회하지 않는다."""
 import json
 from collections import Counter
+from pathlib import Path
 
 import pytest
 
@@ -502,6 +503,93 @@ def test_the_manual_allocation_is_a_single_source_shared_with_the_gate():
             assert f'"{qid}"' not in source, (
                 f"게이트가 {qid} 를 직접 적었다 — {arm} 배분이 갈릴 수 있다"
             )
+
+
+# --- ④ this_run 이 재집계 때 키째로 사라지는 사고 -------------------------------
+
+def test_merge_this_run_carries_forward_when_recompute_has_no_live_run(tmp_path):
+    """재집계(`live=None`)는 이전 실행이 남긴 지출 기록을 지우면 안 된다.
+
+    이전 버그: `if live: report["this_run"] = live` 는 `live` 가 없으면 아무것도 안 써서
+    `this_run` 이 **키째로 사라졌다** — 0 원으로 덮이는 것보다 나쁘다. 실측:
+    `artifacts/eval/error_analysis.json` · `_v2.json` 둘 다 이미 이 사고를 겪었다.
+    """
+    out_path = tmp_path / "report.json"
+    out_path.write_text(json.dumps({"this_run": {"spent_won": 1505.1}}), encoding="utf-8")
+
+    merged = ea._merge_this_run(out_path, live=None)
+
+    assert merged is not None and merged["spent_won"] == 1505.1
+    assert "this_run_source" in merged        # 이어받았다는 사실이 필드에 남는다
+
+
+def test_merge_this_run_keeps_the_previous_spend_when_a_second_live_run_happens(tmp_path):
+    """두 번째 유료 실행도 앞의 지출 기록을 지우지 않는다 — 새 값을 권위값으로 쓰되
+    앞의 값을 `spent_won_previous` 로 남긴다 (`scripts/ablation.py::_write_run` 과 같은 패턴)."""
+    out_path = tmp_path / "report.json"
+    out_path.write_text(json.dumps({"this_run": {"spent_won": 1153.0}}), encoding="utf-8")
+
+    merged = ea._merge_this_run(out_path, live={"spent_won": 352.1, "runs": []})
+
+    assert merged["spent_won"] == 352.1               # 새 값이 권위값
+    assert merged["spent_won_previous"] == 1153.0      # 앞선 지출은 지워지지 않는다
+
+
+def test_merge_this_run_does_not_fabricate_a_value_when_the_record_was_already_lost(tmp_path):
+    """이전 산출물은 있는데 `this_run` 이 이미 없다 — 사고가 이미 일어난 상태다.
+
+    없는 값을 추정해 채우지 않는다. 이번 재집계 자체는 `execute()` 를 안 부르므로
+    **이번 실행의 신규 지출은 확실히 0원**이고, 그 사실과 '이전 기록 없음'만 남긴다.
+    """
+    out_path = tmp_path / "report.json"
+    out_path.write_text(json.dumps({"totals": {"cost_won": 2370.0}}), encoding="utf-8")  # this_run 없음
+
+    merged = ea._merge_this_run(out_path, live=None)
+
+    assert merged["spent_won"] == 0.0
+    assert "추정" in merged["spent_won_scope"] and "유실" in merged["spent_won_scope"]
+
+
+def test_merge_this_run_returns_none_for_a_brand_new_report():
+    """이전 산출물 자체가 없는 최초 실행은 '유실' 이 아니다 — 경고를 만들어내지 않는다."""
+    assert ea._merge_this_run(Path("no/such/report.json"), live=None) is None
+
+
+def test_recompute_via_main_keeps_this_run_end_to_end(tmp_path, monkeypatch):
+    """`main()` 자체가 재집계 뒤에도 `this_run` 을 지우지 않는지 실제 진입점으로 확인한다.
+
+    `--run`/`--limit`/`--only`/`--smoke` 를 전부 생략해 `live` 가 `None` 이 되게 한다
+    (재집계 경로 · LLM 0회). 응답 캐시가 없는 tmp 디렉터리를 쓰므로 `analyse()` 는 모든
+    문항을 건너뛰지만(`RESPONSE_DIR` 에 파일이 없다), 그것과 무관하게 `this_run` 이
+    보존되는지가 이 테스트의 주장이다.
+    """
+    monkeypatch.setattr(ea, "V2_RESPONSE_DIR", tmp_path / "responses_v2")
+    monkeypatch.setattr(ea, "V2_JUDGE_DIR", tmp_path / "judge_v2")
+
+    out_path = tmp_path / "report.json"
+    out_path.write_text(json.dumps({"this_run": {"spent_won": 42.0}}), encoding="utf-8")
+
+    ea.main(["--cohort", "valuechain", "--out", str(out_path)])
+
+    after = json.loads(out_path.read_text(encoding="utf-8"))
+    assert after["this_run"]["spent_won"] == 42.0
+    assert "this_run_source" in after["this_run"]
+
+
+# --- H/6: totals.cost_won 과 this_run.spent_won 은 다른 것을 센다 ---------------
+
+def test_totals_cost_won_is_labelled_as_cohort_replay_not_new_spend():
+    """`totals["cost_won"]` 은 코호트 전 행의 누적 재생 비용이지 이번 실행의 신규
+    지출이 아니다 (`scripts/ablation.py` 가 같은 필드를 `arm_cost_won` 으로 그렇게
+    쓴다). 실측으로 두 수가 갈렸다 — v2 전수 재집계 `totals.cost_won` 2,370.0원 vs
+    그 재집계 자체의 신규 지출 `this_run.spent_won` 1,505.1원. 필드명은 호환을 위해
+    유지하되(바꾸면 `ablation.py`·게이트 문서가 깨진다) 범위를 라벨로 드러낸다.
+    """
+    rows = [_row("Q1", "search_extract", "closed", "중", True)]
+    cost = ea.totals(rows)
+    assert "cost_won_scope" in cost
+    assert "신규 지출이 아니다" in cost["cost_won_scope"]
+    assert "this_run" in cost["cost_won_scope"]
 
 
 # --- 근본 원인 세분 ------------------------------------------------------------

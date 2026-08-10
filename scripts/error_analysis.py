@@ -941,6 +941,21 @@ def difficulty_audit(rows: list[dict]) -> list[dict]:
 
 
 def totals(rows: list[dict]) -> dict:
+    """코호트 전 행의 누적 지표. 🔴 **`cost_won` 은 이번 실행의 신규 지출이 아니다.**
+
+    `rows` 는 응답 캐시에서 읽은 값이라 대부분 **재생(replay)** 이다 — 다른 실행(예:
+    `scripts/ablation.py` 의 각 arm)이 이미 결제한 토큰까지 전부 합산한 **코호트 전체의
+    재생 비용**이다. `scripts/ablation.py` 는 이 값을 의도적으로 그렇게 쓴다
+    (`arm_cost_won` — "그 arm 을 혼자 돌렸을 때의 비용, 캐시 적중 포함"). 그래서 필드
+    이름은 유지한다 — 바꾸면 `ablation.py`·`ablation_report.py`·게이트 문서가 전부 깨진다.
+
+    문제는 이 함수를 **`error_analysis.py` 단독 실행**(dev 오류분석)의 보고서에도 그대로
+    쓴다는 점이다. 그 문맥에서 `cost_won` 을 "이번 실행이 결제한 돈" 으로 읽으면 실제
+    신규 지출(`report["this_run"]["spent_won"]`)과 이중계상된다 — 실측: v2 전수 재집계의
+    `totals.cost_won` 은 2,370.0원(코호트 337,603토큰 누적, 대부분 ablation 코호트에서
+    이미 결제됨)인데 그 재집계 자체의 신규 지출은 `this_run.spent_won` = 1,505.1원으로
+    **따로** 기록된다. 같은 이름이 다른 집계 범위를 가리키므로 라벨로 구분해 둔다.
+    """
     prompt = sum(r["prompt_tokens"] for r in rows)
     completion = sum(r["completion_tokens"] for r in rows)
     judge = sum(r["judge_tokens"] for r in rows)
@@ -952,6 +967,10 @@ def totals(rows: list[dict]) -> dict:
         "judge_tokens": judge,
         "total_tokens": prompt + completion + judge,
         "cost_won": round((prompt + completion + judge) / 1000.0 * PRICE_WON_PER_1K, 1),
+        # 🔴 위 `cost_won` 의 집계 범위를 값 옆에 못박는다 — 표만 옮겨 적히면 이 구분이
+        #    사라진다. 이번 실행의 실제 신규 지출은 `report["this_run"]["spent_won"]` 이다.
+        "cost_won_scope": ("코호트 전 행(캐시 재생 포함)의 누적 재생 비용 — 이번 실행의 "
+                          "신규 지출이 아니다. 신규 지출은 report.this_run.spent_won"),
         "price_won_per_1k": PRICE_WON_PER_1K,
         "latency_s_total": round(sum(r["latency_s"] for r in rows), 1),
         "latency_s_mean": round(sum(r["latency_s"] for r in rows) / max(len(rows), 1), 2),
@@ -1269,6 +1288,56 @@ def execute(cases: list[dict], judge: bool, force: bool, budget_won: float,
     return {"spent_won": round(spent, 1), "runs": live}
 
 
+def _merge_this_run(out_path: Path, live: dict | None) -> dict | None:
+    """`this_run` 필드의 유일한 서식지. 🔴 **재집계가 이전 실행의 지출 기록을 지우지 않게 한다.**
+
+    같은 부류의 사고(나중 쓰기가 앞선 지출 기록을 지운다)가 이 저장소에서 이미 다섯 번
+    나왔다 — `_spend_meta` · `run_heldout` · 사다리 루프 · **이 함수가 고치는 지점** ·
+    `build_embeddings.py`. 이전에는 `if live: report["this_run"] = live` 였는데, `--run` 없이
+    재집계(`live` 가 `None`)하면 `this_run` 이 **키째로 사라졌다** — 0 으로 덮이는 것보다
+    나쁘다(필드 자체가 없어져 추적이 끊긴다). 실측: `artifacts/eval/error_analysis.json` 과
+    `error_analysis_v2.json` 둘 다 이미 `this_run` 이 없다 — 이 사고는 **이미 일어났고**,
+    그 실행의 신규 지출은 이 함수로도 복구되지 않는다(백업에도 없다 — 유실 확정).
+
+    `scripts/ablation.py::_write_run` 과 같은 패턴이다: 쓰기 지점을 하나로 모으고, 값이
+    없으면 이전 값을 이어받되 **이어받았다는 사실을 필드에 남긴다.**
+    """
+    previous_report: dict | None = None
+    if out_path.exists():
+        try:
+            previous_report = json.loads(out_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            previous_report = None
+    previous = (previous_report or {}).get("this_run")
+
+    if live:
+        live = dict(live)
+        if previous and previous.get("spent_won"):
+            # 🔴 두 번째 유료 실행도 앞의 값을 지우지 않는다 — 새 값을 권위값으로 쓰되
+            #    앞의 값을 남긴다. 지운 돈은 복구되지 않지만 지워진 사실은 남는다.
+            live["spent_won_previous"] = previous.get("spent_won")
+            live["spent_won_source"] = (
+                f'이번 실행 기록. 앞선 실행이 {previous["spent_won"]:,.1f}원을 결제했고 '
+                "그것은 이 값에 안 들어 있다 — 누계는 두 값을 더해야 한다.")
+        return live
+
+    if previous:
+        # 재집계(LLM 0회)는 이전 실행의 지출 기록을 그대로 이어받는다.
+        carried = dict(previous)
+        carried["this_run_source"] = "이전 실행 기록 이어받음 (이번은 재집계 — LLM 0회)"
+        return carried
+
+    if previous_report is not None:
+        # 🔴 이전 산출물은 있는데 `this_run` 이 없다 — 이미 유실됐다는 뜻이다. 없는 값을
+        #    추정해 채우지 않는다. 이번 재집계 자체는 `execute()` 를 안 부르므로 **이번
+        #    실행의 신규 지출은 확실히 0원**이고, 그것만 사실로 적는다.
+        return {"spent_won": 0.0,
+                "spent_won_scope": ("이번 실행(재집계, LLM 0회)만의 신규 지출. 이전 실행의 "
+                                    "실제 지출 기록은 이 산출물에 없다 — 유실됐거나 이 필드가 "
+                                    "생기기 전 실행이라 값을 모른다. 추정해 채우지 않는다.")}
+    return None
+
+
 def resolve_out(name: str) -> Path:
     """산출물 경로. 🔴 **v1 파일 이름은 거부한다.**
 
@@ -1305,7 +1374,7 @@ def _install_request_cache(offline: bool):
     return cache
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Phase H 오류 분석 (dev 전용)")
     parser.add_argument("--cohort", default="measured", choices=COHORTS,
                         help="measured=v1 이 잰 42문항 · full=dev 78+회귀 10 · valuechain=12")
@@ -1321,7 +1390,7 @@ def main() -> None:
     parser.add_argument("--offline", action="store_true",
                         help="요청 캐시 미적중 시 중단 (크레딧 0원 확인용)")
     parser.add_argument("--budget-won", type=float, default=BUDGET_WON)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     out_path = resolve_out(args.out)
     _use_v2_dirs()
@@ -1359,8 +1428,9 @@ def main() -> None:
 
     rows = analyse(cases, records)
     report = build_report(cases, rows, cohort=args.cohort)
-    if live:
-        report["this_run"] = live
+    this_run = _merge_this_run(out_path, live)
+    if this_run is not None:
+        report["this_run"] = this_run
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
