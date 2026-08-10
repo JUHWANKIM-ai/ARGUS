@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-012",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제공된 답변에서는 2026년 3월의 대량보유상황보고서에 대한 정보가 전혀 언급되지 않았습니다. 이로 인해 질문에 완전히 답변하지 못했습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 753,
+   "completion_tokens": 57,
+   "latency_s": 1.635,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 753,
+ "completion_tokens": 57
+}

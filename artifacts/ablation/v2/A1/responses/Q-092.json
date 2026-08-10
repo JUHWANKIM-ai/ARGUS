@@ -1,0 +1,16 @@
+{
+ "question_id": "Q-092",
+ "response": {
+  "question_id": "Q-092",
+  "question": "LG생활건강 2025년 사업보고서(제25기)의 사업부문별 매출을 비교하고 가장 큰 부문이 두 번째 부문보다 얼마나 큰지 알려줘.",
+  "retrieved_context": "",
+  "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG생활건강\" period=year:2025 top_k=5 q=\"LG 생활건강 2025 사업보고서 25 사업부문별 매출 비교하고 가장 부문 번째 부문보다 얼마나 큰지\" n=0 top_score=- ids=- | hop=0 verdict=insufficient evidence=0 reason=no_candidate | 근거 없음 — LLM 호출 없이 한계 고지 | budget steps=1 hops=0 llm=0 tokens=0",
+  "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다."
+ },
+ "calls": [],
+ "prompt_tokens": 0,
+ "completion_tokens": 0,
+ "llm_calls": 0,
+ "latency_s": 0.007,
+ "ts": "2026-08-10T21:26:52"
+}

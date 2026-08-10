@@ -1,0 +1,24 @@
+{
+ "question_id": "Q-033",
+ "response": {
+  "question_id": "Q-033",
+  "question": "삼성E&A가 2024년 11월에 공시한 알제리 Hassi Messaoud 정유 프로젝트 계약 해지의 해지 금액과 계약상대, 원래 계약기간을 정리해줘.",
+  "retrieved_context": "## [공급계약 해지] 삼성E&A – 단일판매ㆍ공급계약 해지 — 알제리 Hassi Messaoud 정유 프로젝트\n- 공시일: 2024-11-28 (접수번호 20241128800504)\n- 섹터: 건설\n- 해지금액: 1,937,231,667,470원\n- 매출액 대비: 35.35%\n- 계약상대: SONATRACH (알제리 국영석유회사)\n- 기간: 2020-02-25 ~ 2024-12-21\n- 확정일: 2024-11-28\n\n## [공급계약 체결] 삼성E&A – 단일판매ㆍ공급계약체결 — 카타르 Ras Laffan Petrochemicals Project - Ethylene Storage Plant\n- 공시일: 2024-11-15 (접수번호 20241115800040)\n- 섹터: 건설\n- 계약금액: 301,887,148,078원\n- 매출액 대비: 2.84%\n- 계약상대: Ras Laffan Petrochemicals\n- 기간: 2024-09-19 ~ 2027-07-18\n- 확정일: 2024-11-14\n\n## [기재정정] [공급계약 체결] 삼성E&A – 단일판매ㆍ공급계약체결 — 사우디아라비아 AGIC PDH&UTOS Project\n- 공시일: 2024-11-29 (접수번호 20241129800158)\n- 섹터: 건설\n- 계약금액: 735,048,620,405원\n- 매출액 대비: 10.93%\n- 계약상대: Advanced Global Investment Company\n- 기간: 2021-05-03 ~ 2025-02-20\n- 확정일: 2021-04-13",
+  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성E&A\" period=ym:202411 top_k=5 q=\"삼성 2024 11 월에 공시한 알제리 Hassi Messaoud 정유 프로젝트 계약 해지 금액 원래\" n=3 top_score=73.670 ids=exchange_20241128800504,exchange_20241115800040,exchange_20241129800158 | hop=0 verdict=sufficient evidence=3 | generate tokens=854+125 | budget steps=1 hops=0 llm=1 tokens=979",
+  "answer": "삼성E&A가 2024년 11월에 공시한 알제리 Hassi Messaoud 정유 프로젝트 계약 해지에 대한 정보는 다음과 같습니다.\n\n1. **해지 금액**: 1,937,231,667,470원\n2. **계약 상대방**: SONATRACH (알제리 국영석유회사)\n3. **원래 계약 기간**: 2020-02-25부터 2024-12-21까지\n\n(근거: 공급계약 해지 보고서, 2024-11-28, 접수번호 20241128800504)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 854,
+   "completion_tokens": 125,
+   "latency_s": 3.07,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 854,
+ "completion_tokens": 125,
+ "llm_calls": 1,
+ "latency_s": 0.006,
+ "ts": "2026-08-10T21:24:47"
+}

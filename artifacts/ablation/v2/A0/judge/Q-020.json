@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-020",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제시된 근거를 바탕으로 답변하지 않고 오히려 잘못된 정보를 제공함.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 630,
+   "completion_tokens": 42,
+   "latency_s": 1.224,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 630,
+ "completion_tokens": 42
+}

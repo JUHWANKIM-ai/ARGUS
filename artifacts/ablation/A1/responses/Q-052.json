@@ -1,0 +1,16 @@
+{
+ "question_id": "Q-052",
+ "response": {
+  "question_id": "Q-052",
+  "question": "HMM이 2024년 3월 20일 제출한 2023년 사업보고서에는 제48기 보통주 주당 현금배당금이 600원으로 기재돼 있었다. 정정 반영 후 최종 금액은 얼마인가?",
+  "retrieved_context": "",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HMM\" period=ym:202403 top_k=5 q=\"HMM 2024 20 제출한 2023 사업보고서에 48 보통주 주당 현금배당금 600 기재돼 있었다 정정 반영 최종 금액 얼마인\" n=0 top_score=- ids=- | hop=0 verdict=insufficient evidence=0 reason=no_candidate | 근거 없음 — LLM 호출 없이 한계 고지 | budget steps=1 hops=0 llm=0 tokens=0",
+  "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다."
+ },
+ "calls": [],
+ "prompt_tokens": 0,
+ "completion_tokens": 0,
+ "llm_calls": 0,
+ "latency_s": 0.008,
+ "ts": "2026-08-09T14:59:50"
+}

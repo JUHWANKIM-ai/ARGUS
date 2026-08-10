@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-103",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출 답변에는 모범 답안의 용도별 자금 내역이 누락되어 있으며, 잘못된 정보(전액이 운영자금)를 제공하고 있음.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 480,
+   "completion_tokens": 54,
+   "latency_s": 1.442,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 480,
+ "completion_tokens": 54
+}

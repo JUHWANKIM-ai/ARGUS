@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-095",
+ "response": {
+  "question_id": "Q-095",
+  "question": "아모레퍼시픽이 2024년 2월에 공시한 용산 본사 사옥 임대차 계약의 최근매출액 대비 비율은 몇 %인가?",
+  "retrieved_context": "## [기재정정] [공급계약 체결] 아모레퍼시픽 – 단일판매ㆍ공급계약체결 — 임대차 계약\n- 공시일: 2024-02-28 (접수번호 20240228800335)\n- 섹터: 소비재·유통\n- 계약금액: 209,606,962,407원 (2,096억원)\n- 매출액 대비: 5.07%\n- 계약상대: 삼일회계법인 (Samil PricewaterhouseCoopers)\n- 기간: 2018-04-01 ~ 2028-03-31 (9년 11개월)\n- 확정일: 2024-02-28",
+  "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"아모레퍼시픽\" period=ym:202402 top_k=5 q=\"아모레퍼시픽 2024 월에 공시한 용산 본사 사옥 임대차 계약 대비 비율\" n=1 top_score=65.937 ids=exchange_20240228800335 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"아모레퍼시픽\" period=year:2024 top_k=8 q=\"아모레퍼시픽 2024 월에 공시한 용산 본사 사옥 임대차 계약 대비 비율\" n=1 top_score=65.937 ids=exchange_20240228800335 | hop=1 verdict=insufficient evidence=1 reason=few:1<2 | hop=2 strat=corp_only tool=search_chunks corp=\"아모레퍼시픽\" period=none top_k=10 q=\"아모레퍼시픽 월에 용산 본사 사옥 임대차 비율\" n=1 top_score=59.190 ids=exchange_20240228800335 | hop=2 verdict=insufficient evidence=1 reason=few:1<2 | hop=2 stop=stalled (2회 연속 새 후보 없음) | generate tokens=601+67 | 근거 표기 누락 — critic 호출 | critic supported=True reason=제시된 답변은 제공된 근거의 내용을 정확히 반영하고 있으며, 필요한 정보인 매출액 대비 비율과 함께 접수번호까지 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=3 hops=2 llm=2 tokens=1078",
+  "answer": "아모레퍼시픽이 2024년 2월에 공시한 용산 본사 사옥 임대차 계약의 최근 매출액 대비 비율은 **5.07**%입니다.\n\n(근거: 단일판매ㆍ공급계약체결, 2024-02-28, 20240228800335)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 601,
+   "completion_tokens": 67,
+   "latency_s": 1.753,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 354,
+   "completion_tokens": 56,
+   "latency_s": 1.484,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 955,
+ "completion_tokens": 123,
+ "llm_calls": 2,
+ "latency_s": 0.01,
+ "ts": "2026-08-10T21:08:09"
+}

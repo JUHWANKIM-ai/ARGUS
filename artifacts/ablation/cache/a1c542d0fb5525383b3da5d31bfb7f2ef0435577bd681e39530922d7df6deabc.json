@@ -1,0 +1,1 @@
+{"status": 200, "payload": {"status": {"code": "20000", "message": "OK"}, "result": {"message": {"role": "assistant", "content": "정정공시가 없어 변경된 계약금액을 알 수 없습니다.\n(근거: 없음)"}, "finishReason": "stop", "created": 1786396647, "seed": 1442366438, "usage": {"promptTokens": 685, "completionTokens": 21, "totalTokens": 706}}}, "latency_s": 0.7724158763885498}

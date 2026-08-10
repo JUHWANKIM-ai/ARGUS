@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-023",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제시된 답변은 모범답안의 일부 정보만을 포함하고 있으며, 계약금액 변동 내역에 대한 전체적인 정보를 제공하지 않고 있다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 1143,
+   "completion_tokens": 53,
+   "latency_s": 1.562,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1143,
+ "completion_tokens": 53
+}

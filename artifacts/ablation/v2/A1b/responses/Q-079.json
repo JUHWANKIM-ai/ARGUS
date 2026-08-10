@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-079",
+ "response": {
+  "question_id": "Q-079",
+  "question": "한미반도체가 2024년 6월에 공시한 HBM 제조용 'DUAL TC BONDER GRIFFIN' 장비 공급계약의 계약금액·최근매출액 대비 비율·계약기간을 알려줘.",
+  "retrieved_context": "## [공급계약 체결] 한미반도체 – 단일판매ㆍ공급계약체결 — HBM 제조용 'DUAL TC BONDER GRIFFIN' 장비 수주\n- 공시일: 2024-06-07 (접수번호 20240607800056)\n- 섹터: 반도체·전자부품\n- 계약금액: 149,919,000,000원\n- 매출액 대비: 94.28%\n- 계약상대: SK하이닉스(SK Hynix Inc.)\n- 기간: 2024-06-07 ~ 2024-12-02\n- 확정일: 2024-06-07",
+  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한미반도체\" period=ym:202406 top_k=5 q=\"한미반도체 2024 월에 공시한 HBM 제조용 DUAL TC BONDER GRIFFIN 장비 대비 비율\" n=1 top_score=72.894 ids=exchange_20240607800056 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | generate tokens=604+113 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | budget steps=1 hops=0 llm=2 tokens=1151",
+  "answer": "한미반도체가 2024년 6월에 공시한 HBM 제조용 'DUAL TC BONDER GRIFFIN' 장비 공급계약의 정보는 다음과 같습니다.\n\n- 계약금액: **149,919,000,000원**\n- 최근 매출액 대비 비율: **94.28%**\n- 계약기간: **2024-06-07부터 2024-12-02까지**\n\n(근거: 단일판매ㆍ공급계약체결, 2024-06-07, 20240607800056)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 604,
+   "completion_tokens": 113,
+   "latency_s": 2.684,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 390,
+   "completion_tokens": 44,
+   "latency_s": 1.22,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 994,
+ "completion_tokens": 157,
+ "llm_calls": 2,
+ "latency_s": 3.911,
+ "ts": "2026-08-10T21:20:47"
+}

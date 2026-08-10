@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-058",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출 답변은 모범 답안의 요소를 하나도 포함하지 않았습니다. 대신, 잘못된 추측으로 답변을 구성했습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 3915,
+   "completion_tokens": 49,
+   "latency_s": 1.917,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 3915,
+ "completion_tokens": 49
+}

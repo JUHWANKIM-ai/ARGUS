@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-094",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출 답변에는 모범답안 요소들이 누락되어 있으며, 특히 '정정사유는 단순 기재오류이고 금액은 하나도 바뀌지 않았다'라는 중요한 정보가 빠져있습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 1930,
+   "completion_tokens": 65,
+   "latency_s": 1.927,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1930,
+ "completion_tokens": 65
+}

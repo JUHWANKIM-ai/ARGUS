@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-101",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제시된 답변에서는 요구된 모범답안의 핵심 요소인 투자금액과 환산 금액, 그리고 근거의 접수 번호를 제대로 언급하지 않았습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 444,
+   "completion_tokens": 55,
+   "latency_s": 1.477,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 444,
+ "completion_tokens": 55
+}

@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-062",
+ "response": {
+  "question_id": "Q-062",
+  "question": "한화솔루션이 2026년 3월 26일 결의한 유상증자에서 채무상환자금으로 조달하려는 금액은 얼마인가?",
+  "retrieved_context": "## [유상증자결정] 한화솔루션 – 주요사항보고서(유상증자결정)\n- 공시일: 2026-03-26 (접수번호 20260326000538)\n- 섹터: 신재생에너지\n- 조달금액: 2,397,600,000,000원\n- 신주의 종류와 수(보통주식): 72,000,000\n- 1주당 액면가액: 5,000\n- 증자전 발행주식총수: 171,892,536\n- 시설자금: 907,700,000,000\n- 채무상환자금: 1,489,900,000,000\n- 증자방식: 주주배정후 실권주 일반공모\n- 신주배정기준일: 2026년 05월 14일\n- 신주 발행가액: 33,300\n- 확정일: 2026-03-26",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한화솔루션\" period=ym:202603 top_k=5 q=\"한화솔루션 2026 26 결의한 유상증자 채무상환자금 조달하려 금액 얼마인\" n=1 top_score=50.924 ids=major_20260326000538 | hop=0 verdict=sufficient evidence=1 | generate tokens=660+81 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | budget steps=1 hops=0 llm=2 tokens=1222",
+  "answer": "한화솔루션이 2026년 3월 26일 결의한 유상증자에서 채무상환자금으로 조달하려는 금액은 **1,489,900,000,000원**입니다. \n(근거: 주요사항보고서(유상증자결정), 2026-03-26, 20260326000538)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 660,
+   "completion_tokens": 81,
+   "latency_s": 2.087,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 437,
+   "completion_tokens": 44,
+   "latency_s": 1.308,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1097,
+ "completion_tokens": 125,
+ "llm_calls": 2,
+ "latency_s": 0.003,
+ "ts": "2026-08-10T21:22:45"
+}

@@ -1,0 +1,16 @@
+{
+ "question_id": "Q-063",
+ "response": {
+  "question_id": "Q-063",
+  "question": "우리기술이 2025년 11월 20일 결의한 사모 전환사채 발행의 주요 조건(권면총액·표면이자율·만기이자율·전환가액·사채만기일)을 정리해줘.",
+  "retrieved_context": "",
+  "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"우리기술\" period=ym:202511 top_k=5 q=\"우리기술 2025 11 20 결의한 사모 전환사채 발행 주요 조건 권면총액 표면이자율 만기이자율 전환가액 사채만기일\" n=0 top_score=- ids=- | hop=0 verdict=insufficient evidence=0 reason=no_candidate | 근거 없음 — LLM 호출 없이 한계 고지 | budget steps=1 hops=0 llm=0 tokens=0",
+  "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다."
+ },
+ "calls": [],
+ "prompt_tokens": 0,
+ "completion_tokens": 0,
+ "llm_calls": 0,
+ "latency_s": 0.008,
+ "ts": "2026-08-10T21:27:42"
+}

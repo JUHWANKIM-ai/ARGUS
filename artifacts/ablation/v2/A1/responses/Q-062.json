@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-062",
+ "response": {
+  "question_id": "Q-062",
+  "question": "한화솔루션이 2026년 3월 26일 결의한 유상증자에서 채무상환자금으로 조달하려는 금액은 얼마인가?",
+  "retrieved_context": "## [투자판단 관련 주요경영사항] 한화솔루션 – 투자판단 관련 주요경영사항\n- 공시일: 2026-03-20 (접수번호 20260320800727)\n- 섹터: 신재생에너지\n- 확정일: 2026-03-20",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한화솔루션\" period=ym:202603 top_k=5 q=\"한화솔루션 2026 26 결의한 유상증자 채무상환자금 조달하려 금액 얼마인\" n=1 top_score=28.855 ids=exchange_20260320800727 | hop=0 verdict=insufficient evidence=1 reason=missing_field:금액 | generate tokens=507+42 | 근거 표기 누락 — critic 호출 | critic supported=False reason=답변이 모호하며, 유상증자의 구체적인 자금 용도와 규모에 대한 정보가 부족합니다. | budget steps=1 hops=0 llm=2 tokens=840",
+  "answer": "공시에서 확인되지 않습니다. \n유상증자와 관련된 구체적인 자금 용도 및 규모는 별도의 상세 공시가 필요할 것으로 보입니다. 추가적인 정보를 위해 다른 공시나 보도자료를 참고하시기 바랍니다.\n\n(주의: 근거 검증을 통과하지 못했습니다 — 답변이 모호하며, 유상증자의 구체적인 자금 용도와 규모에 대한 정보가 부족합니다.)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 507,
+   "completion_tokens": 42,
+   "latency_s": 1.168,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 245,
+   "completion_tokens": 46,
+   "latency_s": 1.29,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 752,
+ "completion_tokens": 88,
+ "llm_calls": 2,
+ "latency_s": 2.466,
+ "ts": "2026-08-10T21:27:41"
+}

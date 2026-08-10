@@ -45,6 +45,38 @@ _FOREIGN_AFTER = {"달러", "USD", "$"}
 # 100만원 미만은 금액 표기가 아니라 수량·건수일 확률이 높다.
 _MIN_AMOUNT = 10**6
 
+# `1조 1,500억원` 처럼 큰 단위와 작은 단위를 **이어 쓴** 표기. 앞 단위에서 끊으면
+# 1조가 되고 1,500억이 통째로 사라진다 — 이마트 20241114800538 의 매매대금이
+# 1조 1,500억원인데 정규화 필드가 1,000,000,000,000 이었다.
+_AMOUNT_TAIL = re.compile(r"\s*(\d[\d,]*(?:\.\d+)?)\s*(억|천만|백만|만)")
+_WON_TAIL = re.compile(r"\s*원")
+
+
+def _compound_tail(cell: str, pos: int, magnitude: str) -> float:
+    """`1조 1,500억원` 의 꼬리(`1,500억`)를 원 단위로 환산해 돌려준다. 없으면 0.
+
+    두 조건을 **둘 다** 만족할 때만 붙인다.
+
+        ① 단위가 내림차순이다 (조 -> 억 -> 천만 -> 백만 -> 만)
+        ② 마지막 조각이 `원` 으로 끝난다
+
+    ②가 없으면 `5,000억 100만주` 의 `100만` 을 금액으로 더한다 — 그건 주식수이고,
+    값이 비는 것보다 나쁘다.
+    """
+    extra, scale, cursor = 0.0, _MAGNITUDE[magnitude], pos
+    while (part := _AMOUNT_TAIL.match(cell, cursor)) is not None:
+        step = _MAGNITUDE[part.group(2)]
+        if step >= scale:
+            return 0.0
+        try:
+            extra += float(part.group(1).replace(",", "")) * step
+        except ValueError:
+            return 0.0
+        scale, cursor = step, part.end()
+        if _WON_TAIL.match(cell, cursor):
+            return extra
+    return 0.0
+
 
 def free_text_amount(cells: list[str]) -> tuple[int, str] | None:
     """자유서술문에서 **원화** 금액을 뽑는다. `(금액, 금액종류)` 또는 None.
@@ -70,7 +102,8 @@ def free_text_amount(cells: list[str]) -> tuple[int, str] | None:
             except ValueError:
                 continue
             if magnitude:
-                value *= _MAGNITUDE[magnitude]
+                value = value * _MAGNITUDE[magnitude] + _compound_tail(
+                    cell, match.end(3), magnitude)
             if value < _MIN_AMOUNT:
                 continue
             return int(value), f"{kind or ''}금액"
@@ -279,9 +312,52 @@ def _base_record(doc: dict, rows: list[list[str]]) -> dict:
     }
 
 
+#: KIND 서식 본문의 첫 항목(`1. 제목` · `1. 판매ㆍ공급계약 구분`). 정정 표가 여기서 끝난다.
+#: major·holding 의 `_is_body_start`(귀중·회 사 명)를 그대로 쓰면 안 된다 — exchange
+#: 서식에는 그 표지가 **한 건도 없어서** 구간 끝이 문서 끝이 되고 본문이 통째로 날아간다.
+_KIND_ITEM1 = re.compile(r"^\s*1\s*[.．]\s*\S")
+
+
+def exchange_correction_span(rows: list[list[str]]) -> tuple[int, int] | None:
+    """exchange 기재정정 표의 `(머리행, 끝)`. 없으면 None.
+
+    실측(exchange 1,469건): 정정본 631건 전건에 `정정전`·`정정후` 머리행이 있고
+    원공시 838건에는 **한 건도 없다**(오검출 0). 머리행 뒤에서 `1.` 로 시작하는
+    본문 첫 행도 631/631 에서 찾힌다. 머리행 **뒤**부터 찾는 게 중요하다 —
+    정정 메타의 `1. 정정관련 공시서류` 가 머리행 앞에 있다.
+    """
+    for index, row in enumerate(rows):
+        flat = _WS_ALL.sub("", "".join(row))
+        if "정정전" in flat and "정정후" in flat:
+            end = next((i for i in range(index + 1, len(rows))
+                        if rows[i] and _KIND_ITEM1.match(rows[i][0])), len(rows))
+            return index, end
+    return None
+
+
+def exchange_body_rows(rows: list[list[str]]) -> list[list[str]]:
+    """정정 표를 뺀 서식 본문. **exchange 필드 추출은 반드시 여기서 해야 한다.**
+
+    정정 표의 한 행은 `[항목, 정정전, 정정후]` 이고 값 칸이 **서술 블록 통째**다.
+    행 전체로 라벨을 찾는 `_labels` 는 row[:-1] 을 라벨로 보므로, 3칸 행에서는
+    **정정 전 블록이 라벨이 된다** — 그 안의 키워드가 걸리고 값으로는 정정 후 블록의
+    첫 숫자가 잡힌다. 실측: 크래프톤 20260306801011 의 `자기자본대비` 가 정정 전
+    블록에서 걸리고 값이 정정 후 블록 첫머리 `(1) 조합명` 의 **1** 로 읽혀
+    `ratio=1.0` 이 됐다 (본문은 2.93%).
+
+    금액도 같은 행에서 어긋난다. `free_text_amount` 는 칸을 뒤에서부터 봐서 정정 후를
+    먼저 읽지만, 정정 후 칸이 단위(`원`)를 빼먹으면 그 값이 기각되고 **같은 행의 정정
+    전 칸**으로 흘러내린다. 실측: NAVER 20260130800888 의 매매대금이 정정 후
+    `902,863,854,765`(원 없음) 대신 정정 전 `903,559,577,175원` 으로 굳었다.
+    """
+    span = exchange_correction_span(rows)
+    return rows if span is None else rows[:span[0]] + rows[span[1]:]
+
+
 def normalize_exchange(doc: dict) -> dict:
     html = read_document(_doc_path(doc))
     rows = extract_rows(html)
+    body = exchange_body_rows(rows)           # 정정 표는 필드 추출에서 반드시 뺀다
     title = extract_title(html)
 
     # 해지 서식은 '2. 해지내역 | 해지금액(원)' 을 쓴다. 체결 서식의 '계약금액' 과 별개다.
@@ -289,14 +365,14 @@ def normalize_exchange(doc: dict) -> dict:
     # 통째로 비어 있었다.
     amount, amount_type = None, "계약금액"
     for label in ("계약금액", "해지금액", "투자금액"):
-        found = _find_number(rows, label)
+        found = _find_number(body, label)
         if found is not None:
             amount, amount_type = found, label
             break
 
     # 그래도 없으면 자유서술문을 본다 (투자판단 서식).
     if amount is None:
-        for row in rows:
+        for row in body:
             free = free_text_amount(row)
             if free is not None:
                 amount, amount_type = free
@@ -304,28 +380,28 @@ def normalize_exchange(doc: dict) -> dict:
 
     # 계약 서식은 '매출액대비(%)', 투자 서식은 '자기자본대비(%)' 다. 기준이 다르므로
     # ratio_base 를 같이 바꿔야 한다 — 안 그러면 자기자본 비율이 매출 비율로 읽힌다.
-    ratio, ratio_base = _find_number(rows, "매출액대비"), "매출액"
+    ratio, ratio_base = _find_number(body, "매출액대비"), "매출액"
     if ratio is None:
-        equity_ratio = _find_number(rows, "자기자본대비")
+        equity_ratio = _find_number(body, "자기자본대비")
         if equity_ratio is not None:
             ratio, ratio_base = equity_ratio, "자기자본"
-    start = _find_date(rows, "시작일")
-    end = _find_date(rows, "종료일")
+    start = _find_date(body, "시작일")
+    end = _find_date(body, "종료일")
     # 라벨은 '확정일자' 가 아니라 '7. 계약(수주)일자' 다. 해지 서식은 '6. 해지일자'.
     # 어느 쪽도 없으면 접수일로 폴백한다.
-    event = (_find_date(rows, "계약", "일자")
-             or _find_date(rows, "수주", "일자")
-             or _find_date(rows, "해지일자")
+    event = (_find_date(body, "계약", "일자")
+             or _find_date(body, "수주", "일자")
+             or _find_date(body, "해지일자")
              or parse_date(doc["rcept_dt"]))
 
     # <title> 은 서식명('단일판매ㆍ공급계약체결')뿐이라 검색어가 되지 못한다.
     # 실제 내용은 '- 체결계약명 | 2500kVA 배전변압기 등 3,500대' 행에 있다.
     # 이걸 제목으로 올려야 "변압기 공급계약" 같은 질의에 걸린다.
-    subject = (_find(rows, "체결계약명")
-               or _find(rows, "해지계약명")
-               or _find(rows, "계약명")
-               or _find(rows, "투자대상")
-               or _find(rows, "사고발생내용"))
+    subject = (_find(body, "체결계약명")
+               or _find(body, "해지계약명")
+               or _find(body, "계약명")
+               or _find(body, "투자대상")
+               or _find(body, "사고발생내용"))
 
     raw_title = title.split("/")[-1].strip() if title else doc["report_nm"]
     form_name = _TITLE_DATE.sub("", raw_title).strip() or doc["report_nm"]
@@ -335,7 +411,7 @@ def normalize_exchange(doc: dict) -> dict:
     # 것이다(경영상 비밀유지 등). 계약 서식 60건이 여기 해당한다. 이건 파서가 못
     # 읽은 게 아니라 원본에 값이 없는 것이라, Phase H 오류분석이 '파싱 실패' 와
     # 섞지 않도록 따로 표시한다. schema_matched 를 True 로 올리면 안 된다.
-    reserved_reason = _find(rows, "유보사유")
+    reserved_reason = _find(body, "유보사유")
     withheld = amount is None and reserved_reason is not None
 
     record = _base_record(doc, rows)
@@ -346,7 +422,7 @@ def normalize_exchange(doc: dict) -> dict:
         "amount_type": amount_type,
         "ratio": ratio,
         "ratio_base": ratio_base,
-        "counterparty": _find(rows, "계약상대"),
+        "counterparty": _find(body, "계약상대"),
         "period_start": start.isoformat() if start else None,
         "period_end": end.isoformat() if end else None,
         "event_date": event.isoformat() if event else None,

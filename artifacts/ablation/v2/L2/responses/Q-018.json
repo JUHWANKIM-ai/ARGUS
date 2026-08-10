@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-018",
+ "response": {
+  "question_id": "Q-018",
+  "question": "HD현대중공업이 2023년 7월에 공시한 FPU 1기 공급계약은 정정공시로 계약금액이 얼마나 증가했는가?",
+  "retrieved_context": "## [공급계약 체결] HD현대중공업 – 단일판매ㆍ공급계약체결 — FPU 1기\n- 정정체인: 1/2 (원공시 · 대체됨)\n- 공시일: 2023-07-03 (접수번호 20230703800173)\n- 섹터: 조선\n- 계약금액: 1,566,300,000,000원 (15,663억원)\n- 매출액 대비: 17.32%\n- 계약상대: 멕시코 소재 원유 개발 업체\n- 기간: 2023-07-01 ~ 2027-04-01 (3년 9개월)\n- 확정일: 2023-06-30\n\n## [공급계약 체결] HD현대중공업 – 단일판매ㆍ공급계약체결 — VLGC 3척\n- 정정체인: 1/2 (원공시 · 대체됨)\n- 공시일: 2023-07-07 (접수번호 20230707800096)\n- 섹터: 조선\n- 계약금액: 416,200,000,000원 (4,162억원)\n- 매출액 대비: 4.6%\n- 계약상대: 유럽 소재 선사\n- 기간: 2023-07-06 ~ 2026-12-31 (3년 5개월)\n- 확정일: 2023-07-06\n\n## [기재정정] [공급계약 체결] HD현대중공업 – 단일판매ㆍ공급계약체결 — FPU 1기\n- 정정체인: 2/2 (최신본)\n- 공시일: 2024-12-23 (접수번호 20241223800052)\n- 섹터: 조선\n- 계약금액: 1,842,200,000,000원 (18,422억원)\n- 매출액 대비: 20.37%\n- 계약상대: 멕시코 소재 원유 개발 업체\n- 기간: 2023-07-01 ~ 2027-04-01 (3년 9개월)\n- 확정일: 2023-06-30\n\n## [기재정정] [공급계약 체결] HD현대중공업 – 단일판매ㆍ공급계약체결 — VLGC 3척\n- 정정체인: 2/2 (최신본)\n- 공시일: 2023-11-17 (접수번호 20231117800436)\n- 섹터: 조선\n- 계약금액: 416,200,000,000원 (4,162억원)\n- 매출액 대비: 4.6%\n- 계약상대: 유럽 소재 선사\n- 기간: 2023-07-06 ~ 2026-08-31 (3년 1개월)\n- 확정일: 2023-07-06",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대중공업\" period=ym:202307 top_k=5 q=\"HD 현대중공업 2023 월에 공시한 FPU 정정공시 얼마나 증가했는\" n=2 top_score=25.861 ids=exchange_20230703800173,exchange_20230707800096 | hop=5 strat=chain tool=get_history corp=\"HD현대중공업\" rcept=20230703800173 latest=20241223800052 chain_length=2 n=1 top_score=- ids=exchange_20241223800052 | hop=5 strat=chain tool=get_history corp=\"HD현대중공업\" rcept=20230707800096 latest=20231117800436 chain_length=2 n=1 top_score=- ids=exchange_20231117800436 | hop=0 verdict=sufficient evidence=4 | generate tokens=1040+114 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 계약 금액의 변동과 관련된 정보가 정확하게 반영되어 있으며, 수정된 계약 금액 및 증가한 금액도 정확히 계산되어 있습니다. | verify calc_checked=amount complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=3 hops=0 llm=2 tokens=2061",
+  "answer": "HD현대중공업이 2023년 7월에 공시한 FPU 1기 공급계약의 계약금액은 최초 15,663억 원에서 최종 18,422억 원으로 변경되었습니다. 따라서 계약금액은 **2,759억 원** 증가했습니다.\n\n(근거: [기재정정] [공급계약 체결] HD현대중공업 – 단일판매ㆍ공급계약체결 — FPU 1기, 2024-12-23, 20241223800052)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 1040,
+   "completion_tokens": 114,
+   "latency_s": 2.838,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 854,
+   "completion_tokens": 53,
+   "latency_s": 1.751,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1894,
+ "completion_tokens": 167,
+ "llm_calls": 2,
+ "latency_s": 0.006,
+ "ts": "2026-08-10T21:05:47"
+}

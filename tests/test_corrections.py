@@ -1,4 +1,8 @@
+import json
+
+from argus.config import settings
 from argus.corpus.corrections import (
+    _drop_cycles,
     attach_related,
     build_chains,
     latest_of,
@@ -79,9 +83,14 @@ def test_exchange_link_rate_does_not_regress():
     `[기재정정]단일판매ㆍ공급계약체결`(20231018800203)이 `※관련공시` 단서를 타고
     `투자판단관련주요경영사항`(20230620800002)에 붙어 있었다. 서식이 달라 정정
     대상일 수 없다 — 둘의 관계는 정정이 아니라 REFERS_TO 다.
+
+    385 -> 381 도 회귀가 아니다. `_drop_cycles` 가 상호 참조로 생긴 순환 2쌍을 끊었다.
+    빠진 4건은 **연결이 없어진 문서가 아니라 두 번 세어졌던 간선**이다 — 사슬 하나가
+    뿌리 둘로 갈려 `(A->B)` 와 `(B->A)` 를 동시에 세고 있었고, 그 대가로 그 사슬에
+    `is_latest` 가 **한 건도 없었다**(`test_every_chain_group_has_exactly_one_latest`).
     """
     linked = sum(len(v) for v in build_chains("exchange").values())
-    assert linked >= 385
+    assert linked >= 381
 
 
 def test_correction_does_not_link_across_report_forms():
@@ -158,3 +167,178 @@ def test_chain_members_see_each_other_from_any_position():
                                     for x in ("R", "C1", "C2")], chains)}
     assert set(out["C1"]["related"]) == {"R", "C2"}
     assert set(out["R"]["related"]) == {"C1", "C2"}
+
+
+# --- 상호 참조 순환 — 최신본이 **한 건도 없는** 체인이 실재했다 ----------------
+
+
+def test_drop_cycles_removes_a_mutual_pair_entirely():
+    """순환 구성원 중 하나를 뿌리로 승격하지 않는다. **간선을 버린다.**
+
+    승격하면 사슬은 서지만 상호 참조를 근거로 한 건을 '대체됨' 으로 단정하게 되고,
+    그 건이 다시 `is_latest` 필터에서 사라진다. 단서가 대상을 특정하지 못한 것이므로
+    연결하지 않는 것이 이 파일의 기존 원칙과 같다.
+    """
+    parent = {"A": "B", "B": "A"}
+    dropped = _drop_cycles(parent)
+    assert parent == {}
+    assert sorted(dropped) == [("A", "B"), ("B", "A")]
+
+
+def test_drop_cycles_keeps_edges_that_hang_off_a_cycle():
+    """순환 밖 간선은 살아야 한다 — 현대로템 20240712800050·053 이 그 자리다."""
+    parent = {"A": "B", "B": "A", "C": "A", "D": "C"}
+    _drop_cycles(parent)
+    assert parent == {"C": "A", "D": "C"}
+
+
+def test_drop_cycles_leaves_an_acyclic_forest_untouched():
+    parent = {"C2": "C1", "C1": "R", "X": "Y"}
+    assert _drop_cycles(parent) == []
+    assert parent == {"C2": "C1", "C1": "R", "X": "Y"}
+
+
+def test_every_chain_group_has_exactly_one_latest():
+    """🔴 실측으로 깨져 있던 불변이다. exchange 2쌍(4건)이 최신본 0건이었다.
+
+    `superseded` 가 두 사슬의 합집합이 되어 A·B 가 둘 다 False 로 떨어졌고, 그 두 건은
+    `query_events(is_latest=True)` 와 BM25 `is_latest` 필터에서 통째로 사라졌다
+    (삼성중공업 20240612800459·20240612800468).
+    """
+    for group in ("exchange", "major", "holding"):
+        chains = build_chains(group)
+        members = {x for root, corr in chains.items() for x in (root, *corr)}
+        records = [{"rcept_no": x, "related": []} for x in sorted(members)]
+        out = {r["rcept_no"]: r for r in attach_related(records, chains)}
+        seen: set[tuple[str, ...]] = set()
+        for record in out.values():
+            grp = tuple(sorted({record["rcept_no"], *record["related"]}))
+            if len(grp) == 1 or grp in seen:
+                continue
+            seen.add(grp)
+            n_latest = sum(1 for x in grp if out[x]["is_latest"])
+            assert n_latest == 1, f"{group} {grp} 최신본 {n_latest}건"
+
+
+def test_mutual_same_day_corrections_are_not_linked():
+    """삼성중공업 두 건은 서로의 정정이 아니다.
+
+    `정정관련 공시서류제출일` 이 각각 2021-10-18 · 2020-11-23 로 **다른 계약**을 가리키고
+    (둘 다 코퍼스 밖), 같은 날 형제를 `※ 관련공시` 에 적었을 뿐이다.
+    """
+    chains = build_chains("exchange")
+    for a, b in (("20240612800459", "20240612800468"),
+                 ("20240612800468", "20240612800459")):
+        assert b not in chains.get(a, [])
+
+
+def test_chain_fragmentation_is_repaired():
+    """현대로템 — 순환 때문에 4본 사슬이 2본으로 덮여 있었다.
+
+    `member_chain` 이 dict 순회 순서에 딸려 덮이므로 재빌드마다 달라질 수 있었다.
+    """
+    chains = build_chains("exchange")
+    roots = [root for root, corr in chains.items()
+             if "20240712800053" in (root, *corr)]
+    assert len(roots) == 1
+    sequence = [roots[0], *chains[roots[0]]]
+    assert "20240712800050" in sequence and "20240712800053" in sequence
+    # 순환 쌍의 두 건이 같은 사슬에 함께 들어오면 안 된다
+    assert not {"20240514801290", "20240514801320"} <= set(sequence)
+
+
+# --- 해지 -> 원계약 (`terminates`) -------------------------------------------
+# 해지 공시는 `is_correction=False` 라 `build_chains` 루프에 아예 들어오지 않는다.
+# 그래서 `related` 가 영원히 비고(실측 20건 중 0건), 유일한 다리가 `※ 관련공시` 다.
+
+
+def _exchange_records() -> list[dict]:
+    path = settings().artifacts_root / "exchange_records.jsonl"
+    if not path.exists():                      # 인덱스 없는 클린 클론
+        return []
+    with path.open(encoding="utf-8") as fh:
+        return [json.loads(line) for line in fh if line.strip()]
+
+
+def test_termination_links_to_the_original_contract():
+    """회귀 Q-066 이 겨냥하는 다리. 대우건설 해지 -> 원계약."""
+    records = _exchange_records()
+    if not records:
+        import pytest
+        pytest.skip("artifacts/exchange_records.jsonl 없음 (gitignore 된 인덱스 산출물)")
+    out = {r["rcept_no"]: r for r in attach_related(records, build_chains("exchange"))}
+    assert out["20241115800529"]["terminates"] == ["20230228801277"]
+
+
+def test_termination_link_carries_the_target_chain():
+    """원계약이 이미 대체본인 경우가 실재한다 — 한 건만 주면 정정 전 금액을 답한다."""
+    records = _exchange_records()
+    if not records:
+        import pytest
+        pytest.skip("artifacts/exchange_records.jsonl 없음")
+    out = {r["rcept_no"]: r for r in attach_related(records, build_chains("exchange"))}
+    links = out["20250331802527"]["terminates"]
+    assert "20240930800764" in links            # 원문이 가리킨 대체본
+    assert "20250331803174" in links            # 그 체인의 최신본
+
+
+def test_termination_links_are_forward_only_and_additive():
+    """`related`·`is_latest` 를 건드리지 않는다. 역방향은 `tools._followup_index` 몫이다.
+
+    양방향으로 넣으면 `get_history(원계약)` 의 `latest` 가 해지 공시로 옮겨 가고
+    `followups` 에서 같은 건이 빠진다 — 지금 도는 경로의 동작이 바뀐다.
+    """
+    records = _exchange_records()
+    if not records:
+        import pytest
+        pytest.skip("artifacts/exchange_records.jsonl 없음")
+    out = {r["rcept_no"]: r for r in attach_related(records, build_chains("exchange"))}
+    linked = [r for r in out.values() if r["terminates"]]
+    assert len(linked) == 11, f"해지 연결 {len(linked)}건 (실측 20건 중 11건이 사정권)"
+    for record in linked:
+        assert record["doc_subtype"] == "단일판매공급계약해지"
+        assert record["related"] == []          # 해지는 정정 체인에 없다
+        assert record["is_latest"] is True
+        for target in record["terminates"]:
+            assert out[target]["terminates"] == []      # 역방향 없음
+
+
+def test_non_termination_documents_get_an_empty_terminates():
+    """`※ 관련공시` 순방향 전체를 붙이는 안은 기각했다 (강한 엣지 출처 453건 중 해지 11건).
+
+    계약체결 공시도 선행 공시를 적어 두지만 그건 정정도 해지도 아니다.
+    """
+    records = _exchange_records()
+    if not records:
+        import pytest
+        pytest.skip("artifacts/exchange_records.jsonl 없음")
+    out = attach_related(records, build_chains("exchange"))
+    others = [r for r in out
+              if r["doc_subtype"] != "단일판매공급계약해지" and r["terminates"]]
+    assert others == []
+
+
+def test_termination_link_requires_the_form_to_agree():
+    """서식이 안 맞으면 붙이지 않는다 — 조회공시 요구가 원계약으로 둔갑한다."""
+    records = [
+        {"rcept_no": "T", "corp_name": "가나", "rcept_dt": "20240301",
+         "doc_subtype": "단일판매공급계약해지", "related": [],
+         "raw_rows": [["관련공시", "2023-02-28 단일판매ㆍ공급계약체결"]]},
+        {"rcept_no": "O", "corp_name": "가나", "rcept_dt": "20230228",
+         "doc_subtype": "조회공시요구(풍문또는보도)", "related": [], "raw_rows": []},
+    ]
+    out = {r["rcept_no"]: r for r in attach_related(records, {})}
+    assert out["T"]["terminates"] == []
+
+
+def test_termination_link_ignores_the_correction_label_row():
+    """`1. 정정관련 공시서류` 를 참조 라벨로 오인하면 같은 날 아무 문서에나 붙는다."""
+    records = [
+        {"rcept_no": "T", "corp_name": "가나", "rcept_dt": "20240301",
+         "doc_subtype": "단일판매공급계약해지", "related": [],
+         "raw_rows": [["1. 정정관련 공시서류", "2023-02-28 단일판매ㆍ공급계약체결"]]},
+        {"rcept_no": "O", "corp_name": "가나", "rcept_dt": "20230228",
+         "doc_subtype": "단일판매공급계약체결", "related": [], "raw_rows": []},
+    ]
+    out = {r["rcept_no"]: r for r in attach_related(records, {})}
+    assert out["T"]["terminates"] == []

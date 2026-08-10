@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-068",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "정정 대상과 정정 사유에 대해 구체적으로 언급하지 않고 일반적 이유만을 설명함.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 3895,
+   "completion_tokens": 42,
+   "latency_s": 1.792,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 3895,
+ "completion_tokens": 42
+}

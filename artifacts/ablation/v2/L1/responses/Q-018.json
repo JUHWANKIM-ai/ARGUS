@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-018",
+ "response": {
+  "question_id": "Q-018",
+  "question": "HD현대중공업이 2023년 7월에 공시한 FPU 1기 공급계약은 정정공시로 계약금액이 얼마나 증가했는가?",
+  "retrieved_context": "## [공급계약 체결] HD현대중공업 – 단일판매ㆍ공급계약체결 — FPU 1기\n- 공시일: 2023-07-03 (접수번호 20230703800173)\n- 섹터: 조선\n- 계약금액: 1,566,300,000,000원 (15,663억원)\n- 매출액 대비: 17.32%\n- 계약상대: 멕시코 소재 원유 개발 업체\n- 기간: 2023-07-01 ~ 2027-04-01 (3년 9개월)\n- 확정일: 2023-06-30\n\n## [공급계약 체결] HD현대중공업 – 단일판매ㆍ공급계약체결 — VLGC 3척\n- 공시일: 2023-07-07 (접수번호 20230707800096)\n- 섹터: 조선\n- 계약금액: 416,200,000,000원 (4,162억원)\n- 매출액 대비: 4.6%\n- 계약상대: 유럽 소재 선사\n- 기간: 2023-07-06 ~ 2026-12-31 (3년 5개월)\n- 확정일: 2023-07-06",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대중공업\" period=ym:202307 top_k=5 q=\"HD 현대중공업 2023 월에 공시한 FPU 정정공시 얼마나 증가했는\" n=2 top_score=25.861 ids=exchange_20230703800173,exchange_20230707800096 | hop=0 verdict=sufficient evidence=2 | generate tokens=705+68 | 근거 표기 누락 — critic 호출 | critic supported=False reason=제공된 근거 내에서 정정공시에 관한 언급은 없으나, 이를 확인할 방법이 없다는 답변은 추측성 발언으로 간주됩니다. | verify calc_checked=- complete_checked=evidence_gap ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1298",
+  "answer": "FPU 1기 공급계약과 관련된 정정공시가 존재하는지 확인해봐야 합니다. 현재 제공된 정보에는 최초 공시 외에 다른 정정공시의 흔적이 없습니다. 따라서, 계약 금액의 변동 여부를 알 수 없습니다.\n\n정정공시 여부에 대한 추가 정보가 필요합니다. (근거: 없음)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 제공된 근거 내에서 정정공시에 관한 언급은 없으나, 이를 확인할 방법이 없다는 답변은 추측성 발언으로 간주됩니다.)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 705,
+   "completion_tokens": 68,
+   "latency_s": 1.846,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 473,
+   "completion_tokens": 52,
+   "latency_s": 4.109,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1178,
+ "completion_tokens": 120,
+ "llm_calls": 2,
+ "latency_s": 5.963,
+ "ts": "2026-08-10T21:02:01"
+}

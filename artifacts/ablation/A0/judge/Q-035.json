@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-035",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출 답변은 모범답안의 핵심인 '정정과 해지'를 다루지 않고 있으며, 추가 정보 탐색 방법만을 제시하고 있음.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 750,
+   "completion_tokens": 53,
+   "latency_s": 1.603,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 750,
+ "completion_tokens": 53
+}

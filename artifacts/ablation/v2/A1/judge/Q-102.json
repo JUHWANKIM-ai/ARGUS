@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-102",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "계약 금액 및 근거를 제시하지 않음",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 248,
+   "completion_tokens": 32,
+   "latency_s": 1.008,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 248,
+ "completion_tokens": 32
+}

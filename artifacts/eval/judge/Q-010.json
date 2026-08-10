@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-010",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제시된 답변은 모범답안의 핵심 정보를 누락하고 있으며, 제공된 근거와 일치하지 않는 정보가 포함되어 있습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 762,
+   "completion_tokens": 50,
+   "latency_s": 1.426,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 762,
+ "completion_tokens": 50
+}

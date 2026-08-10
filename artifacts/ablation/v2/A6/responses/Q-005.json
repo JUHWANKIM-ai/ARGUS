@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-005",
+ "response": {
+  "question_id": "Q-005",
+  "question": "삼성중공업이 2023년 6월에 공시한 원유운반선 2척 공급계약의 계약금액은 이후 정정공시에서 얼마로 바뀌었는가?",
+  "retrieved_context": "## [공급계약 체결] 삼성중공업 – 단일판매ㆍ공급계약체결 — 원유운반선 2척\n- 정정체인: 1/2 (원공시 · 대체됨)\n- 공시일: 2023-06-02 (접수번호 20230602800079)\n- 섹터: 조선\n- 계약금액: 227,500,000,000원 (2,275억원)\n- 매출액 대비: 3.8%\n- 계약상대: 오세아니아 지역 선주\n- 기간: 2023-06-02 ~ 2026-02-28 (2년 8개월)\n- 확정일: 2023-06-02\n\n## [기재정정] [공급계약 체결] 삼성중공업 – 단일판매ㆍ공급계약체결 — 원유운반선 1척\n- 정정체인: 2/2 (최신본)\n- 공시일: 2026-02-03 (접수번호 20260203800709)\n- 섹터: 조선\n- 계약금액: 114,800,000,000원 (1,148억원)\n- 매출액 대비: 1.9%\n- 계약상대: 오세아니아 지역 선주\n- 확정일: 2023-06-02\n\n## [공급계약 체결] 삼성중공업 – 단일판매ㆍ공급계약체결 — LNG선 2척\n- 공시일: 2023-06-13 (접수번호 20230613800116)\n- 섹터: 조선\n- 계약금액: 659,200,000,000원 (6,592억원)\n- 매출액 대비: 11.1%\n- 계약상대: 북미 지역 선주\n- 기간: 2023-06-12 ~ 2028-02-15 (4년 8개월)\n- 확정일: 2023-06-12",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성중공업\" period=ym:202306 top_k=5 q=\"삼성중공업 2023 월에 공시한 원유운반선 이후 정정공시 바뀌었는\" n=2 top_score=37.637 ids=exchange_20230602800079,exchange_20230613800116 | hop=5 strat=chain tool=get_history corp=\"삼성중공업\" rcept=20230602800079 latest=20260203800709 chain_length=2 n=1 top_score=- ids=exchange_20260203800709 | hop=0 verdict=sufficient evidence=3 | generate tokens=851+101 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변 내용에는 근거에서 확인할 수 있는 정보들이 모두 포함되어 있으며, 접수번호도 명시되어 있습니다. | verify calc_checked=amount complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=1646",
+  "answer": "삼성중공업이 2023년 6월에 최초 공시한 원유운반선 2척 공급계약의 계약금액은 이후 정정공시에서 **1,148억 원**으로 변경되었습니다.\n\n(근거: [기재정정] [공급계약 체결] 삼성중공업 – 단일판매ㆍ공급계약체결 — 원유운반선 1척, 2026-02-03, 20260203800709)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 851,
+   "completion_tokens": 101,
+   "latency_s": 2.629,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 647,
+   "completion_tokens": 47,
+   "latency_s": 1.28,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1498,
+ "completion_tokens": 148,
+ "llm_calls": 2,
+ "latency_s": 0.006,
+ "ts": "2026-08-10T20:55:39"
+}

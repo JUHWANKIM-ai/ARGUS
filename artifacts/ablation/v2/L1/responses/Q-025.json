@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-025",
+ "response": {
+  "question_id": "Q-025",
+  "question": "삼성전자가 2025년 7월 28일 공시한 반도체 위탁생산 공급계약은 이후 정정공시가 있었는가?",
+  "retrieved_context": "## [공급계약 체결] 삼성전자 – 단일판매ㆍ공급계약체결 — 반도체 위탁생산 공급계약\n- 공시일: 2025-07-28 (접수번호 20250728800035)\n- 섹터: 반도체·전자부품\n- 계약금액: 22,764,764,160,000원 (227,648억원)\n- 매출액 대비: 7.6%\n- 계약상대: 글로벌 대형기업\n- 기간: 2025-07-24 ~ 2033-12-31 (8년 5개월)\n- 확정일: 2025-07-26\n- 공시유보: 경영상 비밀유지\n\n## [기재정정] [공급계약 체결] 삼성전자 – 단일판매ㆍ공급계약체결 — - 계약상대방의 영업비밀 보호 요청에 따라 체결계약명, 주요 계약조건은 유보기한일의 다음 영업일에 공개될 예정임\n- 공시일: 2025-07-31 (접수번호 20250731800028)\n- 섹터: 반도체·전자부품\n- 계약금액: 22,764,764,160,000원 (227,648억원)\n- 매출액 대비: 7.6%\n- 계약상대: 테슬라(Tesla, Inc.)\n- 기간: 2025-07-24 ~ 2033-12-31 (8년 5개월)\n- 확정일: 2025-07-26\n- 공시유보: 경영상 비밀유지",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성전자\" period=ym:202507 top_k=5 q=\"삼성전자 2025 28 공시한 반도체 위탁생산 이후 정정공시 있었는\" n=2 top_score=48.265 ids=exchange_20250728800035,exchange_20250731800028 | hop=0 verdict=sufficient evidence=2 | generate tokens=755+152 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1562",
+  "answer": "네, 삼성전자는 2025년 7월 28일 최초 공시한 반도체 위탁생산 공급계약에 대해 이후 정정공시를 했습니다. \n\n정정공시의 내용은 다음과 같습니다.\n- 계약상대가 '글로벌 대형기업'에서 '테슬라(Tesla, Inc.)'로 변경되었습니다.\n- 기타 사항은 동일합니다.\n\n(근거: [기재정정] [공급계약 체결] 삼성전자 – 단일판매ㆍ공급계약체결 — 계약상대방의 영업비밀 보호 요청에 따라 체결계약명, 주요 계약조건은 유보기한일의 다음 영업일에 공개될 예정임, 2025-07-31, 20250731800028)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 755,
+   "completion_tokens": 152,
+   "latency_s": 3.661,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 611,
+   "completion_tokens": 44,
+   "latency_s": 1.482,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1366,
+ "completion_tokens": 196,
+ "llm_calls": 2,
+ "latency_s": 0.006,
+ "ts": "2026-08-10T21:02:34"
+}

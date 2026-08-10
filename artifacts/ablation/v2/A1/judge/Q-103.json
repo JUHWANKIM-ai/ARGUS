@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-103",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출답변이 질문에 대한 정보를 전혀 포함하고 있지 않음",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 323,
+   "completion_tokens": 36,
+   "latency_s": 1.129,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 323,
+ "completion_tokens": 36
+}

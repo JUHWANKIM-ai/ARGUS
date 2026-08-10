@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-071",
+ "response": {
+  "question_id": "Q-071",
+  "question": "LG유플러스가 2025년 4월에 공시한 파주 AIDC 신규 구축의 투자금액은 얼마인가?",
+  "retrieved_context": "## [신규 시설투자] LG유플러스 – 신규시설투자등 — 파주 AIDC 신규 구축\n- 공시일: 2025-04-29 (접수번호 20250429800933)\n- 섹터: 통신\n- 투자금액: 615,600,000,000원 (6,156억원)\n- 자기자본 대비: 7.02%\n- 기간: 2025-05-07 ~ 2027-05-25 (2년 0개월)\n- 확정일: 2025-04-29",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG유플러스\" period=ym:202504 top_k=5 q=\"LG 유플러스 2025 월에 공시한 파주 AIDC 신규 구축 투자금액 얼마인\" n=1 top_score=71.354 ids=exchange_20250429800933 | hop=0 verdict=sufficient evidence=1 | generate tokens=561+73 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1016",
+  "answer": "LG유플러스가 2025년 4월에 공시한 파주 AIDC 신규 구축의 투자금액은 **615,600,000,000원**(6,156억원)입니다. \n(근거: 신규시설투자등, 2025-04-29, 20250429800933)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 561,
+   "completion_tokens": 73,
+   "latency_s": 1.975,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 338,
+   "completion_tokens": 44,
+   "latency_s": 1.307,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 899,
+ "completion_tokens": 117,
+ "llm_calls": 2,
+ "latency_s": 0.005,
+ "ts": "2026-08-10T20:54:30"
+}

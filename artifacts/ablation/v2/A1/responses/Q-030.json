@@ -1,0 +1,16 @@
+{
+ "question_id": "Q-030",
+ "response": {
+  "question_id": "Q-030",
+  "question": "고려아연이 2024년 10월 30일 이사회에서 결의한 일반공모 유상증자는 이후 철회되었는가?",
+  "retrieved_context": "",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"고려아연\" period=ym:202410 top_k=5 q=\"고려아연 2024 10 30 이사회 결의한 일반공모 유상증자 이후 철회되었는\" n=0 top_score=- ids=- | hop=0 verdict=insufficient evidence=0 reason=no_candidate | 근거 없음 — LLM 호출 없이 한계 고지 | budget steps=1 hops=0 llm=0 tokens=0",
+  "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다."
+ },
+ "calls": [],
+ "prompt_tokens": 0,
+ "completion_tokens": 0,
+ "llm_calls": 0,
+ "latency_s": 0.006,
+ "ts": "2026-08-10T21:24:44"
+}

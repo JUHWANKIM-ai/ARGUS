@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-054",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": true,
+ "correct": false,
+ "reason": "",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 3819,
+   "completion_tokens": 20,
+   "latency_s": 1.204,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 3819,
+ "completion_tokens": 20
+}

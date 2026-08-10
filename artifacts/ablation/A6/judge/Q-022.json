@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-022",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출답변에는 최초 공시가 아닌 최종 수정된 공시 내용만 포함되어 있습니다. 이로 인해 질문에서 요구하는 정보 중 일부가 누락되었으며, 특히 최초 공시에서의 자금조달 목적별 금액이 반영되지 않았습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 2439,
+   "completion_tokens": 73,
+   "latency_s": 2.211,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 2439,
+ "completion_tokens": 73
+}

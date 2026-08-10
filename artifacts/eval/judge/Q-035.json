@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-035",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제공된 답변에는 모범답안의 핵심인 '정정 및 해지' 내용이 누락되어 있으며, 이는 질문 요구사항을 충족하지 못합니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 922,
+   "completion_tokens": 54,
+   "latency_s": 1.677,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 922,
+ "completion_tokens": 54
+}

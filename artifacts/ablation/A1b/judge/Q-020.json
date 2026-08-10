@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-020",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제시된 답변은 2025년 5월 14일 보고서 내용에 대한 정보가 없어 비교 불가능함을 명시하고 있으나, 이는 질문 의도에 부합하지 않으며 모범답안 요소 중 일부를 누락함.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 693,
+   "completion_tokens": 70,
+   "latency_s": 1.85,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 693,
+ "completion_tokens": 70
+}

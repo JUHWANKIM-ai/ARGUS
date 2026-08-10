@@ -1,0 +1,44 @@
+[
+ {
+  "case": "Q-001",
+  "type": "closed_lookup",
+  "has_schema": true,
+  "answer_match": false,
+  "has_citation": false
+ },
+ {
+  "case": "Q-002",
+  "type": "closed_lookup",
+  "has_schema": true,
+  "answer_match": false,
+  "has_citation": false
+ },
+ {
+  "case": "Q-003",
+  "type": "closed_calc",
+  "has_schema": true,
+  "answer_match": false,
+  "has_citation": false
+ },
+ {
+  "case": "Q-004",
+  "type": "open_summary",
+  "has_schema": true,
+  "answer_match": false,
+  "has_citation": false
+ },
+ {
+  "case": "Q-005",
+  "type": "closed_exists",
+  "has_schema": true,
+  "answer_match": false,
+  "has_citation": false
+ },
+ {
+  "case": "Q-006",
+  "type": "unanswerable",
+  "has_schema": true,
+  "answer_match": false,
+  "has_citation": false
+ }
+]

@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-022",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제시된 모범답안의 자금조달 목적별 금액 정보를 누락하였습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 793,
+   "completion_tokens": 41,
+   "latency_s": 1.551,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 793,
+ "completion_tokens": 41
+}

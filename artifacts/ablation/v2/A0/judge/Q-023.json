@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-023",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제공된 근거에는 정정에 대한 정보가 포함되어 있지 않으며, 답변에서는 존재하지 않는 정정을 언급하고 있습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 1398,
+   "completion_tokens": 48,
+   "latency_s": 1.496,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1398,
+ "completion_tokens": 48
+}

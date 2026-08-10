@@ -1,0 +1,1 @@
+{"status": 200, "payload": {"status": {"code": "20000", "message": "OK"}, "result": {"message": {"role": "assistant", "content": "{\"supported\": false, \"has_citation\": true, \"hallucination\": true}"}, "finishReason": "stop", "created": 1786287469, "seed": 947841644, "usage": {"promptTokens": 455, "completionTokens": 20, "totalTokens": 475}}}, "latency_s": 0.8019351959228516}

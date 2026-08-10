@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-094",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "정확히 답변하지 못함",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 352,
+   "completion_tokens": 30,
+   "latency_s": 1.068,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 352,
+ "completion_tokens": 30
+}

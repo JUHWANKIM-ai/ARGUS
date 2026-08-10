@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-012",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제공된 정보만으로 질문에 대한 답변의 구체적 수치 제시 불가능하며, 추측으로 작성됨.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 704,
+   "completion_tokens": 46,
+   "latency_s": 1.376,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 704,
+ "completion_tokens": 46
+}

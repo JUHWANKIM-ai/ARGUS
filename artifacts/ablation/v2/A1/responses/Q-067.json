@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-067",
+ "response": {
+  "question_id": "Q-067",
+  "question": "HD현대중공업이 2025년 3월 18일 제출한 사업보고서에 기재된 제6기(2024년) 연결 자산총계는 몇 백만원인지 확인해줘.",
+  "retrieved_context": "## [공급계약 체결] HD현대중공업 – 단일판매ㆍ공급계약체결 — VLEC 2척\n- 공시일: 2025-03-04 (접수번호 20250304800166)\n- 섹터: 조선\n- 계약금액: 458,800,000,000원\n- 매출액 대비: 3.83%\n- 계약상대: 아시아 소재 선사\n- 기간: 2025-02-28 ~ 2028-12-31\n- 확정일: 2025-02-28",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대중공업\" period=ym:202503 top_k=5 q=\"HD 현대중공업 2025 18 제출한 사업보고서 기재된 2024 연결 자산총계 백만원인지 확인해줘\" n=1 top_score=15.681 ids=exchange_20250304800166 | hop=0 verdict=sufficient evidence=1 | generate tokens=564+91 | 근거 표기 누락 — critic 호출 | critic supported=False reason=질문과 무관한 내용을 답변하고 있으며, 근거에 없는 정보를 언급하고 있습니다. | budget steps=1 hops=0 llm=2 tokens=1046",
+  "answer": "해당 질문에 대한 정보는 제공된 공시 근거에 포함되어 있지 않습니다. 따라서, HD현대중공업이 2025년 3월 18일 제출한 사업보고서에 기재된 제6기(2024년) 연결 자산총계에 대해 답변할 수 없습니다.\n\n더 자세한 정보가 필요하시다면, HD현대중공업의 사업보고서를 직접 확인하거나 관련 기관에 문의하시기 바랍니다. (근거: 공시 없음)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 질문과 무관한 내용을 답변하고 있으며, 근거에 없는 정보를 언급하고 있습니다.)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 564,
+   "completion_tokens": 91,
+   "latency_s": 2.436,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 347,
+   "completion_tokens": 44,
+   "latency_s": 1.308,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 911,
+ "completion_tokens": 135,
+ "llm_calls": 2,
+ "latency_s": 3.753,
+ "ts": "2026-08-10T21:27:51"
+}

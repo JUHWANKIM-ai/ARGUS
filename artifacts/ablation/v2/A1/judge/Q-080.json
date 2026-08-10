@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-080",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제시된 답변은 질문에 대한 정보를 전혀 포함하지 않고 있으며, 모범답안 요소를 하나도 다루지 않았습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 300,
+   "completion_tokens": 48,
+   "latency_s": 1.314,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 300,
+ "completion_tokens": 48
+}

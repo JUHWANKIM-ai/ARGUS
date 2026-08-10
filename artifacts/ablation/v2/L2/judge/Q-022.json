@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-022",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "시설자금 금액이 잘못되었고, 타법인 증권취득자금 계산이 누락되었으며, 최종 조달 규모가 아닌 수정된 금액이 제시되었습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 1824,
+   "completion_tokens": 57,
+   "latency_s": 1.785,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1824,
+ "completion_tokens": 57
+}

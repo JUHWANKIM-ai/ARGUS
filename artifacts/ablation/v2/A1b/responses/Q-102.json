@@ -1,0 +1,24 @@
+{
+ "question_id": "Q-102",
+ "response": {
+  "question_id": "Q-102",
+  "question": "시프트업이 2025년 5월에 체결하기로 결정한 자기주식취득 신탁계약의 계약금액을 근거와 함께 알려줘.",
+  "retrieved_context": "## [자기주식취득신탁계약체결결정] 시프트업 – 주요사항보고서(자기주식취득신탁계약체결결정)\n- 공시일: 2025-05-12 (접수번호 20250512000665)\n- 섹터: 게임\n- 계약금액: 50,000,000,000원\n- 계약목적: 주주가치 제고\n- 계약체결기관: NH투자증권 (NH INVESTMENT & SECURITIES CO.,LTD.)\n- 계약체결 예정일자: 2025년 05월 13일\n- 기간: 2025-05-13 ~ 2025-11-12\n- 확정일: 2025-05-12",
+  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"시프트업\" period=ym:202505 top_k=5 q=\"시프트업 2025 월에 체결하기 결정한 자기주식취득 신탁계약 근거 함께\" n=1 top_score=42.885 ids=major_20250512000665 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | generate tokens=611+80 | budget steps=1 hops=0 llm=1 tokens=691",
+  "answer": "시프트업이 2025년 5월에 체결하기로 결정한 자기주식취득 신탁계약의 계약금액은 **50,000,000,000원**입니다.\n\n(근거: 주요사항보고서(자기주식취득신탁계약체결결정), 2025-05-12, 접수번호 20250512000665)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 611,
+   "completion_tokens": 80,
+   "latency_s": 2.021,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 611,
+ "completion_tokens": 80,
+ "llm_calls": 1,
+ "latency_s": 2.025,
+ "ts": "2026-08-10T21:22:19"
+}

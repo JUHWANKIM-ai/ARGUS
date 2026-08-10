@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-085",
+ "response": {
+  "question_id": "Q-085",
+  "question": "LG이노텍이 2024년 2월과 2025년 11월에 각각 공시한 광학솔루션사업부 시설투자의 투자금액 차이는 얼마인가?",
+  "retrieved_context": "## [신규 시설투자] LG이노텍 – 신규시설투자등 — 광학솔루션사업부 시설투자\n- 공시일: 2024-02-20 (접수번호 20240220800842)\n- 섹터: 반도체·전자부품\n- 투자금액: 383,000,000,000원 (3,830억원)\n- 자기자본 대비: 9.0%\n- 기간: 2024-02-20 ~ 2024-12-31 (0년 10개월)\n- 확정일: 2024-02-20\n\n## [신규 시설투자] LG이노텍 – 신규시설투자등 — 광학솔루션사업부 시설투자\n- 공시일: 2025-11-27 (접수번호 20251127800903)\n- 섹터: 반도체·전자부품\n- 투자금액: 341,100,000,000원 (3,411억원)\n- 자기자본 대비: 6.4%\n- 기간: 2025-11-27 ~ 2026-12-31 (1년 1개월)\n- 확정일: 2025-11-27",
+  "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"LG이노텍\" period=ym:202402 top_k=3 q=\"LG 이노텍 2024 월과 2025 11 월에 각각 공시한 광학솔루션사업부 시설투자 투자금액 차이 얼마인\" n=1 top_score=94.939 ids=exchange_20240220800842 | hop=0 strat=narrow tool=search_chunks corp=\"LG이노텍\" period=ym:202511 top_k=3 q=\"LG 이노텍 2024 월과 2025 11 월에 각각 공시한 광학솔루션사업부 시설투자 투자금액 차이 얼마인\" n=1 top_score=96.247 ids=exchange_20251127800903 | hop=0 verdict=sufficient evidence=2 | generate tokens=727+268 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인되며, 접수번호도 정확히 기재되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=1710",
+  "answer": "LG이노텍이 2024년 2월과 2025년 11월에 각각 공시한 광학솔루션사업부 시설투자의 투자금액 차이를 구하기 위해 각 시기의 금액을 비교하겠습니다.\n\n1. 2024년 2월의 투자금액은 383,000,000,000원입니다.\n2. 2025년 11월의 투자금액은 341,100,000,000원입니다.\n\n두 금액의 차이를 계산하면 다음과 같습니다.\n- 383,000,000,000원 - 341,100,000,000원 = 41,900,000,000원\n\n따라서, LG이노텍이 2024년 2월과 2025년 11월에 각각 공시한 광학솔루션사업부 시설투자의 투자금액 차이는 **41,900,000,000원**(419억원)입니다.\n\n(근거: [신규 시설투자] LG이노텍 – 신규시설투자등 — 광학솔루션사업부 시설투자, 2024-02-20 및 2025-11-27, 접수번호 각각 20240220800842와 20251127800903)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 727,
+   "completion_tokens": 268,
+   "latency_s": 6.154,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 674,
+   "completion_tokens": 41,
+   "latency_s": 1.287,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1401,
+ "completion_tokens": 309,
+ "llm_calls": 2,
+ "latency_s": 0.011,
+ "ts": "2026-08-10T21:03:48"
+}

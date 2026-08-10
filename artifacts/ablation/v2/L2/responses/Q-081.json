@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-081",
+ "response": {
+  "question_id": "Q-081",
+  "question": "엘에스일렉트릭의 Barton Malow Company-BlueOval SK 관련 공급계약은 두 차례 정정됐다. 계약금액이 어떻게 바뀌었는지 정정 순서대로 설명해줘.",
+  "retrieved_context": "## [기재정정] [공급계약 체결] 엘에스일렉트릭 – 단일판매ㆍ공급계약체결 — Barton Malow Company-BlueOval SK Battery Park, Glendale KY Project\n- 공시일: 2024-01-25 (접수번호 20240125800285)\n- 섹터: 전력기기\n- 계약금액: 89,446,399,107원 (894억원)\n- 매출액 대비: 3.35%\n- 계약상대: LS ELECTRIC AMERICA Inc.\n- 기간: 2022-06-01 ~ 2024-09-30 (2년 3개월)\n- 확정일: 2022-06-01\n\n## [기재정정] [공급계약 체결] 엘에스일렉트릭 – 단일판매ㆍ공급계약체결 — Barton Malow Company-BlueOval SK Battery Park, Glendale KY Project\n- 공시일: 2024-09-30 (접수번호 20240930800476)\n- 섹터: 전력기기\n- 계약금액: 89,446,399,107원 (894억원)\n- 매출액 대비: 3.35%\n- 계약상대: LS ELECTRIC AMERICA Inc.\n- 기간: 2022-06-01 ~ 2025-02-28 (2년 8개월)\n- 확정일: 2022-06-01\n\n## [기재정정] [공급계약 체결] 엘에스일렉트릭 – 단일판매ㆍ공급계약체결 — Barton Malow Company-BlueOval SK Battery Park, Glendale KY Project\n- 공시일: 2024-12-13 (접수번호 20241213801356)\n- 섹터: 전력기기\n- 계약금액: 73,029,784,233원 (730억원)\n- 매출액 대비: 2.73%\n- 계약상대: LS ELECTRIC AMERICA Inc.\n- 기간: 2022-06-01 ~ 2025-02-28 (2년 8개월)\n- 확정일: 2022-06-02\n\n## [투자판단 관련 주요경영사항] 엘에스일렉트릭 – 투자판단 관련 주요경영사항\n- 공시일: 2023-08-24 (접수번호 20230824800184)\n- 섹터: 전력기기\n- 확정일: 2023-08-24\n\n## [공급계약 체결] 엘에스일렉트릭 – 단일판매ㆍ공급계약 체결(자율공시)\n- 공시일: 2026-02-11 (접수번호 20260211801720)\n- 섹터: 전력기기\n- 계약금액: 76,370,160,600원 (764억원)\n- 매출액 대비: 1.7%\n- 계약상대: ㈜케이이엔\n- 확정일: 2026-02-11",
+  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"엘에스일렉트릭\" period=none top_k=5 q=\"엘에스일렉트릭 Barton Malow Company BlueOval SK 관련 차례 정정됐다 어떻게 바뀌었는지 정정 순서대\" n=5 top_score=50.465 ids=exchange_20240125800285,exchange_20240930800476,exchange_20241213801356,exchange_20230824800184,exchange_20260211801720 | hop=0 verdict=sufficient evidence=5 | generate tokens=1069+258 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인되며, 추가적인 출처 없이도 정확한 정보를 제공하고 있습니다. | verify calc_checked=amount,period complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2380",
+  "answer": "엘에스일렉트릭의 Barton Malow Company-BlueOval SK 관련 공급계약은 다음과 같이 두 번 정정되었습니다.\n\n1. 최초 공시 (2024-01-25): \n   - 계약 금액: 89,446,399,107원 (894억 원)\n\n2. 첫 번째 정정 공시 (2024-09-30):\n   - 변경 사항: 계약 기간이 '2022-06-01 ~ 2024-09-30'에서 '2022-06-01 ~ 2025-02-28'(2년 8개월)으로 연장됨\n   - 계약 금액 변동 없음: 여전히 89,446,399,107원 (894억 원)\n\n3. 두 번째 정정 공시 (2024-12-13):\n   - 변경 사항: 계약 금액이 감소하여 73,029,784,233원 (730억 원)으로 변경됨\n   - 계약 기간은 그대로 유지 ('2022-06-01 ~ 2025-02-28')\n\n따라서, 계약 금액은 처음 894억 원에서 마지막으로 730억 원으로 총 164억 원이 줄어들었습니다.\n\n(근거: 각 정정공시의 내용을 종합하여 비교함)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 수치가 근거에서 확인되며, 추가적인 출처 없이도 정확한 정보를 제공하고 있습니다.)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 1069,
+   "completion_tokens": 258,
+   "latency_s": 6.066,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 1009,
+   "completion_tokens": 44,
+   "latency_s": 1.28,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 2078,
+ "completion_tokens": 302,
+ "llm_calls": 2,
+ "latency_s": 0.007,
+ "ts": "2026-08-10T21:07:35"
+}

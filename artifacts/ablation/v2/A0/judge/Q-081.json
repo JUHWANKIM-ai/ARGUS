@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-081",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제공된 근거를 통해 1차와 2차 정정까지 확인 가능한데 이에 대한 정보가 누락되어 있음.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 1896,
+   "completion_tokens": 49,
+   "latency_s": 1.718,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1896,
+ "completion_tokens": 49
+}

@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-024",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제시된 답변은 세 번의 공시 중 두 번만을 언급하고 있으며, 마지막 공시에 대한 정보가 누락되어 있고, 계약 종료일 연장에 대한 정보도 포함되어 있지 않습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 1665,
+   "completion_tokens": 62,
+   "latency_s": 3.187,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1665,
+ "completion_tokens": 62
+}

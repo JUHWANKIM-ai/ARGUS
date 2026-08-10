@@ -1,0 +1,104 @@
+{
+ "arm": "L3",
+ "n_run": 12,
+ "stopped_at": null,
+ "spent_won": 148.9,
+ "runs": [
+  {
+   "question_id": "Q-107",
+   "llm_calls": 1,
+   "prompt_tokens": 1206,
+   "completion_tokens": 192,
+   "judge_tokens": 0,
+   "latency_s": 4.783
+  },
+  {
+   "question_id": "Q-108",
+   "llm_calls": 2,
+   "prompt_tokens": 3853,
+   "completion_tokens": 422,
+   "judge_tokens": 2242,
+   "latency_s": 0.013
+  },
+  {
+   "question_id": "Q-109",
+   "llm_calls": 1,
+   "prompt_tokens": 1200,
+   "completion_tokens": 221,
+   "judge_tokens": 0,
+   "latency_s": 5.124
+  },
+  {
+   "question_id": "Q-110",
+   "llm_calls": 2,
+   "prompt_tokens": 2239,
+   "completion_tokens": 263,
+   "judge_tokens": 1453,
+   "latency_s": 6.478
+  },
+  {
+   "question_id": "Q-111",
+   "llm_calls": 0,
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "judge_tokens": 0,
+   "latency_s": 0.0
+  },
+  {
+   "question_id": "Q-112",
+   "llm_calls": 2,
+   "prompt_tokens": 2581,
+   "completion_tokens": 361,
+   "judge_tokens": 1559,
+   "latency_s": 0.024
+  },
+  {
+   "question_id": "Q-113",
+   "llm_calls": 2,
+   "prompt_tokens": 3856,
+   "completion_tokens": 477,
+   "judge_tokens": 0,
+   "latency_s": 11.926
+  },
+  {
+   "question_id": "Q-114",
+   "llm_calls": 1,
+   "prompt_tokens": 763,
+   "completion_tokens": 94,
+   "judge_tokens": 839,
+   "latency_s": 2.328
+  },
+  {
+   "question_id": "Q-115",
+   "llm_calls": 2,
+   "prompt_tokens": 3613,
+   "completion_tokens": 305,
+   "judge_tokens": 0,
+   "latency_s": 7.629
+  },
+  {
+   "question_id": "Q-116",
+   "llm_calls": 2,
+   "prompt_tokens": 2076,
+   "completion_tokens": 201,
+   "judge_tokens": 0,
+   "latency_s": 5.131
+  },
+  {
+   "question_id": "Q-117",
+   "llm_calls": 2,
+   "prompt_tokens": 2031,
+   "completion_tokens": 307,
+   "judge_tokens": 1336,
+   "latency_s": 0.006
+  },
+  {
+   "question_id": "Q-118",
+   "llm_calls": 1,
+   "prompt_tokens": 1905,
+   "completion_tokens": 311,
+   "judge_tokens": 0,
+   "latency_s": 7.241
+  }
+ ]
+}

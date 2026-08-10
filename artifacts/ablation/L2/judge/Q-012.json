@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-012",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출답변에서는 모범답안의 핵심인 '지분 보유 상황' 변화에 대한 구체적인 수치 정보를 제공하지 않았습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 728,
+   "completion_tokens": 49,
+   "latency_s": 1.383,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 728,
+ "completion_tokens": 49
+}

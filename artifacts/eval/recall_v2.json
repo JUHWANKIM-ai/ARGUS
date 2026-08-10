@@ -1,0 +1,228 @@
+{
+  "generated": "2026-08-10T20:10:47",
+  "purpose": "게이트 D 재측정 — 새 코호트(full 88)로 Recall@5 를 재고 수치에 모집단·시점 라벨을 붙인다 (70/93 사고 재발 방지).",
+  "llm_calls": 0,
+  "methodology": {
+    "cached_reaggregation": "artifacts/eval/error_analysis_v2*.json 의 rows[].golden_rank 를 그대로 재집계 (T7 이 이미 answer_question() 으로 관통시켜 캐시한 것을 다시 세기만 함)",
+    "fresh_harness": "scripts.ablation.retrieval_metrics('A6', cases) 를 스크래치패드에서 직접 호출 — pipeline._gather_evidence 만 실행하고 생성 프롬프트를 만들지 않으므로 LLM 호출이 없음 (T7 §1 과 동일한 방법)",
+    "cross_check": "두 경로가 measured 42 · full 88 전부 동일한 값을 냈다 — 코드 드리프트 없음"
+  },
+  "cohorts": {
+    "measured_42": {
+      "definition": "v1(Phase H) 이 실제로 잰 42문항 — validate_evalset.measured_dev_cohort()",
+      "cached": {
+        "n_cases": 42,
+        "golden": 60,
+        "recall5": 58,
+        "recall5_rate": 0.967,
+        "evidence_hit": 59,
+        "evidence_hit_rate": 0.983,
+        "source_generated": "2026-08-10T14:09:32"
+      },
+      "harness": {
+        "n_cases": 42,
+        "golden": 60,
+        "recall5": 58,
+        "recall5_rate": 0.967,
+        "evidence_hit": 59,
+        "evidence_hit_rate": 0.983,
+        "items_all_evidence_hit": "35/36",
+        "by_difficulty": {
+          "하": {
+            "golden": 16,
+            "recall5": 16,
+            "evidence_hit": 16,
+            "rate": 1.0
+          },
+          "중": {
+            "golden": 15,
+            "recall5": 15,
+            "evidence_hit": 15,
+            "rate": 1.0
+          },
+          "상": {
+            "golden": 29,
+            "recall5": 27,
+            "evidence_hit": 28,
+            "rate": 0.931
+          }
+        },
+        "by_doc_group": {
+          "exchange": {
+            "golden": 30,
+            "recall5": 29,
+            "evidence_hit": 30,
+            "rate": 0.967
+          },
+          "major": {
+            "golden": 6,
+            "recall5": 6,
+            "evidence_hit": 6,
+            "rate": 1.0
+          },
+          "holding": {
+            "golden": 6,
+            "recall5": 6,
+            "evidence_hit": 6,
+            "rate": 1.0
+          },
+          "periodic": {
+            "golden": 18,
+            "recall5": 17,
+            "evidence_hit": 17,
+            "rate": 0.944
+          }
+        }
+      }
+    },
+    "full_88": {
+      "definition": "dev 78 (그리드 72 + 정보한계 6) + 회귀 10",
+      "cached": {
+        "n_cases": 88,
+        "golden": 133,
+        "recall5": 117,
+        "recall5_rate": 0.88,
+        "evidence_hit": 118,
+        "evidence_hit_rate": 0.887,
+        "source_generated": "2026-08-10T14:09:32"
+      },
+      "harness": {
+        "n_cases": 88,
+        "golden": 133,
+        "recall5": 117,
+        "recall5_rate": 0.88,
+        "evidence_hit": 118,
+        "evidence_hit_rate": 0.887,
+        "items_all_evidence_hit": "71/81",
+        "by_difficulty": {
+          "하": {
+            "golden": 36,
+            "recall5": 34,
+            "evidence_hit": 35,
+            "rate": 0.944
+          },
+          "중": {
+            "golden": 33,
+            "recall5": 33,
+            "evidence_hit": 33,
+            "rate": 1.0
+          },
+          "상": {
+            "golden": 64,
+            "recall5": 50,
+            "evidence_hit": 50,
+            "rate": 0.781
+          }
+        },
+        "by_doc_group": {
+          "exchange": {
+            "golden": 62,
+            "recall5": 60,
+            "evidence_hit": 61,
+            "rate": 0.968
+          },
+          "major": {
+            "golden": 16,
+            "recall5": 15,
+            "evidence_hit": 16,
+            "rate": 0.938
+          },
+          "holding": {
+            "golden": 15,
+            "recall5": 13,
+            "evidence_hit": 13,
+            "rate": 0.867
+          },
+          "periodic": {
+            "golden": 40,
+            "recall5": 29,
+            "evidence_hit": 28,
+            "rate": 0.725
+          }
+        }
+      }
+    },
+    "valuechain_12_off_grid": {
+      "definition": "그리드 밖 밸류체인 트랙 — 게이트 D 판정 모집단에서 제외 (2-hop 검색 미해결 병목을 의도적으로 포함, Q-117)",
+      "cached_pipeline": {
+        "n_cases": 12,
+        "golden": 46,
+        "recall5": 24,
+        "recall5_rate": 0.522,
+        "evidence_hit": 28,
+        "evidence_hit_rate": 0.609,
+        "source_generated": "2026-08-10T14:09:32"
+      },
+      "harness": {
+        "n_cases": 12,
+        "golden": 46,
+        "recall5": 26,
+        "recall5_rate": 0.565,
+        "evidence_hit": 30,
+        "evidence_hit_rate": 0.652,
+        "items_all_evidence_hit": "5/12",
+        "by_difficulty": {
+          "하": {
+            "golden": 3,
+            "recall5": 3,
+            "evidence_hit": 3,
+            "rate": 1.0
+          },
+          "중": {
+            "golden": 10,
+            "recall5": 8,
+            "evidence_hit": 10,
+            "rate": 0.8
+          },
+          "상": {
+            "golden": 33,
+            "recall5": 15,
+            "evidence_hit": 17,
+            "rate": 0.455
+          }
+        },
+        "by_doc_group": {
+          "exchange": {
+            "golden": 46,
+            "recall5": 26,
+            "evidence_hit": 30,
+            "rate": 0.565
+          },
+          "major": {
+            "golden": 0,
+            "recall5": 0,
+            "evidence_hit": 0,
+            "rate": null
+          },
+          "holding": {
+            "golden": 0,
+            "recall5": 0,
+            "evidence_hit": 0,
+            "rate": null
+          },
+          "periodic": {
+            "golden": 0,
+            "recall5": 0,
+            "evidence_hit": 0,
+            "rate": null
+          }
+        }
+      },
+      "note": "08-error-analysis.md 의 '하네스 30/46 vs 파이프라인 28/46' 과 같은 간극 — 회귀 감시는 하네스 값을 쓴다는 기존 결정과 통일했다"
+    }
+  },
+  "gate_d_verdict": {
+    "threshold": 0.85,
+    "measured_42_pass": true,
+    "full_88_pass": true,
+    "valuechain_12_pass": false,
+    "population_used_for_gate": [
+      "measured_42",
+      "full_88"
+    ],
+    "population_excluded": [
+      "valuechain_12 (off-grid, not final-heldout — excluded because it deliberately includes an unsolved capability gap, not because of contamination)"
+    ],
+    "note": "상(hard) 난이도와 periodic 문서군이 full 88 에서 0.85 를 밑돈다 (상 0.781, periodic 0.725) — 다음 트랙의 겨냥점으로 남긴다"
+  }
+}

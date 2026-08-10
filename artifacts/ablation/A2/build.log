@@ -1,0 +1,72 @@
+
+=== 2단계 · 정형 3종 전량 ===
+    exchange 250/1194 · 25,603토큰 2.6원 262s
+    exchange 500/1194 · 54,406토큰 5.4원 524s
+    exchange 750/1194 · 83,176토큰 8.3원 787s
+    exchange 1000/1194 · 112,187토큰 11.2원 1,049s
+    exchange 1194/1194 · 134,597토큰 13.5원 1,253s
+  exchange    1469벡터 (신규 1194) 2.87MB 1252.8s · 누적 13.5원
+    major 250/573 · 186,189토큰 18.6원 262s
+    major 500/573 · 235,748토큰 23.6원 525s
+    major 573/573 · 248,952토큰 24.9원 602s
+  major        598벡터 (신규 573) 1.17MB 601.7s · 누적 24.9원
+    holding 250/1058 · 302,791토큰 30.3원 262s
+    holding 500/1058 · 350,359토큰 35.0원 525s
+    holding 750/1058 · 402,820토큰 40.3원 788s
+    holding 1000/1058 · 451,596토큰 45.2원 1,050s
+    holding 1058/1058 · 462,849토큰 46.3원 1,111s
+  holding     1083벡터 (신규 1058) 2.12MB 1111.0s · 누적 46.3원
+
+=== 2단계 · 정기공시 후보 풀 ===
+  A2F 관통 완료 · 섹션 벡터 953 · 누적 110.8원
+  A2 관통 완료 · 섹션 벡터 953 · 누적 110.8원
+
+=== 후보 풀 (메타 프리필터 통과) ===
+{
+ "n_search_calls": 75,
+ "pool_p50": 2,
+ "pool_p75": 5,
+ "pool_p90": 17,
+ "pool_max": 331,
+ "pool_mean": 15.1,
+ "calls_with_one_candidate": 32,
+ "share_one_candidate": 0.427,
+ "share_five_or_fewer": 0.76,
+ "unique_candidates": {
+  "exchange": 75,
+  "major": 11,
+  "holding": 15,
+  "periodic": 928
+ }
+}
+
+=== 산출물 · 상주량 ===
+{
+ "rss_base_mb": 472.2,
+ "rss_bm25_mb": 472.2,
+ "rss_with_dense_mb": 471.2,
+ "rss_delta_mb": -0.9,
+ "gate_mb": 500.0,
+ "within_gate": true,
+ "dense_mb": 8.01,
+ "stores": {
+  "exchange": {
+   "n": 1469,
+   "mb": 2.87
+  },
+  "major": {
+   "n": 598,
+   "mb": 1.17
+  },
+  "holding": {
+   "n": 1083,
+   "mb": 2.12
+  },
+  "section": {
+   "n": 953,
+   "mb": 1.86
+  }
+ }
+}
+
+-> C:\Users\Juhwankim\Documents\Github\ARGUS\artifacts\ablation\A2\embedding_cost.json

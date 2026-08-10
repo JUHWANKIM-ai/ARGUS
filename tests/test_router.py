@@ -329,3 +329,43 @@ def test_unknown_counterparty_stays_unanswerable():
     r = route("존재하지않는발주처ZZZ가 발주한 계약의 계약상대는 어디인가?")
     assert r.counterparty is None
     assert r.kind == "unanswerable"
+
+
+def test_disclosing_company_is_never_bound_as_counterparty():
+    """Q-117 — **공시한 쪽**을 발주처로 결속하지 않는다 (§5 #4 기각 근거 ②·③).
+
+    `"한전기술이 공시한 … 계약상대를 보면"` 은 계약상대 표지를 담고 있지만 한전기술은
+    발주처가 아니라 수주·공시측이다. `canonical()` 뒤 노드 잔여가 `이공시한…` 이라
+    격조사 다음이 표지가 아니어서 탈락한다 — 넓히면 이미 기각한 오탐 6종과 같은 실수다.
+    결속되면 근거가 두산퓨얼셀 4건(한전기술을 계약상대로 한 공시)으로 뒤집힌다.
+    """
+    question = ("한전기술이 공시한 단일판매·공급계약의 계약상대를 보면 "
+                "발주 구조가 두 갈래로 나뉜다. 어떤 갈래이며 근거는 무엇인가?")
+    assert route(question).counterparty is None
+    # 표지도 노드 후보도 실재하는데 발화하지 않는다는 것을 함께 고정한다.
+    from argus.agent.router import _counterparty_nodes
+    from argus.corpus.counterparty import canonical
+
+    assert "계약상대" in canonical(question)
+    assert canonical("두산에너빌리티") in _counterparty_nodes()
+    assert canonical("한전기술") not in _counterparty_nodes()
+
+
+def test_both_order_branches_are_reachable_without_the_graph():
+    """§5 #4 재정의 — Q-117 은 그래프 문제가 아니라 **열거** 문제다. LLM 0회.
+
+    두 갈래(발전 공기업 직접 수주 · 두산에너빌리티 재수주)가 `query_events` 한 번으로
+    전부 닿는다. 기록된 A8 궤적은 `top_k=5` 검색 5블록에서 충분 판정이 나 둘째 갈래를
+    못 받았고 모델이 '공공부문' 을 지어냈다. 겨냥점은 라우터가 아니라 열거 경로다.
+    """
+    import pytest
+
+    from argus.agent import tools
+
+    events = tools.query_events(corp_name="한전기술",
+                                doc_subtype="단일판매공급계약체결").get("events") or []
+    if not events:
+        pytest.skip("artifacts/exchange_records.jsonl 없음 (gitignore 된 인덱스 산출물)")
+    counterparties = {e.get("counterparty") or "" for e in events}
+    assert any("두산에너빌리티" in c for c in counterparties)
+    assert any("한국수력원자력" in c for c in counterparties)

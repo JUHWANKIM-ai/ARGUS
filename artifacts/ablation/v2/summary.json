@@ -1,0 +1,1731 @@
+{
+  "meta": {
+    "generated": "2026-08-11T01:25:20",
+    "cohort": "full",
+    "n_cases": 88,
+    "question_ids": [
+      "Q-001",
+      "Q-003",
+      "Q-005",
+      "Q-006",
+      "Q-007",
+      "Q-008",
+      "Q-010",
+      "Q-012",
+      "Q-014",
+      "Q-015",
+      "Q-016",
+      "Q-018",
+      "Q-020",
+      "Q-022",
+      "Q-023",
+      "Q-024",
+      "Q-025",
+      "Q-026",
+      "Q-028",
+      "Q-030",
+      "Q-031",
+      "Q-033",
+      "Q-034",
+      "Q-035",
+      "Q-037",
+      "Q-038",
+      "Q-039",
+      "Q-040",
+      "Q-041",
+      "Q-042",
+      "Q-043",
+      "Q-044",
+      "Q-045",
+      "Q-046",
+      "Q-047",
+      "Q-048",
+      "Q-049",
+      "Q-050",
+      "Q-051",
+      "Q-052",
+      "Q-053",
+      "Q-054",
+      "Q-071",
+      "Q-072",
+      "Q-073",
+      "Q-074",
+      "Q-075",
+      "Q-076",
+      "Q-077",
+      "Q-078",
+      "Q-079",
+      "Q-080",
+      "Q-081",
+      "Q-082",
+      "Q-083",
+      "Q-084",
+      "Q-085",
+      "Q-086",
+      "Q-087",
+      "Q-088",
+      "Q-089",
+      "Q-090",
+      "Q-091",
+      "Q-092",
+      "Q-093",
+      "Q-094",
+      "Q-095",
+      "Q-096",
+      "Q-097",
+      "Q-098",
+      "Q-099",
+      "Q-100",
+      "Q-101",
+      "Q-102",
+      "Q-103",
+      "Q-104",
+      "Q-105",
+      "Q-106",
+      "Q-061",
+      "Q-062",
+      "Q-063",
+      "Q-064",
+      "Q-065",
+      "Q-066",
+      "Q-067",
+      "Q-068",
+      "Q-069",
+      "Q-070"
+    ],
+    "budget_won": 20000.0,
+    "stop_won": 16000.0,
+    "price_won_per_1k": 7.02,
+    "index_snapshot": {
+      "artifacts/exchange_bm25.json": "dcb531a9ac4edc61:835184",
+      "artifacts/major_bm25.json": "46b6b72efd3add7f:492039",
+      "artifacts/holding_bm25.json": "6915045cf1b79252:943447",
+      "artifacts/section_index.json": "d69679c75e9322cf:19194287",
+      "artifacts/section_index.npz": "bd1ab274b9d82084:197781168",
+      "artifacts/exchange_records.jsonl": "90511f06ae3cc3db:4418643",
+      "artifacts/major_records.jsonl": "f1726becba5f32e7:4347024",
+      "artifacts/holding_records.jsonl": "ebbf4c2c99ef75d6:6075638",
+      "artifacts/periodic_sections.jsonl": "7d83a7d54b7f1b7d:55150457",
+      "artifacts/periodic_sections.txt": "3ad5db8f6244bfba:926428627",
+      "artifacts/references.jsonl": "ef97e32720e4a495:594560",
+      "data/dart-disclosures/manifest.jsonl": "04750795e1a2d5c3:2419214",
+      "data/dart-disclosures/universe.csv": "96560165c836b10e:10674"
+    },
+    "spent_won": 5301.5,
+    "spent_won_source": "arm·코호트별 run.json 합 (하위 폴더 포함)",
+    "spent_won_by_arm": {
+      "A0": 1901.0,
+      "A1": 289.0,
+      "A1b": 768.6,
+      "A4": 715.1,
+      "A5": 14.1,
+      "A6": 0.0,
+      "A7": 0.0,
+      "A8": 0.0,
+      "heldout/A8_heldout_run": 673.8,
+      "L1": 246.0,
+      "L2": 310.1,
+      "L3": 0.0,
+      "vc/A8": 234.9,
+      "vc/L3": 148.9
+    },
+    "this_process_spent_won": 0.0,
+    "cache_hits": 663,
+    "cache_misses": 435,
+    "fresh_prompt_tokens": 0,
+    "fresh_completion_tokens": 0,
+    "cache_stats_are_this_process": false,
+    "cache_stats_carried_from": "2026-08-10T22:12:29",
+    "this_run": {},
+    "rescored_at": "2026-08-11T01:25:20",
+    "cache_stats_note": "L1~A0 7구성 실행분만 (run_v2.log 에서 복구). A8·A7·A6·L3 · 밸류체인 실행은 별 프로세스라 이 수에 없다. 그 실행들은 작성 시점(2026-08-10)에 전액 캐시 적중이었으나 🔴 2026-08-11 의 vc/A8 재실행은 234.9원을 결제했다 — 캐시 미스 16 · 적중 9. 권위값은 이 주석이 아니라 각 run.json 의 spent_won 합이다 (_spend_meta).",
+    "cache_stats_inconsistent": "🔴 `cache_misses 435` 인데 `fresh_*_tokens` 합이 0 이다 — 두 수는 같은 프로세스에서 나올 수 없다. 미적중 수가 다른 실행에서 이어받은 값이거나 수동 복구값이다. **이 필드로 지출·절감을 계산하지 않는다** (지출의 권위값은 `spent_won` = arm 별 `run.json` 합이다)."
+  },
+  "summary": {
+    "arms": {
+      "A8": {
+        "correct": 61,
+        "n_scored": 72,
+        "rate": 0.8472222222222222,
+        "rate_reported": 0.847,
+        "n_grid": 72,
+        "data_limit": 0,
+        "overall": 0.852,
+        "overall_correct": 75,
+        "overall_n_scored": 88,
+        "info_limit_correct": 7,
+        "info_limit_n": 7,
+        "hallucination": 0,
+        "tracks": {
+          "grid": {
+            "n": 72,
+            "n_scored": 72,
+            "correct": 61,
+            "rate": 0.847,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 2,
+              "RANKING": 1,
+              "GENERATION": 7,
+              "VERIFY": 1
+            }
+          },
+          "info_limit": {
+            "n": 6,
+            "n_scored": 6,
+            "correct": 6,
+            "rate": 1.0,
+            "data_limit": 0,
+            "stages": {}
+          },
+          "regression": {
+            "n": 10,
+            "n_scored": 10,
+            "correct": 8,
+            "rate": 0.8,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 1,
+              "GENERATION": 1
+            }
+          }
+        },
+        "tokens": 337603,
+        "arm_cost_won": 2370.0,
+        "llm_calls": 124,
+        "latency_s_mean_recorded": 0.03,
+        "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+        "failures": {
+          "GENERATION": 7,
+          "RETRIEVAL": 2,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "failures_all": {
+          "GENERATION": 8,
+          "RETRIEVAL": 3,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "root_causes": {
+          "GENERATION/REASONING": 1,
+          "GENERATION/INDEX_FIELD_MISSING": 5,
+          "GENERATION/UNVERIFIED": 1,
+          "RETRIEVAL/MULTI_POINT_QUERY": 2,
+          "VERIFY/VERIFY": 1,
+          "RANKING/LOW_RANK": 1
+        },
+        "citation_rate": 0.736,
+        "flags": {
+          "name": "A8",
+          "retrieval": "all",
+          "schema_fields": true,
+          "dense": false,
+          "hop_ladder": true,
+          "chain_hop": true,
+          "counterparty_hop": true,
+          "split_query": true,
+          "calc_values": true,
+          "verifier": true
+        },
+        "golden_evidence_all": 64,
+        "golden_evidence_hit": 105,
+        "golden_total": 118
+      },
+      "L1": {
+        "correct": 55,
+        "n_scored": 72,
+        "rate": 0.7638888888888888,
+        "rate_reported": 0.764,
+        "n_grid": 72,
+        "data_limit": 0,
+        "overall": 0.773,
+        "overall_correct": 68,
+        "overall_n_scored": 88,
+        "info_limit_correct": 7,
+        "info_limit_n": 7,
+        "hallucination": 0,
+        "tracks": {
+          "grid": {
+            "n": 72,
+            "n_scored": 72,
+            "correct": 55,
+            "rate": 0.764,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 11,
+              "RANKING": 1,
+              "GENERATION": 5
+            }
+          },
+          "info_limit": {
+            "n": 6,
+            "n_scored": 6,
+            "correct": 6,
+            "rate": 1.0,
+            "data_limit": 0,
+            "stages": {}
+          },
+          "regression": {
+            "n": 10,
+            "n_scored": 10,
+            "correct": 7,
+            "rate": 0.7,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 2,
+              "GENERATION": 1
+            }
+          }
+        },
+        "tokens": 328735,
+        "arm_cost_won": 2307.7,
+        "llm_calls": 128,
+        "latency_s_mean_recorded": 0.99,
+        "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+        "failures": {
+          "RETRIEVAL": 11,
+          "GENERATION": 5,
+          "RANKING": 1
+        },
+        "failures_all": {
+          "RETRIEVAL": 13,
+          "GENERATION": 6,
+          "RANKING": 1
+        },
+        "root_causes": {
+          "RETRIEVAL/CHAIN_NOT_TRAVERSED": 8,
+          "RETRIEVAL/CHAIN_PARTIAL": 1,
+          "GENERATION/INDEX_FIELD_MISSING": 4,
+          "GENERATION/UNVERIFIED": 1,
+          "RETRIEVAL/MULTI_POINT_QUERY": 2,
+          "RANKING/LOW_RANK": 1
+        },
+        "citation_rate": 0.75,
+        "flags": {
+          "name": "L1",
+          "retrieval": "all",
+          "schema_fields": true,
+          "dense": false,
+          "hop_ladder": true,
+          "chain_hop": false,
+          "counterparty_hop": true,
+          "split_query": true,
+          "calc_values": true,
+          "verifier": true
+        },
+        "golden_evidence_all": 54,
+        "golden_evidence_hit": 91,
+        "golden_total": 118
+      },
+      "L2": {
+        "correct": 50,
+        "n_scored": 72,
+        "rate": 0.6944444444444444,
+        "rate_reported": 0.694,
+        "n_grid": 72,
+        "data_limit": 0,
+        "overall": 0.682,
+        "overall_correct": 60,
+        "overall_n_scored": 88,
+        "info_limit_correct": 7,
+        "info_limit_n": 7,
+        "hallucination": 0,
+        "tracks": {
+          "grid": {
+            "n": 72,
+            "n_scored": 72,
+            "correct": 50,
+            "rate": 0.694,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 3,
+              "RANKING": 1,
+              "GENERATION": 17,
+              "VERIFY": 1
+            }
+          },
+          "info_limit": {
+            "n": 6,
+            "n_scored": 6,
+            "correct": 6,
+            "rate": 1.0,
+            "data_limit": 0,
+            "stages": {}
+          },
+          "regression": {
+            "n": 10,
+            "n_scored": 10,
+            "correct": 4,
+            "rate": 0.4,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 1,
+              "GENERATION": 5
+            }
+          }
+        },
+        "tokens": 319140,
+        "arm_cost_won": 2240.4,
+        "llm_calls": 125,
+        "latency_s_mean_recorded": 1.43,
+        "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+        "failures": {
+          "GENERATION": 17,
+          "RETRIEVAL": 3,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "failures_all": {
+          "GENERATION": 22,
+          "RETRIEVAL": 4,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "root_causes": {
+          "GENERATION/REASONING": 4,
+          "GENERATION/INDEX_FIELD_MISSING": 12,
+          "GENERATION/UNVERIFIED": 1,
+          "RETRIEVAL/MULTI_POINT_QUERY": 3,
+          "VERIFY/VERIFY": 1,
+          "RANKING/LOW_RANK": 1
+        },
+        "citation_rate": 0.764,
+        "flags": {
+          "name": "L2",
+          "retrieval": "all",
+          "schema_fields": false,
+          "dense": false,
+          "hop_ladder": true,
+          "chain_hop": true,
+          "counterparty_hop": true,
+          "split_query": true,
+          "calc_values": true,
+          "verifier": true
+        },
+        "golden_evidence_all": 64,
+        "golden_evidence_hit": 105,
+        "golden_total": 118
+      },
+      "L3": {
+        "correct": 61,
+        "n_scored": 72,
+        "rate": 0.8472222222222222,
+        "rate_reported": 0.847,
+        "n_grid": 72,
+        "data_limit": 0,
+        "overall": 0.852,
+        "overall_correct": 75,
+        "overall_n_scored": 88,
+        "info_limit_correct": 7,
+        "info_limit_n": 7,
+        "hallucination": 0,
+        "tracks": {
+          "grid": {
+            "n": 72,
+            "n_scored": 72,
+            "correct": 61,
+            "rate": 0.847,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 2,
+              "RANKING": 1,
+              "GENERATION": 7,
+              "VERIFY": 1
+            }
+          },
+          "info_limit": {
+            "n": 6,
+            "n_scored": 6,
+            "correct": 6,
+            "rate": 1.0,
+            "data_limit": 0,
+            "stages": {}
+          },
+          "regression": {
+            "n": 10,
+            "n_scored": 10,
+            "correct": 8,
+            "rate": 0.8,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 1,
+              "GENERATION": 1
+            }
+          }
+        },
+        "tokens": 337603,
+        "arm_cost_won": 2370.0,
+        "llm_calls": 124,
+        "latency_s_mean_recorded": 0.03,
+        "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+        "failures": {
+          "GENERATION": 7,
+          "RETRIEVAL": 2,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "failures_all": {
+          "GENERATION": 8,
+          "RETRIEVAL": 3,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "root_causes": {
+          "GENERATION/REASONING": 1,
+          "GENERATION/INDEX_FIELD_MISSING": 5,
+          "GENERATION/UNVERIFIED": 1,
+          "RETRIEVAL/MULTI_POINT_QUERY": 2,
+          "VERIFY/VERIFY": 1,
+          "RANKING/LOW_RANK": 1
+        },
+        "citation_rate": 0.736,
+        "flags": {
+          "name": "L3",
+          "retrieval": "all",
+          "schema_fields": true,
+          "dense": false,
+          "hop_ladder": true,
+          "chain_hop": true,
+          "counterparty_hop": false,
+          "split_query": true,
+          "calc_values": true,
+          "verifier": true
+        },
+        "golden_evidence_all": 64,
+        "golden_evidence_hit": 105,
+        "golden_total": 118
+      },
+      "A7": {
+        "correct": 61,
+        "n_scored": 72,
+        "rate": 0.8472222222222222,
+        "rate_reported": 0.847,
+        "n_grid": 72,
+        "data_limit": 0,
+        "overall": 0.852,
+        "overall_correct": 75,
+        "overall_n_scored": 88,
+        "info_limit_correct": 7,
+        "info_limit_n": 7,
+        "hallucination": 0,
+        "tracks": {
+          "grid": {
+            "n": 72,
+            "n_scored": 72,
+            "correct": 61,
+            "rate": 0.847,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 2,
+              "RANKING": 1,
+              "GENERATION": 7,
+              "VERIFY": 1
+            }
+          },
+          "info_limit": {
+            "n": 6,
+            "n_scored": 6,
+            "correct": 6,
+            "rate": 1.0,
+            "data_limit": 0,
+            "stages": {}
+          },
+          "regression": {
+            "n": 10,
+            "n_scored": 10,
+            "correct": 8,
+            "rate": 0.8,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 1,
+              "GENERATION": 1
+            }
+          }
+        },
+        "tokens": 337603,
+        "arm_cost_won": 2370.0,
+        "llm_calls": 124,
+        "latency_s_mean_recorded": 0.03,
+        "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+        "failures": {
+          "GENERATION": 7,
+          "RETRIEVAL": 2,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "failures_all": {
+          "GENERATION": 8,
+          "RETRIEVAL": 3,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "root_causes": {
+          "GENERATION/REASONING": 1,
+          "GENERATION/INDEX_FIELD_MISSING": 5,
+          "GENERATION/UNVERIFIED": 1,
+          "RETRIEVAL/MULTI_POINT_QUERY": 2,
+          "VERIFY/VERIFY": 1,
+          "RANKING/LOW_RANK": 1
+        },
+        "citation_rate": 0.736,
+        "flags": {
+          "name": "A7",
+          "retrieval": "all",
+          "schema_fields": true,
+          "dense": false,
+          "hop_ladder": true,
+          "chain_hop": true,
+          "counterparty_hop": false,
+          "split_query": true,
+          "calc_values": true,
+          "verifier": true
+        },
+        "golden_evidence_all": 64,
+        "golden_evidence_hit": 105,
+        "golden_total": 118
+      },
+      "A6": {
+        "correct": 61,
+        "n_scored": 72,
+        "rate": 0.8472222222222222,
+        "rate_reported": 0.847,
+        "n_grid": 72,
+        "data_limit": 0,
+        "overall": 0.852,
+        "overall_correct": 75,
+        "overall_n_scored": 88,
+        "info_limit_correct": 7,
+        "info_limit_n": 7,
+        "hallucination": 0,
+        "tracks": {
+          "grid": {
+            "n": 72,
+            "n_scored": 72,
+            "correct": 61,
+            "rate": 0.847,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 2,
+              "RANKING": 1,
+              "GENERATION": 7,
+              "VERIFY": 1
+            }
+          },
+          "info_limit": {
+            "n": 6,
+            "n_scored": 6,
+            "correct": 6,
+            "rate": 1.0,
+            "data_limit": 0,
+            "stages": {}
+          },
+          "regression": {
+            "n": 10,
+            "n_scored": 10,
+            "correct": 8,
+            "rate": 0.8,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 1,
+              "GENERATION": 1
+            }
+          }
+        },
+        "tokens": 337603,
+        "arm_cost_won": 2370.0,
+        "llm_calls": 124,
+        "latency_s_mean_recorded": 0.02,
+        "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+        "failures": {
+          "GENERATION": 7,
+          "RETRIEVAL": 2,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "failures_all": {
+          "GENERATION": 8,
+          "RETRIEVAL": 3,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "root_causes": {
+          "GENERATION/REASONING": 1,
+          "GENERATION/INDEX_FIELD_MISSING": 5,
+          "GENERATION/UNVERIFIED": 1,
+          "RETRIEVAL/MULTI_POINT_QUERY": 2,
+          "VERIFY/VERIFY": 1,
+          "RANKING/LOW_RANK": 1
+        },
+        "citation_rate": 0.736,
+        "flags": {
+          "name": "A6",
+          "retrieval": "all",
+          "schema_fields": true,
+          "dense": false,
+          "hop_ladder": true,
+          "chain_hop": true,
+          "counterparty_hop": false,
+          "split_query": true,
+          "calc_values": true,
+          "verifier": true
+        },
+        "golden_evidence_all": 64,
+        "golden_evidence_hit": 105,
+        "golden_total": 118
+      },
+      "A5": {
+        "correct": 61,
+        "n_scored": 72,
+        "rate": 0.8472222222222222,
+        "rate_reported": 0.847,
+        "n_grid": 72,
+        "data_limit": 0,
+        "overall": 0.852,
+        "overall_correct": 75,
+        "overall_n_scored": 88,
+        "info_limit_correct": 7,
+        "info_limit_n": 7,
+        "hallucination": 0,
+        "tracks": {
+          "grid": {
+            "n": 72,
+            "n_scored": 72,
+            "correct": 61,
+            "rate": 0.847,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 2,
+              "RANKING": 1,
+              "GENERATION": 7,
+              "VERIFY": 1
+            }
+          },
+          "info_limit": {
+            "n": 6,
+            "n_scored": 6,
+            "correct": 6,
+            "rate": 1.0,
+            "data_limit": 0,
+            "stages": {}
+          },
+          "regression": {
+            "n": 10,
+            "n_scored": 10,
+            "correct": 8,
+            "rate": 0.8,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 1,
+              "GENERATION": 1
+            }
+          }
+        },
+        "tokens": 337555,
+        "arm_cost_won": 2369.6,
+        "llm_calls": 124,
+        "latency_s_mean_recorded": 0.02,
+        "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+        "failures": {
+          "GENERATION": 7,
+          "RETRIEVAL": 2,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "failures_all": {
+          "GENERATION": 8,
+          "RETRIEVAL": 3,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "root_causes": {
+          "GENERATION/REASONING": 1,
+          "GENERATION/INDEX_FIELD_MISSING": 5,
+          "GENERATION/UNVERIFIED": 1,
+          "RETRIEVAL/MULTI_POINT_QUERY": 2,
+          "VERIFY/VERIFY": 1,
+          "RANKING/LOW_RANK": 1
+        },
+        "citation_rate": 0.736,
+        "flags": {
+          "name": "A5",
+          "retrieval": "all",
+          "schema_fields": true,
+          "dense": false,
+          "hop_ladder": true,
+          "chain_hop": true,
+          "counterparty_hop": false,
+          "split_query": true,
+          "calc_values": true,
+          "verifier": false
+        },
+        "golden_evidence_all": 64,
+        "golden_evidence_hit": 105,
+        "golden_total": 118
+      },
+      "A4": {
+        "correct": 59,
+        "n_scored": 72,
+        "rate": 0.8194444444444444,
+        "rate_reported": 0.819,
+        "n_grid": 72,
+        "data_limit": 0,
+        "overall": 0.841,
+        "overall_correct": 74,
+        "overall_n_scored": 88,
+        "info_limit_correct": 7,
+        "info_limit_n": 7,
+        "hallucination": 0,
+        "tracks": {
+          "grid": {
+            "n": 72,
+            "n_scored": 72,
+            "correct": 59,
+            "rate": 0.819,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 2,
+              "RANKING": 1,
+              "TOOL": 1,
+              "GENERATION": 8,
+              "VERIFY": 1
+            }
+          },
+          "info_limit": {
+            "n": 6,
+            "n_scored": 6,
+            "correct": 6,
+            "rate": 1.0,
+            "data_limit": 0,
+            "stages": {}
+          },
+          "regression": {
+            "n": 10,
+            "n_scored": 10,
+            "correct": 9,
+            "rate": 0.9,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 1
+            }
+          }
+        },
+        "tokens": 331802,
+        "arm_cost_won": 2329.3,
+        "llm_calls": 121,
+        "latency_s_mean_recorded": 2.49,
+        "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+        "failures": {
+          "TOOL": 1,
+          "GENERATION": 8,
+          "RETRIEVAL": 2,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "failures_all": {
+          "TOOL": 1,
+          "GENERATION": 8,
+          "RETRIEVAL": 3,
+          "VERIFY": 1,
+          "RANKING": 1
+        },
+        "root_causes": {
+          "TOOL/TOOL": 1,
+          "GENERATION/INDEX_FIELD_MISSING": 6,
+          "GENERATION/REASONING": 1,
+          "GENERATION/UNVERIFIED": 1,
+          "RETRIEVAL/MULTI_POINT_QUERY": 2,
+          "VERIFY/VERIFY": 1,
+          "RANKING/LOW_RANK": 1
+        },
+        "citation_rate": 0.778,
+        "flags": {
+          "name": "A4",
+          "retrieval": "all",
+          "schema_fields": true,
+          "dense": false,
+          "hop_ladder": true,
+          "chain_hop": true,
+          "counterparty_hop": false,
+          "split_query": true,
+          "calc_values": false,
+          "verifier": false
+        },
+        "golden_evidence_all": 64,
+        "golden_evidence_hit": 105,
+        "golden_total": 118
+      },
+      "A1b": {
+        "correct": 46,
+        "n_scored": 72,
+        "rate": 0.6388888888888888,
+        "rate_reported": 0.639,
+        "n_grid": 72,
+        "data_limit": 0,
+        "overall": 0.659,
+        "overall_correct": 58,
+        "overall_n_scored": 88,
+        "info_limit_correct": 7,
+        "info_limit_n": 7,
+        "hallucination": 0,
+        "tracks": {
+          "grid": {
+            "n": 72,
+            "n_scored": 72,
+            "correct": 46,
+            "rate": 0.639,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 20,
+              "TOOL": 1,
+              "GENERATION": 5
+            }
+          },
+          "info_limit": {
+            "n": 6,
+            "n_scored": 6,
+            "correct": 6,
+            "rate": 1.0,
+            "data_limit": 0,
+            "stages": {}
+          },
+          "regression": {
+            "n": 10,
+            "n_scored": 10,
+            "correct": 6,
+            "rate": 0.6,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 4
+            }
+          }
+        },
+        "tokens": 262631,
+        "arm_cost_won": 1843.7,
+        "llm_calls": 129,
+        "latency_s_mean_recorded": 2.39,
+        "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+        "failures": {
+          "TOOL": 1,
+          "RETRIEVAL": 20,
+          "GENERATION": 5
+        },
+        "failures_all": {
+          "TOOL": 1,
+          "RETRIEVAL": 24,
+          "GENERATION": 5
+        },
+        "root_causes": {
+          "TOOL/TOOL": 1,
+          "RETRIEVAL/CHAIN_NOT_TRAVERSED": 10,
+          "RETRIEVAL/MULTI_POINT_QUERY": 9,
+          "GENERATION/REASONING": 1,
+          "RETRIEVAL/CHAIN_PARTIAL": 1,
+          "GENERATION/UNVERIFIED": 1,
+          "GENERATION/INDEX_FIELD_MISSING": 3
+        },
+        "citation_rate": 0.722,
+        "flags": {
+          "name": "A1b",
+          "retrieval": "all",
+          "schema_fields": true,
+          "dense": false,
+          "hop_ladder": false,
+          "chain_hop": false,
+          "counterparty_hop": false,
+          "split_query": false,
+          "calc_values": false,
+          "verifier": false
+        },
+        "golden_evidence_all": 47,
+        "golden_evidence_hit": 83,
+        "golden_total": 118
+      },
+      "A1": {
+        "correct": 18,
+        "n_scored": 72,
+        "rate": 0.25,
+        "rate_reported": 0.25,
+        "n_grid": 72,
+        "data_limit": 0,
+        "overall": 0.295,
+        "overall_correct": 26,
+        "overall_n_scored": 88,
+        "info_limit_correct": 7,
+        "info_limit_n": 7,
+        "hallucination": 0,
+        "tracks": {
+          "grid": {
+            "n": 72,
+            "n_scored": 72,
+            "correct": 18,
+            "rate": 0.25,
+            "data_limit": 0,
+            "stages": {
+              "ROUTING": 39,
+              "RETRIEVAL": 12,
+              "TOOL": 1,
+              "GENERATION": 2
+            }
+          },
+          "info_limit": {
+            "n": 6,
+            "n_scored": 6,
+            "correct": 6,
+            "rate": 1.0,
+            "data_limit": 0,
+            "stages": {}
+          },
+          "regression": {
+            "n": 10,
+            "n_scored": 10,
+            "correct": 2,
+            "rate": 0.2,
+            "data_limit": 0,
+            "stages": {
+              "ROUTING": 6,
+              "RETRIEVAL": 2
+            }
+          }
+        },
+        "tokens": 105342,
+        "arm_cost_won": 739.5,
+        "llm_calls": 106,
+        "latency_s_mean_recorded": 1.39,
+        "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+        "failures": {
+          "TOOL": 1,
+          "RETRIEVAL": 12,
+          "ROUTING": 39,
+          "GENERATION": 2
+        },
+        "failures_all": {
+          "TOOL": 1,
+          "RETRIEVAL": 14,
+          "ROUTING": 45,
+          "GENERATION": 2
+        },
+        "root_causes": {
+          "TOOL/TOOL": 1,
+          "RETRIEVAL/CHAIN_NOT_TRAVERSED": 9,
+          "ROUTING/ROUTING": 39,
+          "RETRIEVAL/MULTI_POINT_QUERY": 2,
+          "RETRIEVAL/CHAIN_PARTIAL": 1,
+          "GENERATION/INDEX_FIELD_MISSING": 2
+        },
+        "citation_rate": 0.306,
+        "flags": {
+          "name": "A1",
+          "retrieval": "exchange",
+          "schema_fields": false,
+          "dense": false,
+          "hop_ladder": false,
+          "chain_hop": false,
+          "counterparty_hop": false,
+          "split_query": false,
+          "calc_values": false,
+          "verifier": false
+        },
+        "golden_evidence_all": 20,
+        "golden_evidence_hit": 39,
+        "golden_total": 118
+      },
+      "A0": {
+        "correct": 24,
+        "n_scored": 72,
+        "rate": 0.3333333333333333,
+        "rate_reported": 0.333,
+        "n_grid": 72,
+        "data_limit": 0,
+        "overall": 0.364,
+        "overall_correct": 32,
+        "overall_n_scored": 88,
+        "info_limit_correct": 7,
+        "info_limit_n": 7,
+        "hallucination": 0,
+        "tracks": {
+          "grid": {
+            "n": 72,
+            "n_scored": 72,
+            "correct": 24,
+            "rate": 0.333,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 26,
+              "RANKING": 11,
+              "TOOL": 1,
+              "GENERATION": 10
+            }
+          },
+          "info_limit": {
+            "n": 6,
+            "n_scored": 6,
+            "correct": 6,
+            "rate": 1.0,
+            "data_limit": 0,
+            "stages": {}
+          },
+          "regression": {
+            "n": 10,
+            "n_scored": 10,
+            "correct": 2,
+            "rate": 0.2,
+            "data_limit": 0,
+            "stages": {
+              "RETRIEVAL": 4,
+              "RANKING": 1,
+              "GENERATION": 3
+            }
+          }
+        },
+        "tokens": 298382,
+        "arm_cost_won": 2094.6,
+        "llm_calls": 129,
+        "latency_s_mean_recorded": 3.73,
+        "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+        "failures": {
+          "TOOL": 1,
+          "RETRIEVAL": 26,
+          "GENERATION": 10,
+          "RANKING": 11
+        },
+        "failures_all": {
+          "TOOL": 1,
+          "RETRIEVAL": 30,
+          "GENERATION": 13,
+          "RANKING": 12
+        },
+        "root_causes": {
+          "TOOL/TOOL": 1,
+          "RETRIEVAL/CHAIN_NOT_TRAVERSED": 11,
+          "GENERATION/REASONING": 3,
+          "RETRIEVAL/MULTI_POINT_QUERY": 14,
+          "GENERATION/INDEX_FIELD_MISSING": 7,
+          "RETRIEVAL/CHAIN_PARTIAL": 1,
+          "RANKING/WRONG_SECTION": 5,
+          "RANKING/LOW_RANK": 6
+        },
+        "citation_rate": 0.556,
+        "flags": {
+          "name": "A0",
+          "retrieval": "meta",
+          "schema_fields": false,
+          "dense": false,
+          "hop_ladder": false,
+          "chain_hop": false,
+          "counterparty_hop": false,
+          "split_query": false,
+          "calc_values": false,
+          "verifier": false
+        },
+        "golden_evidence_all": 30,
+        "golden_evidence_hit": 60,
+        "golden_total": 118
+      }
+    },
+    "axes": {
+      "difficulty": {
+        "하": {
+          "A8": {
+            "correct": 22,
+            "n": 24,
+            "rate": 0.9166666666666666
+          },
+          "L1": {
+            "correct": 22,
+            "n": 24,
+            "rate": 0.9166666666666666
+          },
+          "L2": {
+            "correct": 18,
+            "n": 24,
+            "rate": 0.75
+          },
+          "L3": {
+            "correct": 22,
+            "n": 24,
+            "rate": 0.9166666666666666
+          },
+          "A7": {
+            "correct": 22,
+            "n": 24,
+            "rate": 0.9166666666666666
+          },
+          "A6": {
+            "correct": 22,
+            "n": 24,
+            "rate": 0.9166666666666666
+          },
+          "A5": {
+            "correct": 22,
+            "n": 24,
+            "rate": 0.9166666666666666
+          },
+          "A4": {
+            "correct": 22,
+            "n": 24,
+            "rate": 0.9166666666666666
+          },
+          "A1b": {
+            "correct": 19,
+            "n": 24,
+            "rate": 0.7916666666666666
+          },
+          "A1": {
+            "correct": 11,
+            "n": 24,
+            "rate": 0.4583333333333333
+          },
+          "A0": {
+            "correct": 17,
+            "n": 24,
+            "rate": 0.7083333333333334
+          }
+        },
+        "중": {
+          "A8": {
+            "correct": 21,
+            "n": 24,
+            "rate": 0.875
+          },
+          "L1": {
+            "correct": 21,
+            "n": 24,
+            "rate": 0.875
+          },
+          "L2": {
+            "correct": 16,
+            "n": 24,
+            "rate": 0.6666666666666666
+          },
+          "L3": {
+            "correct": 21,
+            "n": 24,
+            "rate": 0.875
+          },
+          "A7": {
+            "correct": 21,
+            "n": 24,
+            "rate": 0.875
+          },
+          "A6": {
+            "correct": 21,
+            "n": 24,
+            "rate": 0.875
+          },
+          "A5": {
+            "correct": 21,
+            "n": 24,
+            "rate": 0.875
+          },
+          "A4": {
+            "correct": 20,
+            "n": 24,
+            "rate": 0.8333333333333334
+          },
+          "A1b": {
+            "correct": 18,
+            "n": 24,
+            "rate": 0.75
+          },
+          "A1": {
+            "correct": 6,
+            "n": 24,
+            "rate": 0.25
+          },
+          "A0": {
+            "correct": 5,
+            "n": 24,
+            "rate": 0.20833333333333334
+          }
+        },
+        "상": {
+          "A8": {
+            "correct": 18,
+            "n": 24,
+            "rate": 0.75
+          },
+          "L1": {
+            "correct": 12,
+            "n": 24,
+            "rate": 0.5
+          },
+          "L2": {
+            "correct": 16,
+            "n": 24,
+            "rate": 0.6666666666666666
+          },
+          "L3": {
+            "correct": 18,
+            "n": 24,
+            "rate": 0.75
+          },
+          "A7": {
+            "correct": 18,
+            "n": 24,
+            "rate": 0.75
+          },
+          "A6": {
+            "correct": 18,
+            "n": 24,
+            "rate": 0.75
+          },
+          "A5": {
+            "correct": 18,
+            "n": 24,
+            "rate": 0.75
+          },
+          "A4": {
+            "correct": 17,
+            "n": 24,
+            "rate": 0.7083333333333334
+          },
+          "A1b": {
+            "correct": 9,
+            "n": 24,
+            "rate": 0.375
+          },
+          "A1": {
+            "correct": 1,
+            "n": 24,
+            "rate": 0.041666666666666664
+          },
+          "A0": {
+            "correct": 2,
+            "n": 24,
+            "rate": 0.08333333333333333
+          }
+        }
+      },
+      "answer_mode": {
+        "closed": {
+          "A8": {
+            "correct": 29,
+            "n": 36,
+            "rate": 0.8055555555555556
+          },
+          "L1": {
+            "correct": 25,
+            "n": 36,
+            "rate": 0.6944444444444444
+          },
+          "L2": {
+            "correct": 25,
+            "n": 36,
+            "rate": 0.6944444444444444
+          },
+          "L3": {
+            "correct": 29,
+            "n": 36,
+            "rate": 0.8055555555555556
+          },
+          "A7": {
+            "correct": 29,
+            "n": 36,
+            "rate": 0.8055555555555556
+          },
+          "A6": {
+            "correct": 29,
+            "n": 36,
+            "rate": 0.8055555555555556
+          },
+          "A5": {
+            "correct": 29,
+            "n": 36,
+            "rate": 0.8055555555555556
+          },
+          "A4": {
+            "correct": 27,
+            "n": 36,
+            "rate": 0.75
+          },
+          "A1b": {
+            "correct": 19,
+            "n": 36,
+            "rate": 0.5277777777777778
+          },
+          "A1": {
+            "correct": 7,
+            "n": 36,
+            "rate": 0.19444444444444445
+          },
+          "A0": {
+            "correct": 12,
+            "n": 36,
+            "rate": 0.3333333333333333
+          }
+        },
+        "open": {
+          "A8": {
+            "correct": 32,
+            "n": 36,
+            "rate": 0.8888888888888888
+          },
+          "L1": {
+            "correct": 30,
+            "n": 36,
+            "rate": 0.8333333333333334
+          },
+          "L2": {
+            "correct": 25,
+            "n": 36,
+            "rate": 0.6944444444444444
+          },
+          "L3": {
+            "correct": 32,
+            "n": 36,
+            "rate": 0.8888888888888888
+          },
+          "A7": {
+            "correct": 32,
+            "n": 36,
+            "rate": 0.8888888888888888
+          },
+          "A6": {
+            "correct": 32,
+            "n": 36,
+            "rate": 0.8888888888888888
+          },
+          "A5": {
+            "correct": 32,
+            "n": 36,
+            "rate": 0.8888888888888888
+          },
+          "A4": {
+            "correct": 32,
+            "n": 36,
+            "rate": 0.8888888888888888
+          },
+          "A1b": {
+            "correct": 27,
+            "n": 36,
+            "rate": 0.75
+          },
+          "A1": {
+            "correct": 11,
+            "n": 36,
+            "rate": 0.3055555555555556
+          },
+          "A0": {
+            "correct": 12,
+            "n": 36,
+            "rate": 0.3333333333333333
+          }
+        }
+      },
+      "task_type": {
+        "search_extract": {
+          "A8": {
+            "correct": 22,
+            "n": 24,
+            "rate": 0.9166666666666666
+          },
+          "L1": {
+            "correct": 19,
+            "n": 24,
+            "rate": 0.7916666666666666
+          },
+          "L2": {
+            "correct": 19,
+            "n": 24,
+            "rate": 0.7916666666666666
+          },
+          "L3": {
+            "correct": 22,
+            "n": 24,
+            "rate": 0.9166666666666666
+          },
+          "A7": {
+            "correct": 22,
+            "n": 24,
+            "rate": 0.9166666666666666
+          },
+          "A6": {
+            "correct": 22,
+            "n": 24,
+            "rate": 0.9166666666666666
+          },
+          "A5": {
+            "correct": 22,
+            "n": 24,
+            "rate": 0.9166666666666666
+          },
+          "A4": {
+            "correct": 21,
+            "n": 24,
+            "rate": 0.875
+          },
+          "A1b": {
+            "correct": 18,
+            "n": 24,
+            "rate": 0.75
+          },
+          "A1": {
+            "correct": 9,
+            "n": 24,
+            "rate": 0.375
+          },
+          "A0": {
+            "correct": 8,
+            "n": 24,
+            "rate": 0.3333333333333333
+          }
+        },
+        "multi_compare": {
+          "A8": {
+            "correct": 20,
+            "n": 24,
+            "rate": 0.8333333333333334
+          },
+          "L1": {
+            "correct": 18,
+            "n": 24,
+            "rate": 0.75
+          },
+          "L2": {
+            "correct": 16,
+            "n": 24,
+            "rate": 0.6666666666666666
+          },
+          "L3": {
+            "correct": 20,
+            "n": 24,
+            "rate": 0.8333333333333334
+          },
+          "A7": {
+            "correct": 20,
+            "n": 24,
+            "rate": 0.8333333333333334
+          },
+          "A6": {
+            "correct": 20,
+            "n": 24,
+            "rate": 0.8333333333333334
+          },
+          "A5": {
+            "correct": 20,
+            "n": 24,
+            "rate": 0.8333333333333334
+          },
+          "A4": {
+            "correct": 19,
+            "n": 24,
+            "rate": 0.7916666666666666
+          },
+          "A1b": {
+            "correct": 12,
+            "n": 24,
+            "rate": 0.5
+          },
+          "A1": {
+            "correct": 3,
+            "n": 24,
+            "rate": 0.125
+          },
+          "A0": {
+            "correct": 8,
+            "n": 24,
+            "rate": 0.3333333333333333
+          }
+        },
+        "complex_reason": {
+          "A8": {
+            "correct": 19,
+            "n": 24,
+            "rate": 0.7916666666666666
+          },
+          "L1": {
+            "correct": 18,
+            "n": 24,
+            "rate": 0.75
+          },
+          "L2": {
+            "correct": 15,
+            "n": 24,
+            "rate": 0.625
+          },
+          "L3": {
+            "correct": 19,
+            "n": 24,
+            "rate": 0.7916666666666666
+          },
+          "A7": {
+            "correct": 19,
+            "n": 24,
+            "rate": 0.7916666666666666
+          },
+          "A6": {
+            "correct": 19,
+            "n": 24,
+            "rate": 0.7916666666666666
+          },
+          "A5": {
+            "correct": 19,
+            "n": 24,
+            "rate": 0.7916666666666666
+          },
+          "A4": {
+            "correct": 19,
+            "n": 24,
+            "rate": 0.7916666666666666
+          },
+          "A1b": {
+            "correct": 16,
+            "n": 24,
+            "rate": 0.6666666666666666
+          },
+          "A1": {
+            "correct": 6,
+            "n": 24,
+            "rate": 0.25
+          },
+          "A0": {
+            "correct": 8,
+            "n": 24,
+            "rate": 0.3333333333333333
+          }
+        }
+      }
+    },
+    "cells": {
+      "하": {
+        "A8": {
+          "correct": 3,
+          "n": 4
+        },
+        "L1": {
+          "correct": 3,
+          "n": 4
+        },
+        "L2": {
+          "correct": 2,
+          "n": 4
+        },
+        "L3": {
+          "correct": 3,
+          "n": 4
+        },
+        "A7": {
+          "correct": 3,
+          "n": 4
+        },
+        "A6": {
+          "correct": 3,
+          "n": 4
+        },
+        "A5": {
+          "correct": 3,
+          "n": 4
+        },
+        "A4": {
+          "correct": 3,
+          "n": 4
+        },
+        "A1b": {
+          "correct": 1,
+          "n": 4
+        },
+        "A1": {
+          "correct": 1,
+          "n": 4
+        },
+        "A0": {
+          "correct": 3,
+          "n": 4
+        }
+      },
+      "중": {
+        "A8": {
+          "correct": 4,
+          "n": 4
+        },
+        "L1": {
+          "correct": 4,
+          "n": 4
+        },
+        "L2": {
+          "correct": 3,
+          "n": 4
+        },
+        "L3": {
+          "correct": 4,
+          "n": 4
+        },
+        "A7": {
+          "correct": 4,
+          "n": 4
+        },
+        "A6": {
+          "correct": 4,
+          "n": 4
+        },
+        "A5": {
+          "correct": 4,
+          "n": 4
+        },
+        "A4": {
+          "correct": 4,
+          "n": 4
+        },
+        "A1b": {
+          "correct": 2,
+          "n": 4
+        },
+        "A1": {
+          "correct": 0,
+          "n": 4
+        },
+        "A0": {
+          "correct": 0,
+          "n": 4
+        }
+      },
+      "상": {
+        "A8": {
+          "correct": 3,
+          "n": 4
+        },
+        "L1": {
+          "correct": 2,
+          "n": 4
+        },
+        "L2": {
+          "correct": 3,
+          "n": 4
+        },
+        "L3": {
+          "correct": 3,
+          "n": 4
+        },
+        "A7": {
+          "correct": 3,
+          "n": 4
+        },
+        "A6": {
+          "correct": 3,
+          "n": 4
+        },
+        "A5": {
+          "correct": 3,
+          "n": 4
+        },
+        "A4": {
+          "correct": 2,
+          "n": 4
+        },
+        "A1b": {
+          "correct": 2,
+          "n": 4
+        },
+        "A1": {
+          "correct": 0,
+          "n": 4
+        },
+        "A0": {
+          "correct": 1,
+          "n": 4
+        }
+      }
+    }
+  }
+}

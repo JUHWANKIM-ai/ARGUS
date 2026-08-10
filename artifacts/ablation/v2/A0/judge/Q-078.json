@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-078",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제공된 문서 내에서 직접적인 보유 비율 정보를 찾지 못했기 때문에 결론 도출에 실패함.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 501,
+   "completion_tokens": 44,
+   "latency_s": 1.229,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 501,
+ "completion_tokens": 44
+}

@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-094",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출 답변에는 모범답안 요소들이 포함되어 있지 않으며, 오히려 잘못된 정보를 제공하고 있습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 2556,
+   "completion_tokens": 47,
+   "latency_s": 1.586,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 2556,
+ "completion_tokens": 47
+}

@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-022",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제시된 답변에는 모범답안의 핵심 요소인 자금조달 목적별 금액과 총 조달 규모가 정확하게 반영되지 않았습니다. 특히 타법인 증권 취득 자금 항목이 누락되었고, 정정 전의 금액을 기준으로 설명하고 있어 오류를 범했습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 950,
+   "completion_tokens": 82,
+   "latency_s": 2.227,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 950,
+ "completion_tokens": 82
+}

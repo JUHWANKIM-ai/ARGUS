@@ -1,0 +1,16 @@
+{
+ "question_id": "Q-082",
+ "response": {
+  "question_id": "Q-082",
+  "question": "현대글로비스 2024년 반기보고서는 2024년 8월 26일 정정됐다. 무엇이 어떻게 정정됐는지 설명해줘.",
+  "retrieved_context": "",
+  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대글로비스\" period=ym:202408 top_k=5 q=\"현대글로비스 2024 반기보고서 26 정정됐다 어떻게 정정됐는지\" n=0 top_score=- ids=- | hop=0 verdict=insufficient evidence=0 reason=no_candidate | 근거 없음 — LLM 호출 없이 한계 고지 | budget steps=1 hops=0 llm=0 tokens=0",
+  "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다."
+ },
+ "calls": [],
+ "prompt_tokens": 0,
+ "completion_tokens": 0,
+ "llm_calls": 0,
+ "latency_s": 0.006,
+ "ts": "2026-08-10T21:26:28"
+}

@@ -1,0 +1,424 @@
+{
+ "meta": {
+  "generated": "2026-08-10T21:23:03",
+  "cohort": "valuechain",
+  "n_cases": 12,
+  "question_ids": [
+   "Q-107",
+   "Q-108",
+   "Q-109",
+   "Q-110",
+   "Q-111",
+   "Q-112",
+   "Q-113",
+   "Q-114",
+   "Q-115",
+   "Q-116",
+   "Q-117",
+   "Q-118"
+  ],
+  "spent_won": 148.9,
+  "budget_won": 20000.0,
+  "stop_won": 16000.0,
+  "cache_hits": 9,
+  "cache_misses": 14,
+  "fresh_prompt_tokens": 19005,
+  "fresh_completion_tokens": 2209,
+  "price_won_per_1k": 7.02,
+  "index_snapshot": {
+   "artifacts/exchange_bm25.json": "dcb531a9ac4edc61:835184",
+   "artifacts/major_bm25.json": "46b6b72efd3add7f:492039",
+   "artifacts/holding_bm25.json": "6915045cf1b79252:943447",
+   "artifacts/section_index.json": "d69679c75e9322cf:19194287",
+   "artifacts/section_index.npz": "bd1ab274b9d82084:197781168",
+   "artifacts/exchange_records.jsonl": "90511f06ae3cc3db:4418643",
+   "artifacts/major_records.jsonl": "f1726becba5f32e7:4347024",
+   "artifacts/holding_records.jsonl": "ebbf4c2c99ef75d6:6075638",
+   "artifacts/periodic_sections.jsonl": "7d83a7d54b7f1b7d:55150457",
+   "artifacts/periodic_sections.txt": "3ad5db8f6244bfba:926428627",
+   "artifacts/references.jsonl": "ef97e32720e4a495:594560",
+   "data/dart-disclosures/manifest.jsonl": "04750795e1a2d5c3:2419214",
+   "data/dart-disclosures/universe.csv": "96560165c836b10e:10674"
+  },
+  "this_run": {
+   "L3": {
+    "arm": "L3",
+    "n_run": 12,
+    "stopped_at": null,
+    "spent_won": 148.9,
+    "runs": [
+     {
+      "question_id": "Q-107",
+      "llm_calls": 1,
+      "prompt_tokens": 1206,
+      "completion_tokens": 192,
+      "judge_tokens": 0,
+      "latency_s": 4.783
+     },
+     {
+      "question_id": "Q-108",
+      "llm_calls": 2,
+      "prompt_tokens": 3853,
+      "completion_tokens": 422,
+      "judge_tokens": 2242,
+      "latency_s": 0.013
+     },
+     {
+      "question_id": "Q-109",
+      "llm_calls": 1,
+      "prompt_tokens": 1200,
+      "completion_tokens": 221,
+      "judge_tokens": 0,
+      "latency_s": 5.124
+     },
+     {
+      "question_id": "Q-110",
+      "llm_calls": 2,
+      "prompt_tokens": 2239,
+      "completion_tokens": 263,
+      "judge_tokens": 1453,
+      "latency_s": 6.478
+     },
+     {
+      "question_id": "Q-111",
+      "llm_calls": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "judge_tokens": 0,
+      "latency_s": 0.0
+     },
+     {
+      "question_id": "Q-112",
+      "llm_calls": 2,
+      "prompt_tokens": 2581,
+      "completion_tokens": 361,
+      "judge_tokens": 1559,
+      "latency_s": 0.024
+     },
+     {
+      "question_id": "Q-113",
+      "llm_calls": 2,
+      "prompt_tokens": 3856,
+      "completion_tokens": 477,
+      "judge_tokens": 0,
+      "latency_s": 11.926
+     },
+     {
+      "question_id": "Q-114",
+      "llm_calls": 1,
+      "prompt_tokens": 763,
+      "completion_tokens": 94,
+      "judge_tokens": 839,
+      "latency_s": 2.328
+     },
+     {
+      "question_id": "Q-115",
+      "llm_calls": 2,
+      "prompt_tokens": 3613,
+      "completion_tokens": 305,
+      "judge_tokens": 0,
+      "latency_s": 7.629
+     },
+     {
+      "question_id": "Q-116",
+      "llm_calls": 2,
+      "prompt_tokens": 2076,
+      "completion_tokens": 201,
+      "judge_tokens": 0,
+      "latency_s": 5.131
+     },
+     {
+      "question_id": "Q-117",
+      "llm_calls": 2,
+      "prompt_tokens": 2031,
+      "completion_tokens": 307,
+      "judge_tokens": 1336,
+      "latency_s": 0.006
+     },
+     {
+      "question_id": "Q-118",
+      "llm_calls": 1,
+      "prompt_tokens": 1905,
+      "completion_tokens": 311,
+      "judge_tokens": 0,
+      "latency_s": 7.241
+     }
+    ]
+   }
+  }
+ },
+ "summary": {
+  "arms": {
+   "A8": {
+    "correct": 0,
+    "n_scored": 0,
+    "rate": null,
+    "n_grid": 0,
+    "data_limit": 0,
+    "overall": 0.5,
+    "overall_correct": 6,
+    "overall_n_scored": 12,
+    "info_limit_correct": 0,
+    "info_limit_n": 0,
+    "hallucination": 0,
+    "tracks": {
+     "valuechain": {
+      "n": 12,
+      "n_scored": 12,
+      "correct": 6,
+      "rate": 0.5,
+      "data_limit": 0,
+      "stages": {
+       "ROUTING": 1,
+       "RETRIEVAL": 3,
+       "TOOL": 1,
+       "GENERATION": 1
+      }
+     }
+    },
+    "tokens": 50151,
+    "arm_cost_won": 352.1,
+    "llm_calls": 21,
+    "latency_s_mean": 0.03,
+    "failures": {
+     "RETRIEVAL": 3,
+     "GENERATION": 1,
+     "ROUTING": 1,
+     "TOOL": 1
+    },
+    "failures_all": {
+     "RETRIEVAL": 3,
+     "GENERATION": 1,
+     "ROUTING": 1,
+     "TOOL": 1
+    },
+    "root_causes": {
+     "RETRIEVAL/MULTI_POINT_QUERY": 2,
+     "GENERATION/INDEX_FIELD_MISSING": 1,
+     "ROUTING/ROUTING": 1,
+     "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1,
+     "TOOL/TOOL": 1
+    },
+    "citation_rate": 0.25,
+    "flags": {
+     "name": "A8",
+     "retrieval": "all",
+     "schema_fields": true,
+     "dense": false,
+     "hop_ladder": true,
+     "chain_hop": true,
+     "counterparty_hop": true,
+     "split_query": true,
+     "calc_values": true,
+     "verifier": true
+    },
+    "golden_evidence_all": 0,
+    "golden_evidence_hit": 0,
+    "golden_total": 0
+   },
+   "L3": {
+    "correct": 0,
+    "n_scored": 0,
+    "rate": null,
+    "n_grid": 0,
+    "data_limit": 0,
+    "overall": 0.333,
+    "overall_correct": 4,
+    "overall_n_scored": 12,
+    "info_limit_correct": 0,
+    "info_limit_n": 0,
+    "hallucination": 0,
+    "tracks": {
+     "valuechain": {
+      "n": 12,
+      "n_scored": 12,
+      "correct": 4,
+      "rate": 0.333,
+      "data_limit": 0,
+      "stages": {
+       "ROUTING": 2,
+       "RETRIEVAL": 4,
+       "GENERATION": 1,
+       "VERIFY": 1
+      }
+     }
+    },
+    "tokens": 35906,
+    "arm_cost_won": 252.1,
+    "llm_calls": 18,
+    "latency_s_mean": 4.22,
+    "failures": {
+     "RETRIEVAL": 4,
+     "GENERATION": 1,
+     "ROUTING": 2,
+     "VERIFY": 1
+    },
+    "failures_all": {
+     "RETRIEVAL": 4,
+     "GENERATION": 1,
+     "ROUTING": 2,
+     "VERIFY": 1
+    },
+    "root_causes": {
+     "RETRIEVAL/MULTI_POINT_QUERY": 3,
+     "GENERATION/INDEX_FIELD_MISSING": 1,
+     "ROUTING/ROUTING": 2,
+     "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1,
+     "VERIFY/VERIFY": 1
+    },
+    "citation_rate": 0.25,
+    "flags": {
+     "name": "L3",
+     "retrieval": "all",
+     "schema_fields": true,
+     "dense": false,
+     "hop_ladder": true,
+     "chain_hop": true,
+     "counterparty_hop": false,
+     "split_query": true,
+     "calc_values": true,
+     "verifier": true
+    },
+    "golden_evidence_all": 0,
+    "golden_evidence_hit": 0,
+    "golden_total": 0
+   }
+  },
+  "axes": {
+   "difficulty": {
+    "하": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "L3": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     }
+    },
+    "중": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "L3": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     }
+    },
+    "상": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "L3": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     }
+    }
+   },
+   "answer_mode": {
+    "closed": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "L3": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     }
+    },
+    "open": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "L3": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     }
+    }
+   },
+   "task_type": {
+    "search_extract": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "L3": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     }
+    },
+    "multi_compare": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "L3": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     }
+    },
+    "complex_reason": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "L3": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     }
+    }
+   }
+  },
+  "cells": {
+   "하": {
+    "A8": {
+     "correct": 0,
+     "n": 0
+    },
+    "L3": {
+     "correct": 0,
+     "n": 0
+    }
+   },
+   "중": {
+    "A8": {
+     "correct": 0,
+     "n": 0
+    },
+    "L3": {
+     "correct": 0,
+     "n": 0
+    }
+   },
+   "상": {
+    "A8": {
+     "correct": 0,
+     "n": 0
+    },
+    "L3": {
+     "correct": 0,
+     "n": 0
+    }
+   }
+  }
+ }
+}
