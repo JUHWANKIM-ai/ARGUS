@@ -271,6 +271,52 @@ def run_arm(arm: str, cases: list[dict], cache: RequestCache,
             "spent_won": round(cache.fresh_won - started_won, 1), "runs": rows}
 
 
+def _spend_meta(root: Path, cache: "RequestCache", live: dict) -> dict:
+    """지출 필드. 🔴 **재집계 실행이 실행 기록을 덮지 않게 한다.**
+
+    `--arms` 없이 돌리는 재집계는 `live` 가 비고 `cache.fresh_won` 이 0 이다. 그 값을 그냥
+    쓰면 `summary.json`·`summary.md` 가 **"실지출 0원"** 으로 갈리고, 진짜 기록은 arm 별
+    `run.json` 에만 남는다 — 실측하고도 0원으로 보고하는 최악의 실패다 (실제로 한 번
+    그렇게 덮였다). 그래서 `live` 가 비면 **arm 별 `run.json` 합**을 권위값으로 쓴다.
+
+    `run.json` 은 arm 이 끝날 때마다 쓰이므로, 중간에 끊긴 실행도 거기까지는 남아 있다.
+    """
+    # 🔴 총지출은 **하위 코호트 폴더까지** 센다 (`v2/vc/`). 얕게 세면 밸류체인 실행분이
+    #    조용히 빠지고, 그러면 보고한 총액이 실제보다 작아진다.
+    from_runs = spend_from_runs(root, recursive=True)
+    previous = {}
+    path = root / "summary.json"
+    if path.exists():
+        previous = json.loads(path.read_text(encoding="utf-8")).get("meta") or {}
+    out = {
+        # 🔴 총지출은 **언제나 run.json 합**이다 — 프로세스를 몇 번 나눠 돌려도 단조롭다.
+        #    `cache.fresh_won` 은 이번 프로세스 몫뿐이라, arm 을 여러 번에 걸쳐 돌리면
+        #    마지막 프로세스의 값이 총액으로 굳어 실제보다 작게 보고된다.
+        "spent_won": from_runs["won"],
+        "spent_won_source": "arm·코호트별 run.json 합 (하위 폴더 포함)",
+        "spent_won_by_arm": from_runs["per_arm"],
+        "this_process_spent_won": round(cache.fresh_won, 1),
+    }
+    if live:
+        out.update({"cache_hits": cache.hits, "cache_misses": cache.misses,
+                    "fresh_prompt_tokens": cache.fresh_prompt,
+                    "fresh_completion_tokens": cache.fresh_completion,
+                    "this_run": live})
+    else:
+        # 재집계 실행이 실행 기록을 덮지 않게 한다 — 예전 값을 그대로 이어받는다.
+        out.update({
+            "cache_hits": previous.get("cache_hits", 0),
+            "cache_misses": previous.get("cache_misses", 0),
+            "fresh_prompt_tokens": previous.get("fresh_prompt_tokens", 0),
+            "fresh_completion_tokens": previous.get("fresh_completion_tokens", 0),
+            "this_run": previous.get("this_run", {}),
+            "rescored_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        })
+        if previous.get("cache_stats_note"):
+            out["cache_stats_note"] = previous["cache_stats_note"]
+    return out
+
+
 def score_arm(arm: str, cases: list[dict], records: dict) -> dict:
     """캐시된 응답만으로 집계한다. LLM 0회 — 재집계는 공짜여야 한다."""
     _use_dirs(arm)
@@ -479,6 +525,18 @@ AXIS_LABELS = {"difficulty": "난이도", "answer_mode": "답변형식", "task_t
 BLIND_CELL = "multi_compare|closed"
 
 
+def _exact_rate(cell: dict) -> float | None:
+    """`correct / n_scored` 를 **반올림 없이** 돌려준다.
+
+    🔴 `report.json` 의 `rate` 는 소수 셋째 자리로 반올림돼 있다. 그 값을 서로 빼면
+    **이중 반올림**이 생긴다 — 실측 A1b→A4 는 46/72 → 59/72 = +18.06%p 인데
+    0.819 − 0.639 로 계산하면 +18.0%p 가 나오고, 그 수가 문서·보고서로 번졌다.
+    Δ 는 반드시 원 분자·분모에서 계산한다.
+    """
+    n = cell.get("n_scored") or 0
+    return cell["correct"] / n if n else None
+
+
 def summarise(reports: dict[str, dict]) -> dict:
     """arm 별 정답률·비용과 축별 분해를 한 표로 모은다.
 
@@ -492,7 +550,9 @@ def summarise(reports: dict[str, dict]) -> dict:
         cross = report["crosstab"]
         grid = cross["grid_overall"]
         out["arms"][arm] = {
-            "correct": grid["correct"], "n_scored": grid["n_scored"], "rate": grid["rate"],
+            # 🔴 `rate` 는 반올림 없는 값이다 (`_exact_rate`). Δ 를 여기서 뺀다.
+            "correct": grid["correct"], "n_scored": grid["n_scored"],
+            "rate": _exact_rate(grid), "rate_reported": grid["rate"],
             "n_grid": grid["n"], "data_limit": grid["data_limit"],
             "overall": cross["overall"]["rate"],
             "overall_correct": cross["overall"]["correct"],
@@ -523,7 +583,8 @@ def summarise(reports: dict[str, dict]) -> dict:
             for value in values:
                 cell = cross["marginals"][axis][value]
                 out["axes"][axis].setdefault(value, {})[arm] = {
-                    "correct": cell["correct"], "n": cell["n_scored"], "rate": cell["rate"]}
+                    "correct": cell["correct"], "n": cell["n_scored"],
+                    "rate": _exact_rate(cell)}
         for level in ("하", "중", "상"):
             cell = cross["cells"][f"{BLIND_CELL}|{level}"]
             out["cells"].setdefault(level, {})[arm] = {
@@ -532,6 +593,7 @@ def summarise(reports: dict[str, dict]) -> dict:
 
 
 def _delta(a: dict | None, b: dict | None) -> float | None:
+    """두 셀의 Δ(%p). `summarise` 가 넣어 준 **반올림 없는** rate 를 쓴다 (`_exact_rate`)."""
     if not a or not b or a["rate"] is None or b["rate"] is None:
         return None
     return round((b["rate"] - a["rate"]) * 100, 1)
@@ -544,8 +606,9 @@ def render_summary(summary: dict, meta: dict) -> str:
     out = [f'# Phase I — Ablation ({meta.get("cohort") or "dev"} '
            f'{meta.get("n_cases", 0)}문항)\n',
            f'생성 {time.strftime("%Y-%m-%d %H:%M")} · 자동 생성물 (`scripts/ablation.py`)\n',
-           f'단가 {ea.PRICE_WON_PER_1K}원/1K · 실지출 합계 **{meta["spent_won"]:,.0f}원** '
-           f'/ 상한 {meta["budget_won"]:,.0f}원 · 요청 캐시 적중 {meta["cache_hits"]}회\n']
+           f'단가 {ea.PRICE_WON_PER_1K}원/1K · 실지출 합계 **{meta["spent_won"]:,.1f}원** '
+           f'/ 상한 {meta["budget_won"]:,.0f}원 · 요청 캐시 적중 {meta["cache_hits"]}회\n',
+           f'지출 출처: {meta.get("spent_won_source", "—")}\n']
 
     out.append("\n## 1. 누적 곡선 — 정답률과 Δ (**그리드 기준**)\n")
     out.append("| arm | 정답 / 채점 | 정답률 | Δ(직전) | 골든 전건적중 | LLM 호출 | 토큰 | arm 비용(원) |")
@@ -652,16 +715,22 @@ def _pp(before, after) -> str:
     return f"{(after - before) * 100:+.1f}%p"
 
 
-def spend_from_runs(root: Path) -> dict:
+def spend_from_runs(root: Path, recursive: bool = False) -> dict:
     """이 폴더의 arm 들이 실제로 결제한 몫. `run.json` 의 `spent_won` 합이다.
 
     요청 캐시 파일 전체 합(`ablation_report.spend_from_cache`)을 쓰면 v1·T7 이 산 것까지
     더해져 **v2 의 지출이 부풀어 오른다.** v2 는 자기 실행분만 센다.
+
+    `recursive=True` 는 하위 코호트 폴더(`v2/vc/` 등)까지 센다 — **총지출을 말할 때는
+    이쪽이다.** 기본값이 얕은 이유는 §1 의 표가 직속 arm 과 코호트 arm 을 따로 내기
+    때문이고, 둘을 한 번에 세면 그 표가 이중계상된다.
     """
     total, per_arm = 0.0, {}
-    for path in sorted(root.glob("*/run.json")):
+    paths = root.rglob("*/run.json") if recursive else root.glob("*/run.json")
+    for path in sorted(paths):
         run = json.loads(path.read_text(encoding="utf-8"))
-        per_arm[path.parent.name] = run.get("spent_won", 0.0)
+        key = str(path.parent.relative_to(root)).replace("\\", "/")
+        per_arm[key] = run.get("spent_won", 0.0)
         total += run.get("spent_won", 0.0)
     return {"won": round(total, 1), "per_arm": per_arm}
 
@@ -680,7 +749,7 @@ def render_gate(root: Path, budget_cap: float) -> str:
     full = ladder[-1] if ladder else ""
     summary = summarise(reports)
     arms = summary["arms"]
-    spend = spend_from_runs(root)
+    spend = spend_from_runs(root, recursive=True)
     meta_path = root / "summary.json"
     meta = (json.loads(meta_path.read_text(encoding="utf-8"))["meta"]
             if meta_path.exists() else {})
@@ -691,8 +760,15 @@ def render_gate(root: Path, budget_cap: float) -> str:
     o.append("# Phase I — Ablation v2 결과 (게이트 I)\n")
     o.append(f'생성 {time.strftime("%Y-%m-%d %H:%M")} · 자동 생성물 '
              "(`scripts/ablation.py --report`) · **LLM 0회 재생성 가능**\n")
-    o.append(f'실측 단가 {ea.PRICE_WON_PER_1K}원/1K · 코호트 `{meta.get("cohort", "full")}` '
-             f'**{meta.get("n_cases", 0)}문항** (dev 78 + 회귀 10) · 모델 HCX-005 · 온도 0.0\n')
+    # 코호트 설명을 문자열로 박아 두면 `--cohort valuechain` 에 `--report` 를 돌렸을 때
+    # 틀린 설명이 찍힌다. 코호트 이름에서 끌어낸다.
+    cohort = meta.get("cohort", "full")
+    cohort_note = {"full": "dev 78 + 회귀 10", "measured": "v1 이 실제로 잰 dev 42",
+                   "valuechain": "밸류체인 트랙 (그리드 밖)"}.get(cohort, "")
+    o.append(f'실측 단가 {ea.PRICE_WON_PER_1K}원/1K · 코호트 `{cohort}` '
+             f'**{meta.get("n_cases", 0)}문항**'
+             + (f' ({cohort_note})' if cohort_note else "")
+             + ' · 모델 HCX-005 · 온도 0.0\n')
     o.append("🔴 **heldout 낙폭은 이 문서에 없다 — Task 10 몫이다.** "
              "여기서 `evalset/heldout.jsonl` 을 열지 않았다.\n")
 
@@ -732,21 +808,28 @@ def render_gate(root: Path, budget_cap: float) -> str:
                  f'| {t["completion_tokens"]:,} | {t["judge_tokens"]:,} '
                  f'| {t["total_tokens"]:,} | {t["cost_won"]:,.1f} '
                  f'| {"—" if fresh is None else f"{fresh:,.1f}"} |')
+    vc_runs = (spend_from_runs(root / "vc")["per_arm"]
+               if (root / "vc").exists() else {})
     for arm, report in vc.items():
         t = report["totals"]
-        fresh = spend_from_runs(root / "vc")["per_arm"].get(arm)
+        fresh = vc_runs.get(arm)
         o.append(f'| {arm}/밸류체인 (12문항) | {t["llm_calls"]} | {t["prompt_tokens"]:,} '
                  f'| {t["completion_tokens"]:,} | {t["judge_tokens"]:,} '
                  f'| {t["total_tokens"]:,} | {t["cost_won"]:,.1f} '
                  f'| {"—" if fresh is None else f"{fresh:,.1f}"} |')
         arm_sum += t["cost_won"]
-    vc_spend = spend_from_runs(root / "vc")["won"] if (root / "vc").exists() else 0.0
-    total_spend = spend["won"] + vc_spend
+    # `spend` 는 재귀 합이므로 밸류체인 몫이 이미 들어 있다 — 다시 더하면 이중계상이다.
+    total_spend = spend["won"]
     o.append(f'| **합계 (캐시 없었다면)** | | | | | | **{arm_sum:,.0f}** | |')
-    o.append(f'| **실제 결제** | | | | | | | **{total_spend:,.0f}** |')
+    o.append(f'| **실제 결제 (하위 코호트 포함)** | | | | | | | **{total_spend:,.1f}** |')
     o.append(f'\n상한 {budget_cap:,.0f}원 대비 **{total_spend / budget_cap * 100:.1f}%** '
              f'사용 (80% 정지선 {budget_cap * 0.8:,.0f}원). '
              f'요청 캐시가 **{arm_sum - total_spend:,.0f}원**을 막았다.\n')
+    o.append(f'지출 출처: {meta.get("spent_won_source", "—")}. '
+             f'요청 캐시 적중 {meta.get("cache_hits", "?")} / 미적중 '
+             f'{meta.get("cache_misses", "?")}'
+             + (f' — {meta["cache_stats_note"]}' if meta.get("cache_stats_note") else "")
+             + "\n")
 
     # --- 2. 누적 곡선 ---
     n_scored = arms[full]["n_scored"] if full else 0
@@ -790,6 +873,40 @@ def render_gate(root: Path, budget_cap: float) -> str:
             o.append(f'| {value} | ' + " | ".join(cells)
                      + f' | {_pp(rates[0], rates[-1])} | '
                      + (f'{best[1]} {best[0] * 100:+.1f}%p |' if best else "— |"))
+
+    # 🔴 문서군 행 — 이번 최대 발견(A0→A1 뒤집힘)의 근거가 여기 있다. 게이트만 읽고도
+    #    결론이 서야 하므로 `report.json` 에만 두지 않는다.
+    groups = ("exchange", "major", "holding", "periodic")
+    o.append("\n### 문서군 — **`A0→A1` 뒤집힘의 근거는 이 행이다**\n")
+    o.append("3축(난이도·답변형식·과제유형)은 문서군을 안 보여 준다. `A1` 의 정의가 "
+             "**exchange 인덱스 1,469건만 본다**는 것이므로, 그 arm 의 손실은 문서군 축에서만 "
+             "드러난다.\n")
+    o.append("| arm | " + " | ".join(groups) + " | ROUTING 실패 | RETRIEVAL 실패 |")
+    o.append("|---|" + "---|" * (len(groups) + 2))
+    for arm in ladder + loo:
+        by_group = reports[arm].get("by_doc_group_grid") or {}
+        cells = []
+        for g in groups:
+            cell = by_group.get(g)
+            cells.append(f'{cell["correct"]}/{cell["n_scored"]}' if cell else "—")
+        hist = arms[arm]["failures"]
+        o.append(f'| **{arm}** | ' + " | ".join(cells)
+                 + f' | {hist.get("ROUTING", 0)} | {hist.get("RETRIEVAL", 0)} |')
+    a0g = (reports.get("A0") or {}).get("by_doc_group_grid") or {}
+    a1g = (reports.get("A1") or {}).get("by_doc_group_grid") or {}
+    if a0g and a1g:
+        gained = a1g["exchange"]["correct"] - a0g["exchange"]["correct"]
+        lost = sum(a0g[g]["correct"] - a1g[g]["correct"]
+                   for g in ("major", "holding", "periodic"))
+        o.append(f'\n**읽는 법.** `A0 → A1` 에서 exchange 는 **{gained:+d}건**이다 — '
+                 "BM25 순위가 인덱스가 닿는 곳에서는 제 일을 한다. 그런데 나머지 세 문서군에서 "
+                 f'**−{lost}건**을 잃는다. 순 **{gained - lost:+d}건**이 −8.3%p 의 전부다.\n')
+        o.append("기전은 문항 구성이 아니라 **인덱스 커버리지**다. `A1` 의 `ROUTING` 실패 "
+                 f'**{arms["A1"]["failures"].get("ROUTING", 0)}건**(A0 은 '
+                 f'{arms["A0"]["failures"].get("ROUTING", 0)}건)은 라우터 버그가 아니다 — '
+                 "arm 정의상 검색이 exchange 로 강제되므로 `parse_trace` 가 문서군 불일치로 "
+                 "읽는다. 실체는 **major·holding·periodic 질의가 검색 단계에서 통째로 "
+                 "떨어지는 것**이고, 그것이 곧 `A1b` 의 Δ 다.\n")
 
     o.append(f'\n### ⚠ 변별력 재확인 — `{BLIND_CELL}`\n')
     o.append("v1 에서 이 셀은 세 난이도가 전부 1~2/2 로 진동했다. **셀 n 이 늘어난 "
@@ -1049,14 +1166,30 @@ def render_gate(root: Path, budget_cap: float) -> str:
             note = "정상" if d_cost > 0 else "**공짜 이득** — 싸지고 더 맞힌다"
         o.append(f'| {lower} → {upper} | {_pp(ra, rb)} | {d_cost:+,.0f} | {eff} | {note} |')
     o.append("\n**꺾이는 지점은 `A5`** — 정답률 Δ 가 여기서 0 이 되고 A6·A7·A8 은 그리드에서 "
-             "0 이다. 그럼에도 **셋을 다 넣는다**: 세 arm 모두 그리드에서 **한계 비용이 0** "
+             "0 이다. 그럼에도 **셋을 다 넣는다**: 세 arm 모두 **그리드에서** 한계 비용이 0 "
              "이고(A6·A7 은 LLM 0회, A8 은 발화 0건 → 토큰 0 증가), A8 은 밸류체인 트랙에서 "
-             "**+16.7%p** 를 번다 (§6). A2 를 뺀 기준(\"Δ 0 이면 뺀다\")이 여기 오지 않는 "
-             "이유는 A2 가 **모든 질의에** 임베딩 비용을 물렸던 것과 달리 A8 은 발주처를 "
-             "지목한 질의에서만 움직이기 때문이다.\n")
-    o.append("**뺄 것은 여전히 `A0`·`A1` 방향이다.** `A0→A1` 이 v1 의 +2.8%p 에서 "
-             "**−8.3%p 로 뒤집혔고**, 골든 근거 적중도 60/118 → 39/118 로 같이 떨어진다 — "
-             "exchange 인덱스만 보면 periodic·major·holding 을 통째로 잃는다 (§I-1).\n")
+             "**+16.7%p** 를 번다 (§6).\n")
+    if vc.get("A8") and vc.get("L3"):
+        c8 = vc["A8"]["totals"]["cost_won"]
+        c3 = vc["L3"]["totals"]["cost_won"]
+        o.append(f'🔴 **"한계 비용 0" 은 그리드에 한정된 말이다.** 발주처 hop 이 발화하는 '
+                 f'밸류체인 12문항에서는 A8 {c8:,.1f}원 vs L3 {c3:,.1f}원 = '
+                 f'**{c8 - c3:+,.1f}원({(c8 / c3 - 1) * 100:+.0f}%)** 이다 — 발주처 블록이 '
+                 f'근거에 실리므로 토큰이 는다. 정확한 진술은 "발주처를 지목하지 않은 질의에서 '
+                 f'한계 비용 0, 지목한 질의에서 +{(c8 / c3 - 1) * 100:.0f}%" 다.\n')
+    o.append("A2 를 뺀 기준(\"Δ 0 이면 뺀다\")이 A8 에 오지 않는 이유는 A2 가 **모든 질의에** "
+             "임베딩 비용을 물리면서 Δ 0 이었던 것과 달리, A8 은 **발주처를 지목한 질의에서만** "
+             "비용과 이득이 동시에 생기기 때문이다.\n")
+    o.append("**제출 후보에서 `A0`·`A1` 을 배제한다.** 🔴 이것은 *제거 지시가 아니다* — "
+             "`_gather_meta` 는 `uses_bm25=False` 에서만 도달하므로 **A8 안에 떼어낼 'A0' "
+             "구성요소가 없다.** 뜻은 사다리의 그 두 칸을 제출 구성 후보에서 뺀다는 것이고, "
+             f'근거는 `A1` 이 그리드 최저({arms.get("A1", {}).get("correct", "?")}/'
+             f'{arms.get("A1", {}).get("n_scored", "?")} = '
+             f'{_pct(arms.get("A1", {}).get("rate"))})이고 `A0` 이 가성비 최악이라는 것이다 '
+             f'({arms.get("A0", {}).get("arm_cost_won", 0):,.0f}원에 '
+             f'{_pct(arms.get("A0", {}).get("rate"))} vs A1b '
+             f'{arms.get("A1b", {}).get("arm_cost_won", 0):,.0f}원에 '
+             f'{_pct(arms.get("A1b", {}).get("rate"))}).\n')
 
     # --- 12. measured 42 — v1 과 비교 가능한 유일한 축 ---
     o.append("\n## 12. `measured 42` 코호트 — v1 과 비교 가능한 유일한 축\n")
@@ -1091,15 +1224,46 @@ def render_gate(root: Path, budget_cap: float) -> str:
     if wanted and full:
         o.append("| 구성 | 코호트 | 정답 / 채점 | 정답률 | Δ(v1 A6) |")
         o.append("|---|---|---|---|---|")
-        base_rate = v1["crosstab"]["grid_overall"]["rate"] if v1 else None
+        base_rate = _exact_rate(v1["crosstab"]["grid_overall"]) if v1 else None
         if v1:
             g = v1["crosstab"]["grid_overall"]
             o.append(f'| **Ablation v1 A6** (2026-08-09) | measured 42 '
-                     f'| {g["correct"]}/{g["n_scored"]} | {_pct(g["rate"])} | — |')
+                     f'| {g["correct"]}/{g["n_scored"]} | {_pct(_exact_rate(g))} | — |')
         for arm in ladder:
             r = _grid_rate(reports[arm]["rows"], wanted)
             o.append(f'| v2 {arm} | measured 42 | {r["correct"]}/{r["n_scored"]} '
-                     f'| {_pct(r["rate"])} | {_pp(base_rate, r["rate"])} |')
+                     f'| {_pct(_exact_rate(r))} | {_pp(base_rate, _exact_rate(r))} |')
+
+        # 🔴 12b. 뒤집힘을 두 성분으로 가른다 — 코호트 효과와 증설 효과는 다른 것이다.
+        o.append("\n### 12b. 🔴 `A0→A1` 뒤집힘을 두 성분으로 가른다\n")
+        o.append('"문항이 42→88 로 늘자 부호가 뒤집혔다" 는 **절반만 맞다.** 그리드 72문항을 '
+                 "v1 이 실제로 잰 36문항(`measured`)과 증설된 36문항으로 갈라 보면 "
+                 "**동일 코호트가 이미 뒤집혀 있다.**\n")
+        o.append("| 구간 | A0 | A1 | Δ(A0→A1) |")
+        o.append("|---|---|---|---|")
+        v1_a0, v1_a1 = (_load_report(ROOT / "artifacts" / "ablation", a)
+                        for a in ("A0", "A1"))
+        if v1_a0 and v1_a1:
+            g0 = v1_a0["crosstab"]["grid_overall"]
+            g1 = v1_a1["crosstab"]["grid_overall"]
+            o.append(f'| **v1** measured 36 | {g0["correct"]}/{g0["n_scored"]} '
+                     f'| {g1["correct"]}/{g1["n_scored"]} '
+                     f'| {_pp(_exact_rate(g0), _exact_rate(g1))} |')
+        for label, keep in (("**v2** measured 36 (동일 코호트)", True),
+                            ("**v2** 증설 36", False)):
+            cells = []
+            for arm in ("A0", "A1"):
+                rows_ = [r for r in ea.grid_rows(reports[arm]["rows"])
+                         if (r["question_id"] in wanted) == keep]
+                cells.append(ea._rate(rows_))
+            o.append(f'| {label} | {cells[0]["correct"]}/{cells[0]["n_scored"]} '
+                     f'| {cells[1]["correct"]}/{cells[1]["n_scored"]} '
+                     f'| {_pp(_exact_rate(cells[0]), _exact_rate(cells[1]))} |')
+        o.append("\n**두 성분이 같은 방향이고 크기가 다르다.** 동일 36문항에서 v1 은 "
+                 "`+2.8%p` 였는데 v2 는 음수다 — 그 몫은 **문항 증설이 아니라 v1→v2 코드 "
+                 "변화**다. 🔴 **어느 커밋이 원인인지는 v2 산출물로 특정할 수 없다** "
+                 "(v1 이후 파이프라인이 여러 트랙에서 바뀌었고, 이 트랙은 arm 플래그만 "
+                 "변수로 뒀다). 특정하려면 커밋별 재측정이 필요하고 그것은 별개 작업이다.\n")
 
     # --- 13. 읽을 때 주의 ---
     o.append("\n## 13. 이 표를 읽을 때 주의할 것\n")
@@ -1269,22 +1433,22 @@ def main() -> None:
             "cohort": args.cohort or "dev",
             "n_cases": len(scored_cases),
             "question_ids": [c["question_id"] for c in scored_cases],
-            "spent_won": round(cache.fresh_won, 1),
             "budget_won": budget_cap, "stop_won": stop_won,
-            "cache_hits": cache.hits, "cache_misses": cache.misses,
-            "fresh_prompt_tokens": cache.fresh_prompt,
-            "fresh_completion_tokens": cache.fresh_completion,
             "price_won_per_1k": ea.PRICE_WON_PER_1K,
-            "index_snapshot": snapshot, "this_run": live}
+            "index_snapshot": snapshot}
+    meta.update(_spend_meta(OUT_DIR, cache, live))
     (OUT_DIR / "summary.json").write_text(
         json.dumps({"meta": meta, "summary": summary}, ensure_ascii=False, indent=1),
         encoding="utf-8")
     (OUT_DIR / "summary.md").write_text(render_summary(summary, meta), encoding="utf-8")
 
-    print(f"\n실지출 {cache.fresh_won:,.1f}원 · 캐시 적중 {cache.hits} / 미적중 {cache.misses}")
+    print(f'\n실지출 {meta["spent_won"]:,.1f}원 ({meta["spent_won_source"]})')
+    print(f'  이번 프로세스 {meta["this_process_spent_won"]:,.1f}원 · '
+          f'캐시 적중 {cache.hits} / 미적중 {cache.misses}')
     for arm, row in summary["arms"].items():
         print(f'  {arm:<4} {row["correct"]:>2}/{row["n_scored"]:<2} '
-              f'rate={row["rate"]} tokens={row["tokens"]:,} arm_cost={row["arm_cost_won"]:,.1f}원')
+              f'rate={row["rate_reported"]} tokens={row["tokens"]:,} '
+              f'arm_cost={row["arm_cost_won"]:,.1f}원')
     print(f'-> {OUT_DIR / "summary.md"}')
 
 
