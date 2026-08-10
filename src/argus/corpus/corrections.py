@@ -27,6 +27,7 @@
 """
 from __future__ import annotations
 
+import html as html_lib
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -36,8 +37,44 @@ from argus.corpus.dates import parse_date
 from argus.corpus.html_doc import extract_rows, read_document
 from argus.corpus.manifest import filter_docs
 
+_PARAGRAPH = re.compile(r"(?is)<P\b[^>]*>(.*?)</P>")
+_ANY_TAG = re.compile(r"(?s)<[^>]*>")
+_WS = re.compile(r"\s+")
+
+
+def _text(fragment: str) -> str:
+    return _WS.sub(" ", html_lib.unescape(_ANY_TAG.sub(" ", fragment))).strip()
+
 # '※ 관련공시' 셀은 '2022-03-28 단일판매ㆍ공급계약체결 ...' 처럼 날짜+서식명이 반복된다.
 _DATE = re.compile(r"\d{4}[-.]\d{2}[-.]\d{2}")
+
+# 정정 대상을 가리키는 라벨은 **문서 계통마다 다르다.** 실측:
+#
+#   거래소(KIND HTML)      '2. 정정관련 공시서류제출일'        표 안, 라벨칸/값칸 분리
+#   주요사항·지분(DART XML) '2. 정정대상 공시서류의 최초제출일'  major 116 / holding 21 은
+#                                                        표 밖 <P> 단락에 라벨+값이 한 덩어리,
+#                                                        major  57 / holding 20 은 표 안
+#
+# EDA 는 이 값이 <TU> 셀에 있다고 봤으나 실제로는 <P> 단락이거나 평범한 <TD> 였다.
+# 그래서 TU/TE 지원만으로는 major·holding 이 붙지 않는다 — 라벨 어휘가 진짜 원인이다.
+_SUBMIT_LABEL = re.compile(r"(?:정정관련|정정대상).*제출일")
+# 단락형은 라벨과 값이 ' : ' 로 이어져 있다.
+_LABEL_VALUE_SPLIT = re.compile(r"[:：]")
+
+
+def parse_submit_clue(label: str, value: str) -> str | None:
+    """'정정 대상 문서의 제출일' 단서를 yyyymmdd 로. 없으면 None.
+
+    라벨과 값이 나뉜 표 형태와, 한 단락에 붙어 있는 형태를 모두 받는다.
+    라벨이 맞지 않으면 날짜가 보여도 무시한다 — '정정일자'(정정본 자신의 날짜)나
+    '3. 정정사유' 서술문의 날짜를 단서로 쓰면 엉뚱한 문서에 연결된다.
+    """
+    if not _SUBMIT_LABEL.search(label):
+        return None
+    # 단락형이면 라벨 문자열 자체에 값이 붙어 있다.
+    tail = _LABEL_VALUE_SPLIT.split(label, 1)[1] if _LABEL_VALUE_SPLIT.search(label) else ""
+    parsed = parse_date(tail) or parse_date(value)
+    return parsed.strftime("%Y%m%d") if parsed else None
 
 
 def _doc_path(doc: dict) -> Path | None:
@@ -52,21 +89,44 @@ def _clue_dates(doc: dict) -> list[str]:
     if not path:
         return []
 
+    body = read_document(path)
     submit: str | None = None
     related: list[str] = []
-    for row in extract_rows(read_document(path)):
-        joined = " ".join(row)
-        if submit is None and "정정관련" in joined and "제출일" in joined:
-            parsed = parse_date(row[-1])
-            if parsed:
-                submit = parsed.strftime("%Y%m%d")
-        if "관련공시" in joined:
+    for row in extract_rows(body):
+        if submit is None:
+            submit = parse_submit_clue(" ".join(row[:-1]), row[-1])
+        if any("관련공시" in cell for cell in row):
             related = [m.replace("-", "").replace(".", "") for m in _DATE.findall(row[-1])]
+
+    # 표에 없으면 표 밖 <P> 단락을 본다. major 116건 / holding 21건이 이쪽이다.
+    if submit is None:
+        for paragraph in _PARAGRAPH.findall(body):
+            submit = parse_submit_clue(_text(paragraph), "")
+            if submit:
+                break
 
     clues = [submit] if submit else []
     # 관련공시는 최근 것부터 본다. 제출일과 겹치면 건너뛴다.
     clues += [d for d in sorted(set(related), reverse=True) if d != submit]
     return clues
+
+
+# 정정본의 report_nm 에서 '[기재정정]' 을 떼면 대상 서식명이 그대로 남는다.
+_CORRECTION_PREFIX = re.compile(r"^\s*(?:\[[^\]]*\]|\(정정\))\s*")
+_FORM_NOISE = re.compile(r"[\s·ㆍ]")
+
+
+def _form_key(doc: dict) -> str:
+    """서식 식별자. 같은 날 여러 건을 낸 기업에서 대상을 가려내는 데 쓴다.
+
+    `주요사항보고서(...)` 는 **괄호 안이 서식 종류**라 통째로 봐야 한다
+    (회사합병결정 != 타법인주식양수결정). 반면 거래소공시의 괄호는 계약명 같은
+    자유 서술이라 빼야 한다 — 그래서 doc_subtype 을 우선 쓴다.
+    """
+    name = _FORM_NOISE.sub("", _CORRECTION_PREFIX.sub("", doc.get("report_nm") or ""))
+    if name.startswith("주요사항보고서"):
+        return name
+    return doc.get("doc_subtype") or name.split("(")[0]
 
 
 def _original_submit_date(doc: dict) -> str | None:
@@ -91,12 +151,20 @@ def build_chains(doc_group: str = "exchange") -> dict[str, list[str]]:
         for doc in corp_docs:
             if not doc["is_correction"]:
                 continue
+            form = _form_key(doc)
             for clue in _clue_dates(doc):
                 if clue > doc["rcept_dt"]:
                     continue  # 미래 문서를 고칠 수는 없다
                 candidates = [
                     other for other in by_date.get(clue, ())
                     if other["rcept_no"] != doc["rcept_no"]
+                    # 보고자가 다르면 남의 공시다. 지분공시는 corp_name 이 발행회사라
+                    # 같은 날 여러 보고자의 문서가 섞인다.
+                    and other.get("flr_nm") == doc.get("flr_nm")
+                    # 서식이 다르면 대상이 아니다. 같은 날 여러 건을 낸 기업에서
+                    # 날짜만 맞춰 붙이면 엉뚱한 문서가 '대체됨' 으로 뒤집힌다.
+                    # 진짜 대상이 코퍼스 밖이면 연결하지 않는 것이 정답이다.
+                    and _form_key(other) == form
                 ]
                 if not candidates:
                     continue
