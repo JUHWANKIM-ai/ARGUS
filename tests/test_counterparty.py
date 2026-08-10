@@ -61,6 +61,42 @@ def test_vague_strings_never_become_nodes():
         assert cp.classify(s) == "vague"
 
 
+def test_real_company_with_globalword_substring_is_not_vague():
+    """리뷰 라운드 2 결함① — `(주)청주글로벌` 은 실명 회사인데 `글로벌` 서브스트링 때문에
+    vague 로 분류돼 노드에서 탈락했다(실측: exchange_records.jsonl 유일 사례).
+    `글로벌`은 "글로벌 대형기업"처럼 **단어 앞머리 수식어**로 쓰일 때만 비실명 신호이고,
+    "청주글로벌"처럼 고유명사 뒤에 붙으면 그냥 회사 이름 일부다.
+    """
+    assert not cp.ANON_COUNTERPARTY.search("(주)청주글로벌")
+    assert cp.classify("(주)청주글로벌") != "vague"
+    # 진짜 비실명 "글로벌 X" 패턴은 여전히 잡혀야 한다 (과잉 수정 방지 회귀).
+    assert cp.ANON_COUNTERPARTY.search("글로벌 대형기업")
+    assert cp.ANON_COUNTERPARTY.search("글로벌 완성차 업체")
+
+
+def test_region_plus_shipping_company_is_recognised_as_vague():
+    """리뷰 라운드 2 결함② — `지역\\s*선주`·`소재\\s*선사` 는 있는데 `지역\\s*선사` 가 없어
+    "미주 지역 선사"(실측: exchange_records.jsonl 유일 사례) 가 노드로 승격될 뻔했다.
+    """
+    assert cp.ANON_COUNTERPARTY.search("미주 지역 선사")
+    assert cp.classify("미주 지역 선사") == "vague"
+
+
+def test_classify_public_matches_agency_name_as_prefix():
+    """리뷰 라운드 2 결함③ — `classify` 의 `public` 판정이 완전일치라 하위조직명이 붙은
+    표기(`산림청산림항공본부`, 실측 1건)를 못 잡았다. 접두 일치로 바꿨다 — 전량 검증으로
+    `국방부`(3음절) 같은 짧은 힌트가 다른 나라 국방부(루마니아국방부 등 7건)를 새로
+    오탐하지 않는지 확인했다(접두일치는 그 7건과 무관 — 전부 "국방부"로 시작하지 않는다).
+    """
+    assert cp.classify("산림청산림항공본부") == "public"
+    # 완전일치로도 잡히던 것들이 접두일치에서 깨지면 안 된다 (회귀).
+    assert cp.classify("방위사업청") == "public"
+    assert cp.classify("한국토지주택공사") == "public"
+    # 접두일치가 과하게 넓어져 외국 기관을 새로 오탐하면 안 된다.
+    assert cp.classify("루마니아국방부") != "public"
+    assert cp.classify("필리핀국방부") != "public"
+
+
 def test_counterparty_profile_records_surface_form_variants():
     """같은 발주처의 표기 변이가 한 canonical 아래 묶여야 한다."""
     p = ROOT / "artifacts/eda/counterparty_profile.json"
