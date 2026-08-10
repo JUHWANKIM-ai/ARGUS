@@ -200,13 +200,29 @@ FIELD_HINTS = {
 _FIELD_HINTS = _EXCHANGE_HINTS
 
 
+def _all_years_out_of_corpus(r) -> bool:
+    """지목한 연도가 **전부** 코퍼스 밖인가 — 질문 어형과 무관하게.
+
+    `_out_of_corpus_period` 와 다르다. 이쪽은 '이 연도로 필터를 걸면 후보가 0건이 된다'
+    는 검색 사실이고, 저쪽은 '재검색을 태울 가치가 있는가' 라는 정책이다.
+    """
+    return bool(r.years) and all(y not in CORPUS_YEARS for y in r.years)
+
+
 def _period_args(r, question: str) -> dict:
     """검색 기간 필터. 좁은 것부터 — 연월 > 연도 > 없음.
 
     Route 는 연도만 들고 있지만 랭킹을 가르는 것은 연월이다.
     Task 0 실측: corp 필터 + 연도만으로는 골든이 top-5 밖이고, 연월 prefix 를 걸면 1위다.
     연도가 둘 이상이면 접두 하나로 표현할 수 없으므로 기간 필터를 걸지 않는다.
+
+    **코퍼스 밖 연도만 지목한 질의에는 기간 필터를 걸지 않는다.** 여기 오는 그런 질의는
+    라우터의 상대 시점 면제(`_RELATIVE_HINT`)로 살아 온 것뿐이고(`"2021년 대비 최근
+    매출액 변화"`), 2021 을 필터로 걸면 hop 0 이 확정적으로 0건이 되어 **면제가 아무것도
+    사지 못한다.** 기준점 연도는 검색 조건이 아니라 비교의 출발점이다.
     """
+    if _all_years_out_of_corpus(r):
+        return {}
     match = _YM.search(question or "")
     if match:
         return {"ym": f"{match.group(1)}{int(match.group(2)):02d}"}
@@ -221,9 +237,23 @@ def _required_fields(question: str, group: str = "exchange") -> list[tuple[str, 
     return [(name, has) for name, asks, has in hints if asks.search(question or "")]
 
 
-def _out_of_corpus_period(r) -> bool:
-    """질문이 지목한 연도가 전부 코퍼스 밖인가. 그러면 재검색은 오답 제조다."""
-    return bool(r.years) and all(y not in CORPUS_YEARS for y in r.years)
+def _out_of_corpus_period(r, question: str = "") -> bool:
+    """재검색을 닫을 것인가. **술어를 라우터와 공유한다** (`router.out_of_corpus`).
+
+    🔴 갈라 두면 라우터가 살려 보낸 질의를 검색 단계가 다시 죽인다. 라우터는 T5 에서
+    상대 시점 면제를 넣고 주석으로 *"'2021년 대비 최근' 처럼 기준점만 범위 밖인 질의를
+    죽이면 답할 수 있는 걸 못 답한다"* 고 약속했는데, 여기가 `r.years` 만 보고 질문을
+    안 봐서 그 약속이 코드 전체로는 성립하지 않았다. 실측(수정 전):
+
+        "2021년 대비 삼성전자의 최근 매출액 변화를 정리해줘"
+          route=complex_reason  router_block=False  pipeline_block=True
+          hop 1~3 · 이벤트 폴백 전부 차단 → 근거 0건 → UNANSWERABLE
+
+    현 코호트(dev 78 + 회귀 10 + 밸류체인 12) 발화는 **0건**이다 — 라우터를 통과하고
+    여기서 막히는 문항이 하나도 없어 이 수정은 기록된 측정을 바꾸지 않는다. 그러나
+    대회 문항은 미공개이고 `"X년 대비 최근"` 은 흔한 어형이라 남겨 둘 위험이 아니다.
+    """
+    return router_module.out_of_corpus(r.years, question)
 
 
 def _needed_evidence(r) -> int:
@@ -239,6 +269,20 @@ def _sufficiency(r, picked: list[dict], required,
     `chain_gap` 은 근거 안의 문서가 가리키는데 아직 근거에 없는 정정·후속 공시다.
     개수 규칙이 아무리 만족돼도 이게 남아 있으면 '이 질문이 요구하는 문서 집합' 은
     아직 다 오지 않았다 — Phase H 실패 7건이 전부 여기서 났다.
+
+    🔴 **이 판정이 보는 것은 절단 전 `picked` 전량이다.** 프롬프트에 가는 것은
+    `picked[:MAX_EVIDENCE]` 이고, 그 앞에 `chain_ids` 정렬이 순서를 바꾼다 — 즉 절단으로
+    버려지는 것은 '도착 순서의 꼬리' 가 아니라 '체인이 아닌 것들' 이다. `missing_field` 를
+    해소해 `sufficient` 를 만든 문서가 체인 밖이면 그 문서는 절단될 수 있고 판정은 이미
+    끝났다. 도달 가능성은 실재한다 — 셀 할당량이 `len(picked) >= MAX_EVIDENCE` 를 셀 루프
+    **진입 시점에만** 보므로 `picked` 는 상한을 넘고, 여기에 체인 최대 6건이 더 붙는다
+    (Q-113 실측 14블록).
+
+    판정을 절단·정렬 이후 집합으로 옮기는 것이 옳은 방향이지만 그건 **판정 결과를 바꿔
+    88문항 재측정이 붙는다.** 마감 전 재측정 슬롯이 없어 지금은 보증의 범위를 여기 적어
+    둔다 — `verdict=sufficient` 는 "프롬프트가 본 근거로 충분하다" 가 **아니라** "수집한
+    근거 전량으로 충분하다" 는 뜻이다. Phase H 가 GENERATION 귀속의 근거로 쓸 때 이
+    간극을 세어야 한다.
     """
     if not picked:
         return False, ["no_candidate"]
@@ -481,6 +525,26 @@ def _counterparty_note(display: str, roster: str, n_partners: int) -> str:
 
     접수번호를 한 자도 싣지 않는다. 그래서 이 줄은 근거 적중 집계를 흔들 수 없고,
     '상장사가 몇 곳인가' 처럼 어느 한 레코드에도 안 적혀 있는 사실만 전한다.
+
+    🔴 **회사별 건수를 싣지 않는다.** 한때 `f"{corp} {len(lanes[corp])}건"` 이었고 그 수가
+    실제로 답변에 나왔다 (기록: `artifacts/ablation/v2/vc/A8/responses/Q-114.json` —
+    근거 `삼성E&A 47건`, 답변 `"삼성E&A: 총 47건의 계약을 통해 …"`). 두 겹으로 틀렸다.
+
+      (a) `query_by_counterparty` 는 `is_latest` 로 걸러 주지 않는다 — 삼성E&A 47건 중
+          **35건이 정정으로 대체된 공시**다(최신본 12건). 바로 위 `_partner_order` 가
+          "대체된 공시로 파트너를 대표시키면 안 된다" 며 `is_latest` 를 올리는데,
+          **정렬은 최신본을 아는데 집계는 몰랐다** — 한 함수 안에서 규칙이 갈렸다.
+      (b) 질문 범위와 무관한 **전역 집계**다. Q-114 가 묻는 것은 평택·기흥 공장의 공정
+          분담이고 근거에 실린 레코드는 4건인데, 47 은 그 어디에도 없는 수다.
+
+    `is_latest` 로 걸러 '참인 수' 를 만드는 것으로는 안 고쳐진다 — (b) 의 범주 오류가
+    남아 모델이 `"총 12건의 계약"` 으로 오보할 여지가 그대로다. 그래서 수를 **뺀다.**
+    이 hop 의 mandate 는 개수가 아니라 **집합의 경계**('몇 곳 · 누구') 이고, 밸류체인
+    12문항 중 건수를 묻는 문항은 **0개**다(전부 열거·비교). Q-116 의 '상장사 세 곳' 은
+    파트너 수이고 그건 `n_partners` 로 옳게 전달된다.
+
+    건수를 다시 넣고 싶어지면 먼저 **어느 문항이 그것을 요구하는지** 적어라. 그리고
+    그 수는 `is_latest` 로 걸러야 하고, 질문 범위 밖 집계라는 사실을 라벨에 박아야 한다.
     """
     return f"- 발주처 관계: {display} 를 계약상대로 한 공시 상장사 {n_partners}곳 — {roster}"
 
@@ -497,7 +561,15 @@ def _gather_counterparty(r, budget: Budget, trace: list[str], take) -> int:
     except BudgetExceeded as exc:
         trace.append(f"hop={COUNTERPARTY_HOP} stop=step_budget ({exc})")
         return 0
-    out = tools.execute("query_by_counterparty", {"name": r.counterparty})
+    # 🔴 도구에 넘기는 이름은 **원문 표기**다. `r.counterparty` 는 canonical(공백·`·`·`,`·`.`
+    # 제거 + 소문자)이고, `query_by_counterparty` 는 그 값을 `classify()` 에 넣는데
+    # `ANON_COUNTERPARTY` 의 여러 대안이 **공백 경계에 의존한다** (`지역\s*선주` ·
+    # `(?:^|\s)글로벌(?:\s|$)`). 실측: `classify('글로벌 기업')=vague` 인데
+    # `classify(canonical('글로벌 기업'))='other'` — canonical 을 되먹이면 비실명 가드가
+    # 빗나간다. 그래프 145 노드 전량 대조로 `canonical(display) == canonical` ·
+    # `classify(display) != vague` 를 확인했으므로 조회 결과는 글자 하나 안 바뀐다.
+    name = router_module.counterparty_display(r.counterparty) or r.counterparty
+    out = tools.execute("query_by_counterparty", {"name": name})
     if "error" in out:
         trace.append(f'hop={COUNTERPARTY_HOP} strat=counterparty '
                      f'tool=query_by_counterparty via={r.counterparty} '
@@ -509,7 +581,9 @@ def _gather_counterparty(r, budget: Budget, trace: list[str], take) -> int:
     for record in out.get("records") or []:
         by_partner.setdefault(record.get("corp_name"), []).append(record)
     lanes = {corp: _partner_order(by_partner.get(corp, [])) for corp in partners}
-    roster = " · ".join(f"{corp} {len(lanes[corp])}건" for corp in partners)
+    # 회사명만. **건수를 붙이지 않는다** — 사유는 `_counterparty_note` 독스트링에 있다
+    # (정정본 포함 전역 집계가 답변에 `"총 47건"` 으로 새어 나간 기록이 있다).
+    roster = " · ".join(partners)
     note = _counterparty_note(out.get("counterparty") or r.counterparty,
                               roster, len(partners))
 
@@ -810,7 +884,7 @@ def _gather_sections(r, question: str, budget: Budget,
     return taken
 
 
-def _gather_meta(r, question: str, trace: list[str], take) -> str | None:
+def _gather_meta(r, question: str, group: str, trace: list[str], take) -> str | None:
     """A0 — 메타 프리필터만. **BM25 를 한 번도 부르지 않는다.**
 
     §I-1 의 실측이 이 arm 의 근거다: `corp_name` + `rcept_dt` 접두만으로 후보가
@@ -820,9 +894,16 @@ def _gather_meta(r, question: str, trace: list[str], take) -> str | None:
     순위가 없다는 것이 이 arm 의 정의다. manifest 순서 그대로 앞에서부터 담는다 —
     점수를 매기는 순간 그건 A1(BM25) 이다. 정기공시도 같은 규칙이라 목차 선택 없이
     문서의 앞 섹션을 담는다 (실측상 거의 못 맞히는데, 그게 A1b 의 Δ 로 잡히는 값이다).
+
+    `group` 은 **호출자가 결정한 것을 받는다.** 여기서 `r.group` 을 다시 읽으면 근거는
+    `holding`/`major`/`periodic` 에서 오는데 요구 필드는 `exchange` 스키마로 검사되는
+    상태가 된다 (`_gather_evidence` 의 `uses_group_index` 오버라이드가 이 함수를
+    비껴갔다). 실측 A0 88문항 중 46문항이 비-exchange group 이었고, 예컨대 Q-016(holding)
+    이 `reason=missing_field:비율` 을 냈다 — `비율` 은 exchange 의 `대비\\s*:` 이고
+    holding 근거에는 `보유비율:` 이 항상 있다. **없는 것을 없다고 한 것이 아니라 있는
+    것을 다른 이름으로 찾은 것**이고, 그 라벨을 `parse_hops` → Phase H 가 되읽는다.
     """
     period = _period_args(r, question)
-    group = getattr(r, "group", "exchange")
     year = int(str(period["ym"])[:4]) if "ym" in period else period.get("year")
     docs = []
     for corp in (r.companies[:3] or [None]):
@@ -881,7 +962,15 @@ def _gather_evidence(r, question: str = "",
     group = getattr(r, "group", "exchange")
     # A1 은 exchange 인덱스 1,469건만 본다. 라우터가 major·holding·periodic 으로
     # 갈라도 검색은 exchange 로 되돌린다 — 그것이 A1b(인덱스 커버리지) 의 Δ 다.
-    if not arm.uses_group_index:
+    #
+    # 🔴 **`uses_bm25` 가 참인 arm 에만 건다.** `uses_group_index` 는 `retrieval == "all"`
+    # 이라 A0(`meta`)에도 False 인데, A0 은 인덱스를 아예 열지 않고 manifest 만 본다 —
+    # 되돌릴 '인덱스' 가 없다. 그런데도 이 줄이 걸려서 A0 은 근거를 holding/major/periodic
+    # 매니페스트에서 가져오면서 요구 필드는 exchange 스키마로 검사했다(실측 46/88 문항이
+    # 틀린 `missing_field` 라벨). 답변은 안 바뀐다 — A0 은 판정을 소비하지 않는다 —
+    # 그러나 `parse_hops` 가 그 사유를 되읽어 Phase H 의 RETRIEVAL/INDEX_FIELD_MISSING
+    # 귀속 입력으로 쓴다. 즉 **잰 것과 다른 것을 잰 것**이다.
+    if arm.uses_bm25 and not arm.uses_group_index:
         group = "exchange"
     required = _required_fields(question, group)
     stalled = 0
@@ -913,17 +1002,28 @@ def _gather_evidence(r, question: str = "",
         return False
 
     def _joined() -> str:
-        """검색 차선 먼저, 발주처 차선은 그 뒤. 검색 칸(MAX_EVIDENCE)은 그대로 남는다."""
-        extra = [p for p in cp_picked if p["doc_id"] not in seen]
+        """검색 차선 먼저, 발주처 차선은 그 뒤. 검색 칸(MAX_EVIDENCE)은 그대로 남는다.
+
+        중복 제거는 **절단 후 집합**과 대조한다. `seen` 은 검색 차선이 담은 전부이므로
+        그것과 대조하면 `picked` 의 11번째 이후와 겹치는 cp 레코드가 **양쪽에서 다 빠진다** —
+        그런데 `_gather_counterparty` 의 trace 는 그 doc_id 를 `ids=` 에 적고 `n=` 에 세므로
+        Phase H 는 '근거에 실렸다' 로 읽는다. 근거 소실과 자기 성적표 부풀림이 동시에 난다
+        (`_chain_note`·`_counterparty_note` 가 피하려고 애쓴 사고의 다른 입구다).
+        기록된 밸류체인 8건에서는 미발화다(중복으로 빠진 cp 레코드가 전부 상위 10 안에
+        있었다). `picked` 가 10을 넘는 문항(Q-113 실측 14블록)에서 발화한다.
+        """
+        head = picked[:MAX_EVIDENCE]
+        kept = {p["doc_id"] for p in head}
+        extra = [p for p in cp_picked if p["doc_id"] not in kept]
         return "\n\n".join(p["markdown"] for p in
-                           picked[:MAX_EVIDENCE] + extra[:MAX_COUNTERPARTY_EVIDENCE])
+                           head + extra[:MAX_COUNTERPARTY_EVIDENCE])
 
     if not arm.uses_bm25:                      # A0 — 검색 없이 메타 프리필터만
-        if _out_of_corpus_period(r):
+        if _out_of_corpus_period(r, question):
             trace.append(f"hop=0 stop=out_of_range "
                          f"(질문 기간 {r.years} 가 코퍼스 2023.01~2026.03 밖 — 완화해도 답이 없다)")
             return "", trace
-        sections = _gather_meta(r, question, trace, _take)
+        sections = _gather_meta(r, question, group, trace, _take)
         ok, reasons = _sufficiency(r, picked, required)
         trace.append(_log_verdict(0, ok, len(picked), reasons))
         if sections is not None:
@@ -933,7 +1033,7 @@ def _gather_evidence(r, question: str = "",
     # 정기공시는 검색 축이 다르다 — 접수일이 아니라 사업연도, 그리고 목차 경로.
     # 같은 사다리를 태우면 골든이 필터에서 통째로 빠진다 (04-retriever D-5).
     if group == "periodic":
-        if _out_of_corpus_period(r):
+        if _out_of_corpus_period(r, question):
             trace.append(f"hop=0 stop=out_of_range "
                          f"(질문 기간 {r.years} 가 코퍼스 2023.01~2026.03 밖 — 완화해도 답이 없다)")
             return "", trace
@@ -956,7 +1056,7 @@ def _gather_evidence(r, question: str = "",
             trace.append(f'hop={plan.hop} strat=global skip=corp_scoped '
                          f'(기업 특정 질의에 근거 {len(picked)}건 확보 — 전역 검색은 오염)')
             break
-        if plan.hop > 0 and _out_of_corpus_period(r):
+        if plan.hop > 0 and _out_of_corpus_period(r, question):
             trace.append(f"hop={plan.hop} stop=out_of_range "
                          f"(질문 기간 {r.years} 가 코퍼스 2023.01~2026.03 밖 — 완화해도 답이 없다)")
             break
@@ -1037,7 +1137,7 @@ def _gather_evidence(r, question: str = "",
     # 연도가 둘 이상이면 query_events 에 기간 조건을 걸 수 없으므로 범위 밖 질의는 여기서도 막는다.
     # `query_events` 모집단은 거래소공시다 (§7.7 ②) — 다른 문서군 질의에 붙이면 오답 근거다.
     if (arm.hop_ladder and not picked and group == "exchange"
-            and not _out_of_corpus_period(r)):
+            and not _out_of_corpus_period(r, question)):
         for corp in r.companies[:3]:
             try:
                 budget.spend_step()

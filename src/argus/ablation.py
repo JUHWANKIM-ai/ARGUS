@@ -101,6 +101,17 @@ from dataclasses import dataclass, replace
 #: 검색 바닥. `meta` 는 BM25 없이 manifest·universe 필터만 쓴다 (§I-1).
 RETRIEVAL_MODES = ("meta", "exchange", "all")
 
+#: `retrieval="meta"` 에서 **코드가 도달하지 않는** 플래그. `pipeline._gather_evidence` 는
+#: `uses_bm25` 가 False 면 `_gather_meta` 직후 `return` 이라 사다리·체인·분해·발주처 hop 이
+#: 전부 그 아래에 있다. 켜도 아무 일이 안 일어나므로 **Δ 가 조용히 0** 이 된다 —
+#: `enabled()` 가 오타 하나에 예외를 던지는 것과 같은 종류의 방어를 여기도 걸어야 한다.
+#:
+#: 🔴 이 함정은 이미 한 라운드를 썼다. 원장 C3/④ 가 `A0 + counterparty_hop=True` 로 강제해도
+#: 발화가 0 임을 실측하고 나서야 계획을 고쳤다. 계획서 '확정된 사항 ②' 는 A8 한 arm 에
+#: 대해서만 "BM25 이후에 세워라" 라고 지시했고, 같은 구조적 의존이 나머지 셋에도 있다는
+#: 일반화는 하지 않았다. 이 상수가 그 일반화다.
+META_UNREACHABLE_FLAGS = ("hop_ladder", "chain_hop", "split_query", "counterparty_hop")
+
 
 @dataclass(frozen=True)
 class Arm:
@@ -126,6 +137,13 @@ class Arm:
     def __post_init__(self) -> None:
         if self.retrieval not in RETRIEVAL_MODES:
             raise ValueError(f"retrieval 은 {RETRIEVAL_MODES} 중 하나여야 합니다: {self.retrieval}")
+        if self.retrieval == "meta":
+            on = [f for f in META_UNREACHABLE_FLAGS if getattr(self, f)]
+            if on:
+                raise ValueError(
+                    f"retrieval='meta' 는 `_gather_meta` 뒤에서 즉시 반환하므로 {on} 은 "
+                    f"켜도 코드가 도달하지 않습니다 — Δ 가 조용히 0 이 됩니다 (arm {self.name!r}). "
+                    f"BM25 이후 arm 에 붙이십시오.")
 
     @property
     def uses_bm25(self) -> bool:

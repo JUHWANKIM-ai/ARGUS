@@ -232,6 +232,40 @@ def test_genitive_particle_still_binds_the_role():
     assert route("한국수력원자력의 발주 계약을 수주한 상장사는?").counterparty         == "한국수력원자력"
 
 
+def test_the_marker_after_the_node_needs_a_case_particle():
+    """🔴 표지 **선행**형을 기각한 기전은 **어순에 대칭**이라 채택한 후행형에도 적용된다.
+
+    위 `test_marker_before_the_node_is_not_bound` 의 기전은 `canonical()` 이 문장부호를
+    지워 없던 인접이 생기는 것이다. 그 기전은 좌우를 가리지 않는다 — 조사를 옵션(`?`)으로
+    두면 마침표·쉼표만 사라져도 노드가 표지에 붙는다. 게다가 `은|는` 은 주제 표지라
+    격을 정하지 않고, `의` 는 `발주처` 앞에서 **정반대**를 뜻한다 (`X의 발주처` 는 X 가
+    발주처를 갖는 쪽 = 수주측).
+
+    아래 6종은 전부 그 노드가 **발주를 받는 쪽**이거나 다른 절의 주어다. 실측으로 전부
+    오탐했고, 조사 필수화 + `의발주(?!처|사|업체|기업)` 로 전부 사라진다. 발화 8건은
+    전부 `을|를|이|가` 를 쓰므로 대가는 0 이다 (dev 78 · 회귀 10 · 밸류체인 12 = 100문항
+    전량 대조에서 발화 결과 diff 0건).
+    """
+    for question in (
+        "삼성전자의 발주처는 어디인가?",                       # X의 발주처 → X 는 수주측
+        "두산에너빌리티의 계약상대는 누구인가?",
+        "수주 기업은 삼성전자. 발주처는 어디인가?",             # 마침표 소실
+        "계약을 공시한 곳은 두산에너빌리티. 발주 구조를 알려줘",
+        "HMM, 발주처 현황을 알려줘",                           # 쉼표 소실
+        "삼성전자는 발주처를 공개하지 않았다. 몇 건인가?",
+    ):
+        assert route(question).counterparty is None, question
+
+    # 기전 확인 — 정규화가 문장·구 경계를 지워 인접을 만든다.
+    from argus.corpus.counterparty import canonical
+    assert "삼성전자발주처" in canonical("수주 기업은 삼성전자. 발주처는")
+    assert "hmm발주처" in canonical("HMM, 발주처 현황을")
+
+    # 발주 주체를 가리키는 어순은 그대로 살아 있다.
+    assert route("삼성전자가 발주한 계약을 공시한 상장사는?").counterparty == "삼성전자"
+    assert route("한국수력원자력의 발주 계약").counterparty == "한국수력원자력"
+
+
 def test_counterparty_survives_when_it_is_also_a_named_universe_company():
     """`route.companies` 를 통째로 배제하면 안 되는 이유.
 
@@ -264,6 +298,30 @@ def test_counterparty_rescues_a_question_with_no_universe_company():
     assert r.companies == []
     assert r.counterparty == "한국중부발전"
     assert r.kind != "unanswerable"
+
+
+def test_counterparty_display_returns_the_raw_surface_not_the_canonical_key():
+    """canonical 은 **비교 전용**이다. 판정 정규식에 되먹이면 방어선이 죽는다.
+
+    `query_by_counterparty` 는 받은 이름을 `classify()` 에 넣고, `ANON_COUNTERPARTY` 의
+    여러 대안이 **공백 경계에 의존한다** (`지역\\s*선주` · `(?:^|\\s)글로벌(?:\\s|$)`).
+    `canonical()` 은 공백을 지우므로 canonical 을 넘기면 비실명 가드가 빗나간다 —
+    아래 두 단언이 그 기전이다. 그래서 **호출부가 원문 표기를 넘긴다.**
+
+    조회 결과는 불변이다: `canonical(display) == canonical` 이므로 노드 조회 키가 같다.
+    """
+    from argus.agent import router as _router
+    from argus.corpus.counterparty import canonical, classify
+
+    display = _router.counterparty_display("한국수력원자력")
+    assert display == "한국수력원자력(주)"          # 원문에는 법인격 접미가 있다
+    assert canonical(display) == "한국수력원자력"    # 조회 키는 같다 → 결과가 안 바뀐다
+
+    # 되먹임이 가드를 죽이는 기전 (실측)
+    assert classify("글로벌 기업") == "vague"
+    assert classify(canonical("글로벌 기업")) != "vague"
+
+    assert _router.counterparty_display("존재하지않는노드ZZZ") == ""
 
 
 def test_unknown_counterparty_stays_unanswerable():

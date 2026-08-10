@@ -1168,6 +1168,24 @@ def _dev_rows() -> list[dict]:
     return rows
 
 
+def _require_eval_artifact(path: Path) -> None:
+    """gitignore 된 실행 산출물에 의존하는 게이트 D 테스트의 관문.
+
+    `artifacts/eval/error_analysis*.json` 은 `.gitignore` 에 걸려 커밋되지 않는다.
+    가드 없이 `read_text` 하면 **클린 클론·CI 에서 `FileNotFoundError` 로 하드 실패**한다 —
+    스킵이 아니라 에러라서 "게이트 D 문서 정합성" 과 무관한 빨간불이 뜬다. 같은 파일의
+    `ensure_counterparty_graph` 와 `test_ablation.py` 의 `SNAPSHOT_PATH` 가드가 쓰는
+    패턴으로 맞춘다.
+
+    여기서는 **재생성하지 않고 스킵한다.** 발주처 그래프는 원본 레코드로 값싸게 다시
+    만들 수 있지만 이 산출물은 유료 실행(LLM 호출)의 결과라 값싼 재생성 경로가 없다.
+    """
+    if not path.exists():
+        pytest.skip(
+            f"{path.name} 이 없다 — gitignore 된 유료 실행 산출물이다. "
+            "`scripts/error_analysis.py` 로 채점을 먼저 돌려야 게이트 D 정합성을 검사할 수 있다.")
+
+
 def _dev_golden_total() -> int:
     """Recall@5 의 유일한 정당한 분모 — **잰 dev 문항**의 골든 근거 건수.
 
@@ -1180,6 +1198,7 @@ def _dev_golden_total() -> int:
     그래서 코호트를 리터럴로 적지 않고 `artifacts/eval/` 실행 산출물에서 읽는다.
     다시 재야만 코호트가 움직이고, 그때 문서의 게이트 수치도 함께 갱신된다.
     """
+    _require_eval_artifact(V.EVAL_RUN_PATH)
     cohort = V.measured_dev_cohort()
     measured = [r for r in _dev_rows() if r["question_id"] in cohort]
     assert len(measured) == len(cohort), (
@@ -1207,6 +1226,7 @@ def test_gate_d_recall_line_names_the_measured_cohort():
     말해야 하는 수는 78 이 아니라 42 다. 다시 재면 코호트가 커지고 이 테스트가
     문서 갱신을 강제한다.
     """
+    _require_eval_artifact(V.EVAL_RUN_PATH)
     doc = RETRIEVER_DOC.read_text(encoding="utf-8")
     line = next(l for l in doc.splitlines() if "Recall@5 ≥ 0.85" in l)
     n = len(V.measured_dev_cohort())
@@ -1267,8 +1287,9 @@ def test_gate_d_full_cohort_recall_matches_the_v2_artifact():
     손으로 적은 숫자가 실측 산출물과 갈리면 다음 사람이 어느 쪽을 믿어야 할지 모른다 —
     v1 의 `측정 후 채택` 원칙을 이 코호트에도 그대로 적용한다.
     """
-    data = json.loads((ROOT / "artifacts" / "eval" / "error_analysis_v2.json")
-                      .read_text(encoding="utf-8"))
+    artifact = ROOT / "artifacts" / "eval" / "error_analysis_v2.json"
+    _require_eval_artifact(artifact)
+    data = json.loads(artifact.read_text(encoding="utf-8"))
     assert data["cohort"] == "full"
     assert data["n_cases"] == 88
     rows = data["rows"]
@@ -1381,8 +1402,45 @@ def test_counterparty_note_carries_the_partner_roster_without_rcept_numbers():
     ev, _ = pipeline._gather_evidence(route(q), q)
     note = next(line for line in ev.splitlines() if line.startswith("- 발주처 관계:"))
     assert "상장사 2곳" in note
-    assert "삼성E&A 47건" in note and "삼성중공업 19건" in note
+    assert "삼성E&A" in note and "삼성중공업" in note
     assert not re.search(r"\d{14}", note)
+
+
+def test_counterparty_note_never_carries_a_per_company_disclosure_count():
+    """🔴 회사별 건수를 근거에 심으면 **틀린 수가 답변으로 나간다** — 기록된 사고다.
+
+    한때 roster 가 `f"{corp} {len(lanes[corp])}건"` 이었다. `lanes` 는
+    `query_by_counterparty` 가 돌려준 전체 레코드이고 `_partner_order` 는 `is_latest` 로
+    **정렬만** 하고 걸러내지 않으므로, 그 수는 계약 건수가 아니라 **정정으로 대체된
+    공시까지 포함한 공시 건수**다 (삼성E&A 47 중 최신본 12 · 대체 35 = 74%).
+
+    실제로 답변으로 새어 나간 것이 산출물에 남아 있다
+    (`artifacts/ablation/v2/vc/A8/responses/Q-114.json`):
+
+        근거   `- 발주처 관계: … 삼성E&A 47건 · 삼성중공업 19건`
+        답변   `- 삼성E&A: 총 47건의 계약을 통해 설계 및 마감공사 담당`
+
+    Q-114 가 묻는 것은 평택·기흥 공장의 공정 분담이고 근거에 실린 레코드는 4건이다 —
+    47 은 **질문 범위 밖 전역 집계**이기도 하다. `verify_completeness` 는 그 수가
+    근거(우리 note)에 있으니 통과시켰고 채점기는 골든이 '어느 회사냐' 라서 `correct` 를
+    줬다. **결정적 검증도 채점기도 못 잡는다** — 그래서 테스트로 못 박는다.
+
+    `is_latest` 로 걸러 참인 수를 만드는 것으로는 안 고쳐진다. 범위 밖 집계라는 범주
+    오류가 남아 `"총 12건의 계약"` 으로 오보할 여지가 그대로다. 밸류체인 12문항 중
+    건수를 묻는 문항은 0개이므로(전부 열거·비교) 수 자체를 뺀다.
+    """
+    q, _ = pipeline.sanitize_question(
+        "삼성전자를 계약상대로 하는 공급계약을 공시한 상장사는 어디인가?")
+    ev, _ = pipeline._gather_evidence(route(q), q)
+    note = next(line for line in ev.splitlines() if line.startswith("- 발주처 관계:"))
+
+    roster = note.split("—", 1)[1]
+    assert not re.search(r"\d+\s*건", roster), f"회사별 건수가 되살아났다: {note}"
+    assert "47" not in roster and "19" not in roster
+    # 파트너 수(`{n_partners}곳`)는 남는다 — 그건 어느 레코드에도 없는 참인 사실이다
+    # (Q-116 의 '상장사 세 곳' 이 그것을 요구한다).
+    assert "상장사 2곳" in note
+    assert [c.strip() for c in roster.split("·")] == ["삼성E&A", "삼성중공업"]
 
 
 def test_counterparty_hop_does_not_eat_the_search_step_budget(monkeypatch):
@@ -1422,3 +1480,226 @@ def test_counterparty_hop_does_not_eat_the_search_step_budget(monkeypatch):
 
     off = replace(ablation.A6, name="A6-cp-off", counterparty_hop=False)
     assert searches(ablation.A6) == searches(off)
+
+
+def test_the_counterparty_tool_receives_the_raw_name_not_the_canonical_key():
+    """도구 안의 `classify()` 는 공백 경계를 전제한다 — canonical 을 되먹이면 안 된다.
+
+    `r.counterparty` 는 canonical 이고 `ANON_COUNTERPARTY` 의 여러 대안이 공백에 의존하므로
+    (`classify('글로벌 기업')=vague` vs `classify('글로벌기업')='other'`), 그대로 넘기면
+    비실명 가드가 빗나간다. 결과는 안 바뀐다 — 그래프 전량에서 `canonical(display)` 가
+    노드 키와 같아 조회가 동일하다. 바뀌는 것은 **가드가 원문을 본다**는 사실이다.
+    """
+    seen: list[str] = []
+    original = pipeline.tools.execute
+
+    def watch(name, args):
+        if name == "query_by_counterparty":
+            seen.append(args["name"])
+        return original(name, args)
+
+    q, _ = pipeline.sanitize_question(
+        "한국수력원자력이 발주한 계약을 수주한 기업들의 계약금액을 비교해줘")
+    r = route(q)
+    assert r.counterparty == "한국수력원자력"          # canonical
+    try:
+        pipeline.tools.execute = watch
+        evidence, _ = pipeline._gather_evidence(r, q, Budget())
+    finally:
+        pipeline.tools.execute = original
+
+    assert seen == ["한국수력원자력(주)"], "도구에 canonical 이 아니라 원문이 가야 한다"
+    assert "발주처 관계: 한국수력원자력(주)" in evidence   # 근거는 그대로 원문 표기다
+
+
+def test_partner_quota_holds_at_the_boundaries():
+    """그래프 노드 145개 중 **120개(83%)가 파트너 1** 인데 그 경로가 미검증이었다.
+
+    간접 검증만 있었다 — 실제 그래프의 두 노드(한국수력원자력 6 · 삼성전자 2)를 태우는
+    통합 테스트뿐이라 `width=1`·`width=0`·`width > MAX_EVIDENCE` 는 한 번도 안 불렸다.
+    `min(width, …)` 가 없으면 파트너 1인 노드가 5칸을 가져가고, `max(1, …)` 가 없으면
+    폭이 클 때 몫이 0 이 되어 **아무 파트너도 근거를 못 받는다**. 둘 다 데이터 없이
+    검증되는 순수 함수라 비용이 0 이다.
+    """
+    quota = pipeline._partner_quota
+    assert quota(0) == 1                       # 방어적 경로 — 0 나눗셈도 무발화도 없다
+    assert quota(1) == 1                       # 노드의 83%
+    assert quota(2) == 2                       # 유일하게 몫 2 (삼성전자 — 독스트링의 실측)
+    assert quota(3) == 1
+    assert quota(6) == 1                       # 최대 폭 — 모든 파트너가 한 칸씩
+    assert quota(pipeline.MAX_EVIDENCE) == 1
+    assert quota(pipeline.MAX_EVIDENCE + 15) == 1
+
+    # 불변 둘: 몫은 1 이상이고, 깊이는 폭을 넘지 않는다.
+    for width in range(1, 40):
+        assert quota(width) >= 1
+        assert quota(width) <= width
+    # 담기는 레코드는 근거 칸 상한 안에 든다 (파트너가 실제로 그만큼 있을 때).
+    for width in range(1, 40):
+        assert min(quota(width) * width, pipeline.MAX_COUNTERPARTY_EVIDENCE) \
+            <= pipeline.MAX_COUNTERPARTY_EVIDENCE
+
+
+def test_a_meta_arm_cannot_switch_on_the_hops_its_early_return_hides():
+    """`retrieval="meta"` 는 `_gather_meta` 직후 `return` 이라 그 아래 hop 이 **도달 불가**다.
+
+    이 파일에 두는 이유: 막아야 하는 사실이 ablation 의 것이 아니라 **파이프라인의
+    제어 흐름**이다 (`if not arm.uses_bm25: … return`). 이 함정은 이미 한 라운드를 썼다 —
+    원장 C3/④ 가 `A0 + counterparty_hop=True` 로 강제해도 발화 0 임을 실측하고 나서야
+    계획을 고쳤다. `enabled()` 가 오타 하나에 예외를 던지는 모듈이 **Δ 를 조용히 0 으로
+    만드는 조합**에는 침묵하고 있었다.
+    """
+    from dataclasses import replace as _replace
+
+    from argus import ablation
+
+    assert ablation.A0.retrieval == "meta"          # 사다리의 meta arm 은 그대로 통과한다
+    for flag in ablation.META_UNREACHABLE_FLAGS:
+        with pytest.raises(ValueError, match="도달하지 않"):
+            _replace(ablation.A0, name=f"A0-{flag}", **{flag: True})
+    # BM25 이후 arm 에서는 같은 플래그가 정상이다 — 막는 것은 조합이지 플래그가 아니다.
+    assert _replace(ablation.A1, name="A1-cp", counterparty_hop=True).counterparty_hop
+
+
+def test_a0_checks_the_fields_of_the_document_group_it_actually_read(monkeypatch):
+    """A0 의 요구 필드가 **실제로 읽은 문서군**의 것이어야 한다.
+
+    `uses_group_index` 는 `retrieval == "all"` 이라 A0(`meta`)에도 False 다. 그래서 한때
+    A0 은 근거를 holding 매니페스트에서 가져오면서 요구 필드는 exchange 스키마로
+    검사했다 — Q-016 이 `reason=missing_field:비율` 을 냈고 그 `비율` 은 exchange 의
+    `대비\\s*:` 다. holding 근거에는 `보유비율:` 이 1.000 확률로 있다. **없는 것을 없다고
+    한 것이 아니라 있는 것을 다른 이름으로 찾은 것**이고, `parse_hops` 가 그 사유를
+    되읽어 Phase H 의 귀속 입력으로 쓴다. 실측 그리드 88문항 중 52문항이 비-exchange
+    group 이고 라벨이 틀렸던 문항은 19개다 (근거·답변은 불변 — A0 은 판정을 소비하지
+    않고, 88문항 전량 대조에서 근거 문자열이 바이트 단위로 같았다).
+    """
+    from argus import ablation
+
+    q, _ = pipeline.sanitize_question(
+        "한국산업은행이 2025년 9월 18일 제출한 HMM 대량보유상황보고서에서 "
+        "보유비율은 직전 보고서 대비 몇 %p 낮아졌는가?")
+    r = route(q)
+    assert r.group == "holding"
+
+    with ablation.use("A0"):
+        _, trace = pipeline._gather_evidence(r, q, Budget())
+    joined = " | ".join(trace)
+    assert "group=holding" in joined, "A0 은 라우터 문서군 매니페스트를 읽는다"
+    assert "missing_field:비율" not in joined, (
+        "holding 근거를 exchange 필드로 검사하면 있는 것을 없다고 보고한다")
+
+    # A1 의 되돌림(exchange 인덱스 1,469건)은 그대로여야 한다 — 그것이 A1b 의 Δ 다.
+    args_seen: list[dict] = []
+    monkeypatch.setattr(pipeline.tools, "execute",
+                        lambda name, a: args_seen.append(a) or {"count": 0, "chunks": []})
+    with ablation.use("A1"):
+        pipeline._gather_evidence(r, q, Budget())
+    searches = [a for a in args_seen if "query" in a]
+    assert searches and all(a.get("group") in (None, "exchange") for a in searches)
+
+
+def test_counterparty_evidence_is_deduped_against_the_truncated_head(monkeypatch):
+    """중복 제거는 **절단 후** 집합과 대조해야 한다.
+
+    `seen` 은 검색 차선이 담은 전부이고 프롬프트에 가는 것은 `picked[:MAX_EVIDENCE]` 다.
+    `seen` 과 대조하면 절단 밖 문서와 겹치는 발주처 레코드가 **양쪽에서 다 빠지는데**,
+    `_gather_counterparty` 의 trace 는 그 doc_id 를 `ids=` 에 적고 `n=` 에 센다 —
+    근거 소실과 자기 성적표 부풀림이 동시에 난다. trace 가 실렸다고 말한 것은 실려 있어야
+    한다는 것이 이 테스트의 단언이다.
+    """
+    monkeypatch.setattr(pipeline, "MAX_EVIDENCE", 1)      # 절단을 확실히 일으킨다
+
+    def fake(name, args):
+        if name == "search_chunks":
+            return _hits(_chunk("s0"), _chunk("s1"))
+        if name == "query_by_counterparty":
+            return {"counterparty": "삼성전자(주)", "kind": "universe",
+                    "partners": ["삼성E&A"],
+                    "records": [{"doc_id": "s1", "corp_name": "삼성E&A",
+                                 "is_latest": True,
+                                 "markdown": "## s1\n- 계약금액: 1,000원"}]}
+        return {"count": 0, "events": []}
+
+    monkeypatch.setattr(pipeline.tools, "execute", fake)
+    q, _ = pipeline.sanitize_question(
+        "삼성전자를 계약상대로 한 계약을 2024년과 2025년에 공시한 상장사는 어디인가?")
+    r = route(q)
+    assert r.counterparty == "삼성전자"
+
+    evidence, trace = pipeline._gather_evidence(r, q, Budget())
+    hop = next(h for h in pipeline.parse_hops(" | ".join(trace))
+               if h["strategy"] == "counterparty")
+    assert hop["ids"] == ["s1"]
+    for doc_id in hop["ids"]:
+        assert f"## {doc_id}" in evidence, (
+            f"trace 는 {doc_id} 를 근거로 셌는데 근거 블록에 없다")
+
+
+def test_a_relative_period_query_is_not_killed_by_the_search_lane(monkeypatch):
+    """라우터가 상대 시점으로 살려 보낸 질의를 검색 단계가 다시 죽이면 안 된다.
+
+    라우터는 `out_of_corpus` 에 `_RELATIVE_HINT` 면제를 넣고 *"'2021년 대비 최근' 처럼
+    기준점만 범위 밖인 질의를 죽이면 답할 수 있는 걸 못 답한다"* 고 주석에 약속했다.
+    그런데 `_out_of_corpus_period` 가 `r.years` 만 보고 질문을 안 봐서 hop 1~3 ·
+    이벤트 폴백을 전부 닫았고, `_period_args` 는 범위 밖 연도 2021 을 **검색 필터로**
+    걸어 hop 0 조차 0건이었다 — 근거 0건 → UNANSWERABLE. **면제가 아무것도 사지
+    못했다.** 두 술어를 하나로 모아야 라우터 주석이 코드 전체로 성립한다.
+
+    현 코호트(dev 78 + 회귀 10 + 밸류체인 12 = 100문항) 발화는 0건이라 기록된 측정은
+    안 바뀐다. 대회 문항은 미공개이고 이 어형은 흔하다.
+    """
+    def fake(name, args):
+        if name != "search_chunks":
+            return {"count": 0, "events": []}
+        # 범위 밖 연도를 필터로 걸면 후보가 없다 — 그게 종전 동작이었다.
+        return _hits() if ("year" in args or "ym" in args) else _hits(_chunk("d1"))
+
+    monkeypatch.setattr(pipeline.tools, "execute", fake)
+    question = "2021년 대비 삼성전자의 최근 매출액 변화를 정리해줘"
+    r = route(question)
+    assert r.kind != "unanswerable" and r.years == [2021]     # 라우터의 면제
+
+    evidence, trace = pipeline._gather_evidence(r, question, Budget())
+    joined = " | ".join(trace)
+    assert "stop=out_of_range" not in joined
+    assert "period=none" in joined, "기준점 연도는 검색 조건이 아니라 비교의 출발점이다"
+    assert "97,000,000,000" in evidence
+
+    # 상대 시점이 없으면 종전대로 막는다 — 면제는 넓히기가 아니라 예외다.
+    hard = "삼성전자의 2021년 공급계약 계약금액은 얼마인가?"
+    r2 = route(hard)
+    assert pipeline._out_of_corpus_period(r2, hard)
+
+
+def test_two_brakes_at_once_land_on_unanswerable_without_an_llm_call(monkeypatch):
+    """제동은 **겹칠 때도** 안전해야 한다 — 개별 제동만 검증돼 있던 갭이다.
+
+    여기서 두 제동이 같은 질의에 동시에 걸린다.
+      ① 도구 오류 — 기업 필터가 붙은 hop 0~2 가 전부 `skip=tool_error`
+      ② 잡음 바닥 폐기 — 전역 hop 의 후보가 `MIN_TOP_SCORE` 밑이라 통째로 버려진다
+    거기에 이벤트 폴백까지 빈손이면 근거가 0건이다. 이 경로는 죽지 않고
+    **LLM 호출 없이** 한계 고지로 낙착해야 한다 (`answer_question` 의 `not evidence` 분기).
+    """
+    calls: list[str] = []
+
+    def fake(name, args):
+        calls.append(name)
+        if name == "search_chunks":
+            if args.get("corp_name"):
+                return {"error": "인덱스를 열 수 없습니다"}          # 제동 ①
+            return _hits(_chunk("noise", score=MIN_TOP_SCORE - 5.0))  # 제동 ②
+        return {"count": 0, "events": []}
+
+    monkeypatch.setattr(pipeline.tools, "execute", fake)
+    monkeypatch.setattr(pipeline, "chat",
+                        lambda *a, **k: pytest.fail("근거가 없으면 LLM 을 부르지 않는다"))
+
+    out = pipeline.answer_question("Q-brakes", AMOUNT_Q)
+    trace = out["think_trace"]
+    assert out["retrieved_context"] == ""
+    assert "확인되지 않" in out["answer"]
+    assert "skip=tool_error" in trace                  # ①
+    assert "strat=global" in trace and "noise" not in trace   # ② 후보가 버려졌다
+    assert "근거 없음" in trace
+    assert "query_events" in calls                     # 폴백까지 갔다가 빈손이다
+    assert "llm=0" in trace
