@@ -1703,3 +1703,160 @@ def test_two_brakes_at_once_land_on_unanswerable_without_an_llm_call(monkeypatch
     assert "근거 없음" in trace
     assert "query_events" in calls                     # 폴백까지 갔다가 빈손이다
     assert "llm=0" in trace
+
+
+# --- 정기공시 사업연도 축: 접수·정정 일자를 사업연도로 착각하지 않는다 ---------------
+# 실측 Q-076 — `report_hints` 는 옳게 사업연도를 비우는데 `plan_section_hops` 의
+# `years[0]` 폴백이 **정정 일자의 연도**를 사업연도로 만들어 골든 2건이 통째로 빠졌다.
+
+Q076 = ("기아 제80기 사업보고서는 2024년 3월 12일 정정됐다. 연결재무제표 주석 "
+        "'9. 유형자산 및 사용권자산' 의 전기 유형자산처분이익은 정정 후 백만원 단위로 얼마인가?")
+Q105 = ("케이티의 2025년 반기보고서, 2025년 3분기 분기보고서, 2024년 사업보고서에서 "
+        "'IV. 이사의 경영진단 및 분석의견' 이 각각 어떻게 기재돼 있는지 비교해줘.")
+
+
+def _capture_sections(monkeypatch, question, paths=(), hits=None):
+    """정기공시 검색 인자를 그대로 받아 둔다. 도구는 실제로 안 부른다."""
+    captured = []
+
+    def fake(name, args):
+        captured.append(args)
+        return hits(args) if callable(hits) else {"count": 0, "chunks": []}
+
+    monkeypatch.setattr(pipeline.tools, "execute", fake)
+    monkeypatch.setattr(pipeline.tools, "section_paths", lambda: tuple(paths))
+    pipeline._gather_evidence(route(question), question, Budget())
+    return captured
+
+
+def test_a_correction_date_does_not_become_the_fiscal_year(monkeypatch):
+    """제80기는 사업연도 2023 이다. 정정 일자의 2024 를 걸면 제81기만 남는다."""
+    captured = _capture_sections(monkeypatch, Q076)
+    assert captured, "검색이 한 번은 일어나야 한다"
+    assert all("base_year" not in args for args in captured)
+    assert captured[0]["doc_subtype"] == "annual"        # 기수 축은 살아 있다
+
+
+def test_the_report_label_year_survives_a_correction_date(monkeypatch):
+    """Q-100 — '2025년 사업보고서' 는 폴백이 아니라 표기에서 온 권위값이라 안 지운다.
+
+    `_FILED` 에 '정정' 을 넣는 대안을 기각한 근거가 이 문항이다 (실측 골든 2/2 -> 1/2).
+    """
+    question = ("크래프톤 2025년 사업보고서는 2026년 5월 15일 정정됐다. "
+                "요약 연결 재무정보의 제19기 기본주당이익은 정정 후 몇 원인가?")
+    captured = _capture_sections(monkeypatch, question)
+    assert captured[0]["base_year"] == "2025"
+
+
+def test_fiscal_years_only_drops_the_filing_date_form():
+    r = route(Q076)
+    assert pipeline._fiscal_years(r, Q076) == ()
+    plain = "삼성전자 2023년 사업보고서 기준 매출액은 얼마인가?"
+    assert pipeline._fiscal_years(route(plain), plain) == (2023,)
+
+
+# --- 정기공시 다문서 질의: 부른 보고서마다 셀 하나 -------------------------------
+# 실측 Q-105 — `doc_subtype` 은 세 번째 언급에서, `base_year` 는 첫 번째 언급에서 와서
+# 필터가 `annual + 2025` 가 됐다. 질문이 부르지도 않은 문서 하나가 근거 4칸을 다 먹었다.
+
+def test_report_cells_pairs_each_named_report_with_its_own_year():
+    assert pipeline._report_cells(Q105) == [
+        {"doc_subtype": "half", "base_year": "2025"},
+        {"doc_subtype": "quarter", "base_year": "2025"},
+        {"doc_subtype": "annual", "base_year": "2024"},
+    ]
+
+
+def test_a_single_named_report_is_not_decomposed():
+    """제동 ① — 셀이 하나면 종전 경로다. 실측 발화는 dev+회귀 88문항 중 Q-105 하나다."""
+    assert len(pipeline._report_cells(PERIODIC_Q)) < 2
+    assert pipeline._report_cells("SK텔레콤 2025년 반기보고서의 자본총계는?") == [
+        {"doc_subtype": "half", "base_year": "2025"}]
+
+
+def test_report_quota_splits_the_evidence_cells():
+    assert pipeline._report_quota(1, 1) == pipeline.MAX_SECTION_EVIDENCE
+    assert pipeline._report_quota(3, 1) == 1
+    assert pipeline._report_quota(2, 1) == 2
+    assert pipeline._report_quota(9, 3) == 1              # 바닥은 1칸
+
+
+def _cell_hits(per_cell=None):
+    """셀마다 **다른** 청크를 돌려주는 가짜 검색. 같은 id 를 주면 `take` 가 접는다."""
+    def hits(args):
+        tag = f"{args.get('doc_subtype')}{args.get('base_year')}"
+        n = (per_cell or {}).get(args.get("doc_subtype"), 1)
+        return {"count": n, "chunks": [
+            {"doc_id": f"periodic_{tag}_{i}", "chunk_id": f"periodic_{tag}_{i}#001",
+             "path": "IV. 이사의 경영진단 및 분석의견", "score": 30.0,
+             "markdown": f"## 근거 {tag}_{i}\n- 출처: 접수번호 {tag}_{i}"}
+            for i in range(n)]}
+    return hits
+
+
+def _run_sections(monkeypatch, question, hits):
+    monkeypatch.setattr(pipeline.tools, "execute",
+                        lambda name, args: hits(args))
+    monkeypatch.setattr(pipeline.tools, "section_paths",
+                        lambda: ("IV. 이사의 경영진단 및 분석의견",))
+    return pipeline._gather_evidence(route(question), question, Budget())
+
+
+def test_each_named_report_gets_its_own_search(monkeypatch):
+    """세 축의 곱이 아니라 세 셀이다 — `annual+2025` 는 아무 것도 안 가리킨다."""
+    captured = _capture_sections(monkeypatch, Q105,
+                                 paths=("IV. 이사의 경영진단 및 분석의견",),
+                                 hits=_cell_hits())
+    axes = [(a.get("doc_subtype"), a.get("base_year")) for a in captured]
+    assert axes == [("half", "2025"), ("quarter", "2025"), ("annual", "2024")]
+    assert ("annual", "2025") not in axes                # 부르지 않은 문서
+
+
+def test_covering_every_named_report_stops_the_ladder(monkeypatch):
+    """제동 — 부른 보고서를 다 담았으면 넓히지 않는다. 넓히면 오염된다."""
+    captured = _capture_sections(monkeypatch, Q105,
+                                 paths=("IV. 이사의 경영진단 및 분석의견",),
+                                 hits=_cell_hits())
+    assert len(captured) == 3                            # 셀 3개 = 스텝 3개, 사다리 정지
+
+
+def test_the_spare_evidence_slot_goes_to_a_tied_cell(monkeypatch):
+    """실측 Q-105 — 1·3분기 스텁의 글자가 같아 BM25 가 완전 동점이다 (72.711).
+
+    `base_month` 는 인덱스 필터 축이 아니라 점수로는 영원히 못 가른다. 남은 칸을
+    돌려 **둘 다 담고** 어느 쪽이 3분기인지는 생성이 블록 머리의 접수번호로 가린다.
+    """
+    evidence, _ = _run_sections(monkeypatch, Q105,
+                                _cell_hits({"quarter": 2}))
+    assert evidence.count("접수번호 quarter2025") == 2   # 동점 둘이 다 실렸다
+    for tag in ("half2025", "annual2024"):
+        assert tag in evidence
+
+
+def test_the_trace_records_the_filters_actually_searched(monkeypatch):
+    """`parse_hops` 가 이 줄을 되읽어 Phase H 귀속에 쓴다 — 잰 것을 적어야 한다."""
+    _, trace = _run_sections(monkeypatch, Q105, _cell_hits())
+    joined = " | ".join(trace)
+    assert "filters=base_year=2025,doc_subtype=half" in joined
+    assert "filters=base_year=2024,doc_subtype=annual" in joined
+    assert "filters=base_year=2025,doc_subtype=annual" not in joined   # 유령 필터
+    assert "stop=named_reports_covered" in joined
+
+
+# --- 실데이터 회귀: 겨냥한 두 문항이 실제로 골든에 닿는가 -------------------------
+
+def test_q076_reaches_both_the_original_and_the_corrected_report():
+    """제80기(사업연도 2023) 원공시와 정정본. 폴백이 살아 있으면 둘 다 안 나온다."""
+    evidence, _ = pipeline._gather_evidence(route(Q076), Q076, Budget())
+    assert "20240307000911" in evidence          # 원공시 (전기 3,512)
+    assert "20240312000909" in evidence          # 정정본 (전기 7,362 — 골든)
+    assert "7,362" in evidence
+
+
+def test_q105_reaches_all_three_named_reports():
+    """반기·3분기 스텁 둘과 사업보고서 본문. 종전엔 부르지 않은 문서 하나만 실렸다."""
+    evidence, trace = pipeline._gather_evidence(route(Q105), Q105, Budget())
+    for rcept_no in ("20250814003695", "20251114002201", "20250321001834"):
+        assert rcept_no in evidence
+    assert "20260323001553" not in evidence      # 질문이 부르지 않은 문서
+    assert "stop=named_reports_covered" in " | ".join(trace)

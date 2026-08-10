@@ -237,6 +237,83 @@ def _required_fields(question: str, group: str = "exchange") -> list[tuple[str, 
     return [(name, has) for name, asks, has in hints if asks.search(question or "")]
 
 
+# --- 정기공시 사업연도 축 ------------------------------------------------------
+# `plan_section_hops` 는 `report_hints` 가 사업연도를 못 뽑았을 때 **질문의 연도가
+# 하나면 그것을 사업연도로 추정**한다 (query.py `str(years[0])`). 그 폴백이 정정
+# 질의에서 정확히 반대로 간다 — 접수·정정 **일자**의 연도를 사업연도로 잡는다.
+#
+# 실측 Q-076 ("기아 제80기 사업보고서는 2024년 3월 12일 정정됐다"):
+#   `report_hints` 는 옳게 사업연도를 비운다 (`_REPORT_YEAR` 는 '보고서 바로 앞' 만 본다).
+#   그런데 `r.years == [2024]` 라 폴백이 `base_year=2024` 를 만들고, 제80기는 사업연도
+#   **2023** 이라 골든 2건이 필터에서 통째로 빠졌다 (실측: hop 0~3 어디에도 안 들어온다).
+#   폴백을 끄면 같은 hop 0 에서 골든이 **1·2위**다.
+#
+# 🔴 `report_hints` 가 준 사업연도는 건드리지 않는다. 그쪽은 '보고서' 표기에 붙은 연도라
+# 권위값이고, 폴백만 추정이다. 이 구분이 Q-100 을 지킨다 — "크래프톤 2025년 사업보고서는
+# 2026년 5월 15일 정정됐다" 는 폴백이 아니라 `report_hints` 로 2025 를 얻으므로 불변이다.
+# (`_FILED` 자체에 '정정' 을 넣는 대안은 **기각**했다: 그러면 사업연도가 접수일 접두로
+#  대체되어 원공시와 정정본이 다른 달에 접수된 Q-100 이 골든 2/2 -> 1/2 로 깨진다.)
+#: 접수·정정 **일자**로 적힌 연월. 이 연도는 사업연도 축이 아니다.
+_FILED_EVENT = re.compile(r"20\d{2}\s*년\s*(?:1[0-2]|0?[1-9])\s*월"
+                          r"(?:\s*\d{1,2}\s*일)?\s*(?:에\s*)?"
+                          r"(?:제출|공시|접수|정정|수정)")
+
+
+def _fiscal_years(r, question: str) -> tuple:
+    """`plan_section_hops` 의 사업연도 **폴백**에 넘길 연도.
+
+    질문의 연도가 제출·정정 일자로 적혀 있으면 폴백을 끈다 — 그건 접수 시점이지
+    사업연도가 아니다. 폴백이 아닌 축(`report_hints`)은 그대로 살아 있다.
+    """
+    if _FILED_EVENT.search(question or ""):
+        return ()
+    return tuple(r.years)
+
+
+# --- 정기공시 다문서 질의 분해 --------------------------------------------------
+# `report_hints` 는 축마다 **스칼라 하나**를 돌려주고 `plan_section_hops` 가 그것을
+# 곱해 필터로 쓴다. 질문이 보고서를 여러 개 부르면 그 곱이 **아무 것도 안 가리킨다**.
+#
+# 실측 Q-105 ("2025년 반기보고서, 2025년 3분기 분기보고서, 2024년 사업보고서"):
+#   `doc_subtype` 은 세 번째 언급('사업보고서')에서, `base_year` 는 첫 번째 언급
+#   ('2025년 반기보고서')에서 와서 필터가 `annual + 2025` 가 됐다. 질문이 부르지도 않은
+#   문서(20260323001553 = 사업연도 2025 사업보고서, 2026-03 접수) 하나가 top-8 을 다
+#   채우고 근거 4칸을 전부 먹었다 → 골든 0/3, 근거 1,182자, 답변은 "확인되지 않습니다".
+#
+# 그래서 **부른 보고서마다 셀 하나**로 쪼갠다. 거래소공시 차선이 이미 같은 일을 한다
+# (`time_points`·`_cell_quota`) — 제동 셋도 그대로 옮긴다:
+#   ① 셀이 **2개 이상일 때만** 쪼갠다. 실측 발화는 dev+회귀 전량에서 Q-105 **1문항**이다.
+#   ② 셀마다 할당량(`_report_quota`) — 셀마다 top-k 를 담으면 근거가 셀 수만큼 부푼다.
+#   ③ **hop 0 만** 쪼개고 셀마다 **1순위 경로만** 본다 — 스텝 상한 8을 지킨다 (3셀 = 3스텝).
+#
+# 🔴 접수일 접두(`plan.prefix`)가 있으면 쪼개지 않는다. 그때는 `plan.filters` 가 비고
+# 접수일이 문서를 못박으므로 셀과 곱하면 오히려 좁아진다. 현 코퍼스 발화 0건이라
+# 실측으로 고를 수 없는 조합이고, 안 쪼개는 쪽이 종전 동작이다.
+
+#: 질문이 **이름을 부른 보고서**. 연도가 보고서 표기에 붙어 있을 때만 짝으로 인정한다.
+_REPORT_CELL = re.compile(
+    r"(20\d{2})\s*년?\s*(?:도)?\s*(?:\d\s*분기\s*)?(사업|반기|분기)\s*보고서")
+_CELL_SUBTYPE = {"사업": "annual", "반기": "half", "분기": "quarter"}
+
+
+def _report_cells(question: str) -> list[dict]:
+    """질문이 부른 (보고서 종류 × 사업연도) 짝 전부. 중복은 접는다."""
+    cells: list[dict] = []
+    for match in _REPORT_CELL.finditer(question or ""):
+        cell = {"doc_subtype": _CELL_SUBTYPE[match.group(2)],
+                "base_year": match.group(1)}
+        if cell not in cells:
+            cells.append(cell)
+    return cells
+
+
+def _report_quota(n_cells: int, n_corps: int) -> int:
+    """분해 셀 하나가 가져갈 근거 칸. 분해가 없으면 종전대로 상한을 다 준다."""
+    if n_cells < 2:
+        return MAX_SECTION_EVIDENCE
+    return max(1, MAX_SECTION_EVIDENCE // (n_cells * max(n_corps, 1)))
+
+
 def _out_of_corpus_period(r, question: str = "") -> bool:
     """재검색을 닫을 것인가. **술어를 라우터와 공유한다** (`router.out_of_corpus`).
 
@@ -746,11 +823,18 @@ MAX_SECTION_EVIDENCE = 4
 MAX_SECTION_CHARS = 12_000
 
 
-def _log_section(plan, corp, path, hits: list[dict]) -> str:
+def _log_section(plan, corp, path, hits: list[dict], cell: dict | None = None) -> str:
+    """검색 한 번의 trace 한 줄.
+
+    `cell` 이 있으면 **그 셀의 필터**를 적는다 — 분해된 hop 은 `plan.filters` 로 검색하지
+    않으므로 그것을 적으면 잰 것과 다른 것을 적는 셈이 된다 (`parse_hops` 가 이 줄을
+    되읽어 Phase H 의 실패 단계 귀속 입력으로 쓴다).
+    """
     ids = ",".join(str(h.get("doc_id") or "?") for h in hits)
     scores = [h["score"] for h in hits if isinstance(h.get("score"), (int, float))]
     top = f"{max(scores):.3f}" if scores else "-"
-    filters = ",".join(f"{k}={v}" for k, v in sorted(plan.filters.items())) or "-"
+    used = cell if cell is not None else plan.filters
+    filters = ",".join(f"{k}={v}" for k, v in sorted(used.items())) or "-"
     return (f'hop={plan.hop} strat={plan.strategy} tool=search_chunks group=periodic '
             f'corp="{corp or "-"}" filters={filters} path="{path or "-"}" '
             f'top_k={plan.top_k} q="{plan.query}" n={len(hits)} '
@@ -811,6 +895,77 @@ def _join_section_evidence(picked: list[dict]) -> str:
     return "\n\n".join(out)
 
 
+def _drain_report_cells(plan, cells: list[dict], corps: list, quota: dict,
+                        taken: int, budget: Budget, trace: list[str],
+                        take) -> tuple[int, bool]:
+    """부른 보고서마다 한 번씩 검색하고, 근거 칸을 **공평 몫 → 남은 칸** 두 벌로 담는다.
+
+    두 벌로 나누는 이유는 실측 Q-105 다. 셀이 3개면 공평 몫이 `4 // 3 = 1` 칸인데
+    `quarter` 셀에는 답이 **두 문서에 걸쳐** 있다 — 케이티 2025 분기보고서는 1분기
+    (base_month 3)와 3분기(base_month 9) 둘이고, 질문이 부른 것은 3분기다. 그런데 두
+    문서의 해당 섹션은 88자 스텁으로 **글자가 똑같아서 BM25 점수가 72.711 로 완전 동점**이다.
+    점수로는 영원히 못 가른다.
+
+    가르는 축은 `base_month` 인데 그것은 `section_index.json` 의 필터 축이 아니다
+    (`fields` = doc_id·corp_name·doc_subtype·rcept_dt·base_year·path). 인덱스를 다시
+    굽지 않고 이 문항을 살리는 길은 **둘 다 담는 것**이다 — 근거 블록 머리에 `접수번호`와
+    `공시일` 이 찍히므로 어느 쪽이 3분기인지는 생성이 가린다. 검색이 후보를 다 대고
+    선택을 생성에 넘기는 것이 이 경우의 올바른 분업이다.
+
+    남은 칸은 **1차에서 몫을 못 쓴 셀이 아니라 순서대로** 돌린다. 1차가 이미 공평을
+    보장했으므로 2차는 '남으면 더 담는다' 이고, 동점 셀이 그 칸을 가져간다.
+    """
+    path = (plan.paths or (None,))[0]
+    pools: list[tuple[tuple, object, list[dict]]] = []
+    for cell in cells:
+        for corp in corps:
+            try:
+                budget.spend_step()
+            except BudgetExceeded as exc:
+                trace.append(f"hop={plan.hop} stop=step_budget ({exc})")
+                return taken, True
+            args = {"query": plan.query, "top_k": plan.top_k,
+                    "group": "periodic", **cell}
+            if corp:
+                args["corp_name"] = corp
+            if path:
+                args["path"] = path
+            out = tools.execute("search_chunks", args)
+            if "error" in out:
+                trace.append(f'hop={plan.hop} strat={plan.strategy} '
+                             f'tool=search_chunks group=periodic skip=tool_error '
+                             f'건너뜀({out["error"]})')
+                return taken, True
+            hits = out.get("chunks") or []
+            trace.append(_log_section(plan, corp, path, hits, cell))
+            pools.append(((cell["doc_subtype"], cell["base_year"], corp), corp, hits))
+
+    counts: dict = {}
+    cap = _report_quota(len(cells), len(corps))
+    for limit in (cap, MAX_SECTION_EVIDENCE):      # 1차 공평 몫 · 2차 남은 칸
+        for key, corp, hits in pools:
+            for chunk in hits:
+                if taken >= MAX_SECTION_EVIDENCE:
+                    break
+                if quota[corp] <= 0 or counts.get(key, 0) >= limit:
+                    break
+                if take(chunk.get("chunk_id"), chunk.get("markdown"),
+                        chunk.get("score"), corp):
+                    taken += 1
+                    quota[corp] -= 1
+                    counts[key] = counts.get(key, 0) + 1
+
+    keys = {key for key, _, _ in pools}
+    if all(counts.get(key, 0) for key in keys):
+        # 부른 보고서를 **전부** 담았으면 그 집합이 답이다 — 더 넓히면 오염된다.
+        # 정기공시 차선의 유일한 '충분성 -> 정지' 간선이다 (`_sufficiency` 는
+        # `_gather_sections` 가 끝난 뒤 한 번 불려 사다리를 되돌릴 수 없다).
+        trace.append(f"hop={plan.hop} stop=named_reports_covered "
+                     f"(부른 보고서 {len(keys)}종을 모두 회수)")
+        return taken, True
+    return taken, False
+
+
 def _gather_sections(r, question: str, budget: Budget,
                      trace: list[str], take) -> int:
     """정기공시 섹션 ReAct 루프. LLM 0회.
@@ -825,13 +980,15 @@ def _gather_sections(r, question: str, budget: Budget,
     먹으면 짝 경로를 찾아 놓고도 담지 못하므로 **(기업 × 경로) 셀마다 할당량**을 둔다.
     """
     paths = path_hints(question, tools.section_paths())
-    plans = plan_section_hops(question, report_hints(question), paths, r.years)
+    plans = plan_section_hops(question, report_hints(question), paths,
+                              _fiscal_years(r, question))
     if not ablation.current().hop_ladder:
         plans = plans[:1]                       # A1b 이하 — 재검색 사다리를 태우지 않는다
     corps = r.companies[:3] or [None]
     # 비교 질의는 한쪽만 채우면 답이 안 된다. 한 기업이 근거 칸을 다 먹지 않게 나눈다.
     per_corp = max(1, MAX_SECTION_EVIDENCE // len(corps))
     quota = {corp: per_corp for corp in corps}
+    named = _report_cells(question)             # 질문이 이름을 부른 보고서들
     taken = 0
     for plan in plans:
         if plan.hop > 0:
@@ -840,6 +997,13 @@ def _gather_sections(r, question: str, budget: Budget,
             except BudgetExceeded as exc:
                 trace.append(f"hop={plan.hop} stop=hop_budget ({exc})")
                 break
+        # 제동 ①③ — 부른 보고서가 둘 이상이고 접수일 접두가 없는 hop 0 만 쪼갠다.
+        if plan.hop == 0 and len(named) >= 2 and not plan.prefix:
+            taken, stop = _drain_report_cells(
+                plan, named, corps, quota, taken, budget, trace, take)
+            if stop:
+                break
+            continue
         hop_paths = plan.paths or (None,)
         for index, path in enumerate(hop_paths):
             cell_cap = _path_cap(per_corp, index, len(hop_paths))
