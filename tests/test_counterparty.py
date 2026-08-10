@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from scripts.eda_counterparty import RECORDS_PATH, build_profile
-from scripts.build_counterparty_graph import BOILERPLATE_NOTE, build_graph
+from scripts.build_counterparty_graph import BOILERPLATE_NOTE, build_graph, sentence_like
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE_PATH = ROOT / "artifacts/eda/counterparty_profile.json"
@@ -59,6 +59,93 @@ def test_canonical_merges_known_surface_variants():
     assert cp.canonical("대한민국 방위사업청") == cp.canonical("방위사업청")
     assert cp.canonical("(주)한국수력원자력") == cp.canonical("한국수력원자력")
     assert cp.canonical("Torp Co., Ltd.") == cp.canonical("TORP")
+
+
+#: B/I-12 — `_SUFFIX` 가 앵커 없이 적용돼 회사명 **내부**를 지웠다. 왼쪽이 원문,
+#: 오른쪽이 종전 훼손 결과다. 이 표가 회귀 게이트다.
+SUFFIX_DAMAGE_BEFORE_FIX = {
+    "HD Hyundai Electric America Corporation": "hdhyundaielectricamericaoration",
+    "Tanzania Railways Corporation": "tanzaniarailwaysoration",
+    "Taipei Rapid Transit Corporation": "taipeirapidtransitoration",
+    "Baxter Healthcare Corporation": "baxterhealthcareoration",
+    "Lincoln Electric": "lolnelectric",                 # L-inc-oln
+    "Incheon Energy": "heonenergy",                     # Inc-heon
+    "Corning Incorporated": "corningorporated",
+    "SWORDS LABORATORIES UNLIMITED COMPANY": "swordslaboratoriesuncompany",  # UN-limited
+    "Princeton Advisory": "pretonadvisory",             # Pr-inc-eton
+    "Sinclair Broadcast": "slairbroadcast",             # S-inc-lair
+}
+
+
+def test_canonical_does_not_strip_legal_suffixes_inside_words():
+    """접미사 제거가 단어 내부에 적용되면 두 가지 피해가 난다.
+
+    ① **엔티티 분열** — 같은 회사가 `CORP.` / `Corporation` 으로 적히면 다른 노드가 된다.
+    ② **엔티티 오병합** — `Incheon`·`Lincoln` 처럼 `inc` 를 품은 이름이 잘려 서로 다른
+       두 회사가 같은 키로 접힐 수 있다. 노드가 잘못 합쳐지면 `via` 가 **없는 밸류체인
+       연결을 근거로 인용**한다 — 우리 시스템에서 가장 나쁜 종류의 결함이다.
+
+    실측(exchange_records.jsonl 462종 전량)으로는 아직 오병합 0건이지만
+    (그래서 노드 145 · 쌍 44 가 이 수정 후에도 그대로다), "인천/Incheon" 은 한국
+    공시에 충분히 나올 이름이다. 새 데이터를 기다리지 않고 막는다.
+    """
+    for raw, damaged in SUFFIX_DAMAGE_BEFORE_FIX.items():
+        got = cp.canonical(raw)
+        assert got != damaged, f"단어 내부 접미사 제거가 되살아났다: {raw!r} -> {got!r}"
+    # 끝에 붙은 정당한 법인격 표지는 여전히 접혀야 한다 (과잉 수정 방지).
+    assert cp.canonical("Tanzania Railways Corporation") == "tanzaniarailways"
+    assert cp.canonical("Corning Incorporated") == "corning"
+    assert cp.canonical("YANG MING MARINE TRANSPORT CORP.") == \
+        cp.canonical("Yang Ming Marine Transport Corporation")
+    assert cp.canonical("Torp Co., Ltd.") == cp.canonical("TORP")
+    # 단어 내부는 온전해야 한다.
+    assert cp.canonical("Lincoln Electric") == "lincolnelectric"
+    assert cp.canonical("Incheon Energy") == "incheonenergy"
+
+
+def test_canonical_still_folds_korean_legal_markers_anywhere():
+    """🔴 리뷰어 처방(문자열 끝 앵커 `(?:[\\s,·]|^)…\\s*$`)을 기각한 근거의 회귀 고정.
+
+    한국 표기는 법인격 표지가 **조사 없이 고유명사에 바로 붙는다**(`삼성전자㈜` ·
+    `현대제철주식회사`) — 앞에 `[\\s,·]` 가 없어서 끝 앵커가 매치하지 않는다. 실측:
+    그 정규식을 쓰면 462종 중 **80종**의 키가 바뀌고 canonical 그룹이 407 → 418 로
+    분열하며 `삼성전자㈜`·`두산에너빌리티㈜`·`현대제철주식회사` 가 `universe` → `other`
+    로 오분류된다. 그래서 한글 표지는 앵커 없이 그대로 두고 로마자만 경계를 걸었다.
+    """
+    for raw, key in {
+        "삼성전자㈜": "삼성전자", "삼성전자(주)": "삼성전자",
+        "두산에너빌리티㈜": "두산에너빌리티", "현대제철주식회사": "현대제철",
+        "한국수력원자력 주식회사": "한국수력원자력",
+        "주식회사 유토개발2차": "유토개발2차", "주식회사유토개발2차": "유토개발2차",
+        "한국항공우주산업㈜ (KOREA AEROSPACE INDUSTRIES, LTD.)": "한국항공우주산업",
+    }.items():
+        assert cp.canonical(raw) == key, raw
+    # 오분류가 되살아나면 여기서 먼저 깨진다.
+    assert cp.classify("삼성전자㈜") == "universe"
+    assert cp.classify("현대제철주식회사") == "universe"
+
+
+def test_canonical_never_returns_an_empty_key():
+    """빈 키는 서로 다른 원문을 한 노드로 접는다 — 오병합의 조용한 경로다.
+
+    실측: 462종 중 `"(삭제)"` 1종이 접기 후 빈 문자열이 됐다(그래프 빌더의
+    `BOILERPLATE_NOTE` 가 먼저 걸러 노드 수에는 영향이 없었지만, `classify` 의
+    접두일치는 빈 키에서 의미를 잃는다).
+    """
+    for raw in ("(삭제)", "㈜", "주식회사", "(주)", " (유) ", "Inc."):
+        assert cp.canonical(raw) != "", f"{raw!r} 의 canonical 이 빈 문자열이다"
+    # 서로 다른 원문이 같은 키로 접히지 않아야 한다.
+    assert cp.canonical("(삭제)") != cp.canonical("㈜")
+
+
+def test_short_real_company_names_are_not_cut_by_a_length_guard():
+    """2자 이하를 걸러내는 가드를 넣으면 실명 회사를 잃는다 — 넣지 않았다는 회귀 고정.
+
+    `기아(주)` → `기아`(2자) · `주식회사 SR` → `sr`(2자) 는 둘 다 실명 회사다.
+    """
+    assert cp.canonical("기아(주)") == "기아"
+    assert cp.canonical("주식회사 SR") == "sr"
+    assert cp.canonical("기아㈜") == cp.canonical("기아")
 
 
 def test_classify_separates_public_from_vague():
@@ -232,6 +319,102 @@ def test_boilerplate_filter_does_not_cut_real_company_names():
     ]
     for s in real_long_names:
         assert not BOILERPLATE_NOTE.search(s), f"실명 회사가 오탐됐다: {s!r}"
+
+
+def test_sentence_like_values_are_blocked_by_structure_not_by_min_count():
+    """B/I-11 — `BOILERPLATE_NOTE` 는 어휘 필터라 안내문·열거문을 완결하게 못 걸렀다.
+
+    실측: 462종 중 14종이 어휘 필터도 `classify()` 도 통과해 승격 후보로 올라온다.
+    전부 `count == 1` 이라 **지금 막고 있는 것은 `MIN_COUNT=2` 뿐**이고, 그중 두 종은
+    `"… 10개월 이내에 …"` / `"… 8개월 이내에 …"` 로 **개월 수만 다른 쌍둥이**다 —
+    같은 발행사가 같은 템플릿을 한 번 더 쓰면 그 순간 문장이 노드 키가 된다.
+    """
+    for raw in (
+        "상기 계약은 계약상대의 선택에 따라 대선계약(수주)일자로부터 10개월 이내에 "
+        "대선계약에서 장기화물운송계약으로 변동될 수 있으며",
+        "상기 계약은 계약상대의 선택에 따라 대선계약(수주)일자로부터  8개월 이내에 "
+        "대선계약에서 장기화물운송계약으로 변동될 수 있으며",
+        "- 상기3의 '이사회결의일(결정일)'은 양사합의에 의한 계약기간 종료일임.",
+        "3. 이사회의결의일(결정일) 또는 사실확인일은 양사합의에 의한 계약기간 종료일입니다.",
+        "바. 상기 5항의 계약종료일은 계약상대방과 협의하여 납기 연장 되었습니다.",
+        "※ 최근 매출액은 2018년도 연결기준 매출액입니다. ※ 계약 기간 동안 발생한 매출총액",
+        "1) 당사는 유럽 지역 시장 점유율 확대를 목적으로 유럽 판매법인을 설립함.",
+        "- 계약상대방 변경 및 계약기간 연장 1) 판매ㆍ공급계약 구분: 폴리실리콘 공급",
+        "- 상기 계약은 2023년 8월 25일 체결된 '지위이전 합의서'에 따라 변경되었습니다.",
+    ):
+        assert sentence_like(raw), f"문장형 값이 여전히 승격 후보다: {raw[:40]!r}"
+
+
+def test_sentence_like_filter_does_not_cut_real_company_names():
+    """🔴 리뷰어 처방의 "40자 초과" 단독 조건을 기각한 근거의 회귀 고정.
+
+    리뷰어는 "승격 402종 중 40자 초과는 그 문장들뿐" 이라고 했으나 전량 재대조 결과
+    40자 초과는 **43종**이고 그중 32종이 실명이다. 길이 단독 조건을 넣으면
+    `방위사업청 (Defense Acquisition Program Administration)`(count 91, **최대 허브**)이
+    탈락해 그래프가 무너진다. 길이는 오탐 방어용 하한으로만 쓴다.
+    """
+    for raw in (
+        "방위사업청 (Defense Acquisition Program Administration)",
+        "방위사업청(Defense Acquisition Program Administation)",
+        "한국항공우주산업㈜ (KOREA AEROSPACE INDUSTRIES, LTD.)",
+        "MPA (Maritime and Port Authority of Singapore)",
+        "China National Chemical Engineering & Construction Corporation Seven, Ltd.",
+        "타이중시 정부 도시철도공정국(Rapid Transit System Bureau of Taichung City Government)",
+        "뭄바이광역개발청 (Mumbai Metropolitan Region Development Authority)",
+        "브라질 상파울루 메트로(COMPANHIA DO METROPOLITANO DE SAO PAULO-METRO)",
+        "Shell Petroleum Development Company Nigeria Limited",
+        "Aramco Asia Japan K.K. (Saudi Aramco 자회사)",
+        "The General Company for Ports of Iraq (이라크 교통부 산하 항만공사)",
+        "싸토리우스코리아오퍼레이션스 유한회사 (Sartorius Korea Operations LLC)",
+    ):
+        assert not sentence_like(raw), f"실명 회사가 문장으로 오탐됐다: {raw!r}"
+
+
+def test_excluded_sentence_like_records_the_raw_and_the_reason(tmp_path):
+    """걸러진 것을 조용히 버리지 않는다 — 원문·건수·사유를 남긴다.
+
+    종전에는 이 14종이 애초에 어느 필터에도 안 걸려 `excluded_boilerplate` 에도
+    기록이 없었다. `excluded_vague` 도 건수만 남고 원문이 없어 사후 오탐 확인이
+    불가능했다 — 둘 다 원문을 남긴다.
+    """
+    if not RECORDS_PATH.exists():
+        pytest.skip(f"{RECORDS_PATH} 이 없어 그래프를 재생성할 수 없다 (원본 5.2GB 필요).")
+    g = build_graph(tmp_path / "graph.json")
+
+    assert g["stats"]["sentence_like_excluded_unique"] == 14      # 실측 고정
+    assert g["stats"]["sentence_like_excluded_occurrences"] == 14
+    assert len(g["excluded_sentence_like"]) == 14
+    for item in g["excluded_sentence_like"]:
+        assert item["raw"] and item["count"] >= 1 and item["reason"]
+        assert sentence_like(item["raw"])
+    # 쌍둥이 두 종이 실제로 걸렸는지 (B1 사고 기전의 핵심)
+    twins = [i["raw"] for i in g["excluded_sentence_like"] if "대선계약" in i["raw"]]
+    assert len(twins) == 2, f"개월 수만 다른 쌍둥이가 안 걸렸다: {twins}"
+
+    assert g["stats"]["vague_excluded_unique"] == 33              # 실측 고정
+    assert g["stats"]["vague_excluded_occurrences"] == 196
+    for item in g["excluded_vague"]:
+        assert item["raw"] and item["count"] >= 1 and item["reason"]
+
+
+def test_the_normalizer_and_boilerplate_fixes_leave_the_graph_unchanged(tmp_path):
+    """🔴 I-11·I-12 를 고쳐도 **그래프가 바뀌지 않는다** 는 것이 이 수정의 전제다.
+
+    리뷰어는 "145·44 는 하한" 이라며 접미사 앵커링이 노드를 늘릴 것으로 봤고, 근거로
+    두 쌍을 들었다. 전량 재대조로 **기각**했다:
+      · `hdhyundaielectricamericaoration`(4) / `hyundaielectricamericaoration`(1) 은
+        접미사가 아니라 **`HD` 접두** 때문에 갈렸다 — 앵커링해도 두 키로 남는다.
+      · `algihaz`(1) / `algihazcontractingcompany`(1) 의 차이는 `Contracting Company` 이고
+        그것은 `_SUFFIX` 목록에 아예 없다 — 이 수정으로는 합쳐질 수 없다.
+    앵커판과 현행을 462종 전량 대조하면 키가 바뀌는 것은 6종(전부 `overseas`)뿐이고
+    **canonical 그룹 수 407 = 407 · 오병합 0 · 분열 0** 이다. 코디네이터 측정이 맞다.
+    """
+    if not RECORDS_PATH.exists():
+        pytest.skip(f"{RECORDS_PATH} 이 없어 그래프를 재생성할 수 없다 (원본 5.2GB 필요).")
+    s = build_graph(tmp_path / "graph.json")["stats"]
+    assert (s["nodes"], s["pairs"], s["hubs_2plus_partners"]) == (145, 44, 25)
+    assert s["boilerplate_excluded_unique"] == 27
+    assert s["boilerplate_excluded_occurrences"] == 34
 
 
 def test_country_plus_generic_noun_hubs_are_reported_not_silently_promoted():

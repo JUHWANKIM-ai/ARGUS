@@ -48,6 +48,40 @@ MIN_COUNT = 2  # 1회 등장(실측 356개 노드 후보 중 211개, 59.3%)은 �
 #: 이 정규식이 단독으로도 안내문을 완결하게 걸러낸다는 걸 보여준다.
 BOILERPLATE_NOTE = re.compile(r"비밀\s*유지|공시유보|비공개사항|^\(?삭제\)?$")
 
+#: B/I-11 — 어휘(`BOILERPLATE_NOTE`)만으로는 **문장이 노드 키가 되는 사고**를 못 막는다.
+#: 462종 전량 재대조로 `BOILERPLATE_NOTE` 도 `classify()` 도 안 걸러 승격 후보로
+#: 올라오는 '문장' 14종을 찾았다(안내문·열거문·필드라벨 오염). 전부 현재 `count == 1`
+#: 이라 지금 막고 있는 것은 `MIN_COUNT=2` 뿐이고, **그 방어막은 중복 한 건 거리**다 —
+#: 걸린 것 중 두 종은 `"… 10개월 이내에 …"` / `"… 8개월 이내에 …"` 로 **개월 수만 다른
+#: 쌍둥이**이므로, 같은 발행사가 같은 템플릿을 한 번 더 쓰면 그 순간 문장이 노드가 된다.
+#:
+#: 어휘가 아니라 **구조**로 막는다. 회사명은 (1) 열거 머리표지로 시작하지 않고
+#: (2) 문장 종결어미·지시어(`상기`·`해당 일자`)를 쓰지 않는다.
+#:
+#: 🔴 길이 단독 조건은 **채택하지 않았다.** 리뷰어 처방은 "40자 초과 · 머리표지 · 문장어미
+#: 중 **하나라도**" 였고 "승격 402종 중 40자 초과는 그 문장들뿐" 이라고 했으나, 전량
+#: 재대조 결과 40자 초과는 **43종**이고 그중 32종이 실명이다 — `방위사업청 (Defense
+#: Acquisition Program Administration)`(count 91, **최대 허브**) ·
+#: `한국항공우주산업㈜ (KOREA AEROSPACE INDUSTRIES, LTD.)`(13) ·
+#: `MPA (Maritime and Port Authority of Singapore)`(7) 등. 그대로 넣으면 그래프가 무너진다.
+#: 길이는 오탐 방어용 **하한**으로만 쓴다(짧은 실명 회사명이 `함$` 류에 걸리는 것을 막는다).
+SENTENCE_LIKE_MIN_LEN = 20
+#: 열거·조항 머리표지: `- ` · `※ ` · `1) ` · `3. ` · `바. `
+_SENTENCE_LEAD = re.compile(r"^\s*[-–—※]\s|^\s*\d+\s*[).]\s|^\s*[가-힣]\.\s")
+#: 문장 종결어미·지시어. 회사명은 이 어휘를 쓰지 않는다(402종 전량 대조).
+_SENTENCE_BODY = re.compile(r"습니다|입니다|바랍니다|(?:^|\s)상기|해당\s*일자|[함임]\.?$")
+
+
+def sentence_like(value: str) -> str:
+    """문장·열거문이면 사유 문자열, 아니면 빈 문자열. 노드로 승격하지 않는다."""
+    if len(value) < SENTENCE_LIKE_MIN_LEN:
+        return ""
+    if _SENTENCE_LEAD.search(value):
+        return "열거·조항 머리표지로 시작한다"
+    if _SENTENCE_BODY.search(value):
+        return "문장 종결어미 또는 지시어(상기·해당 일자)를 쓴다"
+    return ""
+
 
 def _load_records() -> list[dict]:
     return [
@@ -71,7 +105,9 @@ def build_graph(out: Path = DEFAULT_OUT, min_count: int = MIN_COUNT) -> dict:
     partners: dict[str, set[str]] = collections.defaultdict(set)
     kinds: dict[str, str] = {}
     excluded_boilerplate: collections.Counter[str] = collections.Counter()
-    excluded_vague = 0
+    excluded_sentence: collections.Counter[str] = collections.Counter()
+    sentence_reason: dict[str, str] = {}
+    excluded_vague_raw: collections.Counter[str] = collections.Counter()
 
     for r in recs:
         cp = r.get("counterparty")
@@ -81,9 +117,14 @@ def build_graph(out: Path = DEFAULT_OUT, min_count: int = MIN_COUNT) -> dict:
         if BOILERPLATE_NOTE.search(cp):
             excluded_boilerplate[cp] += 1
             continue
+        why = sentence_like(cp)
+        if why:
+            excluded_sentence[cp] += 1
+            sentence_reason[cp] = why
+            continue
         kind = classify(cp)
         if kind == "vague":
-            excluded_vague += 1
+            excluded_vague_raw[cp] += 1
             continue
         k = canonical(cp)
         counts[k] += 1
@@ -121,7 +162,10 @@ def build_graph(out: Path = DEFAULT_OUT, min_count: int = MIN_COUNT) -> dict:
             "hubs_2plus_partners": sum(1 for n in nodes if len(n["partners"]) >= 2),
             "boilerplate_excluded_unique": len(excluded_boilerplate),
             "boilerplate_excluded_occurrences": sum(excluded_boilerplate.values()),
-            "vague_excluded_occurrences": excluded_vague,
+            "sentence_like_excluded_unique": len(excluded_sentence),
+            "sentence_like_excluded_occurrences": sum(excluded_sentence.values()),
+            "vague_excluded_unique": len(excluded_vague_raw),
+            "vague_excluded_occurrences": sum(excluded_vague_raw.values()),
         },
         "excluded_boilerplate": [
             {
@@ -133,6 +177,22 @@ def build_graph(out: Path = DEFAULT_OUT, min_count: int = MIN_COUNT) -> dict:
                 ),
             }
             for raw, c in sorted(excluded_boilerplate.items(), key=lambda x: -x[1])
+        ],
+        # B/I-11 — 어휘 필터가 못 걸러 `MIN_COUNT` 하나에만 기대고 있던 문장들.
+        # 조용히 버리지 않고 원문·건수·사유를 남긴다 (걸러진 기록이 없으면 다음 사람이
+        # "안 걸렸다" 와 "없었다" 를 구별할 수 없다).
+        "excluded_sentence_like": [
+            {"raw": raw, "count": c,
+             "reason": f"I-11: 회사명이 아니라 문장·열거문이 counterparty 값이다 — "
+                       f"{sentence_reason[raw]}"}
+            for raw, c in sorted(excluded_sentence.items(), key=lambda x: -x[1])
+        ],
+        # 종전에는 건수만 남고 원문이 없어 오탐 여부를 사후에 확인할 수 없었다.
+        "excluded_vague": [
+            {"raw": raw, "count": c,
+             "reason": "비실명 계약상대(ANON_COUNTERPARTY) — 어느 기업인지 원문에 없어 "
+                       "노드로 올리면 서로 다른 실체가 한 노드로 뭉친다"}
+            for raw, c in sorted(excluded_vague_raw.items(), key=lambda x: -x[1])
         ],
     }
 
@@ -156,7 +216,9 @@ def main() -> None:
     print(
         f"nodes {s['nodes']} · pairs {s['pairs']} · hubs(2+partners) {s['hubs_2plus_partners']} · "
         f"boilerplate excluded {s['boilerplate_excluded_unique']} unique / "
-        f"{s['boilerplate_excluded_occurrences']} occurrences"
+        f"{s['boilerplate_excluded_occurrences']} occurrences · "
+        f"sentence-like excluded {s['sentence_like_excluded_unique']} unique / "
+        f"{s['sentence_like_excluded_occurrences']} occurrences"
     )
 
 

@@ -131,6 +131,59 @@ def test_boolean_ignores_the_citation_tail():
     assert ea.boolean_verdict("정정공시는 없습니다. (근거: … 크다 큽니다 20230131800162)") is False
 
 
+# --- C/I-4: 정규식으로 한국어 부정을 판정하는 접근의 한계선 ---------------------
+
+def test_double_negation_is_not_judged_instead_of_being_judged_backwards():
+    """이중부정은 마지막 극성 표지만 보면 **뒤집힌다** — 판정하지 않는다.
+
+    `"없지 않습니다"` = 있다 인데 마지막 표지가 `없습니다` 라 종전에는 `False` 가 나왔다.
+    뒤집힌 답은 오답을 정답으로도 만들 수 있어 `no_verdict` 보다 나쁘다 —
+    `no_verdict` 는 채점상 오답이지만 `by="boolean:no_verdict"` 로 **판정 불가임이
+    산출물에 남는다**(정답률을 조용히 부풀리지 않는다).
+    """
+    for text in ("없지 않습니다",
+                 "정정공시가 없다고 볼 수 없습니다",
+                 "해당 사실이 없다고 할 수 없습니다",
+                 "정정 이력이 없지 않은 것으로 보입니다"):
+        assert ea.boolean_verdict(text) is None, text
+    # `있지 않습니다`(= 없다)는 뒤집히지 않으므로 **판정한다** — 과잉 수정 방지 회귀.
+    assert ea.boolean_verdict("있지 않습니다") is False
+    # 판정 불가는 채점상 오답이지만 라벨로 드러난다.
+    case = {"answer_form": "boolean", "answer": "있다", "tolerance": 0}
+    out = ea.score_closed(case, "없지 않습니다")
+    assert not out["correct"] and out["by"] == "boolean:no_verdict"
+
+
+def test_conditional_clauses_are_not_read_as_factual_assertions():
+    """조건절은 **사실 주장이 아니다** — `있었` 하나로 긍정을 찍으면 안 된다."""
+    for text in ("만약 정정공시가 있었다면 공시했을 것입니다",
+                 "정정공시가 있었다면 접수번호가 부여되었을 것입니다",
+                 "만일 해당 계약이 변경되었다면 재공시 대상입니다"):
+        assert ea.boolean_verdict(text) is None, text
+
+
+def test_the_measured_boolean_cases_do_not_regress():
+    """실측 사고 문장은 종전과 같은 판정을 유지해야 한다.
+
+    이력: 과거형(`있었습니다`·`없었습니다`)을 빠뜨려 **정확한 답이 `no_verdict` 로 샌**
+    사고가 있었다(Q-026). 한계선을 그으면서 그 커버리지를 다시 잃으면 안 된다.
+    실측: v2 전 13 arm 에서 boolean 채점 변경 **0건**을 확인했다.
+    """
+    assert ea.boolean_verdict("… 정정공시는 없었습니다.") is False          # Q-026
+    assert ea.boolean_verdict("네, … 정정공시를 했습니다.") is True          # Q-025
+    assert ea.boolean_verdict("A가 B보다 큽니다. 따라서 B는 A보다 작습니다.") is False  # Q-047
+    assert ea.boolean_verdict("정정공시가 있었습니다.") is True
+
+
+def test_the_deciding_sentence_is_the_last_one_with_a_polarity_marker():
+    """어형 판정은 **결론 문장**에서 한다 — 앞쪽 조건절 설명이 명확한 결론을 무효화하면
+    안 된다(과잉 수정 방지).
+    """
+    text = ("만약 정정공시가 있었다면 접수번호가 부여됩니다. "
+            "확인 결과 정정공시는 없었습니다.")
+    assert ea.boolean_verdict(text) is False
+
+
 def test_refusal_form_matches_limitation_phrase():
     case = {"answer_form": "refusal", "answer": "제공된 공시 데이터에서 확인되지 않습니다."}
     assert ea.score_closed(case, "공시에서 확인되지 않습니다.")["correct"]
@@ -346,6 +399,109 @@ def test_verify_when_critic_passed_a_wrong_answer():
 def test_generation_when_evidence_is_right_but_answer_is_wrong():
     case = {"answerable": True, "corp_name": ["A"], "doc_group": "exchange"}
     assert _attr(case, hit=dict(_IN_PROMPT), positions=dict(_FOUND)) == "GENERATION"
+
+
+# --- B/I-7: VERIFY 가 만능 버킷이 되지 않는다 -----------------------------------
+
+def test_verify_no_longer_swallows_rows_that_generation_can_explain():
+    """🔴 "A6 병목 1위" 를 두 번 만든 기전의 회귀 고정.
+
+    `critic` 은 파이프라인의 **마지막** 게이트다. 따라서 critic 통과는 '첫 실패' 가 될
+    수 없다 — 앞에서 이미 무언가 틀렸다. 종전에는 ⑦ VERIFY 가 ⑧ GENERATION 보다
+    앞에 있어 `critic_supported is True` 인 모든 오답을 삼켰고, `root_cause` 의 분기
+    (INDEX_FIELD_MISSING / REASONING)가 가려졌다. 실측: A6 3건 과대 · A5 0건
+    (수동 원문 대조는 A6 1 · A5 4).
+    """
+    case = {"answerable": True, "corp_name": ["A"], "doc_group": "exchange"}
+    critic_ok = dict(_FACTS, critic_supported=True)
+    # 근거에 골든 수치가 없다 → 인덱스 커버리지 문제로 갈라야 한다 (실측 Q-101)
+    assert _attr(case, trace_facts=critic_ok, hit=dict(_IN_PROMPT),
+                 positions=dict(_FOUND), has_gold_value=False) == "GENERATION"
+    # 근거에 값이 있는데 답이 틀렸다 → 추론 문제다
+    assert _attr(case, trace_facts=critic_ok, hit=dict(_IN_PROMPT),
+                 positions=dict(_FOUND), has_gold_value=True) == "GENERATION"
+    # 대조할 수치가 아예 없어 생성 단계로는 아무 말도 못 할 때만 VERIFY 다 (실측 Q-087)
+    assert _attr(case, trace_facts=critic_ok, hit=dict(_IN_PROMPT),
+                 positions=dict(_FOUND), has_gold_value=None) == "VERIFY"
+
+
+def test_critic_pass_is_recorded_even_when_the_stage_is_not_verify():
+    """VERIFY 버킷을 좁혔으므로 이 신호가 사라지면 A6 을 볼 방법이 없어진다.
+
+    귀속 단계와 **무관하게** 남는다 — `attribute` 의 `why` 와 행의
+    `critic_passed_wrong_answer`, 그리고 보고서의 대조표가 각각 들고 있다.
+    """
+    case = {"answerable": True, "corp_name": ["A"], "doc_group": "exchange"}
+    out = ea.attribute(case, dict(_FACTS, critic_supported=True), False,
+                       dict(_NO_LIMIT), dict(_FOUND), dict(_IN_PROMPT),
+                       dict(_CLEAN_CALC), has_gold_value=False)
+    assert out["stage"] == "GENERATION"
+    assert "critic" in out["why"] and "supported=True" in out["why"]
+
+
+def test_the_arm_map_does_not_claim_a6_for_the_verify_bucket():
+    """arm 을 지목하는 것은 원문 대조가 끝난 표의 몫이다.
+
+    `verify_calculation` 이 답변 수치 중 **최유리 값**을 골라 비교하므로
+    (`critic.py:208` 의 `min(claims, key=...)`) 계산 실패가 이 버킷으로 샌다.
+    자동 히스토그램에 `A6` 을 박아 두면 그 수가 문서로 옮겨 적힌다.
+    """
+    label = ea.ARM_BY_ROOT_CAUSE["VERIFY/VERIFY"]
+    # arm 을 **지목**하지 않는다 — `**A6**` 형태의 겨냥 표기가 없어야 한다.
+    assert ea._arm_of({"first_failure": "VERIFY", "root_cause": "VERIFY"}) == "미분류"
+    assert "**A6**" not in label
+    assert "원문 대조" in label
+    # 계산 답이 A1b 로 오라벨될 수 있다는 경고는 유지돼야 한다.
+    assert "⚠" in ea.ARM_BY_ROOT_CAUSE["GENERATION/INDEX_FIELD_MISSING"]
+
+
+def test_the_report_reconciles_the_automatic_and_manual_arm_allocations():
+    """두 배분표가 **대조 없이** 한 보고서에 공존하던 것이 오판을 두 번 만들었다.
+
+    침묵이 최악이다 — 차이와 정본을 산출물에 명시한다.
+    """
+    rows = [_row("Q-087", "search_extract", "closed", "중", False, "VERIFY"),
+            _row("Q-094", "search_extract", "closed", "중", False, "RANKING",
+                 root_cause="LOW_RANK"),
+            _row("Q-023", "search_extract", "closed", "중", True)]
+    rec = ea.arm_allocation_reconciliation(rows)
+
+    assert rec["authoritative"] == "manual"
+    assert "A5" in rec["note"] and "최유리" in rec["note"]
+    # 분모가 다르다는 사실이 명시돼야 한다 (자동=그리드만, 수동=전 트랙).
+    assert "그리드" in rec["denominator_note"] and "전 트랙" in rec["denominator_note"]
+    # 자동이 arm 을 지목하지 않은 Q-087 은 수동 정본(A6)과 불일치로 잡혀야 한다.
+    disagree = {d["question_id"]: d["manual_arm"] for d in rec["disagreements"]}
+    assert disagree.get("Q-087") == "A6"
+    # 일치하는 것은 불일치 목록에 없다.
+    assert "Q-094" not in disagree
+    by_arm = {i["arm"]: i for i in rec["by_arm"]}
+    assert by_arm["A5"]["manual_all_tracks"] == 4      # 수동 정본은 A5 4건
+    assert by_arm["A5"]["auto_grid"] == 0              # 자동은 구조적으로 0건
+
+
+def test_the_manual_allocation_is_a_single_source_shared_with_the_gate():
+    """🔴 `scripts/ablation.py::render_gate` §9 의 `targeted` 와 갈리면 안 된다.
+
+    같은 표가 두 곳에 하드코딩돼 있으면 한쪽만 고쳐진다 — 이 프로젝트가 배분표
+    불일치로 이미 두 번 오판했다. 여기가 단일 원천이고, 게이트가 이 상수를 읽어야 한다.
+    """
+    mine = {arm: set(ids) for arm, ids, _ in ea.TARGETED_BY_MANUAL_REVIEW}
+    assert sum(len(v) for v in mine.values()) == 13     # 오답 13건 전량
+    assert set(mine) == {"A4", "A5", "A1b", "A6", "A3"}
+    # 문항이 두 arm 에 동시에 배분되면 안 된다 (배분표는 분할이다).
+    flat = [q for ids in mine.values() for q in ids]
+    assert len(flat) == len(set(flat))
+
+    source = (ea.ROOT / "scripts" / "ablation.py").read_text(encoding="utf-8")
+    assert "ea.TARGETED_BY_MANUAL_REVIEW" in source, (
+        "게이트가 배분표를 다시 하드코딩했다 — 같은 표가 두 곳에 있으면 한쪽만 고쳐진다"
+    )
+    for arm, ids in mine.items():
+        for qid in ids:
+            assert f'"{qid}"' not in source, (
+                f"게이트가 {qid} 를 직접 적었다 — {arm} 배분이 갈릴 수 있다"
+            )
 
 
 # --- 근본 원인 세분 ------------------------------------------------------------

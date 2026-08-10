@@ -20,8 +20,26 @@ from argus.corpus.manifest import load_universe
 #: 표기 변이 접기 — scripts/validate_evalset.py 의 _CP_PAREN/_CP_SUFFIX/_CP_PREFIX 와
 #: 동일 규칙(실측 정본). 여기가 이제 단일 원천이다.
 _PAREN = re.compile(r"\([^)]*\)")
-_SUFFIX = re.compile(
-    r"(주식회사|\(주\)|㈜|\(유\)|Co\.,?\s*Ltd\.?|Corp\.?|Inc\.?|Limited|LLC|S\.A\.)", re.I)
+#: 한글 법인격 표지. **앵커를 걸지 않는다** — 한국 표기는 접두("주식회사 유토개발2차")·
+#: 접미("삼성전자㈜") 양쪽에 다 붙고, 조사 없이 고유명사에 바로 붙는다("현대제철주식회사").
+#: `\(주\)`·`\(유\)` 는 위 `_PAREN` 이 먼저 지우므로 사실상 죽은 항목이지만, `_PAREN` 을
+#: 건드리는 변경에 대한 방어로 남긴다.
+_SUFFIX_KO = re.compile(r"(주식회사|\(주\)|㈜|\(유\))")
+#: 로마자 법인격 표지. **글자 경계를 요구한다**(리뷰 라운드 3, B/I-12).
+#: 종전 `Corp\.?|Inc\.?|Limited` 는 앵커가 없어 단어 **내부**에서도 매치했다 —
+#: 실측 훼손: `Corporation`→`oration` · `Lincoln`→`loln`(L-inc-oln) ·
+#: `Incheon`→`heon`(Inc-heon) · `Princeton`→`preton` · `Sinclair`→`slair` ·
+#: `UNLIMITED`→`UN`(UN-limited) · `Corning Incorporated`→`corningorporated`.
+#: 오병합이 가장 나쁜 결함이다 — 서로 다른 두 회사가 한 노드로 접히면 `via` 가 **없는
+#: 밸류체인 연결을 근거로 인용**한다. `Incheon`/`인천` 은 한국 공시에 충분히 나올 이름이다.
+#: 앵커는 `(?<![A-Za-z]) … (?![A-Za-z])` 로 잡았다 — 리뷰어 처방(`(?:[\s,·]|^)…\s*$`,
+#: 문자열 끝 앵커)은 채택하지 않았다. 실측으로 기각했다: 그 정규식은 한글 표지의 접미
+#: 매치를 깨서 462종 중 **80종**의 키가 바뀌고 canonical 그룹이 407→418 로 분열하며
+#: `삼성전자㈜`·`두산에너빌리티㈜`·`현대제철주식회사` 3건이 `universe`→`other` 로
+#: 오분류된다(한글 앞에는 `[\s,·]` 가 없어 앵커가 안 맞는다).
+_SUFFIX_EN = re.compile(
+    r"(?<![A-Za-z])(?:Co\.,?\s*Ltd\.?|Corp(?:oration)?\.?|Inc(?:orporated)?\.?"
+    r"|Limited|LLC|S\.A\.)(?![A-Za-z])", re.I)
 _PREFIX = re.compile(r"^대한민국\s*")
 
 #: 비실명 계약상대 — 어느 기업인지 원문에 없어 노드로 못 올린다.
@@ -59,11 +77,24 @@ PUBLIC_HINTS = frozenset({
 
 
 def canonical(s: str) -> str:
-    """표기 변이를 하나로 접는다. 비교 전용이며 표시용이 아니다."""
-    out = _PAREN.sub("", s.strip())
-    out = _SUFFIX.sub("", out)
-    out = _PREFIX.sub("", out)
-    out = re.sub(r"[\s·,\.]+", "", out)
+    """표기 변이를 하나로 접는다. 비교 전용이며 표시용이 아니다.
+
+    접기가 문자열을 **전부** 먹어치우면(예: `"(삭제)"` · `"㈜"` · `"주식회사"`) 접기 전
+    형태로 되돌린다. 빈 문자열을 키로 쓰면 서로 다른 원문이 한 키로 접혀 오병합이 되고,
+    `classify` 의 접두일치(`key.startswith(...)`)도 빈 키에서 의미를 잃는다. 실측:
+    exchange_records.jsonl 462종 중 `"(삭제)"` 1종이 여기 걸린다(그래프 빌더의
+    `BOILERPLATE_NOTE` 가 먼저 걸러내므로 노드 수에는 영향이 없다).
+
+    **2자 이하를 걸러내지는 않는다** — `"기아(주)"`→`"기아"` · `"주식회사 SR"`→`"sr"` 는
+    둘 다 실명 회사다. 길이로 자르면 정당한 노드를 잃는다.
+    """
+    folded = _PAREN.sub("", s.strip())
+    folded = _SUFFIX_KO.sub("", folded)
+    folded = _SUFFIX_EN.sub("", folded)
+    folded = _PREFIX.sub("", folded)
+    out = re.sub(r"[\s·,\.]+", "", folded)
+    if not out:
+        out = re.sub(r"\s+", "", s.strip())
     return out.lower()
 
 

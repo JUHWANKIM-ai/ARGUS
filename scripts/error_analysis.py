@@ -259,6 +259,37 @@ _LEAD_YES = re.compile(r"^\s*(?:네|예|그렇습니다|맞습니다)\b|^\s*(?:�
 _LEAD_NO = re.compile(r"^\s*(?:아니(?:오|요|다|랍니다|니다))[,.\s]|^\s*아닙니다")
 _CITATION_TAIL = re.compile(r"\(\s*근거\s*:.*$", re.DOTALL)
 
+#: C/I-4 — **정규식으로 한국어 부정을 판정하는 접근의 한계선**을 여기서 명시적으로 긋는다.
+#: 아래 두 어형은 극성 표지의 위치만 보는 방식으로는 원리상 못 읽는다:
+#:   · 이중부정 — `"없지 않습니다"`(= 있다) · `"없다고 볼 수 없습니다"`(= 있다) 는 마지막
+#:     극성 표지가 `없습니다` 라 **부정**으로 뒤집힌다. (`"있지 않습니다"` = 없다 는
+#:     반대로 옳게 나오므로, `없`+부정 조합만이 문제다.)
+#:   · 조건절 — `"만약 정정공시가 있었다면 공시했을 것입니다"` 는 **사실 주장이 아닌데**
+#:     `있었` 때문에 긍정으로 찍힌다.
+#: 실측 사고 이력은 반대 방향이었다 — 과거형(`있었습니다`·`없었습니다`)을 빠뜨려 **정확한
+#: 답이 `no_verdict` 로 샜다**(Q-026). 그래서 커버리지를 넓히는 방향으로 고쳤다. 그러나
+#: 위 두 어형은 넓히는 것으로 해결되지 않고 **뒤집힌 답**을 낸다. 뒤집힌 답은 오답을
+#: 정답으로도 만들 수 있어 `no_verdict` 보다 나쁘다 — `no_verdict` 는 채점상 오답이지만
+#: `by="boolean:no_verdict"` 로 **판정 불가임이 산출물에 남는다**(정답률을 조용히 부풀리지
+#: 않는다). 그래서 이 두 어형은 판정하지 않고 `None` 으로 보낸다.
+#: 실측: 현재 boolean 5문항의 답변 중 어느 것도 이 패턴에 걸리지 않는다(오판 0 · 회귀 0).
+_DOUBLE_NEGATIVE = re.compile(r"없[^.!?\n]{0,12}(?:않|없|아니)")
+_CONDITIONAL = re.compile(r"만약|만일|가정하[면여]|[다라]면\s|[다라]면,")
+#: 결론 문장 분리. 판정은 **마지막 극성 표지가 있는 문장**에서 한다 — 어형 판정을 전체
+#: 텍스트에 걸면 앞쪽의 조건절 설명 한 줄이 뒤쪽의 명확한 결론을 무효화한다.
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+def _deciding_sentence(text: str) -> str:
+    """마지막 극성 표지를 담은 문장. 결론은 마지막에 온다(실측 Q-047)."""
+    best, pos = "", -1
+    for part in _SENTENCE_SPLIT.split(text):
+        marks = [m.start() for m in _AFFIRM_RE.finditer(part)]
+        marks += [m.start() for m in _DENY_RE.finditer(part)]
+        if marks:
+            best, pos = part, max(marks)
+    return best if pos >= 0 else ""
+
 
 def boolean_verdict(answer: str) -> bool | None:
     """답변의 예/아니오. 판정할 수 없으면 None (오답과 구분한다)."""
@@ -267,6 +298,10 @@ def boolean_verdict(answer: str) -> bool | None:
         return False
     if _LEAD_YES.search(text):
         return True
+    # 결론 문장이 이중부정·조건절이면 **판정하지 않는다** (위 주석 참조).
+    deciding = _deciding_sentence(text)
+    if deciding and (_DOUBLE_NEGATIVE.search(deciding) or _CONDITIONAL.search(deciding)):
+        return None
     last_yes = max((m.start() for m in _AFFIRM_RE.finditer(text)), default=-1)
     last_no = max((m.start() for m in _DENY_RE.finditer(text)), default=-1)
     if last_yes < 0 and last_no < 0:
@@ -426,8 +461,20 @@ def verify_answer_calc(case: dict, answer: str, records: dict[str, dict]) -> dic
 # --- 실패 단계 귀속 -----------------------------------------------------------
 
 def attribute(case: dict, trace_facts: dict, correct: bool, limits: dict,
-              positions: dict, hit: dict, calc: dict) -> dict:
-    """첫 실패 지점 하나만 돌려준다. 뒤 단계는 앞이 깨지면 자동으로 깨진다."""
+              positions: dict, hit: dict, calc: dict,
+              has_gold_value: bool | None = None) -> dict:
+    """첫 실패 지점 하나만 돌려준다. 뒤 단계는 앞이 깨지면 자동으로 깨진다.
+
+    🔴 `calc["mismatch"]`(⑥ TOOL 귀속의 입력)은 `critic.verify_calculation` 의 판정이고,
+    그 함수는 `min(claims, key=lambda c: abs(c[0] - expected))` 로 **답변 안의 수치 중
+    기대값에 가장 가까운 것을 골라** 비교한다(`src/argus/agent/critic.py:208`). 답변이
+    여러 수치를 말하면 가장 유리한 것이 뽑히므로 **10× 단위환산 오류가 통과한다.**
+    또 이 모듈의 `verify_answer_calc` 는 골든이 여러 건일 때 "하나라도 설명되면 통과" 다
+    (정정 체인에서 원공시·정정본 두 값이 다 정당하기 때문). 두 관용이 겹쳐서
+    `mismatch=False` 는 **"계산이 맞다" 는 뜻이 아니다** — 계산 실패(A5)를 기계로 못 본다.
+    그래서 `TOOL` 버킷은 그리드에서 구조적으로 0건이 되고, 그 몫이 아래 단계로 흐른다.
+    이 사실은 `arm_allocation_reconciliation()` 이 산출물에 표로 남긴다.
+    """
     if correct:
         return {"stage": None, "why": "correct"}
 
@@ -478,12 +525,31 @@ def attribute(case: dict, trace_facts: dict, correct: bool, limits: dict,
         return {"stage": "TOOL", "why": "; ".join(calc["reasons"]) or "재계산 불일치"}
 
     # ⑦ 검증 — critic 이 돌았는데 틀린 답을 통과시켰다.
-    if trace_facts["critic_supported"] is True:
-        return {"stage": "VERIFY", "why": "critic 이 supported=True 로 오답을 통과시켰다"}
+    #
+    # 🔴 B/I-7. 종전에는 이 분기가 ⑧보다 **앞**에 있어 `critic_supported is True` 인 모든
+    # 오답을 삼켰다 — VERIFY 가 만능 버킷이 됐고 ⑧의 `root_cause` 분기
+    # (INDEX_FIELD_MISSING / REASONING / UNVERIFIED)가 가려졌다. 실측 결과 A6 이 3건
+    # 과대 · A5 가 0건이 되어 "A6 병목 1위" 라는 틀린 판정을 **두 번** 만들었다
+    # (수동 원문 대조는 A6 1 · A5 4).
+    #
+    # 기전은 순서 그 자체다. **critic 은 파이프라인의 마지막 게이트**이므로 critic 통과가
+    # '첫 실패' 일 수 없다 — 앞에서 이미 무언가 틀렸다. 그래서 generation 쪽에서 기계로
+    # 할 말이 있으면(골든 수치의 유무를 판정할 수 있으면) 그쪽이 먼저다. 대조할 수치가
+    # 아예 없어 generation 에 대해 아무 말도 못 할 때(`has_gold_value is None`
+    # = `root_cause` 가 `UNVERIFIED` 가 될 때)만 VERIFY 로 남긴다.
+    #
+    # critic 이 오답을 통과시켰다는 **사실 자체는 버리지 않는다** — 어느 단계로
+    # 귀속되든 행의 `critic_passed_wrong_answer` 에 남고 보고서가 따로 센다.
+    if trace_facts["critic_supported"] is True and has_gold_value is None:
+        return {"stage": "VERIFY",
+                "why": "critic 이 supported=True 로 오답을 통과시켰다 "
+                       "(대조할 골든 수치가 없어 생성 단계로는 가를 수 없다)"}
 
     # ⑧ 근거는 맞는데 답이 틀렸다.
+    passed = " (critic 이 supported=True 로 통과시켰다)" \
+        if trace_facts["critic_supported"] is True else ""
     return {"stage": "GENERATION",
-            "why": "골든 근거가 프롬프트에 실렸는데 답이 틀렸다"}
+            "why": f"골든 근거가 프롬프트에 실렸는데 답이 틀렸다{passed}"}
 
 
 # --- 근본 원인 세분 (6단계만으로는 처방이 갈리지 않는다) -----------------------
@@ -701,8 +767,9 @@ def analyse(cases: list[dict], records: dict[str, dict]) -> list[dict]:
             scored = score_closed(case, answer)
             correct = scored["correct"]
 
-        failure = attribute(case, facts, correct, limits, positions, hit, calc)
         has_gold_value = gold_value_in_evidence(case, response.get("retrieved_context", ""))
+        failure = attribute(case, facts, correct, limits, positions, hit, calc,
+                            has_gold_value)
         cause = root_cause(failure["stage"], case, positions, hit, related, has_gold_value)
         rows.append({
             "question_id": case["question_id"],
@@ -723,6 +790,11 @@ def analyse(cases: list[dict], records: dict[str, dict]) -> list[dict]:
             "first_failure": failure["stage"],
             "root_cause": cause,
             "failure_why": failure["why"],
+            # B/I-7 — critic 이 오답을 통과시켰다는 사실은 귀속 단계와 **별도로** 남긴다.
+            # VERIFY 버킷을 좁혔으므로(⑦), 이 신호가 사라지면 A6 을 볼 방법이 없어진다.
+            "critic_supported": facts["critic_supported"],
+            "critic_passed_wrong_answer": bool(
+                facts["critic_supported"] is True and not correct),
             "gold_value_in_evidence": has_gold_value,
             "has_citation": has_citation(answer, case),
             "route": facts["route"],
@@ -898,6 +970,94 @@ def _cell(rate: dict) -> str:
     return f"{head} {stages}".strip() if stages else head
 
 
+#: `단계/원인` → 겨냥할 arm. **자동 분류기의 추정**이고 정본이 아니다
+#: (`TARGETED_BY_MANUAL_REVIEW` 가 정본 — 아래 참조).
+ARM_BY_ROOT_CAUSE = {
+    "RETRIEVAL/CHAIN_NOT_TRAVERSED": "**A4** — `get_history` 로 정정 체인을 밟는 hop",
+    "RETRIEVAL/CHAIN_PARTIAL": "**A4** — 체인 + 후속공시 연결 규칙",
+    "RETRIEVAL/MULTI_POINT_QUERY": "**A4** — 시점·기업별 질의 분해",
+    "RANKING/WRONG_SECTION": "**A3** — 목차 경로 리랭킹",
+    "RANKING/LOW_RANK": "**A3** — 리랭커",
+    "GENERATION/INDEX_FIELD_MISSING": "**A1b** — 필드 추출 (⚠ 계산 답이면 오라벨)",
+    "GENERATION/REASONING": "**A4** — 다단계 추론",
+    "GENERATION/UNVERIFIED": "— 대조할 수치가 없다",
+    "TOOL/TOOL": "**A5** — 계산 Tool",
+    # B/I-7 — arm 을 **지목하지 않는다.** `verify_calculation` 의 최유리 선택 때문에
+    # 계산 실패가 이 버킷으로 새므로, arm 확정은 원문 대조의 몫이다.
+    "VERIFY/VERIFY": "미분류 — 원문 대조 필요 (VERIFY 는 A6 을 의미하지 않는다)",
+}
+
+#: 🔴 **정본 arm 배분.** 오답 13건을 근거 원문까지 사람이 대조해 배분한 표다.
+#: 자동 분류기(`ARM_BY_ROOT_CAUSE`)는 이 표와 다른 답을 내며, 그 차이는
+#: `arm_allocation_reconciliation()` 이 산출물에 표로 남긴다. **침묵이 최악이다** —
+#: 종전에는 두 배분표가 한 보고서 안에 대조 없이 나란히 실려 있었고, 자동 표만 읽은
+#: 결과 "A6·A1b 공동 1위" 라는 틀린 판정이 두 번 나왔다.
+#: `scripts/ablation.py::render_gate` §9 의 `targeted` 가 같은 표를 들고 있었다 — 이제
+#: 여기가 단일 원천이므로 그쪽이 이 상수를 import 해야 두 표가 갈리지 않는다.
+TARGETED_BY_MANUAL_REVIEW = (
+    ("A4", ("Q-023", "Q-076", "Q-098", "Q-105", "Q-066"), "루프·추론"),
+    ("A5", ("Q-044", "Q-047", "Q-097", "Q-065"), "계산·단위 정규화"),
+    ("A1b", ("Q-099", "Q-101"), "인덱스 필드"),
+    ("A6", ("Q-087",), "Verifier"),
+    ("A3", ("Q-094",), "리랭커 (arm 제외 — 보류)"),
+)
+
+
+def _arm_of(row: dict) -> str:
+    """자동 분류기가 지목하는 arm 이름만 뽑는다(설명 문구 제거)."""
+    label = ARM_BY_ROOT_CAUSE.get(f'{row["first_failure"]}/{row["root_cause"]}', "")
+    m = re.match(r"\*\*(A[\w]+)\*\*", label)
+    return m.group(1) if m else "미분류"
+
+
+def arm_allocation_reconciliation(rows: list[dict]) -> dict:
+    """자동 배분과 수동 원문 대조 배분을 **문항 단위로 대조한다.**
+
+    두 표는 분모도 다르다 — 자동 히스토그램(`root_cause_histogram_grid`)은 **그리드만**
+    세고(11건), 수동 `targeted` 는 **전 트랙**(13건, 회귀 Q-065·Q-066 포함)이다.
+    그래서 arm 별 건수를 나란히 읽으면 그 자체로 어긋난다. 여기서는 두 축을 다 낸다.
+    """
+    manual = {q: arm for arm, ids, _ in TARGETED_BY_MANUAL_REVIEW for q in ids}
+    wrong = [r for r in rows if r["first_failure"]]
+    per_question = []
+    for r in sorted(wrong, key=lambda x: x["question_id"]):
+        auto = _arm_of(r)
+        hand = manual.get(r["question_id"], "—")
+        per_question.append({
+            "question_id": r["question_id"], "track": r.get("track"),
+            "bucket": f'{r["first_failure"]}/{r["root_cause"]}',
+            "auto_arm": auto, "manual_arm": hand, "agree": auto == hand,
+            "critic_passed_wrong_answer": r.get("critic_passed_wrong_answer", False),
+        })
+    arms = sorted({p["auto_arm"] for p in per_question}
+                  | {a for a, _, _ in TARGETED_BY_MANUAL_REVIEW})
+    grid_ids = {r["question_id"] for r in grid_rows(rows)}
+    return {
+        "authoritative": "manual",
+        "note": ("자동 분류기는 A5 를 구조적으로 못 본다 — `verify_calculation` 이 답변 "
+                 "수치 중 최유리 값을 골라 비교하므로 10× 단위환산 오류가 `mismatch=False` "
+                 "로 통과하고, TOOL 버킷이 그리드에서 0건이 된다. arm 확정은 원문 대조"
+                 "(`TARGETED_BY_MANUAL_REVIEW`)의 몫이다."),
+        "denominator_note": (f"자동 = 그리드만 {len(grid_ids & {p['question_id'] for p in per_question})}건 · "
+                             f"수동 = 전 트랙 {sum(len(i) for _, i, _ in TARGETED_BY_MANUAL_REVIEW)}건"),
+        "by_arm": [
+            {"arm": a,
+             "auto_grid": sum(1 for p in per_question
+                              if p["auto_arm"] == a and p["question_id"] in grid_ids),
+             "auto_all_tracks": sum(1 for p in per_question if p["auto_arm"] == a),
+             "manual_all_tracks": sum(len(ids) for arm, ids, _ in
+                                      TARGETED_BY_MANUAL_REVIEW if arm == a)}
+            for a in arms
+        ],
+        "disagreements": [p for p in per_question if not p["agree"]],
+        "n_disagreements": sum(1 for p in per_question if not p["agree"]),
+        "n_compared": len(per_question),
+        "critic_passed_wrong_answer": sorted(p["question_id"] for p in per_question
+                                             if p["critic_passed_wrong_answer"]),
+        "per_question": per_question,
+    }
+
+
 def render_matrix(rows: list[dict], report: dict) -> str:
     cross, out = report["crosstab"], []
     out.append("# Phase H — 3축 교차집계 (dev)\n")
@@ -937,18 +1097,7 @@ def render_matrix(rows: list[dict], report: dict) -> str:
     out.append("\n## 근본 원인 — 6단계만으로는 arm 이 안 갈린다 (**그리드만**)\n")
     out.append("| 단계 / 원인 | 건수 | 문항 | 겨냥할 arm |")
     out.append("|---|---|---|---|")
-    arm = {
-        "RETRIEVAL/CHAIN_NOT_TRAVERSED": "**A4** — `get_history` 로 정정 체인을 밟는 hop",
-        "RETRIEVAL/CHAIN_PARTIAL": "**A4** — 체인 + 후속공시 연결 규칙",
-        "RETRIEVAL/MULTI_POINT_QUERY": "**A4** — 시점·기업별 질의 분해",
-        "RANKING/WRONG_SECTION": "**A3** — 목차 경로 리랭킹",
-        "RANKING/LOW_RANK": "**A3** — 리랭커",
-        "GENERATION/INDEX_FIELD_MISSING": "**A1b** — 필드 추출 (⚠ 계산 답이면 오라벨)",
-        "GENERATION/REASONING": "**A4** — 다단계 추론",
-        "GENERATION/UNVERIFIED": "— 대조할 수치가 없다",
-        "TOOL/TOOL": "**A5** — 계산 Tool",
-        "VERIFY/VERIFY": "**A6** — Verifier (⚠ 계산 오류가 섞인다)",
-    }
+    arm = ARM_BY_ROOT_CAUSE
 
     def bucket_table(subset: list[dict]) -> None:
         buckets: dict[str, list[str]] = defaultdict(list)
@@ -971,6 +1120,29 @@ def render_matrix(rows: list[dict], report: dict) -> str:
         for row in off_grid:
             out.append(f'| {row["first_failure"]}/{row["root_cause"]} | 1 '
                        f'| {row["question_id"]} | {row.get("track")} |')
+
+    # 🔴 B/I-7 — 자동/수동 배분표를 **대조 없이 나란히 싣지 않는다.**
+    rec = report.get("arm_allocation_reconciliation") or \
+        arm_allocation_reconciliation(rows)
+    out.append("\n## 🔴 arm 배분 — 자동 분류기 vs 수동 원문 대조 (**정본은 수동**)\n")
+    out.append(f'{rec["note"]}\n')
+    out.append(f'분모가 다르다: {rec["denominator_note"]}. arm 별 건수를 나란히 읽을 때 '
+               "그 자체로 어긋나므로 두 축을 다 낸다.\n")
+    out.append("| arm | 자동(그리드) | 자동(전 트랙) | **수동 정본(전 트랙)** |")
+    out.append("|---|---|---|---|")
+    for item in rec["by_arm"]:
+        out.append(f'| {item["arm"]} | {item["auto_grid"]} | {item["auto_all_tracks"]} '
+                   f'| **{item["manual_all_tracks"]}** |')
+    out.append(f'\n**불일치 {rec["n_disagreements"]}/{rec["n_compared"]}건** — 문항 단위로 '
+               "적는다. 사람이 기억으로 잇던 자리이고, 그 기억이 두 번 틀렸다.\n")
+    if rec["disagreements"]:
+        out.append("| 문항 | track | 자동 버킷 | 자동 arm | **수동 정본 arm** |")
+        out.append("|---|---|---|---|---|")
+        for d in rec["disagreements"]:
+            out.append(f'| {d["question_id"]} | {d["track"]} | `{d["bucket"]}` '
+                       f'| {d["auto_arm"]} | **{d["manual_arm"]}** |')
+    out.append(f'\ncritic 이 오답을 통과시킨 문항 (귀속 단계와 무관하게 센다): '
+               f'{" ".join(rec["critic_passed_wrong_answer"]) or "—"}\n')
 
     out.append("\n## 트랙별 (합치지 않는다)\n")
     out.append("| track | 정답/채점대상 | 정답률 | DATA_LIMIT | 비고 |")
@@ -1044,6 +1216,9 @@ def build_report(cases: list[dict], rows: list[dict], cohort: str = "") -> dict:
         # 🔴 arm 겨냥은 **이쪽**을 읽는다. 전체 히스토그램은 회귀·밸류체인이 섞여 있어
         #    같은 이름으로 다른 분모를 세게 된다 (실측: VERIFY 전체 4건 중 1건이 회귀 트랙).
         "root_cause_histogram_grid": root_cause_counts(grid_rows(rows)),
+        # 🔴 B/I-7 — 자동 배분과 수동 원문 대조 배분의 **문항 단위 대조**. 두 표가
+        #    대조 없이 공존하던 것이 "A6 병목 1위" 오판을 두 번 만들었다.
+        "arm_allocation_reconciliation": arm_allocation_reconciliation(rows),
         "citation_rate": citation_rate(rows),
         "citation_rate_grid": citation_rate(grid_rows(rows)),
         "by_doc_group": {g: _rate([r for r in rows if r["doc_group"] == g])
