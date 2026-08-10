@@ -6,6 +6,10 @@
  "runs": [
   {
    "question_id": "Q-002",
+   "cached": true,
+   "judge_cached": null,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 1,
    "prompt_tokens": 1362,
    "completion_tokens": 243,
@@ -14,6 +18,10 @@
   },
   {
    "question_id": "Q-004",
+   "cached": true,
+   "judge_cached": null,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 1,
    "prompt_tokens": 1085,
    "completion_tokens": 123,
@@ -22,6 +30,10 @@
   },
   {
    "question_id": "Q-009",
+   "cached": true,
+   "judge_cached": true,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 1,
    "prompt_tokens": 1543,
    "completion_tokens": 173,
@@ -30,6 +42,10 @@
   },
   {
    "question_id": "Q-011",
+   "cached": true,
+   "judge_cached": true,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 2,
    "prompt_tokens": 1763,
    "completion_tokens": 407,
@@ -38,6 +54,10 @@
   },
   {
    "question_id": "Q-013",
+   "cached": true,
+   "judge_cached": null,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 2,
    "prompt_tokens": 1869,
    "completion_tokens": 212,
@@ -46,6 +66,10 @@
   },
   {
    "question_id": "Q-017",
+   "cached": true,
+   "judge_cached": null,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 1,
    "prompt_tokens": 1472,
    "completion_tokens": 150,
@@ -54,6 +78,10 @@
   },
   {
    "question_id": "Q-019",
+   "cached": true,
+   "judge_cached": true,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 2,
    "prompt_tokens": 2021,
    "completion_tokens": 264,
@@ -62,6 +90,10 @@
   },
   {
    "question_id": "Q-021",
+   "cached": true,
+   "judge_cached": true,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 2,
    "prompt_tokens": 2246,
    "completion_tokens": 277,
@@ -70,6 +102,10 @@
   },
   {
    "question_id": "Q-027",
+   "cached": true,
+   "judge_cached": null,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 2,
    "prompt_tokens": 1190,
    "completion_tokens": 121,
@@ -78,6 +114,10 @@
   },
   {
    "question_id": "Q-029",
+   "cached": true,
+   "judge_cached": null,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 2,
    "prompt_tokens": 2406,
    "completion_tokens": 179,
@@ -86,6 +126,10 @@
   },
   {
    "question_id": "Q-032",
+   "cached": true,
+   "judge_cached": true,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 1,
    "prompt_tokens": 1521,
    "completion_tokens": 93,
@@ -94,6 +138,10 @@
   },
   {
    "question_id": "Q-036",
+   "cached": true,
+   "judge_cached": true,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 2,
    "prompt_tokens": 2985,
    "completion_tokens": 536,
@@ -102,6 +150,10 @@
   },
   {
    "question_id": "Q-055",
+   "cached": true,
+   "judge_cached": null,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 2,
    "prompt_tokens": 12463,
    "completion_tokens": 107,
@@ -110,6 +162,10 @@
   },
   {
    "question_id": "Q-056",
+   "cached": true,
+   "judge_cached": true,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 2,
    "prompt_tokens": 12107,
    "completion_tokens": 178,
@@ -118,6 +174,10 @@
   },
   {
    "question_id": "Q-057",
+   "cached": true,
+   "judge_cached": null,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 2,
    "prompt_tokens": 11520,
    "completion_tokens": 139,
@@ -126,6 +186,10 @@
   },
   {
    "question_id": "Q-058",
+   "cached": true,
+   "judge_cached": true,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 1,
    "prompt_tokens": 5082,
    "completion_tokens": 265,
@@ -134,6 +198,10 @@
   },
   {
    "question_id": "Q-059",
+   "cached": true,
+   "judge_cached": null,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 1,
    "prompt_tokens": 3060,
    "completion_tokens": 127,
@@ -142,6 +210,10 @@
   },
   {
    "question_id": "Q-060",
+   "cached": true,
+   "judge_cached": true,
+   "request_cache_hits": 0,
+   "spent_won": 0.0,
    "llm_calls": 1,
    "prompt_tokens": 6724,
    "completion_tokens": 298,
@@ -150,5 +222,6 @@
   }
  ],
  "spent_won_rescore": 0.0,
- "spent_won_source": "최초 유료 실행 기록 (이번은 재집계 — LLM 0회)"
+ "spent_won_source": "최초 유료 실행 기록 (이번은 재집계 — LLM 0회)",
+ "runs_describe": "이번 재집계 — 행의 `cached`/`spent_won` 은 재생 기록이고, 위 `spent_won` 은 최초 유료 실행의 값이다. 토큰·지연은 응답 파일에 저장된 최초 측정값이라 두 실행에서 같다."
 }

@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-10T23:42:31",
+ "generated": "2026-08-11T00:57:33",
  "use": 2,
  "note": "🔴 heldout 은 최종 구성 1회용이다. 이 원장이 `artifacts/` 아래 **어디에라도** 있으면 러너가 유료 실행을 거부한다 — `--out` 으로 우회되지 않는다 (`scripts/ablation.py::assert_heldout_unused`).",
  "arm": "A8",
@@ -30,7 +30,7 @@
   "correct": 33,
   "n_scored": 36,
   "rate": 0.917,
-  "gap_pp": -8.4,
+  "gap_pp": -8.3,
   "caveat": "재생(replay)이다 — 답변이 A7 과 바이트 동일이라 독립 측정이 아니다"
  },
  "wrong_ids": [
@@ -60,7 +60,7 @@
  },
  "axis_caveat": "v1 낙폭은 **A6 시점 · dev 분모 36**, v2 낙폭은 **A8 · dev 분모 72** 다. heldout 18문항만 두 판에서 동일하다. 두 낙폭의 차를 Δ 로 읽지 않는다.",
  "overfit_threshold_pp": -10.0,
- "gap_pp_worst": -8.4,
+ "gap_pp_worst": -8.3,
  "worst_axis_available": true,
  "measured36_error": null,
  "gate_retired_after_this_run": true,
@@ -77,20 +77,35 @@
    "dev_grid": "31/36 (86.1%)",
    "gap_pp": -2.8,
    "artifact": "artifacts/ablation/A6_heldout_run"
+  },
+  {
+   "use": 2,
+   "date": "2026-08-10",
+   "arm": "A8",
+   "track": "Ablation v2",
+   "correct": 15,
+   "n_scored": 18,
+   "rate": 0.833,
+   "dev_grid": "61/72 (84.7%)",
+   "gap_pp": -1.4,
+   "dev_grid_measured36": "33/36 (91.7%)",
+   "gap_pp_measured36": -8.3,
+   "artifact": "artifacts/ablation/v2/heldout"
   }
  ],
  "overfit_signal": false,
- "verdict": "과적합 신호 아님 — 가장 나쁜 축 -8.4%p > 임계 -10.0%p. 🔴 여유는 1.6%p 뿐이고 최악축은 n=36 이라 1문항 = 2.8%p — **dev 가 1문항만 더 맞아도 임계를 넘는다**",
+ "verdict": "과적합 신호 아님 — 가장 나쁜 축 -8.3%p > 임계 -10.0%p. 🔴 여유는 1.7%p 뿐이고 최악축은 n=36 이라 1문항 = 2.8%p — **dev 가 1문항만 더 맞아도 임계를 넘는다**",
  "spent_won": 673.8,
  "arm_cost_won": 673.8,
  "failure_histogram": {
-  "VERIFY": 2,
+  "GENERATION": 2,
   "RETRIEVAL": 1
  },
  "root_cause_histogram": {
-  "VERIFY/VERIFY": 2,
+  "GENERATION/REASONING": 1,
+  "GENERATION/INDEX_FIELD_MISSING": 1,
   "RETRIEVAL/MULTI_POINT_QUERY": 1
  },
- "overfit_slack_pp": 1.6,
- "overfit_slack_questions": 0.58
+ "overfit_slack_pp": 1.7,
+ "overfit_slack_questions": 0.6
 }

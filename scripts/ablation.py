@@ -5,7 +5,15 @@
     python scripts/ablation.py --run                 # RUN_ORDER 전부 (A8 -> A0)
     python scripts/ablation.py --heldout --arm A8 \
         --out artifacts/ablation/v2/heldout --budget 1000    # 🔴 최종 구성 1회만
-    python scripts/ablation.py                       # 캐시만으로 재집계 (LLM 0회)
+    python scripts/ablation.py --offline --out artifacts/ablation/v2 --cohort full
+                                                     # 캐시만으로 재집계 (LLM 0회)
+
+🔴 **재집계에 `--out` 을 빼지 마라.** `--out` 없이 돌리면 `OUT_DIR` 이 v1 자리
+(`artifacts/ablation`)가 되고, 그 폴더는 **v2 를 자기 하위에 품고 있다** — v1 `summary.json`
+의 지출이 v2 몫까지 흡수하고(3,144.7 → 8,211.3) v1 의 42문항 `report.json` 이 현재
+78문항 기준으로 재작성돼 **기준선의 출처 추적이 끊긴다.** 그래서 v2 가 존재하는 동안
+v1 자리 쓰기는 `assert_not_v1_root` 가 **거부**한다 (경고가 아니라 거부다 — v1 산출물은
+§12·§12b 의 비교 기준선이고 gitignore 라 복구 수단이 없다).
 
 v2 (88문항 · A8 추가):
 
@@ -127,7 +135,13 @@ class RequestCache:
                     ensure_ascii=False), encoding="utf-8")
                 usage = (payload.get("result") or {}).get("usage") or {}
                 self.misses += 1
-                self.fresh_prompt += usage.get("promptTokens", 0)
+                # 🔴 임베딩 응답은 `promptTokens` 가 아니라 `inputTokens` 를 쓴다
+                #    (`src/argus/embed.py`). `promptTokens` 만 세면 dense arm(A2·A2F)의
+                #    임베딩 비용이 **예산 제동과 `spent_won` 에서 통째로 빠진다** —
+                #    상한 판정이 실제보다 낙관적으로 나온다. v2 는 dense arm 을 안 돌려
+                #    영향 0 이지만, A2 를 다시 재는 순간 발화한다.
+                self.fresh_prompt += (usage.get("promptTokens", 0)
+                                      or usage.get("inputTokens", 0))
                 self.fresh_completion += usage.get("completionTokens", 0)
             return status, payload, latency
 
@@ -209,6 +223,15 @@ HELDOUT_HISTORY = (
      "correct": 15, "n_scored": 18, "rate": 0.833,
      "dev_grid": "31/36 (86.1%)", "gap_pp": -2.8,
      "artifact": "artifacts/ablation/A6_heldout_run"},
+    #: 🔴 2회째. 이 항목이 없던 동안 **코드 쪽 원장이 사실과 어긋나 있었다** — 소스만 읽는
+    #: 사람은 "heldout 은 1회 썼다" 로 읽고, 디스크 원장이 사라진 상태에서
+    #: `heldout_next_use()` 가 3회째 실행을 "2회째" 로 기록했다.
+    #: `gap_pp` 는 dev 72 축, `gap_pp_measured36` 는 v1(36) 과 나란히 읽는 축이다.
+    {"use": 2, "date": "2026-08-10", "arm": "A8", "track": "Ablation v2",
+     "correct": 15, "n_scored": 18, "rate": 0.833,
+     "dev_grid": "61/72 (84.7%)", "gap_pp": -1.4,
+     "dev_grid_measured36": "33/36 (91.7%)", "gap_pp_measured36": -8.3,
+     "artifact": "artifacts/ablation/v2/heldout"},
 )
 
 
@@ -222,6 +245,27 @@ def heldout_ledgers() -> list[Path]:
     """
     base = ROOT / "artifacts"
     return sorted(base.rglob(HELDOUT_LEDGER)) if base.exists() else []
+
+
+def heldout_reports() -> list[Path]:
+    """🔴 **제동의 세 번째 겹.** 원장(`heldout_run.json`)이 지워져도 `report.json` 이 남는다.
+
+    `run_heldout` 은 `report["split"] = "heldout"` 을 박으므로, `*_heldout_run/report.json`
+    은 그 자체로 "heldout 을 열었다" 는 증거다. 원장 파일과 달리 이 파일들은 **커밋되어
+    있다**(`artifacts/` 가 gitignore 인데도 강제 추적된 33개 중 하나). 원장 하나를 지우면
+    풀리는 제동은 제동이 아니다.
+    """
+    base = ROOT / "artifacts"
+    if not base.exists():
+        return []
+    found = []
+    for path in sorted(base.rglob("*_heldout_run/report.json")):
+        try:
+            if json.loads(path.read_text(encoding="utf-8")).get("split") == "heldout":
+                found.append(path)
+        except (OSError, ValueError):
+            found.append(path)          # 못 읽으면 '있다' 쪽으로 본다
+    return found
 
 
 def heldout_next_use() -> int:
@@ -256,8 +300,6 @@ def assert_heldout_unused(offline: bool) -> None:
     if offline:
         return
     found = heldout_ledgers()
-    if not found:
-        return
     lines = []
     for path in found:
         try:
@@ -268,6 +310,12 @@ def assert_heldout_unused(offline: bool) -> None:
                      f"arm {saved.get('arm', '?')} · "
                      f"{saved.get('correct', '?')}/{saved.get('n_scored', '?')} · "
                      f"{saved.get('generated', '?')}")
+    # 🔴 원장이 지워졌어도 채점 산출물이 증거다 (`heldout_reports` — 커밋되어 있다).
+    for path in heldout_reports():
+        lines.append(f'   · {path.relative_to(ROOT)} — `"split": "heldout"` '
+                     "(원장 없이도 이 파일이 증거다)")
+    if not lines:
+        return
     raise SystemExit(
         "🔴 heldout 은 최종 구성 1회용입니다 — 이미 결과가 있습니다 "
         f"(다음 실행은 {heldout_next_use()}회째가 됩니다):\n"
@@ -323,8 +371,14 @@ def run_arm(arm: str, cases: list[dict], cache: RequestCache,
 
     with ablation.use(config or arm):
         for case in cases:
+            # 🔴 **재생인가 측정인가를 행 단위로 남긴다.** 이 세 값이 없으면 산출물만
+            #    보고 어느 문항이 이번에 결제됐는지 알 수 없고, 그러면 `spent_won 0.0` 인
+            #    arm(전량 재생)이 §2 누적 곡선에서 신규 측정과 같은 격으로 선다.
+            #    `latency_s` 의 의미도 여기서만 갈린다 — 요청 캐시가 적중하면 파이프라인이
+            #    ~1ms 에 끝나므로 그 문항의 지연은 **측정값이 아니라 재생 시간**이다.
+            hits_before, won_before = cache.hits, cache.fresh_won
             run, cached = ea.with_retry(ea.run_case, case, force=force)
-            judged = None
+            judged, judge_cached = None, None
             if case.get("answer_mode") == "open":
                 judged, judge_cached = ea.with_retry(ea.run_judge, case,
                                                      run["response"], force=force)
@@ -334,6 +388,10 @@ def run_arm(arm: str, cases: list[dict], cache: RequestCache,
                 time.sleep(ea.PACE_S)
             rows.append({
                 "question_id": case["question_id"],
+                "cached": cached,                    # 응답 파일 캐시 적중 (= 재생)
+                "judge_cached": judge_cached,        # open 문항만. closed 는 None
+                "request_cache_hits": cache.hits - hits_before,
+                "spent_won": round(cache.fresh_won - won_before, 2),
                 "llm_calls": run["llm_calls"],
                 "prompt_tokens": run["prompt_tokens"],
                 "completion_tokens": run["completion_tokens"],
@@ -355,6 +413,52 @@ def run_arm(arm: str, cases: list[dict], cache: RequestCache,
             "spent_won": round(cache.fresh_won - started_won, 1), "runs": rows}
 
 
+def _write_run(folder: str, live: dict) -> dict:
+    """arm 의 `run.json` 을 쓴다. 🔴 **여기가 지출 기록의 유일한 서식지다.**
+
+    재집계(`--offline`, 또는 이미 다 캐시된 arm 을 `--arms` 로 다시 부르는 것)는 `spent_won`
+    이 0 이다. 그 0 을 그대로 덮으면 **최초 유료 실행의 지출 기록이 사라진다** — `_spend_meta`
+    가 총지출을 **항상 `run.json` 합**으로 계산하므로 권위값 자체가 지워지고, `artifacts/`
+    는 gitignore 라 복구 수단이 없다.
+
+    🔴 이 사고는 **이 저장소에서 세 번 서식지가 나왔다.**
+      ① `_spend_meta` — v1 재집계가 `summary.json` 의 `spent_won` 을 0.0 으로 덮었다
+         (`artifacts/ablation/summary.json` 에 그 흔적이 남아 있다). `live` 가 비면
+         `run.json` 합을 쓰는 것으로 고쳤다.
+      ② `run_heldout` — T9 가 673.8원을 지키는 가드를 넣었다.
+      ③ **사다리 루프** — 가드가 없었다. `--arms A0` 재집계 한 번으로 1,901.0 → 0.0,
+         총지출 5,066.6 → 3,165.6원이 됐다.
+    그래서 **가드를 함수 하나로 합쳤다.** 서식지가 둘이면 세 번째가 생긴다.
+
+    두 번째 유료 실행도 앞의 값을 지우지 않는다 — 새 값을 권위값으로 쓰되 앞의 값을
+    `spent_won_previous` 로 남긴다. 지운 돈은 복구되지 않지만 지워진 사실은 남는다.
+    """
+    run_path = arm_dir(folder) / "run.json"
+    previous = (json.loads(run_path.read_text(encoding="utf-8"))
+                if run_path.exists() else {})
+    before = previous.get("spent_won")
+    if before:
+        if not live.get("spent_won"):
+            live["spent_won_rescore"] = live.get("spent_won", 0.0)
+            live["spent_won"] = before
+            live["spent_won_source"] = "최초 유료 실행 기록 (이번은 재집계 — LLM 0회)"
+            # 🔴 `spent_won` 은 최초 유료 실행의 값인데 `runs` 행은 **이번 재집계**의
+            #    기록이다 (`cached: true` 가 그 증거다). 표시가 없으면 두 값을 한 실행의
+            #    것으로 읽어 "유료 실행이 전량 캐시 적중이었다" 는 모순이 생긴다.
+            live["runs_describe"] = (
+                "이번 재집계 — 행의 `cached`/`spent_won` 은 재생 기록이고, 위 "
+                "`spent_won` 은 최초 유료 실행의 값이다. 토큰·지연은 응답 파일에 "
+                "저장된 최초 측정값이라 두 실행에서 같다.")
+        elif live["spent_won"] != before:
+            live["spent_won_previous"] = before
+            live["spent_won_source"] = (
+                f"이번 실행 기록. 🔴 앞선 실행이 {before:,.1f}원을 결제했고 그것은 "
+                "이 값에 안 들어 있다 — 누계는 두 값을 더해야 한다.")
+    run_path.parent.mkdir(parents=True, exist_ok=True)
+    run_path.write_text(json.dumps(live, ensure_ascii=False, indent=1), encoding="utf-8")
+    return live
+
+
 def run_heldout(final_arm: str, cache: RequestCache, records: dict,
                 stop_won: float, force: bool = False) -> dict:
     """🔴 heldout 18문항을 **최종 구성 하나로** 돌린다. arm 을 여러 개 받지 않는다.
@@ -366,18 +470,10 @@ def run_heldout(final_arm: str, cache: RequestCache, records: dict,
     """
     cases = load_heldout()
     folder = f"{final_arm}_heldout_run"
-    run_path = arm_dir(folder) / "run.json"
-    previous = (json.loads(run_path.read_text(encoding="utf-8"))
-                if run_path.exists() else {})
-    live = run_arm(folder, cases, cache, stop_won, force, config=final_arm)
-    # 🔴 재집계(`--offline`)는 0원을 쓴다. 그 0 을 그대로 덮으면 **실지출 기록이 사라진다**
-    #    (`_spend_meta` 가 같은 사고로 한 번 덮인 적이 있다). 앞의 값을 권위값으로 남긴다.
-    if not live["spent_won"] and previous.get("spent_won"):
-        live["spent_won_rescore"] = live["spent_won"]
-        live["spent_won"] = previous["spent_won"]
-        live["spent_won_source"] = "최초 유료 실행 기록 (이번은 재집계 — LLM 0회)"
-    run_path.write_text(json.dumps(live, ensure_ascii=False, indent=1), encoding="utf-8")
-    report = score_arm(folder, cases, records)
+    # 🔴 지출 보존 가드는 `_write_run` 안에 있다 — 사다리 루프와 **같은 함수**를 쓴다.
+    live = _write_run(folder, run_arm(folder, cases, cache, stop_won, force,
+                                      config=final_arm))
+    report = score_arm(folder, cases, records, cohort="heldout")
     report["arm"] = final_arm
     report["arm_config"] = vars(ablation.ARMS[final_arm])
     report["split"] = "heldout"
@@ -407,14 +503,35 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
     v2_dev = _grid_overall(_load_report(root.parent, final_arm)) or {}
 
     def gap(dev: dict | None, hold: dict | None) -> float | None:
-        # 🔴 `None` 을 받는다. `measured 36` 축은 못 구할 수 있고, 그때 여기서 죽으면
-        #    heldout 실행이 **채점 뒤 원장 쓰기에서** 터진다 — 다시 못 돌리는 실행에서
-        #    최악의 자리다 (테스트가 실제로 이 경로에서 AttributeError 를 잡았다).
+        """낙폭(%p). 🔴 **원 분자/분모에서 계산한다** (`_exact_rate` — 정밀도 규칙 한 곳).
+
+        예전에는 `hold["rate"] - dev["rate"]` 였고 그 `rate` 는 `ea._rate()` 가 이미
+        소수 셋째 자리로 반올림한 값이라 **이중 반올림**이 생겼다. 실측 피해:
+        `measured 36` 낙폭이 15/18 − 33/36 = **−8.333** 인데 0.833 − 0.917 로 계산해
+        **−8.4%p** 가 나왔고, 게이트 §14 가 그 수를 "판정은 이 수로 해야 한다" 며 찍었다.
+        여유가 1.7%p 뿐인 게이트에서 0.1%p 를 **무작위 방향으로** 흘리는 계산이었다
+        (기우는 방향은 두 rate 의 반올림 방향에 달려 있어 보수적이지도 않다).
+
+        🔴 `None` 을 받는다. `measured 36` 축은 못 구할 수 있고, 그때 여기서 죽으면
+        heldout 실행이 **채점 뒤 원장 쓰기에서** 터진다 — 다시 못 돌리는 실행에서
+        최악의 자리다 (테스트가 실제로 이 경로에서 AttributeError 를 잡았다).
+        """
+        exact = gap_exact(dev, hold)
+        return None if exact is None else round(exact, 1)
+
+    def gap_exact(dev: dict | None, hold: dict | None) -> float | None:
+        """반올림 **전** 낙폭(%p). 🔴 파생값은 이쪽에서 계산한다.
+
+        여유(`overfit_slack_*`)를 반올림된 낙폭에서 계산하면 그것도 이중 반올림이다 —
+        −8.3 에서 세면 0.61문항이고 −8.3333 에서 세면 **0.60문항**이다. 기록·표시는
+        반올림값(`gap`), 계산은 이 값이다.
+        """
         if not dev or not hold:
             return None
-        if dev.get("rate") is None or hold.get("rate") is None:
+        dev_rate, hold_rate = _exact_rate(dev), _exact_rate(hold)
+        if dev_rate is None or hold_rate is None:
             return None
-        return round((hold["rate"] - dev["rate"]) * 100, 1)
+        return (hold_rate - dev_rate) * 100
 
     gap_v2, gap_v1 = gap(v2_dev, held), gap(v1_dev, v1_held)
 
@@ -442,6 +559,11 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
     def wrong_ids(report: dict | None) -> list[str]:
         return sorted(r["question_id"] for r in (report or {}).get("rows", [])
                       if not r.get("correct"))
+
+    # 🔴 판정과 여유는 **반올림 전** 낙폭에서 계산한다 (`gap_exact`). 기록은 반올림값이다.
+    worst_candidates = [g for g in (gap_exact(v2_dev, held), gap_exact(dev_m36, held))
+                        if g is not None]
+    worst_exact = min(worst_candidates) if worst_candidates else None
 
     v1_full = _load_report(v1_root, "A6_heldout_run")
     # 🔴 재집계(`--offline`)는 **횟수를 올리지 않는다.** 이미 있는 원장의 `use` 를 이어받는다.
@@ -489,8 +611,7 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
         # 🔴 판정은 **가장 나쁜 축**으로 한다. 유리한 축으로 판정하면 과적합 검사가
         #    검사이기를 그만둔다. 축이 하나라도 빠지면 `worst_axis_available=False` 이고
         #    그때는 '신호 없음' 이 아니라 **판정 불가**다.
-        "gap_pp_worst": min([g for g in (gap_v2, gap(dev_m36, held))
-                             if g is not None] or [None]),
+        "gap_pp_worst": None if worst_exact is None else round(worst_exact, 1),
         "worst_axis_available": dev_m36 is not None,
         "measured36_error": m36_error,
         #: 🔴 **이 게이트는 이번이 마지막 사용이다.** heldout 을 다시 못 재므로 다음 판에는
@@ -513,7 +634,10 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
         "root_cause_histogram": report.get("root_cause_histogram_grid")
                                 or report.get("root_cause_histogram"),
     }
-    worst, threshold = ledger["gap_pp_worst"], ledger["overfit_threshold_pp"]
+    # 🔴 판정·여유는 `worst_exact`(반올림 전)로 계산하고, 표시만 반올림한다.
+    #    반올림된 −8.3 에서 여유를 세면 0.61문항이 되고, 옳은 값은 −8.3333 에서 나온
+    #    **0.60문항**이다. 파생값의 이중 반올림도 같은 사고다.
+    worst, threshold = worst_exact, ledger["overfit_threshold_pp"]
     if not ledger["worst_axis_available"] or worst is None:
         # 🔴 유리한 축만 남았을 때 '신호 없음' 을 찍지 않는다 — 그것이 조용히 통과하는 길이다.
         ledger["overfit_signal"] = None
@@ -572,27 +696,57 @@ def _spend_meta(root: Path, cache: "RequestCache", live: dict) -> dict:
         out.update({"cache_hits": cache.hits, "cache_misses": cache.misses,
                     "fresh_prompt_tokens": cache.fresh_prompt,
                     "fresh_completion_tokens": cache.fresh_completion,
+                    "cache_stats_are_this_process": True,
                     "this_run": live})
     else:
         # 재집계 실행이 실행 기록을 덮지 않게 한다 — 예전 값을 그대로 이어받는다.
+        # 🔴 다만 **이어받았다는 사실을 필드 수준에 박는다.** 예전에는 아무 표시 없이
+        #    남아서 다음 집계가 그 수를 이번 프로세스의 값으로 읽었다. 한계를 게이트 본문
+        #    한 줄에만 적어 두면 `summary.json` 을 직접 읽는 쪽에는 그 한계가 안 간다.
         out.update({
             "cache_hits": previous.get("cache_hits", 0),
             "cache_misses": previous.get("cache_misses", 0),
             "fresh_prompt_tokens": previous.get("fresh_prompt_tokens", 0),
             "fresh_completion_tokens": previous.get("fresh_completion_tokens", 0),
+            "cache_stats_are_this_process": False,
+            # 🔴 **한 번 정해지면 안 움직인다.** 매번 앞 파일의 `generated` 를 읽으면 그것이
+            #    직전 *재집계* 시각이라 재집계마다 값이 바뀌고, 그러면 산출물이 두 번
+            #    돌려도 바이트가 달라진다(재현성이 깨진다). 게다가 뜻도 틀린다 — 이 통계가
+            #    나온 곳은 재집계가 아니라 **최초 실행**이다. 그래서 앞의 값을 먼저 이어받고,
+            #    없을 때만 시각으로 대체한다. 진짜 출처는 `cache_stats_note` 가 적는다.
+            "cache_stats_carried_from": (previous.get("cache_stats_carried_from")
+                                         or previous.get("rescored_at")
+                                         or previous.get("generated")
+                                         or "이전 summary.json"),
             "this_run": previous.get("this_run", {}),
             "rescored_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         })
         if previous.get("cache_stats_note"):
             out["cache_stats_note"] = previous["cache_stats_note"]
+    # 🔴 **자기모순을 조용히 넘기지 않는다.** 미적중이 있었다면 신규 토큰이 0 일 수 없다.
+    #    v2 `summary.json` 이 실제로 `cache_misses 435` + `fresh_*_tokens 0` 이었고,
+    #    그 수는 프로세스 로그에서 수동 복구된 값이라 자기검증이 불가능하다.
+    fresh_tokens = out["fresh_prompt_tokens"] + out["fresh_completion_tokens"]
+    if out["cache_misses"] and not fresh_tokens:
+        out["cache_stats_inconsistent"] = (
+            f'🔴 `cache_misses {out["cache_misses"]}` 인데 `fresh_*_tokens` 합이 0 이다 — '
+            "두 수는 같은 프로세스에서 나올 수 없다. 미적중 수가 다른 실행에서 이어받은 "
+            "값이거나 수동 복구값이다. **이 필드로 지출·절감을 계산하지 않는다** "
+            "(지출의 권위값은 `spent_won` = arm 별 `run.json` 합이다).")
+        print(f'\n{out["cache_stats_inconsistent"]}')
     return out
 
 
-def score_arm(arm: str, cases: list[dict], records: dict) -> dict:
-    """캐시된 응답만으로 집계한다. LLM 0회 — 재집계는 공짜여야 한다."""
+def score_arm(arm: str, cases: list[dict], records: dict, cohort: str = "") -> dict:
+    """캐시된 응답만으로 집계한다. LLM 0회 — 재집계는 공짜여야 한다.
+
+    🔴 `cohort` 를 넘긴다. 안 넘기면 `report.json` 의 `cohort` 가 빈 문자열로 남아
+    **어떤 코호트로 채점된 파일인지 산출물만 보고 알 수 없다** (`summary.json` 에만 있고,
+    arm 폴더만 복사되면 그 연결이 끊긴다).
+    """
     _use_dirs(arm)
     rows = ea.analyse(cases, records)
-    report = ea.build_report(cases, rows)
+    report = ea.build_report(cases, rows, cohort=cohort)
     report["arm"] = arm
     report["arm_config"] = vars(ablation.ARMS[arm]) if arm in ablation.ARMS else {}
     base = arm_dir(arm)
@@ -779,13 +933,6 @@ def render_retrieval(reports: dict[str, dict], diffs: list[dict], meta: dict) ->
 
 # --- 집계 ---------------------------------------------------------------------
 
-def _rate(report: dict, path: tuple) -> dict:
-    node = report["crosstab"]
-    for key in path:
-        node = node[key]
-    return node
-
-
 AXES = {"difficulty": ("하", "중", "상"),
         "answer_mode": ("closed", "open"),
         "task_type": ("search_extract", "multi_compare", "complex_reason")}
@@ -797,15 +944,23 @@ BLIND_CELL = "multi_compare|closed"
 
 
 def _exact_rate(cell: dict) -> float | None:
-    """`correct / n_scored` 를 **반올림 없이** 돌려준다.
+    """🔴 **정밀도 규칙은 이 함수 하나다.** `correct / n_scored` 를 반올림 없이 돌려준다.
 
-    🔴 `report.json` 의 `rate` 는 소수 셋째 자리로 반올림돼 있다. 그 값을 서로 빼면
-    **이중 반올림**이 생긴다 — 실측 A1b→A4 는 46/72 → 59/72 = +18.06%p 인데
-    0.819 − 0.639 로 계산하면 +18.0%p 가 나오고, 그 수가 문서·보고서로 번졌다.
-    Δ 는 반드시 원 분자·분모에서 계산한다.
+    `report.json` 의 `rate` 는 `ea._rate()` 가 소수 셋째 자리로 반올림한 값이다. 그 값을
+    서로 빼면 **이중 반올림**이 생긴다. 실측 피해 셋:
+
+      · A1b→A4  46/72 → 59/72 = **+18.06%p** 인데 0.819 − 0.639 = **+18.0%p**
+      · measured 36 낙폭  15/18 − 33/36 = **−8.333** 인데 0.833 − 0.917 = **−8.4**
+        (파생: 여유 1.667 → 1.6%p · 0.60 → 0.58문항)
+      · `ablation_report.py` 의 v1 표 전량 (같은 기전, 세 번째 서식지)
+
+    **비율의 차·비율의 비를 계산하는 모든 지점은 이 함수를 통과한다.** 예외는 값을
+    그대로 찍는 표시(`_frac`)뿐이고, 그마저도 `_pct(_exact_rate(...))` 를 쓰는 편이 낫다.
+    `scripts/ablation_report.py` 는 이 함수를 import 해서 쓴다 — 규칙을 두 번 적지 않는다.
     """
     n = cell.get("n_scored") or 0
-    return cell["correct"] / n if n else None
+    correct = cell.get("correct")
+    return correct / n if n and correct is not None else None
 
 
 def summarise(reports: dict[str, dict]) -> dict:
@@ -835,7 +990,19 @@ def summarise(reports: dict[str, dict]) -> dict:
             "tokens": report["totals"]["total_tokens"],
             "arm_cost_won": report["totals"]["cost_won"],
             "llm_calls": report["totals"]["llm_calls"],
-            "latency_s_mean": report["totals"]["latency_s_mean"],
+            # 🔴 **이름을 갈았다.** `latency_s_mean` 은 측정값이 아니라 **재생 시간이 섞인
+            #    값**이다 — 응답 파일에 저장된 벽시계 시간의 평균이고, 그 문항을 만들 때
+            #    요청 캐시가 적중했다면 파이프라인이 ~1ms 에 끝나 그 수가 저장된다.
+            #    실측: A0 3.73초(88 중 28건만 <0.5s) vs A5·A8 **0.02~0.03초**(88/88 적중).
+            #    기울기가 **언제나 빠르게 보이는 한 방향**이라 기술제안서가 "평균 응답
+            #    시간" 으로 뽑으면 두 자릿수 배로 틀린다. 옛 이름을 지운 것은 조용히
+            #    잘못 읽히는 것보다 **KeyError 로 시끄럽게 죽는 편이 낫기** 때문이다.
+            #    행 단위 구분은 `run.json` 의 `cached`/`request_cache_hits` 에 있다
+            #    (2026-08-11 이후 실행분). 진짜 지연을 재려면 캐시 없이 다시 재야 한다.
+            "latency_s_mean_recorded": report["totals"]["latency_s_mean"],
+            "latency_s_note": ("응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 "
+                               "문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** "
+                               "'평균 응답 시간' 으로 인용하지 않는다."),
             # 🔴 `_grid` 변종을 쓴다 (Task 7 이 만들어 둔 것). 전체 기준을 쓰면
             #    같은 표 안에서 분모가 둘이 된다.
             "failures": report.get("failure_histogram_grid") or report["failure_histogram"],
@@ -1018,9 +1185,71 @@ def spend_from_runs(root: Path, recursive: bool = False) -> dict:
     return {"won": round(total, 1), "per_arm": per_arm}
 
 
+def version_dirs() -> list[Path]:
+    """v1 폴더 **안에** 들어앉은 판 폴더들 (`artifacts/ablation/v2` 등)."""
+    v1 = ROOT / "artifacts" / "ablation"
+    return sorted(p.parent for p in v1.glob("*/summary.json")) if v1.exists() else []
+
+
+def assert_not_v1_root(out_dir: Path, what: str) -> None:
+    """🔴 v2 가 존재하는 동안 **v1 자리에 쓰지 않는다.** 경고가 아니라 거부다.
+
+    `artifacts/ablation/v2/` 는 `artifacts/ablation/` **안**에 있다. 그래서 `--out` 없이
+    돌리는 재집계·`--report` 는 세 가지를 조용히 망친다:
+
+      ① `_spend_meta` 가 `spend_from_runs(recursive=True)` 로 세므로 v1 `summary.json` 의
+         지출이 **3,144.7 → 8,211.3원**(= v1 + v2 5,066.6)이 된다.
+      ② v1 arm 의 `report.json` 이 **현재 questions.jsonl(88문항) 기준으로 재작성**된다.
+         v1 은 42문항 산출물이고 §12·§12b 의 비교 기준선이다 — `n_cases` 가 42 → 88 로
+         바뀌고 `generated` 가 갱신돼 기준선의 출처 추적이 끊긴다.
+      ③ `--report` 는 v2 렌더러(`render_gate`)로 **v1 `gate_I.md` 를 덮는다.**
+         그 파일은 `scripts/ablation_report.py` 가 만드는 다른 문서다.
+
+    거부하는 이유: `artifacts/` 는 gitignore 라 v1 산출물에 **백업이 없다.** 되돌릴 수
+    없는 덮어쓰기는 프로세스가 아니라 코드로 막는다.
+    """
+    if out_dir.resolve() != (ROOT / "artifacts" / "ablation").resolve():
+        return
+    nested = version_dirs()
+    if not nested:
+        return                      # v2 가 없으면 여기가 그냥 그 판의 자리다
+    names = ", ".join(p.name for p in nested)
+    raise SystemExit(
+        f"🔴 v1 자리({out_dir.relative_to(ROOT)})에 {what} 를 쓰려고 합니다 — "
+        f"그 폴더는 판 폴더 [{names}] 를 하위에 품고 있습니다.\n"
+        "   · 지출이 하위 판까지 합산됩니다 (v1 3,144.7 → 8,211.3원).\n"
+        "   · v1 의 42문항 report.json 이 현재 88문항 기준으로 재작성돼 §12 기준선이 "
+        "끊깁니다.\n"
+        "   · `--report` 는 v2 렌더러로 v1 `gate_I.md`(ablation_report.py 산출물)를 "
+        "덮습니다.\n"
+        f"   👉 `--out artifacts/ablation/{nested[-1].name}` 을 붙이세요. "
+        "v1 `gate_I.md` 를 다시 만들려면 `python scripts/ablation_report.py` 입니다.")
+
+
 def _grid_rate(rows: list[dict], wanted: set[str] | None = None) -> dict:
     sub = [r for r in ea.grid_rows(rows) if wanted is None or r["question_id"] in wanted]
     return ea._rate(sub)
+
+
+def resolve_budget_cap(meta: dict, cli_cap: float) -> tuple[float, str, str]:
+    """🔴 상한은 **산출물에서 읽는다.** `(상한, 출처, 경고)` 를 돌려준다.
+
+    `budget_cap` 이 CLI `--budget` 에서만 오면 `--report` 를 플래그 없이 돌렸을 때 **같은
+    산출물에서 다른 문장**이 나온다: `상한 20,000원 대비 25.3% (정지선 16,000)` ↔
+    `상한 12,000원 대비 42.2% (정지선 9,600)`. 게이트가 스스로 "LLM 0회 재생성 가능" 이라
+    적어 두었으므로, 재생성에 인자를 기억해야 한다면 그 문장이 절반만 사실이 된다.
+    `summary.json` 의 `budget_won` 이 그 실행이 실제로 쓴 상한이니 그쪽이 권위값이고,
+    CLI 값은 산출물에 상한이 없을 때의 폴백이다. 둘이 다르면 **다르다고 적는다.**
+    """
+    from_meta = meta.get("budget_won")
+    if not from_meta:
+        return cli_cap, "CLI `--budget` (산출물에 `budget_won` 이 없다)", ""
+    note = ""
+    if abs(float(from_meta) - cli_cap) > 1e-9:
+        note = (f'🔴 `--budget {cli_cap:,.0f}` 을 받았지만 산출물 `summary.json` 의 상한은 '
+                f'{float(from_meta):,.0f}원이다 — **산출물 값을 쓴다** '
+                "(이 문서는 산출물만으로 재현돼야 한다).")
+    return float(from_meta), "summary.json `meta.budget_won`", note
 
 
 def render_gate(root: Path, budget_cap: float) -> str:
@@ -1036,6 +1265,7 @@ def render_gate(root: Path, budget_cap: float) -> str:
     meta_path = root / "summary.json"
     meta = (json.loads(meta_path.read_text(encoding="utf-8"))["meta"]
             if meta_path.exists() else {})
+    budget_cap, budget_source, budget_note = resolve_budget_cap(meta, budget_cap)
     vc = {a: _load_report(root / "vc", a) for a in ("A8", "L3", "A7")}
     vc = {k: v for k, v in vc.items() if v}
 
@@ -1132,20 +1362,60 @@ def render_gate(root: Path, budget_cap: float) -> str:
                  f'{total_spend - (held["spent_won"] or 0):,.1f}원 + heldout '
                  f'{held["spent_won"] or 0:,.1f}원(§14). 앞엣것이 Ablation v2 측정 비용이고, '
                  "뒤엣것은 **최종 1회** 몫이라 회계가 다르다.\n")
-        o.append(f'🔴 **`summary.json` 의 `spent_won` 은 heldout 이전 값**'
-                 f'({total_spend - (held["spent_won"] or 0):,.1f})이다 — 그 파일은 사다리 '
-                 "실행 시점 산출물이고, heldout 은 별 프로세스라 거기 안 들어 있다. "
-                 f'라벨이 `"하위 폴더 포함"` 이라 오해를 부르는데, **총지출은 이 표의 '
-                 f'{total_spend:,.1f}원**이 권위값이다 (arm 폴더를 덮지 않으려고 '
-                 "`summary.json` 을 재생성하지 않았다).\n")
+        # 🔴 `summary.json` 과 이 표가 맞는지 **여기서 검산한다.** 예전에는 "그 파일은
+        #    heldout 이전 값이다" 를 문장으로 박아 뒀는데, 재집계로 그 파일이 갱신되면
+        #    그 문장이 조용히 거짓이 된다. 문장을 값에서 만든다.
+        meta_spend = meta.get("spent_won")
+        if meta_spend is None:
+            o.append('🔴 `summary.json` 에 `spent_won` 이 없다 — **총지출은 이 표의 '
+                     f'{total_spend:,.1f}원**(arm 별 `run.json` 합)이 권위값이다.\n')
+        elif abs(float(meta_spend) - total_spend) < 0.05:
+            o.append(f'✅ **검산 일치** — `summary.json` 의 `spent_won` '
+                     f'{float(meta_spend):,.1f}원 = 이 표의 총액 {total_spend:,.1f}원 '
+                     "(둘 다 arm·코호트별 `run.json` 합이고 heldout 을 포함한다).\n")
+        else:
+            o.append(f'🔴 **`summary.json` 의 `spent_won`({float(meta_spend):,.1f})과 이 표의 '
+                     f'총액({total_spend:,.1f})이 다르다** — 차이 '
+                     f'{total_spend - float(meta_spend):+,.1f}원. 그 파일이 heldout 이전 '
+                     "시점의 산출물이면 그 차이가 heldout 몫"
+                     f'({held["spent_won"] or 0:,.1f}원)과 같아야 한다. **총지출은 이 표의 '
+                     f'{total_spend:,.1f}원**이 권위값이다 (`run.json` 합).\n')
     o.append(f'\n상한 {budget_cap:,.0f}원 대비 **{total_spend / budget_cap * 100:.1f}%** '
-             f'사용 (80% 정지선 {budget_cap * 0.8:,.0f}원). '
-             f'요청 캐시가 **{arm_sum - total_spend:,.0f}원**을 막았다.\n')
+             f'사용 (80% 정지선 {budget_cap * 0.8:,.0f}원 · 상한 출처 {budget_source}). '
+             f'**캐시 전체가 {arm_sum - total_spend:,.0f}원을 막았다** — 요청 캐시만이 '
+             "아니라 **응답 파일 캐시와 프롬프트 동일성까지 합친** 절감액이다 "
+             "(§13 이 A6·A7·A8 의 프롬프트 동일성을 밝힌다).\n")
+    if budget_note:
+        o.append(budget_note + "\n")
     o.append(f'지출 출처: {meta.get("spent_won_source", "—")}. '
              f'요청 캐시 적중 {meta.get("cache_hits", "?")} / 미적중 '
              f'{meta.get("cache_misses", "?")}'
+             + ("" if meta.get("cache_stats_are_this_process", True)
+                else f' (🔴 이번 프로세스 값이 아니다 — '
+                     f'{meta.get("cache_stats_carried_from", "이전 실행")} 에서 이어받았다)')
              + (f' — {meta["cache_stats_note"]}' if meta.get("cache_stats_note") else "")
              + "\n")
+    if meta.get("cache_stats_inconsistent"):
+        o.append(meta["cache_stats_inconsistent"] + "\n")
+    # 🔴 부분 실행을 표에 드러낸다. `analyse` 는 응답 없는 문항을 조용히 건너뛰므로
+    #    예산 중단된 arm 은 **더 작은 분모로** 표에 실린다 — 그러면 그 arm 의 정답률이
+    #    다른 arm 과 다른 잣대가 되고, 표만 보면 그 사실이 안 보인다.
+    partial = []
+    for arm in ladder + loo:
+        rep = reports[arm]
+        run_path = root / arm / "run.json"
+        run = (json.loads(run_path.read_text(encoding="utf-8"))
+               if run_path.exists() else {})
+        if rep.get("n_analysed") != rep.get("n_cases") or run.get("stopped_at"):
+            partial.append(f'   · **{arm}** — 분석 {rep.get("n_analysed")}'
+                           f'/{rep.get("n_cases")}문항'
+                           + (f' · 예산 중단 `{run["stopped_at"]}`'
+                              if run.get("stopped_at") else ""))
+    o.append("\n🔴 **부분 실행 검사**: "
+             + ("전 arm 이 전수 분석됐다 (`n_analysed == n_cases`, 예산 중단 0건).\n"
+                if not partial else
+                "아래 arm 은 **분모가 다르다** — Δ 를 다른 arm 과 나란히 읽지 않는다.\n"
+                + "\n".join(partial) + "\n"))
 
     # --- 2. 누적 곡선 ---
     n_scored = arms[full]["n_scored"] if full else 0
@@ -1385,11 +1655,11 @@ def render_gate(root: Path, budget_cap: float) -> str:
              f'`{full}` 에서 **아직 틀리고 있는** 문항이므로, 사다리의 어느 arm 도 그것을 '
              "건지지 못했다. 그래서 두 칸을 따로 낸다: `실제로 건진 문항`(그 arm 이 "
              "이번에 번 것)과 `겨냥 문항의 현재 상태`(그 arm 의 **다음 판**이 해야 할 것).\n")
-    targeted = (("A4", ("Q-023", "Q-076", "Q-098", "Q-105", "Q-066"), "루프·추론"),
-                ("A5", ("Q-044", "Q-047", "Q-097", "Q-065"), "계산·단위 정규화"),
-                ("A1b", ("Q-099", "Q-101"), "인덱스 필드"),
-                ("A6", ("Q-087",), "Verifier"),
-                ("A3", ("Q-094",), "리랭커 (arm 제외 — 보류)"))
+    # 🔴 **배분표를 여기서 다시 적지 않는다.** 같은 13건 배분이 이 파일과 채점기에 각각
+    #    있으면 둘이 갈리고, 어느 쪽이 참인지 산출물로 판정할 수 없다. 채점기가 단일
+    #    원천이다 (`ea.TARGETED_BY_MANUAL_REVIEW` — 원문 대조 결과이고, 자동 분류기와의
+    #    대조표를 `arm_allocation_reconciliation()` 이 낸다).
+    targeted = ea.TARGETED_BY_MANUAL_REVIEW
     final_ok = {r["question_id"]: r["correct"]
                 for r in reports[full]["rows"]} if full else {}
     o.append("| arm | 겨냥 | 겨냥 문항 | 사다리 Δ | 실제로 건진 문항 "
@@ -1410,6 +1680,31 @@ def render_gate(root: Path, budget_cap: float) -> str:
         o.append(f'| {arm} ({label}) | {len(ids)} | {" ".join(ids)} '
                  f'| {_pp(arms[lower]["rate"], arms[arm]["rate"])} '
                  f'| {len(gained)}건 (겨냥 적중 {len(hit)}) | {status} |')
+    # 🔴 **자동 배분과 수동 배분을 코드가 대조한다.** 지금까지는 사람이 기억으로 이었고,
+    #    그 기억이 두 번 틀렸다("A6·A1b 공동 1위"). 자동 히스토그램은 A5 를 구조적으로 못
+    #    본다 — `verify_calculation` 이 답변 수치 중 최유리 값을 골라 비교하므로 10× 단위
+    #    오류가 `mismatch=False` 로 통과하고 TOOL 버킷이 그리드에서 0건이 된다.
+    rec = (reports[full] or {}).get("arm_allocation_reconciliation") if full else None
+    if rec:
+        o.append("\n### 9c. 🔴 자동 분류기 vs 원문 대조 — **어긋나는 것이 정상이다**\n")
+        o.append(f'{rec["note"]}\n')
+        o.append(f'분모가 다르다: {rec["denominator_note"]}. '
+                 f'권위값은 **{rec["authoritative"]}**(원문 대조)이다.\n')
+        o.append("| arm | 자동 (그리드) | 자동 (전 트랙) | 수동 (전 트랙) | 일치 |")
+        o.append("|---|---|---|---|---|")
+        for row in rec["by_arm"]:
+            same = "✓" if row["auto_all_tracks"] == row["manual_all_tracks"] else "**✗**"
+            o.append(f'| {row["arm"]} | {row["auto_grid"]} | {row["auto_all_tracks"]} '
+                     f'| {row["manual_all_tracks"]} | {same} |')
+        o.append(f'\n불일치 **{rec["n_disagreements"]}/{rec["n_compared"]}건**'
+                 + (f' — {", ".join(p["question_id"] + "(" + p["auto_arm"] + "→" + p["manual_arm"] + ")" for p in rec["disagreements"])}'
+                    if rec["disagreements"] else "")
+                 + ".\n")
+        if rec.get("critic_passed_wrong_answer"):
+            o.append("🔴 **critic 이 통과시킨 오답**: "
+                     f'{" ".join(rec["critic_passed_wrong_answer"])} — 이 문항들의 arm 은 '
+                     "자동 분류기가 지목할 수 없다 (그 판정 자체가 입력이다).\n")
+
     o.append("\n**읽는 법**: 어느 arm 도 자기 겨냥 문항을 하나도 못 건졌다 — 그것이 "
              "겨냥 문항의 정의이므로 동어반복이다. 읽을 값은 `사다리 Δ`(그 arm 이 실제로 "
              "번 것)와, 겨냥 문항이 **여전히 틀리고 있다**는 사실이다. 후자는 "
@@ -1508,7 +1803,13 @@ def render_gate(root: Path, budget_cap: float) -> str:
              f'{_pct(arms.get("A1b", {}).get("rate"))}).\n')
 
     # --- 12. measured 42 — v1 과 비교 가능한 유일한 축 ---
-    o.append("\n## 12. `measured 42` 코호트 — v1 과 비교 가능한 유일한 축\n")
+    # 🔴 제목과 셀 라벨을 `measured 42 중 그리드 36` 으로 통일한다. `measured_dev_cohort()`
+    #    는 42개 ID 를 주지만 `_grid_rate` 가 `grid_rows` 로 한 번 더 걸러 **36** 이 된다
+    #    (정보한계 6문항 제외). 예전 표는 분모 36 을 "measured 42" 로 라벨링해서, 같은
+    #    보고서 안에서 같은 코호트를 42 와 36 두 이름으로 불렀다 — 코호트/분모 혼용은 이
+    #    프로젝트가 가장 조심하는 실패 유형이고, 표 라벨은 문서로 옮겨 적힐 때 값보다
+    #    먼저 떨어진다. (값은 안 바뀐다.)
+    o.append("\n## 12. `measured 42 중 그리드 36` 코호트 — v1 과 비교 가능한 유일한 축\n")
     o.append("🔴 **이것은 재생(replay)이다.** Task 7 의 measured 42 는 답변 42/42 가 A7 과 "
              "바이트 동일이고 토큰 167,914 가 전 항목 일치했다. 온도 0.0 하에 타당하나 "
              "**'현재 시스템의 독립 측정' 이 아니다** — 새로 얻은 정보는 '현재 코드가 그 "
@@ -1543,12 +1844,18 @@ def render_gate(root: Path, budget_cap: float) -> str:
         base_rate = _exact_rate(v1["crosstab"]["grid_overall"]) if v1 else None
         if v1:
             g = v1["crosstab"]["grid_overall"]
-            o.append(f'| **Ablation v1 A6** (2026-08-09) | measured 42 '
-                     f'| {g["correct"]}/{g["n_scored"]} | {_pct(_exact_rate(g))} | — |')
+            o.append(f'| **Ablation v1 A6** (2026-08-09) | measured 42 중 그리드 '
+                     f'{g["n_scored"]} | {g["correct"]}/{g["n_scored"]} '
+                     f'| {_pct(_exact_rate(g))} | — |')
         for arm in ladder:
             r = _grid_rate(reports[arm]["rows"], wanted)
-            o.append(f'| v2 {arm} | measured 42 | {r["correct"]}/{r["n_scored"]} '
+            o.append(f'| v2 {arm} | measured 42 중 그리드 {r["n_scored"]} '
+                     f'| {r["correct"]}/{r["n_scored"]} '
                      f'| {_pct(_exact_rate(r))} | {_pp(base_rate, _exact_rate(r))} |')
+        o.append(f'\n🔴 **분모는 {len(wanted)} 가 아니라 그리드 36 이다.** '
+                 f'`measured_dev_cohort()` 는 {len(wanted)}개 ID 를 주지만 정보한계 6문항이 '
+                 "그리드 밖이라 채점 대상은 36 이다. 이 표의 코호트 이름과 §12b·원장의 "
+                 "`dev_grid_measured36` 은 **같은 것**을 가리킨다.\n")
 
         # 🔴 12b. 뒤집힘을 두 성분으로 가른다 — 코호트 효과와 증설 효과는 다른 것이다.
         o.append("\n### 12b. 🔴 `A0→A1` 뒤집힘을 두 성분으로 가른다\n")
@@ -1591,6 +1898,13 @@ def render_gate(root: Path, budget_cap: float) -> str:
              "따로 세고, 지어내면 `HALLUCINATION` 으로 잡는다 (§4).\n")
     o.append("- 근본 원인 히스토그램은 **그리드 기준**이다 (`root_cause_histogram_grid`). "
              "전체 88 기준을 쓰면 회귀 트랙이 섞여 겨냥 건수가 부푼다.\n")
+    o.append("- 🔴 **`latency_s_mean` 을 '평균 응답 시간' 으로 인용하지 않는다.** 그 값은 "
+             "응답 파일에 저장된 벽시계 시간의 평균이고, 그 파일을 만들 때 요청 캐시가 "
+             "적중했다면 파이프라인이 ~1ms 에 끝난 시간이 저장돼 있다 — 실측으로 A0 은 "
+             "3.73초(88 중 28건만 <0.5s)인데 **A5·A8 은 0.02~0.03초**(88/88 캐시 적중)다. "
+             "기울기가 언제나 **빠르게 보이는 한 방향**이라 그대로 인용하면 두 자릿수 배로 "
+             "틀린다. `summary.json` 에서는 이름을 `latency_s_mean_recorded` 로 갈고 경고를 "
+             "붙였다. 진짜 응답 시간은 캐시 없이 다시 재야 나온다 (제출 후).\n")
     o.append("- **A2·A3 는 v1 에서 실측으로 제외했다** — A2 는 dense 가 top_k 에 31건을 "
              "새로 올렸는데 골든 0건, A3 는 겨냥점 1건. 다만 **A3 겨냥점의 종류가 바뀌었다**: "
              "v1 의 `WRONG_SECTION` 은 해소됐고, 신규 섹터에서 `RANKING/LOW_RANK` "
@@ -1604,8 +1918,14 @@ def render_gate(root: Path, budget_cap: float) -> str:
                  "여기서 비어 있다.\n")
     else:
         dev = held["dev_grid"]
-        o.append(f'🔴 **{held["use"]}회째 사용이다.** v1 에서 `A6` 으로 1회 썼고 '
-                 f'(15/18 = 83.3%), 이번이 두 번째이자 최종 구성 `{held["arm"]}` 1회다. '
+        # 🔴 "이번이 두 번째" 를 하드코딩하지 않는다 — 바로 앞이 `use` 를 동적으로 찍으므로
+        #    3회째가 되면 한 문단 안에서 모순이 생긴다. 이력은 `HELDOUT_HISTORY` 가 든다.
+        prior = [h for h in HELDOUT_HISTORY if h["use"] < (held.get("use") or 0)]
+        prior_note = " · ".join(f'{h["use"]}회 {h["arm"]} {h["correct"]}/{h["n_scored"]}'
+                                for h in prior) or "없음"
+        ordinal = {1: "첫", 2: "두", 3: "세"}.get(held.get("use"), str(held.get("use")))
+        o.append(f'🔴 **{held["use"]}회째 사용이다.** 앞선 사용: {prior_note}. '
+                 f'이번이 {ordinal} 번째이자 최종 구성 `{held["arm"]}` 1회다. '
                  "arm 별로 돌리지 않았다 — 그러면 heldout 이 개발셋이 되고 되돌릴 수 없다. "
                  f'원장 `{HELDOUT_LEDGER}` 이 `artifacts/` 아래 **어디에라도** 있으면 러너가 '
                  "유료 실행을 거부한다 — `--out` 으로 우회되지 않는다 "
@@ -1730,7 +2050,12 @@ def _utf8_console() -> None:
             pass
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    """🔴 `argv` 를 받는다. 통합 테스트가 `main()` 을 실제로 태울 수 있어야 한다 —
+    "거부된 heldout 실행이 빈 폴더를 흔적으로 남기지 않는다" 는 성질은 `mkdir` 과
+    `assert_heldout_unused` 의 **호출 순서**로만 참이고, 그것을 지키는 회귀 테스트가
+    없으면 다음 사람이 순서를 바꿔도 스위트가 잡지 못한다.
+    """
     _utf8_console()
     parser = argparse.ArgumentParser(description="Phase I ablation (dev 전용)")
     parser.add_argument("--arm", "--arms", dest="arm", default="",
@@ -1755,7 +2080,7 @@ def main() -> None:
     parser.add_argument("--budget-won", "--budget", dest="budget_won", type=float,
                         default=None,
                         help="상한(원). 러너는 그 80%%(=정지선)에서 멈춘다")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     global OUT_DIR
     if args.out:
@@ -1767,6 +2092,7 @@ def main() -> None:
     stop_won = round(budget_cap * 0.8, 1)
 
     if args.report:
+        assert_not_v1_root(OUT_DIR, "게이트 보고서")
         write_gate_report(OUT_DIR, budget_cap)
         return
 
@@ -1795,6 +2121,8 @@ def main() -> None:
     if args.dry:
         # 리허설 응답을 본 실행 캐시에 섞으면 가짜 답이 영원히 굳는다. 폴더부터 가른다.
         OUT_DIR = ROOT / "artifacts" / "ablation_dry"
+    # 🔴 v1 자리 쓰기 거부도 **디렉터리를 만들기 전에** 건다 (heldout 제동과 같은 이유).
+    assert_not_v1_root(OUT_DIR, "arm 산출물·summary.json")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     cache = RequestCache(CACHE_DIR, offline=args.offline)
     if args.dry:
@@ -1849,15 +2177,16 @@ def main() -> None:
             break
         print(f"\n=== {arm} · {len(cases)}문항 · 누적 {cache.fresh_won:,.0f}원 "
               f"/ 정지선 {stop_won:,.0f}원 (상한 {budget_cap:,.0f}) ===")
-        live[arm] = run_arm(arm, cases, cache, stop_won, args.force)
-        (arm_dir(arm) / "run.json").write_text(
-            json.dumps(live[arm], ensure_ascii=False, indent=1), encoding="utf-8")
+        # 🔴 `_write_run` 이 지출 보존 가드를 들고 있다. 직접 `write_text` 하지 않는다 —
+        #    그것이 1,901.0원을 0.0 으로 덮은 경로다 (`_write_run` docstring ③).
+        live[arm] = _write_run(arm, run_arm(arm, cases, cache, stop_won, args.force))
 
     scored_cases = load_cases(args.cohort, args.snapshot)
     reports = {}
     for arm in ablation.RUN_ORDER:
         if (arm_dir(arm) / "responses").exists():
-            reports[arm] = score_arm(arm, scored_cases, records)
+            reports[arm] = score_arm(arm, scored_cases, records,
+                                     cohort=args.cohort or "dev")
 
     summary = summarise(reports)
     meta = {"generated": time.strftime("%Y-%m-%dT%H:%M:%S"),

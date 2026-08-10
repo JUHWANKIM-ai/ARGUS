@@ -1,7 +1,7 @@
 {
- "generated": "2026-08-10T23:42:31",
+ "generated": "2026-08-11T00:57:33",
  "split": "heldout",
- "cohort": "",
+ "cohort": "heldout",
  "n_cases": 18,
  "n_analysed": 18,
  "totals": {
@@ -83,7 +83,7 @@
     "rate": 0.0,
     "data_limit": 0,
     "stages": {
-     "VERIFY": 1
+     "GENERATION": 1
     }
    },
    "multi_compare|closed|상": {
@@ -109,7 +109,7 @@
     "rate": 0.0,
     "data_limit": 0,
     "stages": {
-     "VERIFY": 1
+     "GENERATION": 1
     }
    },
    "multi_compare|open|상": {
@@ -189,7 +189,7 @@
      "data_limit": 0,
      "stages": {
       "RETRIEVAL": 1,
-      "VERIFY": 2
+      "GENERATION": 2
      }
     },
     "complex_reason": {
@@ -209,7 +209,7 @@
      "rate": 0.889,
      "data_limit": 0,
      "stages": {
-      "VERIFY": 1
+      "GENERATION": 1
      }
     },
     "open": {
@@ -220,7 +220,7 @@
      "data_limit": 0,
      "stages": {
       "RETRIEVAL": 1,
-      "VERIFY": 1
+      "GENERATION": 1
      }
     }
    },
@@ -240,7 +240,7 @@
      "rate": 0.667,
      "data_limit": 0,
      "stages": {
-      "VERIFY": 2
+      "GENERATION": 2
      }
     },
     "상": {
@@ -263,7 +263,7 @@
    "data_limit": 0,
    "stages": {
     "RETRIEVAL": 1,
-    "VERIFY": 2
+    "GENERATION": 2
    }
   },
   "info_limit": {
@@ -283,7 +283,7 @@
     "data_limit": 0,
     "stages": {
      "RETRIEVAL": 1,
-     "VERIFY": 2
+     "GENERATION": 2
     }
    }
   },
@@ -295,7 +295,7 @@
    "data_limit": 0,
    "stages": {
     "RETRIEVAL": 1,
-    "VERIFY": 2
+    "GENERATION": 2
    }
   }
  },
@@ -318,26 +318,129 @@
  },
  "difficulty_audit": [],
  "failure_histogram": {
-  "VERIFY": 2,
+  "GENERATION": 2,
   "RETRIEVAL": 1
  },
  "failure_histogram_grid": {
-  "VERIFY": 2,
+  "GENERATION": 2,
   "RETRIEVAL": 1
  },
  "by_track_failures": {
   "grid": {
-   "VERIFY": 2,
+   "GENERATION": 2,
    "RETRIEVAL": 1
   }
  },
  "root_cause_histogram": {
-  "VERIFY/VERIFY": 2,
+  "GENERATION/REASONING": 1,
+  "GENERATION/INDEX_FIELD_MISSING": 1,
   "RETRIEVAL/MULTI_POINT_QUERY": 1
  },
  "root_cause_histogram_grid": {
-  "VERIFY/VERIFY": 2,
+  "GENERATION/REASONING": 1,
+  "GENERATION/INDEX_FIELD_MISSING": 1,
   "RETRIEVAL/MULTI_POINT_QUERY": 1
+ },
+ "arm_allocation_reconciliation": {
+  "authoritative": "manual",
+  "note": "자동 분류기는 A5 를 구조적으로 못 본다 — `verify_calculation` 이 답변 수치 중 최유리 값을 골라 비교하므로 10× 단위환산 오류가 `mismatch=False` 로 통과하고, TOOL 버킷이 그리드에서 0건이 된다. arm 확정은 원문 대조(`TARGETED_BY_MANUAL_REVIEW`)의 몫이다.",
+  "denominator_note": "자동 = 그리드만 3건 · 수동 = 전 트랙 13건",
+  "by_arm": [
+   {
+    "arm": "A1b",
+    "auto_grid": 1,
+    "auto_all_tracks": 1,
+    "manual_all_tracks": 2
+   },
+   {
+    "arm": "A3",
+    "auto_grid": 0,
+    "auto_all_tracks": 0,
+    "manual_all_tracks": 1
+   },
+   {
+    "arm": "A4",
+    "auto_grid": 2,
+    "auto_all_tracks": 2,
+    "manual_all_tracks": 5
+   },
+   {
+    "arm": "A5",
+    "auto_grid": 0,
+    "auto_all_tracks": 0,
+    "manual_all_tracks": 4
+   },
+   {
+    "arm": "A6",
+    "auto_grid": 0,
+    "auto_all_tracks": 0,
+    "manual_all_tracks": 1
+   }
+  ],
+  "disagreements": [
+   {
+    "question_id": "Q-021",
+    "track": "grid",
+    "bucket": "GENERATION/REASONING",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-057",
+    "track": "grid",
+    "bucket": "GENERATION/INDEX_FIELD_MISSING",
+    "auto_arm": "A1b",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-058",
+    "track": "grid",
+    "bucket": "RETRIEVAL/MULTI_POINT_QUERY",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": false
+   }
+  ],
+  "n_disagreements": 3,
+  "n_compared": 3,
+  "critic_passed_wrong_answer": [
+   "Q-021",
+   "Q-057"
+  ],
+  "per_question": [
+   {
+    "question_id": "Q-021",
+    "track": "grid",
+    "bucket": "GENERATION/REASONING",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-057",
+    "track": "grid",
+    "bucket": "GENERATION/INDEX_FIELD_MISSING",
+    "auto_arm": "A1b",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-058",
+    "track": "grid",
+    "bucket": "RETRIEVAL/MULTI_POINT_QUERY",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": false
+   }
+  ]
  },
  "citation_rate": 0.611,
  "citation_rate_grid": 0.611,
@@ -349,7 +452,7 @@
    "rate": 0.875,
    "data_limit": 0,
    "stages": {
-    "VERIFY": 1
+    "GENERATION": 1
    }
   },
   "holding": {
@@ -376,7 +479,7 @@
    "data_limit": 0,
    "stages": {
     "RETRIEVAL": 1,
-    "VERIFY": 1
+    "GENERATION": 1
    }
   }
  },
@@ -388,7 +491,7 @@
    "rate": 0.875,
    "data_limit": 0,
    "stages": {
-    "VERIFY": 1
+    "GENERATION": 1
    }
   },
   "holding": {
@@ -415,7 +518,7 @@
    "data_limit": 0,
    "stages": {
     "RETRIEVAL": 1,
-    "VERIFY": 1
+    "GENERATION": 1
    }
   }
  },
@@ -439,6 +542,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": true,
    "route": "multi_compare",
@@ -511,6 +616,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": true,
    "route": "multi_compare",
@@ -588,6 +695,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": true,
    "route": "closed_lookup",
@@ -666,6 +775,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": true,
    "route": "closed_lookup",
@@ -755,6 +866,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": null,
    "has_citation": true,
    "route": "closed_lookup",
@@ -840,6 +953,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": false,
    "has_citation": true,
    "route": "closed_lookup",
@@ -923,6 +1038,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": false,
    "route": "multi_compare",
@@ -1010,9 +1127,11 @@
     "no_fabrication": false,
     "reason": ""
    },
-   "first_failure": "VERIFY",
-   "root_cause": "VERIFY",
-   "failure_why": "critic 이 supported=True 로 오답을 통과시켰다",
+   "first_failure": "GENERATION",
+   "root_cause": "REASONING",
+   "failure_why": "골든 근거가 프롬프트에 실렸는데 답이 틀렸다 (critic 이 supported=True 로 통과시켰다)",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": true,
    "gold_value_in_evidence": true,
    "has_citation": false,
    "route": "multi_compare",
@@ -1102,6 +1221,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": true,
    "route": "closed_lookup",
@@ -1183,6 +1304,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": true,
    "route": "closed_lookup",
@@ -1280,6 +1403,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": null,
    "has_citation": true,
    "route": "closed_lookup",
@@ -1356,6 +1481,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": false,
    "route": "closed_lookup",
@@ -1446,6 +1573,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": false,
    "route": "closed_lookup",
@@ -1531,6 +1660,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": false,
    "route": "closed_lookup",
@@ -1604,9 +1735,11 @@
    "correct": false,
    "scored_by": "em:number_won",
    "judge": null,
-   "first_failure": "VERIFY",
-   "root_cause": "VERIFY",
-   "failure_why": "critic 이 supported=True 로 오답을 통과시켰다",
+   "first_failure": "GENERATION",
+   "root_cause": "INDEX_FIELD_MISSING",
+   "failure_why": "골든 근거가 프롬프트에 실렸는데 답이 틀렸다 (critic 이 supported=True 로 통과시켰다)",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": true,
    "gold_value_in_evidence": false,
    "has_citation": false,
    "route": "closed_lookup",
@@ -1692,6 +1825,8 @@
    "first_failure": "RETRIEVAL",
    "root_cause": "MULTI_POINT_QUERY",
    "failure_why": "골든 2/3 건이 어떤 hop 후보에도 없다: ['20260312001119', '20260312001119']",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": true,
    "route": "complex_reason",
@@ -1763,6 +1898,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": null,
    "has_citation": true,
    "route": "complex_reason",
@@ -1837,6 +1974,8 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": false,
    "route": "multi_compare",
@@ -1909,6 +2048,10 @@
   "runs": [
    {
     "question_id": "Q-002",
+    "cached": true,
+    "judge_cached": null,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 1,
     "prompt_tokens": 1362,
     "completion_tokens": 243,
@@ -1917,6 +2060,10 @@
    },
    {
     "question_id": "Q-004",
+    "cached": true,
+    "judge_cached": null,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 1,
     "prompt_tokens": 1085,
     "completion_tokens": 123,
@@ -1925,6 +2072,10 @@
    },
    {
     "question_id": "Q-009",
+    "cached": true,
+    "judge_cached": true,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 1,
     "prompt_tokens": 1543,
     "completion_tokens": 173,
@@ -1933,6 +2084,10 @@
    },
    {
     "question_id": "Q-011",
+    "cached": true,
+    "judge_cached": true,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 2,
     "prompt_tokens": 1763,
     "completion_tokens": 407,
@@ -1941,6 +2096,10 @@
    },
    {
     "question_id": "Q-013",
+    "cached": true,
+    "judge_cached": null,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 2,
     "prompt_tokens": 1869,
     "completion_tokens": 212,
@@ -1949,6 +2108,10 @@
    },
    {
     "question_id": "Q-017",
+    "cached": true,
+    "judge_cached": null,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 1,
     "prompt_tokens": 1472,
     "completion_tokens": 150,
@@ -1957,6 +2120,10 @@
    },
    {
     "question_id": "Q-019",
+    "cached": true,
+    "judge_cached": true,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 2,
     "prompt_tokens": 2021,
     "completion_tokens": 264,
@@ -1965,6 +2132,10 @@
    },
    {
     "question_id": "Q-021",
+    "cached": true,
+    "judge_cached": true,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 2,
     "prompt_tokens": 2246,
     "completion_tokens": 277,
@@ -1973,6 +2144,10 @@
    },
    {
     "question_id": "Q-027",
+    "cached": true,
+    "judge_cached": null,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 2,
     "prompt_tokens": 1190,
     "completion_tokens": 121,
@@ -1981,6 +2156,10 @@
    },
    {
     "question_id": "Q-029",
+    "cached": true,
+    "judge_cached": null,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 2,
     "prompt_tokens": 2406,
     "completion_tokens": 179,
@@ -1989,6 +2168,10 @@
    },
    {
     "question_id": "Q-032",
+    "cached": true,
+    "judge_cached": true,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 1,
     "prompt_tokens": 1521,
     "completion_tokens": 93,
@@ -1997,6 +2180,10 @@
    },
    {
     "question_id": "Q-036",
+    "cached": true,
+    "judge_cached": true,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 2,
     "prompt_tokens": 2985,
     "completion_tokens": 536,
@@ -2005,6 +2192,10 @@
    },
    {
     "question_id": "Q-055",
+    "cached": true,
+    "judge_cached": null,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 2,
     "prompt_tokens": 12463,
     "completion_tokens": 107,
@@ -2013,6 +2204,10 @@
    },
    {
     "question_id": "Q-056",
+    "cached": true,
+    "judge_cached": true,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 2,
     "prompt_tokens": 12107,
     "completion_tokens": 178,
@@ -2021,6 +2216,10 @@
    },
    {
     "question_id": "Q-057",
+    "cached": true,
+    "judge_cached": null,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 2,
     "prompt_tokens": 11520,
     "completion_tokens": 139,
@@ -2029,6 +2228,10 @@
    },
    {
     "question_id": "Q-058",
+    "cached": true,
+    "judge_cached": true,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 1,
     "prompt_tokens": 5082,
     "completion_tokens": 265,
@@ -2037,6 +2240,10 @@
    },
    {
     "question_id": "Q-059",
+    "cached": true,
+    "judge_cached": null,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 1,
     "prompt_tokens": 3060,
     "completion_tokens": 127,
@@ -2045,6 +2252,10 @@
    },
    {
     "question_id": "Q-060",
+    "cached": true,
+    "judge_cached": true,
+    "request_cache_hits": 0,
+    "spent_won": 0.0,
     "llm_calls": 1,
     "prompt_tokens": 6724,
     "completion_tokens": 298,
@@ -2053,6 +2264,7 @@
    }
   ],
   "spent_won_rescore": 0.0,
-  "spent_won_source": "최초 유료 실행 기록 (이번은 재집계 — LLM 0회)"
+  "spent_won_source": "최초 유료 실행 기록 (이번은 재집계 — LLM 0회)",
+  "runs_describe": "이번 재집계 — 행의 `cached`/`spent_won` 은 재생 기록이고, 위 `spent_won` 은 최초 유료 실행의 값이다. 토큰·지연은 응답 파일에 저장된 최초 측정값이라 두 실행에서 같다."
  }
 }
