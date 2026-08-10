@@ -1,20 +1,44 @@
+import json
+from pathlib import Path
+
 import pytest
 
-from argus.agent.tools import CALC_TOOLS, RETRIEVAL_TOOLS, TOOL_SPECS, execute
+from argus.agent.tools import (CALC_TOOLS, RETRIEVAL_TOOLS, TOOL_SPECS,
+                               chain_probe, execute)
 
 _JSON_TYPES = {"string", "number", "integer", "boolean", "array", "object"}
+
+_ROOT = Path(__file__).resolve().parents[1]
+_GRAPH_PATH = _ROOT / "artifacts/counterparty_graph.json"
+
+
+@pytest.fixture(autouse=True)
+def ensure_counterparty_graph():
+    """산출물이 없으면 값싸게 재생성한다 — tests/test_counterparty.py::ensure_graph 와 같은 패턴.
+
+    `artifacts/` 는 gitignore 대상이라 신규 클론·격리 워크트리에서는 파일이 없을 수 있다.
+    """
+    if _GRAPH_PATH.exists():
+        return
+    from scripts.build_counterparty_graph import RECORDS_PATH, build_graph
+    if not RECORDS_PATH.exists():
+        pytest.skip(
+            f"{RECORDS_PATH} 이 없어 counterparty_graph.json 을 재생성할 수 없다."
+        )
+    build_graph(_GRAPH_PATH)
 
 
 def _spec(name):
     return next(s for s in TOOL_SPECS if s["function"]["name"] == name)
 
 
-def test_specs_cover_seven_retrieval_tools():
+def test_specs_cover_eight_retrieval_tools():
     names = {s["function"]["name"] for s in TOOL_SPECS}
     assert RETRIEVAL_TOOLS <= names
     assert RETRIEVAL_TOOLS == {
         "resolve_company", "query_events", "list_filings",
         "list_sections", "read_section", "search_chunks", "get_history",
+        "query_by_counterparty",
     }
 
 
@@ -30,7 +54,7 @@ def test_specs_expose_seven_calc_tools():
 
 def test_specs_have_no_duplicate_names():
     names = [s["function"]["name"] for s in TOOL_SPECS]
-    assert len(names) == len(set(names)) == 14
+    assert len(names) == len(set(names)) == 15
 
 
 def test_specs_are_valid_function_calling_shape():
@@ -96,6 +120,140 @@ def test_search_chunks_accepts_period_filter():
 def test_search_chunks_spec_exposes_period():
     props = _spec("search_chunks")["function"]["parameters"]["properties"]
     assert "year" in props and "ym" in props
+
+
+# --- 정정·후속 공시 체인 (Phase H 1위 병목) -------------------------------------
+# 한화오션 잠수함 체인은 금액이 **줄어든다**. '가장 큰 값 = 최신' 규칙을 쓰면 전부 틀린다.
+SUBMARINE = "20231222800809"          # 원공시 1,102,000,000,000원 (체인 최대 금액)
+SUBMARINE_LATEST = "20251204800395"   # 최신 정정본 899,400,000,000원
+
+FORD = "20241015800258"               # LG에너지솔루션 Ford 원계약 (대체됨)
+FORD_CORRECTION = "20251217800853"    # related 로 이어진 정정본
+FORD_TERMINATION = "20251217800800"   # related 는 비었고 ※관련공시로만 이어지는 해지
+
+
+def test_get_history_orders_the_chain_by_filing_date_not_amount():
+    """`is_latest` 는 체인 위치로만 정해진다. 금액으로 정하면 감소 체인에서 뒤집힌다."""
+    out = execute("get_history", {"rcept_no": SUBMARINE})
+    order = [c["rcept_no"] for c in out["chain"]]
+
+    assert order == sorted(order)                       # 접수일 오름차순
+    assert out["latest"] == SUBMARINE_LATEST == order[-1]
+    amounts = [c["amount"] for c in out["chain"] if c["amount"]]
+    assert max(amounts) != out["chain"][-1]["amount"]   # 최신본이 최대 금액이 아니다
+    assert [c["is_latest"] for c in out["chain"]] == [False] * (len(order) - 1) + [True]
+
+
+def test_get_history_spans_document_groups():
+    """정정 체인은 문서군을 가리지 않는다 — 고려아연 유상증자 철회는 `major` 체인이다."""
+    out = execute("get_history", {"rcept_no": "20241030000098"})
+    assert "error" not in out
+    assert "20241113000148" in [c["rcept_no"] for c in out["chain"]]
+
+
+def test_get_history_carries_markdown_so_the_chain_can_become_evidence():
+    """체인을 찾아 놓고 근거를 다시 조회해야 하면 스텝이 두 배가 된다."""
+    out = execute("get_history", {"rcept_no": SUBMARINE})
+    latest = next(c for c in out["chain"] if c["rcept_no"] == SUBMARINE_LATEST)
+    assert latest["markdown"].startswith("## ")
+    assert SUBMARINE_LATEST in latest["markdown"]
+    assert latest["doc_id"] == f"exchange_{SUBMARINE_LATEST}"
+
+
+def test_get_history_links_the_termination_by_reference_not_by_related():
+    """해지 공시 20건 중 `related` 로 이어진 것은 0건이다. ※관련공시 역방향이 유일한 다리."""
+    out = execute("get_history", {"rcept_no": FORD})
+    assert FORD_CORRECTION in [c["rcept_no"] for c in out["chain"]]
+    assert FORD_TERMINATION in [f["rcept_no"] for f in out["followups"]]
+    assert all(f["kind"] == "followup" for f in out["followups"])
+
+
+def test_get_history_can_leave_the_followups_out():
+    out = execute("get_history", {"rcept_no": FORD, "include_followups": False})
+    assert out["followups"] == []
+
+
+def test_get_history_reports_an_unknown_receipt():
+    assert "error" in execute("get_history", {"rcept_no": "00000000000000"})
+
+
+def test_chain_probe_flags_a_superseded_document_and_its_links():
+    """씨앗 판정은 도구 호출이 아니다 — 레코드 한 건만 본다 (스텝을 쓰지 않는다)."""
+    probe = chain_probe(f"exchange_{FORD}")
+    assert probe["is_latest"] is False
+    assert FORD_CORRECTION in probe["links"]
+    assert FORD_TERMINATION in probe["links"]           # 후속 해지까지 한 번에
+
+
+def test_chain_probe_accepts_a_bare_receipt_number():
+    assert chain_probe(FORD)["rcept_no"] == FORD
+
+
+def test_chain_probe_of_a_latest_document_is_not_a_seed():
+    """최신본을 씨앗으로 삼으면 지금 맞히는 문항에 무관한 체인이 붙는다 (제동 ②)."""
+    assert chain_probe(f"exchange_{SUBMARINE_LATEST}")["is_latest"] is True
+
+
+def test_chain_probe_of_an_unknown_document_is_empty():
+    assert chain_probe("exchange_00000000000000") == {}
+    assert chain_probe("") == {}
+
+
+def test_get_history_spec_exposes_followups():
+    props = _spec("get_history")["function"]["parameters"]["properties"]
+    assert "include_followups" in props
+
+
+# --- query_by_counterparty (Task 4) — 발주처 단위 fan-in/fan-out 완전 열거 -------
+# BM25 자유텍스트로는 "이 허브에 몇 개사가 걸렸는가"를 물을 수단이 없다(Q-110·Q-114·
+# Q-117 이 구조적으로 불가). partners 를 통째로 돌려주는 것이 이 도구의 존재 이유다.
+
+def test_counterparty_tool_is_registered():
+    names = {s.get("function", s).get("name", s.get("name")) for s in TOOL_SPECS}
+    assert "query_by_counterparty" in names
+    assert "query_by_counterparty" in RETRIEVAL_TOOLS
+    assert len(TOOL_SPECS) == 15
+
+
+def test_query_by_counterparty_returns_the_value_chain():
+    out = execute("query_by_counterparty", {"name": "한국수력원자력"})
+    assert out["kind"] == "public"
+    assert {"두산에너빌리티", "한전기술", "현대건설"} <= set(out["partners"])
+    assert out["records"], "레코드가 비면 근거로 못 쓴다"
+    for r in out["records"]:
+        assert r.get("rcept_no"), "근거 인용 앵커가 없다"
+
+
+def test_query_by_counterparty_rejects_vague_names():
+    """비실명으로 조회하면 빈 결과가 아니라 사유를 돌려준다."""
+    out = execute("query_by_counterparty", {"name": "글로벌 대형기업"})
+    assert out.get("error")
+    assert "비실명" in out["error"]
+
+
+def test_query_by_counterparty_reports_unknown_orderer():
+    out = execute("query_by_counterparty", {"name": "존재하지않는가상발주처스트링"})
+    assert out.get("error")
+
+
+def test_query_by_counterparty_distinguishes_boilerplate_from_vague():
+    """"비밀유지" 안내문은 비실명과 다른 사유(회사명이 아니라 안내문)로 거절돼야 한다."""
+    graph = json.loads(_GRAPH_PATH.read_text(encoding="utf-8"))
+    sample = graph["excluded_boilerplate"][0]["raw"]
+    out = execute("query_by_counterparty", {"name": sample})
+    assert out.get("error")
+    assert "비실명" not in out["error"]
+
+
+def test_query_by_counterparty_filters_by_year():
+    out = execute("query_by_counterparty", {"name": "한국수력원자력", "year": "1900"})
+    assert out.get("records") == []
+
+
+def test_query_by_counterparty_spec_has_name_and_year():
+    spec = _spec("query_by_counterparty")["function"]["parameters"]
+    assert "name" in spec["properties"] and "year" in spec["properties"]
+    assert spec["required"] == ["name"]
 
 
 # --- F-2. 계산 도구가 execute() 로 실제 호출되는지 ---
