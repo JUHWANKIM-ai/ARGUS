@@ -170,10 +170,15 @@ def test_pairs_record_the_intermediary():
     미친다), 그 156개 중 11개를 눈으로 확인하면 전부 회사명이 아니라 안내문 문장이다.
     `pairs`는 44로 브리프값과 일치한다 — 오염 노드 11개는 전부 partners 0~1개라
     pairs 생성에 관여하지 않았다(순수하게 node 수만 오염시켰다).
+
+    리뷰(라운드 1)에서 `nodes >= 140` 처럼 느슨한 하한은 회귀 탐지력이 떨어진다는
+    지적을 받았다 — `exchange_records.jsonl` 은 정적 산출물(고정 스냅샷)이라 값이
+    바뀔 이유가 없으므로 실측값으로 **정확히 고정**한다. 이 값이 바뀌면 원본이
+    바뀐 것이니 재측정해서 상수를 다시 박아야 한다(하한을 슬쩍 늘리면 안 된다).
     """
     g = json.loads((ROOT / "artifacts/counterparty_graph.json").read_text(encoding="utf-8"))
-    assert g["stats"]["pairs"] >= 44        # 직접 20쌍 → 2-hop 44쌍 (실측)
-    assert g["stats"]["nodes"] >= 140       # 실측 145. 브리프의 157은 B1 오염 포함 수치였다
+    assert g["stats"]["pairs"] == 44         # 직접 20쌍 → 2-hop 44쌍 (실측, 고정)
+    assert g["stats"]["nodes"] == 145        # 실측 고정. 브리프의 157은 B1 오염 포함 수치였다
     for p in g["pairs"]:
         assert p["via"], f"중개 노드가 비어 있다: {p}"
 
@@ -195,6 +200,9 @@ def test_boilerplate_secrecy_notices_are_excluded_from_nodes():
     들어간 사례(실측 27종 표기·34건)는 회사명이 아니다. 같은 문장이 반복되면
     canonical()이 겹쳐 count>=2 로 노드가 될 뻔했다 — 실측: 필터 없이 돌리면 정확히
     이런 문장 11개가 노드로 승격된다(각각 count=2, partners 0~1개).
+
+    리뷰(라운드 1) 지적대로 `>= 20` 은 느슨해서 회귀 탐지력이 떨어진다 — 정적
+    스냅샷이라 값이 안 바뀌므로 실측값 27로 **정확히 고정**한다.
     """
     g = json.loads((ROOT / "artifacts/counterparty_graph.json").read_text(encoding="utf-8"))
     for n in g["nodes"]:
@@ -202,7 +210,7 @@ def test_boilerplate_secrecy_notices_are_excluded_from_nodes():
             f"보일러플레이트 안내문이 노드로 승격됐다: {n['display']!r}"
         )
     # 거른 것은 조용히 버리지 않고 사유와 함께 기록한다.
-    assert g["stats"]["boilerplate_excluded_unique"] >= 20
+    assert g["stats"]["boilerplate_excluded_unique"] == 27
     assert g["stats"]["boilerplate_excluded_occurrences"] >= g["stats"]["boilerplate_excluded_unique"]
     assert len(g["excluded_boilerplate"]) == g["stats"]["boilerplate_excluded_unique"]
     for item in g["excluded_boilerplate"]:
