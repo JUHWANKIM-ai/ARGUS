@@ -191,6 +191,27 @@ def test_a_company_that_received_the_order_is_not_the_counterparty():
     assert r.counterparty is None
 
 
+def test_conjunctive_particles_do_not_bind_the_role():
+    """`와`·`과` 는 격조사가 아니라 **접속·공동격**이다.
+
+    "X와 발주처 Y" 는 "X 그리고 발주처 Y" 라서 발주처는 Y 인데, 조사라는 이유로
+    결속 목록에 넣으면 앞의 X 가 잡힌다. 셋 다 앞의 기업이 **공시한 쪽**이다.
+    긴 이름 우선 정렬로는 안 막힌다 — 첫 문장에서 `한국수력원자력` 뒤에는
+    `의계약관계`(≠`계약상대`)가 와서 탈락하고 `삼성전자와발주` 가 통과했다.
+    """
+    for question in (
+        "삼성전자와 발주처 한국수력원자력의 계약 관계를 정리해줘",
+        "SK하이닉스와 발주처가 겹치는 공급계약이 있는가?",
+        "두산에너빌리티와 발주 구조가 같은 계약을 공시한 상장사는?",
+    ):
+        assert route(question).counterparty is None, question
+
+
+def test_genitive_particle_still_binds_the_role():
+    """`의` 는 남긴다 — '한국수력원자력의 발주' 는 관형격이라 그 노드가 발주 주체다."""
+    assert route("한국수력원자력의 발주 계약을 수주한 상장사는?").counterparty         == "한국수력원자력"
+
+
 def test_counterparty_survives_when_it_is_also_a_named_universe_company():
     """`route.companies` 를 통째로 배제하면 안 되는 이유.
 
