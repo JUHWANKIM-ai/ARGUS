@@ -181,6 +181,161 @@ def test_verify_calculation_reports_every_mismatch():
     assert kinds == {"period", "share", "amount"}
 
 
+# --- 최유리 선택을 뺀다 — 자릿수(10^k) 후보는 무해한 이웃이 아니다 --------------
+# 종전 `min(claims, key=|c-expected|)` 은 답변 수치 중 기대값에 **가장 가까운 하나**만
+# 보고 통과를 판정했다. 실측 Q-065 가 그 구멍으로 나갔다 (`docs/total_plan.md §0b ③`).
+
+#: v2 A8 실측. Dukovany 원값과 답변이 옮긴 값. 배율 10.0002 — 콤마가 한 자리 밀렸다.
+DUKOVANY = {"rcept_no": "20251216801147", "corp_name": "두산에너빌리티",
+            "amount": 4_928_968_079_043, "amount_type": "계약금액", "is_latest": True}
+#: 같은 답변에 정확히 실린 다른 계약. 이것이 종전 판정을 통과시킨 '최유리 값' 이다.
+SHINHANUL = {"rcept_no": "20230329801108", "corp_name": "두산에너빌리티",
+             "amount": 2_338_117_950_000, "amount_type": "계약금액", "is_latest": True}
+Q065_ANSWER = ("Dukovany 5&6 NSSS 계약 금액은 492,909억 원이고, 신한울 원자력 발전소 "
+               "3,4호기 원자로 설비 공급 계약 금액은 23,381억 원이므로, 차이는 "
+               "**469,528억 원**입니다.")
+
+
+def test_unit_error_is_reported_even_when_another_figure_matches():
+    """Q-065. `23,381억` 이 정확해도 `492,909억` 은 10배 오류다 — 둘은 다른 사건이다."""
+    out = critic.verify_calculation(Q065_ANSWER, DUKOVANY)
+    assert out["ok"] is False
+    assert out["hard_kinds"] == ["amount"]
+    bad = [m for m in out["mismatches"] if m.get("scale")]
+    assert len(bad) == 1
+    assert bad[0]["claimed"] == "492,909억" and bad[0]["scale"] == 1
+    assert "자릿수" in out["reason"]
+
+
+def test_a_derived_difference_is_not_a_unit_error():
+    """`469,528억`(차이)은 원값의 9.53배다. 10배 창 밖이므로 자릿수 오류가 아니다."""
+    bad = [m for m in critic.verify_calculation(Q065_ANSWER, DUKOVANY)["mismatches"]
+           if m.get("scale")]
+    assert [m["claimed"] for m in bad] == ["492,909억"]
+
+
+def test_unit_error_does_not_fire_on_a_record_the_answer_quoted_correctly():
+    """신한울 레코드로 보면 통과다 — 그래서 레코드 단위 관용이 이 오류를 지웠다."""
+    assert critic.verify_calculation(Q065_ANSWER, SHINHANUL)["ok"] is True
+
+
+def test_scale_guard_ignores_tiny_amounts():
+    """실측 파싱 잔재 `amount=8`·`amount=1`. 아무 큰 값과도 10^k 관계가 성립한다."""
+    out = critic.verify_calculation("계약금액은 800,000,000,000원입니다.",
+                                    {"amount": 8, "amount_type": "계약금액"})
+    assert out["hard_kinds"] == []
+
+
+def test_scale_guard_leaves_a_nearby_contract_amount_alone():
+    """같은 근거의 다른 계약이 8~9배쯤 되는 것은 흔하다. 자릿수 오류로 세면 안 된다."""
+    other = {"amount": 532_040_000_000, "amount_type": "계약금액", "is_latest": True}
+    out = critic.verify_calculation("계약금액은 4,928,968,079,043원입니다.", other)
+    assert out["hard_kinds"] == [] and out["ok"] is False
+
+
+@pytest.mark.parametrize("claimed,expected,exponent", [
+    (4.92909e13, 4_928_968_079_043, 1),        # Q-065 실측 (10.0002배)
+    (3.3636059e15, 3.336059e14, 1),            # Q-047 실측 (10.08배)
+    (2_276_476_416_000, 22_764_764_160_000, -1),
+    (2.3381e12, 2_338_117_950_000, None),      # 같은 값 — k=0 은 자릿수 오류가 아니다
+    (4.69528e13, 4_928_968_079_043, None),     # 9.53배 — 파생값
+])
+def test_scale_exponent_window(claimed, expected, exponent):
+    assert critic._scale_exponent(claimed, expected) == exponent
+
+
+# --- 레코드 단위 집계 — 체인 관용은 지키고 자릿수 오류만 뺀다 ------------------
+
+def test_aggregate_keeps_the_correction_chain_leniency():
+    """정정 체인은 원공시와 정정본의 금액이 다른 것이 정상이다 (227,500 vs 114,800).
+
+    `tests/test_error_analysis.py::test_calc_passes_when_any_golden_record_explains_the_answer`
+    가 지키는 성질이다. 전건 일치를 요구하면 정당한 통과가 깨진다.
+    """
+    answer = "정정 후 114,800,000,000원입니다"
+    reports = [critic.verify_calculation(answer, {"amount": 227_500_000_000}),
+               critic.verify_calculation(answer, {"amount": 114_800_000_000})]
+    out = critic.aggregate_calculation(reports)
+    assert out["explained"] is True and out["failed"] is False
+    assert out["hard_kinds"] == []
+
+
+def test_aggregate_keeps_the_leniency_when_the_answer_states_both_chain_values():
+    answer = "원공시 227,500,000,000원에서 정정 후 114,800,000,000원으로 바뀌었습니다"
+    reports = [critic.verify_calculation(answer, {"amount": 227_500_000_000}),
+               critic.verify_calculation(answer, {"amount": 114_800_000_000})]
+    assert critic.aggregate_calculation(reports)["failed"] is False
+
+
+def test_aggregate_does_not_excuse_a_unit_error():
+    """Q-065. 신한울이 설명해도 Dukovany 10배 오류는 살아남는다."""
+    reports = [critic.verify_calculation(Q065_ANSWER, DUKOVANY),
+               critic.verify_calculation(Q065_ANSWER, SHINHANUL)]
+    out = critic.aggregate_calculation(reports)
+    assert out["explained"] is True         # 관용은 그대로 성립한다
+    assert out["hard_kinds"] == ["amount"]  # 그런데 자릿수 오류가 그것을 넘는다
+    assert out["failed"] is True and out["failure_stage"] == "TOOL"
+    assert "자릿수" in out["reasons"][0]     # 단위 오류를 먼저 보여 준다
+
+
+def test_aggregate_is_a_noop_without_records():
+    out = critic.aggregate_calculation([])
+    assert out["failed"] is False and out["llm_calls"] == 0 and out["checked"] == []
+
+
+def test_aggregate_matches_the_old_rule_when_nothing_is_a_unit_error():
+    """종전 규칙(`bool(checked) and not explained`)과 갈리는 것은 자릿수 오류뿐이다."""
+    reports = [critic.verify_calculation("계약금액은 999,999,999원입니다.",
+                                         {"amount": 227_500_000_000})]
+    out = critic.aggregate_calculation(reports)
+    assert out["checked"] == ["amount"] and out["explained"] is False
+    assert out["failed"] is True and out["hard_kinds"] == []
+
+
+# --- per_unit — 답변이 스스로 한 나눗셈을 다시 한다 (Q-097 실측) ----------------
+
+GLOVIS = {"rcept_no": "20231026800363", "corp_name": "현대글로비스",
+          "amount": 2_492_215_574_520, "amount_type": "투자금액", "is_latest": True}
+
+
+def test_per_unit_average_is_recomputed():
+    """Q-097. 총액은 정확히 옮겼는데 1척당 값만 틀렸다 — 종전에 이 축이 없었다."""
+    answer = ("총 투자 금액: 2,492,215,574,520원, 선박 척수: 12척. "
+              "따라서 1척 당 평균 투자금액은 약 207,838,797,710원이 됩니다.")
+    out = critic.verify_calculation(answer, GLOVIS)
+    assert out["ok"] is False
+    assert "per_unit" in out["checked"] and "amount" in out["checked"]
+    bad = [m for m in out["mismatches"] if m["kind"] == "per_unit"]
+    assert bad and round(bad[0]["expected"]) == 207_684_631_210
+
+
+def test_per_unit_accepts_the_right_average():
+    answer = ("총 투자 금액 2,492,215,574,520원을 12척으로 나누면 "
+              "1척당 207,684,631,210원입니다.")
+    out = critic.verify_calculation(answer, GLOVIS)
+    assert out["ok"] is True and "per_unit" in out["checked"]
+
+
+def test_per_unit_accepts_a_rounded_average():
+    """`약 2,077억원` 처럼 반올림해 쓴 답을 틀렸다고 하면 안 된다."""
+    answer = "총 투자금액 2,492,215,574,520원, 12척이므로 1척당 약 2,077억원입니다."
+    assert critic.verify_calculation(answer, GLOVIS)["ok"] is True
+
+
+def test_per_unit_is_skipped_when_the_divisor_is_ambiguous():
+    """나눌 수가 여러 개면 무엇으로 나눌지 못 박을 수 없다 — 통과시킨다."""
+    answer = ("투자금액 2,492,215,574,520원. 1차 4척, 2차 8척으로 "
+              "1척당 금액은 별도 산정합니다.")
+    out = critic.verify_calculation(answer, GLOVIS)
+    assert "per_unit" in out["skipped"] and "per_unit" not in out["checked"]
+
+
+def test_per_unit_is_silent_when_the_answer_states_no_ratio():
+    out = critic.verify_calculation("투자금액은 2,492,215,574,520원입니다.", GLOVIS)
+    assert out["ok"] is True
+    assert "per_unit" not in out["checked"] and "per_unit" not in out["skipped"]
+
+
 # --- amount 는 답변이 그 금액을 말했을 때만 대조한다 (A6 Q-014 회귀) -----------
 # 유상증자 레코드 20250314000027 실측. `조달금액` 밑에 `시설자금`·`타법인 증권취득자금`
 # 이 하위 항목으로 같이 실린다. 질문이 물은 것은 하위 항목이었다.
@@ -567,17 +722,26 @@ def _snapshot(name):
     return responses, rows
 
 
+def _calc_reports(resp):
+    from argus.agent import tools
+
+    records = [tools._record_of(rcept) for rcept in
+               dict.fromkeys(_EVIDENCE_RCEPT.findall(resp["retrieved_context"] or ""))]
+    return [critic.verify_calculation(resp["answer"], r) for r in records if r]
+
+
 def _verify_like_pipeline(resp, companies):
     """`pipeline._verify` 의 판정을 저장 응답으로 재현한다. LLM 0회, 네트워크 0회.
 
     A6 이 실제로 발화한 3건 중 하나(Q-014)는 완전성이 아니라 **계산** 검증이었다.
     완전성만 재현하면 그 거짓 경보가 안 보인다 — 그래서 둘 다 돌린다.
-    """
-    from argus.agent import tools
 
-    records = [tools._record_of(rcept) for rcept in
-               dict.fromkeys(_EVIDENCE_RCEPT.findall(resp["retrieved_context"] or ""))]
-    reports = [critic.verify_calculation(resp["answer"], r) for r in records if r]
+    🔴 **집계는 아직 `pipeline._verify` 의 종전 세 줄 그대로다** (레코드 하나라도
+    설명하면 통과). `critic.aggregate_calculation` 으로 바꾸는 것은 `pipeline.py` 를
+    가진 트랙의 한 줄 수정이라 이 스냅샷은 종전 판정을 계속 지킨다. 새 집계 쪽은
+    `test_new_aggregation_on_the_a8_snapshot` 이 따로 고정한다.
+    """
+    reports = _calc_reports(resp)
     checked = sorted({k for rep in reports for k in rep["checked"]})
     explained = any(rep["ok"] and rep["checked"] for rep in reports)
     complete = critic.verify_completeness(resp["question"], resp["answer"],
@@ -611,6 +775,69 @@ def test_no_false_alarm_on_stored_dev_responses(snapshot):
     if snapshot == "phase_h":
         # `supported=True` 로 새어 나갔던 5건은 여전히 전부 잡는다.
         assert CRITIC_PASSED_WRONG <= caught
+
+
+# --- 새 집계를 v2 A8(제출 구성) 저장 응답 전수에 태운 결과 ----------------------
+# W1 의 오프라인 실측을 코드가 붙들고 있게 한다. **유료 재측정이 아니라 재채점이다** —
+# 저장된 HCX 응답만 읽으므로 LLM 0회 · 지출 0원이다.
+#
+# 발화 3건이 전부 오답 문항이다. `verify_calculation` 단독으로는 Q-066(종전에도 잡음) ·
+# Q-097(`per_unit` 신설)이 잡히고, **Q-065 는 `aggregate_calculation` 이 있어야 잡힌다** —
+# 신한울 금액이 정확해서 레코드 단위 관용이 Dukovany 10배 오류를 지우고 있었다.
+
+A8_SNAPSHOT = "artifacts/ablation/v2/A8"
+
+#: 새 집계로 발화하는 문항. **전부 오답이어야 한다** (정답 문항 거짓 경보 0).
+A8_CALC_CAUGHT = {"Q-065", "Q-066", "Q-097"}
+
+#: 그중 자릿수 오류로 잡히는 것. 종전 집계에서는 통과했다.
+A8_CALC_HARD = {"Q-065"}
+
+
+def _a8_snapshot():
+    resp_dir, labels = _ROOT / A8_SNAPSHOT / "responses", _ROOT / A8_SNAPSHOT / "report.json"
+    if not (resp_dir.is_dir() and labels.exists()):
+        return None
+    rows = {r["question_id"]: r
+            for r in json.loads(labels.read_text(encoding="utf-8"))["rows"]}
+    responses = {}
+    for path in sorted(resp_dir.glob("Q-*.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        responses[payload["question_id"]] = payload["response"]
+    return responses, rows
+
+
+def test_new_aggregation_on_the_a8_snapshot():
+    """정답 문항 거짓 경보 0 · 자릿수 적중 Q-065. 두 조건을 함께 고정한다."""
+    loaded = _a8_snapshot()
+    if loaded is None:
+        pytest.skip("v2/A8 산출물이 없다")
+    responses, rows = loaded
+
+    caught, hard, false_alarms = set(), set(), []
+    for qid, resp in sorted(responses.items()):
+        out = critic.aggregate_calculation(_calc_reports(resp))
+        if not out["failed"]:
+            continue
+        (false_alarms.append((qid, out["hard_kinds"])) if rows.get(qid, {}).get("correct")
+         else caught.add(qid))
+        if out["hard_kinds"]:
+            hard.add(qid)
+
+    assert false_alarms == [], f"정답 문항 거짓 경보: {false_alarms}"
+    assert caught == A8_CALC_CAUGHT, f"적중이 달라졌다: {sorted(caught)}"
+    assert hard == A8_CALC_HARD, f"자릿수 적중이 달라졌다: {sorted(hard)}"
+
+
+def test_the_old_aggregation_let_q065_through_on_the_a8_snapshot():
+    """무엇을 고쳤는지 스냅샷으로 남긴다 — 종전 규칙은 Q-065 를 통과시켰다."""
+    loaded = _a8_snapshot()
+    if loaded is None:
+        pytest.skip("v2/A8 산출물이 없다")
+    responses, _ = loaded
+    reports = _calc_reports(responses["Q-065"])
+    assert any(rep["ok"] and rep["checked"] for rep in reports)     # 종전: 통과
+    assert critic.aggregate_calculation(reports)["failed"] is True  # 지금: 발화
 
 
 # --- 규칙이 낡는 것을 드러내는 계기 ------------------------------------------

@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -65,6 +66,13 @@ _TOTAL_KW = re.compile(r"합계|합산|총계|총액|총합")
 _MEAN_KW = re.compile(r"평균")
 _WS = re.compile(r"\s+")
 
+#: 답변이 스스로 나눗셈을 한 자리. `1척당`·`1건당`·`1호기당`.
+#: **`1` 을 반드시 요구한다.** `건당`·`대당` 만 보면 `사건 당시`·`확대 당시` 같은 평문이
+#: 걸려 전제가 헛서고, 그 문장에 건수까지 있으면 정답이 거짓 경보로 뒤집힌다.
+_UNITS = "척|건|개|기|호기|대|동|기지"
+_PER_UNIT_KW = re.compile(rf"1\s*({_UNITS})\s*당")
+_COUNT_KW = re.compile(rf"(\d[\d,]*)\s*({_UNITS})")
+
 _SCALE = {"원": 1.0, "천원": 1e3, "만원": 1e4, "억": 1e8, "억원": 1e8,
           "조": 1e12, "조원": 1e12}
 
@@ -73,6 +81,55 @@ ROUND_TOLERANCE = 0.05
 
 #: 계산 불일치는 Phase H Error Analysis 에서 이 단계로 귀속한다.
 FAILURE_STAGE = "TOOL"
+
+# --- 자릿수(단위) 오류 — 관용에서 **뺀다** ------------------------------------
+# 종전 `_compare` 는 `min(claims, key=|c-expected|)` 로 **답변 수치 중 기대값에 가장
+# 가까운 것 하나만** 보고 통과를 판정했다. 그 선택은 두 가지 일을 겹쳐서 하고 있었다.
+#
+#   ① 어느 수치가 이 레코드를 말한 것인지 고른다      — 필요하다. 근거가 여러 건이면
+#      답변은 여러 금액을 말하고, 그중 이 레코드와 무관한 값이 섞이는 것이 정상이다.
+#   ② 자릿수가 다른 후보를 '그냥 안 맞는 이웃' 으로 묻는다 — **이것이 결함이다.**
+#
+# 실측 Q-065. 근거 `4,928,968,079,043원`(49,289.68억)을 답변이 `492,909억원` 으로
+# 옮겼다 (배율 10.0002). 같은 답변에 신한울 `23,381억원` 이 정확히 들어 있어서 ①이
+# 그 값을 골라 amount 를 통과시켰고, 10배 오류는 판정에 흔적조차 남지 않았다.
+# `docs/total_plan.md §0b ③` 이 이 문항의 처방을 두 번 뒤집은 이유가 여기 있다.
+#
+# **`10^k (k≠0)` 배는 무해한 이웃이 아니다.** 두 계약금액이 우연히 정확히 10배가
+# 되는 일은 실측으로 없다 — 정정 체인 865건의 금액쌍 20,586개를 전수로 재 보니 이
+# 창(`SCALE_LOG_TOLERANCE`)에 드는 쌍은 2개뿐이고 둘 다 금액이 `8원`·`1원` 인 파싱
+# 잔재다 (`SCALE_MIN_VALUE` 로 뺀다). 그래서 자릿수 후보는 **다른 후보가 맞아도**
+# 따로 보고하고(`hard`), 레코드 단위 관용으로도 지우지 않는다
+# (`aggregate_calculation`).
+
+#: `10^k` 에서 로그10 거리가 이 안이면 자릿수 실수로 본다 (배율 ±2.3%).
+#: 실측 두 건이 이 창에 든다 — Q-065 `10.0002배`(거리 1.1e-5) ·
+#: Q-047 `10.08배`(거리 3.6e-3, `333조 6,059억원` → `33,636,059억원`).
+SCALE_LOG_TOLERANCE = 0.01
+
+#: 이보다 작은 값은 자릿수 판정에서 뺀다. `8원`·`1원` 같은 파싱 잔재가 아무 큰 값과도
+#: 10^k 관계를 맺어 버린다 (실측 20230914800071 `amount=8`, 20240402800113 `amount=1`).
+SCALE_MIN_VALUE = 1e6
+
+#: `10^7` 배를 넘는 관계는 단위 실수가 아니라 다른 값이다 (원↔조 가 10^12 이므로 넉넉하다).
+SCALE_MAX_EXP = 7
+
+
+def _scale_exponent(claimed: float, expected: float) -> int | None:
+    """`claimed` 가 `expected` 의 `10^k (k≠0)` 배인가. 맞으면 k, 아니면 None."""
+    if not claimed or not expected:
+        return None
+    if abs(claimed) < SCALE_MIN_VALUE or abs(expected) < SCALE_MIN_VALUE:
+        return None
+    if (claimed > 0) != (expected > 0):
+        return None
+    distance = math.log10(abs(claimed) / abs(expected))
+    exponent = round(distance)
+    if exponent == 0 or abs(exponent) > SCALE_MAX_EXP:
+        return None
+    if abs(distance - exponent) > SCALE_LOG_TOLERANCE:
+        return None
+    return exponent
 
 
 def _to_float(text) -> float | None:
@@ -200,14 +257,31 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
     mismatches: list[dict] = []
 
     def _compare(kind: str, expected: float, claims: list[tuple[float, float, str]],
-                 detail: str) -> None:
+                 detail: str, *, scale_guard: bool = False) -> None:
+        """후보 중 하나가 맞으면 통과 — 단, **자릿수가 다른 후보는 따로 보고한다.**
+
+        `scale_guard` 는 금액에만 건다. 비율은 `30.36%` 와 `3.11%` 처럼 **서로 다른
+        레코드의 정당한 값**이 10배 근처에 흔히 놓이므로 같은 규칙을 걸 수 없다.
+        """
         if not claims:
             skipped.append(kind)
             return
         checked.append(kind)
-        value, tol, literal = min(claims, key=lambda c: abs(c[0] - expected))
-        if abs(value - expected) <= tol + 1e-9:
+
+        if scale_guard:
+            for value, tol, literal in claims:
+                exponent = _scale_exponent(value, expected)
+                if exponent is not None:
+                    mismatches.append({
+                        "kind": kind, "claimed": literal, "claimed_value": value,
+                        "expected": expected, "tolerance": tol, "detail": detail,
+                        "scale": exponent, "hard": True})
+
+        if any(abs(value - expected) <= tol + 1e-9 for value, tol, _ in claims):
             return
+        if any(m["kind"] == kind and m.get("hard") for m in mismatches):
+            return                       # 같은 값을 자릿수 오류로 이미 보고했다
+        value, tol, literal = min(claims, key=lambda c: abs(c[0] - expected))
         mismatches.append({"kind": kind, "claimed": literal, "claimed_value": value,
                            "expected": expected, "tolerance": tol, "detail": detail})
 
@@ -235,9 +309,29 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
     amount = _pick(fields, "amount")
     if amount is not None:
         if _says_amount(text, fields.get("amount_type")):
-            _compare("amount", amount, _money_claims(text), "근거 레코드 amount")
+            _compare("amount", amount, _money_claims(text), "근거 레코드 amount",
+                     scale_guard=True)
         else:
             skipped.append("amount")
+
+    # ②b 단위당 값 — **답변이 스스로 한 나눗셈**을 다시 한다.
+    #    실측 Q-097: 투자금액 2,492,215,574,520원 / 12척 = 207,684,631,210원인데
+    #    답변은 `207,838,797,710원` 을 냈다. 총액은 정확히 옮겼으므로 `amount` 는
+    #    통과하고, 정작 질문이 물은 값만 틀린다 — 종전 검증에 이 축이 아예 없었다.
+    #    분자는 이 레코드의 amount 이므로 `_says_amount` 게이트를 같이 통과해야 한다.
+    if amount is not None and _says_amount(text, fields.get("amount_type")):
+        unit = _PER_UNIT_KW.search(text)
+        if unit:
+            counts = sorted({int(m.group(1).replace(",", ""))
+                             for m in _COUNT_KW.finditer(text)
+                             if m.group(2) == unit.group(1)
+                             and int(m.group(1).replace(",", "")) > 1})
+            if len(counts) == 1:
+                _compare("per_unit", amount / counts[0], _money_claims(text),
+                         f"{compute.fmt_num(amount)} / {counts[0]}{unit.group(1)}")
+            else:
+                # 나눌 수를 못 박지 못했다. 틀렸다고 볼 재료가 없으므로 통과시킨다.
+                skipped.append("per_unit")
 
     # ③ 비중 — 계약금액 / 최근매출액 으로 다시 계산한다
     part = _pick(fields, "share_part", "part", "amount")
@@ -275,6 +369,7 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
             skipped.append("mean")
 
     failed = sorted({m["kind"] for m in mismatches})
+    hard = sorted({m["kind"] for m in mismatches if m.get("hard")})
     return {
         "ok": not mismatches,
         "llm_calls": 0,
@@ -282,9 +377,55 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
         "skipped": skipped,
         "mismatches": mismatches,
         "failed_kinds": failed,
+        "hard_kinds": hard,
         "failure_stage": FAILURE_STAGE if mismatches else None,
-        "reason": "; ".join(f"{m['kind']}: 답변 {m['claimed']} vs 재계산 {_show(m['expected'])}"
-                            for m in mismatches),
+        "reason": "; ".join(_mismatch_reason(m) for m in mismatches),
+    }
+
+
+def _mismatch_reason(mismatch: dict) -> str:
+    text = (f"{mismatch['kind']}: 답변 {mismatch['claimed']} "
+            f"vs 재계산 {_show(mismatch['expected'])}")
+    exponent = mismatch.get("scale")
+    if exponent:
+        text += f" (10^{exponent:+d} 배 자릿수 오류)"
+    return text
+
+
+def aggregate_calculation(reports: Sequence[dict]) -> dict:
+    """레코드별 판정을 하나로 묶는다. LLM 0회. **관용은 지키고 단위 오류만 뺀다.**
+
+    호출부(`pipeline._verify` · `scripts/error_analysis.verify_answer_calc`)가 손으로
+    쓰던 세 줄을 여기로 모은다. 종전 규칙은 이랬다.
+
+        explained = any(rep["ok"] and rep["checked"] for rep in reports)
+        calc_failed = bool(checked) and not explained
+
+    **`explained` 의 관용은 그대로 둔다.** 정정 체인은 원공시와 정정본의 금액이 다른
+    것이 정상이라(227,500 vs 114,800) 전건 일치를 요구하면 정당한 통과가 깨진다
+    (`tests/test_error_analysis.py::test_calc_passes_when_any_golden_record_explains_the_answer`).
+
+    바뀌는 것은 하나다. **자릿수 오류(`hard_kinds`)는 다른 레코드가 설명해도 살아남는다.**
+    실측 Q-065 가 정확히 그 구멍으로 나갔다 — Dukovany 금액을 10배로 틀렸는데 같은
+    답변의 신한울 금액이 정확해서 `explained=True` 가 되고 판정이 통과했다. 체인 관용은
+    '같은 값의 다른 시점' 을 위한 것이고, 자릿수 오류는 시점 문제가 아니다.
+    """
+    rows = list(reports or ())
+    checked = sorted({k for rep in rows for k in rep.get("checked") or ()})
+    hard = sorted({k for rep in rows for k in rep.get("hard_kinds") or ()})
+    explained = any(rep.get("ok") and rep.get("checked") for rep in rows)
+    reasons = ([rep["reason"] for rep in rows if rep.get("hard_kinds") and rep.get("reason")]
+               + [rep["reason"] for rep in rows
+                  if not rep.get("hard_kinds") and rep.get("reason")])
+    return {
+        "llm_calls": 0,
+        "n_records": len(rows),
+        "checked": checked,
+        "explained": explained,
+        "hard_kinds": hard,
+        "failed": bool(hard) or (bool(checked) and not explained),
+        "failure_stage": FAILURE_STAGE if (hard or (checked and not explained)) else None,
+        "reasons": reasons[:3],
     }
 
 
