@@ -26,7 +26,8 @@ v2 는 88문항을 재면서 **같은 이름을 덮지 않아야** 한다 — �
 
 1. **heldout 은 `--heldout` 없이는 열리지 않는다.** arm 루프는 dev 42문항만 본다.
    그리고 `--heldout` 은 **arm 을 하나만** 받고, **산출물이 이미 있으면 거부**한다
-   (`assert_heldout_unused`). 문서에 "1회만" 을 적어 두는 것으로는 두 번째 실행을 못 막는다.
+   (`assert_heldout_unused` — `artifacts/` 전체를 훑으므로 **`--out` 으로 우회되지 않는다**).
+   문서에 "1회만" 을 적어 두는 것으로는 두 번째 실행을 못 막는다.
 2. **두 겹으로 캐시한다.**
    ① 응답 파일 — arm 별 `artifacts/ablation/<arm>/responses/Q-xxx.json`.
    ② **요청 캐시** — 요청 본문 해시로 CLOVA 응답 원문을 저장한다. 온도 0.0 이라
@@ -211,25 +212,67 @@ HELDOUT_HISTORY = (
 )
 
 
-def assert_heldout_unused(root: Path, offline: bool) -> None:
-    """🔴 "최종 1회" 를 **코드가** 강제한다. 산출물이 이미 있으면 유료 실행을 거부한다.
+def heldout_ledgers() -> list[Path]:
+    """🔴 저장소 안의 **모든** heldout 원장. `--out` 과 무관하게 찾는다.
+
+    처음엔 `root / HELDOUT_LEDGER` 하나만 봤다. 그것은 **`--out` 으로 우회된다** —
+    `--out artifacts/ablation/v3/heldout` 으로 돌리면 그 디렉터리에 원장이 없어 제동이
+    무방비로 통과하고, `v2` 전례가 있으니 `v3` 경로는 충분히 있을 수 있다. 되돌릴 수 없는
+    조작에서 "인자를 바꾸면 풀리는 제동" 은 제동이 아니다. 그래서 `artifacts/` 전체를 훑는다.
+    """
+    base = ROOT / "artifacts"
+    return sorted(base.rglob(HELDOUT_LEDGER)) if base.exists() else []
+
+
+def heldout_next_use() -> int:
+    """다음 실행이 **몇 회째**인가. 코드의 이력과 디스크의 원장 중 **큰 쪽** + 1.
+
+    🔴 `len(HELDOUT_HISTORY) + 1` 로만 세면 `--out` 을 바꾼 3번째 실행도 "2회째" 로
+    기록된다 — 횟수가 틀리면 낙폭의 의미가 사라진다. 원장을 못 읽으면 **'이미 썼다' 쪽으로
+    본다** (읽기 실패를 '안 썼다' 로 해석하면 파일 하나 깨진 것이 재측정 허가가 된다).
+    """
+    used = [len(HELDOUT_HISTORY)]
+    for path in heldout_ledgers():
+        try:
+            used.append(int(json.loads(path.read_text(encoding="utf-8")).get("use") or 0))
+        except (OSError, ValueError, TypeError):
+            used.append(len(HELDOUT_HISTORY) + 1)
+    return max(used) + 1
+
+
+def assert_heldout_unused(offline: bool) -> None:
+    """🔴 "최종 1회" 를 **코드가** 강제한다. 원장이 하나라도 있으면 유료 실행을 거부한다.
 
     문서에 "1회만" 을 적어 두는 것으로는 두 번째 실행을 막지 못한다 — 다음 사람이(또는
     다음 세션의 내가) 같은 명령을 다시 치면 heldout 이 조용히 개발셋이 되고, 그것은
     **되돌릴 수 없다**. 되돌릴 수 없는 조작은 프로세스가 아니라 코드로 막아야 한다.
 
+    🔴 **`root` 를 받지 않는다.** 받으면 `--out` 이 제동을 푼다 (`heldout_ledgers` 참조).
+    인자로 위치를 바꿀 수 있는 검사는 이 용도에 쓰면 안 된다.
+
     `--offline` 은 예외다. 요청 캐시 미적중이 `RuntimeError` 라 **LLM 0회가 증명되므로**,
     그 경로는 heldout 을 새로 '여는' 것이 아니라 이미 산 응답을 재집계할 뿐이다.
     """
-    ledger = root / HELDOUT_LEDGER
-    if not ledger.exists() or offline:
+    if offline:
         return
-    saved = json.loads(ledger.read_text(encoding="utf-8"))
+    found = heldout_ledgers()
+    if not found:
+        return
+    lines = []
+    for path in found:
+        try:
+            saved = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            saved = {}
+        lines.append(f"   · {path.relative_to(ROOT)} — {saved.get('use', '?')}회째 · "
+                     f"arm {saved.get('arm', '?')} · "
+                     f"{saved.get('correct', '?')}/{saved.get('n_scored', '?')} · "
+                     f"{saved.get('generated', '?')}")
     raise SystemExit(
-        f"🔴 heldout 은 최종 구성 1회용입니다 — 이미 결과가 있습니다: {ledger}\n"
-        f"   {saved.get('use')}회째 · arm {saved.get('arm')} · "
-        f"{saved.get('correct')}/{saved.get('n_scored')} "
-        f"({saved.get('rate')}) · {saved.get('generated')}\n"
+        "🔴 heldout 은 최종 구성 1회용입니다 — 이미 결과가 있습니다 "
+        f"(다음 실행은 {heldout_next_use()}회째가 됩니다):\n"
+        + "\n".join(lines) + "\n"
+        "   🔴 `--out` 을 바꿔도 이 검사는 풀리지 않습니다 — `artifacts/` 전체를 훑습니다.\n"
         "   재집계만 하려면 `--offline` 을 붙이세요 (요청 캐시 적중만 허용 = LLM 0회).\n"
         "   그래도 새로 측정해야 한다면 그것은 arm 을 하나 더 재는 일이 아니라 "
         "**평가셋을 하나 더 만드는 일**입니다.")
@@ -363,7 +406,12 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
     # dev 쪽 기준선은 **부모 폴더**의 같은 arm 이다 (`v2/heldout` -> `v2/A8`).
     v2_dev = _grid_overall(_load_report(root.parent, final_arm)) or {}
 
-    def gap(dev: dict, hold: dict) -> float | None:
+    def gap(dev: dict | None, hold: dict | None) -> float | None:
+        # 🔴 `None` 을 받는다. `measured 36` 축은 못 구할 수 있고, 그때 여기서 죽으면
+        #    heldout 실행이 **채점 뒤 원장 쓰기에서** 터진다 — 다시 못 돌리는 실행에서
+        #    최악의 자리다 (테스트가 실제로 이 경로에서 AttributeError 를 잡았다).
+        if not dev or not hold:
+            return None
         if dev.get("rate") is None or hold.get("rate") is None:
             return None
         return round((hold["rate"] - dev["rate"]) * 100, 1)
@@ -373,14 +421,22 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
     # 🔴 **세 번째 축.** v2 dev 는 분모가 72 로 늘었으므로, v1(36) 과 나란히 읽을 수 있는
     #    dev 값은 `measured 36` 이다. 낙폭이 축마다 다르게 나오므로 셋을 다 남긴다 —
     #    하나만 적으면 그것이 "그 낙폭" 으로 굳고, 가장 유리한 축이 뽑히기 쉽다.
-    dev_m36 = None
+    #
+    #    🔴 **실패를 삼키지 않는다.** `measured_dev_cohort()` 는 gitignore 대상인
+    #    `artifacts/eval/error_analysis.json` 을 읽으므로, 그 파일이 없는 환경(신규 클론 ·
+    #    격리 워크트리 · CI)에서는 이 축이 안 나온다. 예전 코드는 `except: dev_m36 = None`
+    #    으로 조용히 넘겼는데, 그러면 `gap_pp_worst` 가 **남은 유리한 축(−1.4%p)으로 조용히
+    #    떨어지고** "과적합 아님" 이 찍힌다. 그것이 과적합 검사를 검사이기를 그만두게 하는
+    #    바로 그 경로다. 이유를 남기고 **판정 불가로 표시**한다.
+    dev_m36, m36_error = None, None
     try:
         from scripts.validate_evalset import measured_dev_cohort
         v2_dev_report = _load_report(root.parent, final_arm)
-        if v2_dev_report:
-            dev_m36 = _grid_rate(v2_dev_report["rows"], set(measured_dev_cohort()))
-    except Exception:                                          # noqa: BLE001
-        dev_m36 = None
+        if not v2_dev_report:
+            raise FileNotFoundError(f"{root.parent}/{final_arm}/report.json 이 없다")
+        dev_m36 = _grid_rate(v2_dev_report["rows"], set(measured_dev_cohort()))
+    except Exception as exc:                                   # noqa: BLE001
+        dev_m36, m36_error = None, f"{type(exc).__name__}: {exc}"
 
     # 🔴 heldout 쪽 수가 v1 과 같은지 본다. 같으면 낙폭이 좁아진 몫은 **전부 dev 쪽 변화**다.
     def wrong_ids(report: dict | None) -> list[str]:
@@ -388,11 +444,18 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
                       if not r.get("correct"))
 
     v1_full = _load_report(v1_root, "A6_heldout_run")
+    # 🔴 재집계(`--offline`)는 **횟수를 올리지 않는다.** 이미 있는 원장의 `use` 를 이어받는다.
+    existing = root / HELDOUT_LEDGER
+    if existing.exists():
+        use = json.loads(existing.read_text(encoding="utf-8")).get("use")
+    else:
+        use = heldout_next_use()
     ledger = {
         "generated": time.strftime("%Y-%m-%dT%H:%M:%S"),
-        "use": len(HELDOUT_HISTORY) + 1,
-        "note": ("🔴 heldout 은 최종 구성 1회용이다. 이 원장이 있으면 러너가 "
-                 "유료 실행을 거부한다 (`assert_heldout_unused`)."),
+        "use": use,
+        "note": ("🔴 heldout 은 최종 구성 1회용이다. 이 원장이 `artifacts/` 아래 "
+                 "**어디에라도** 있으면 러너가 유료 실행을 거부한다 — `--out` 으로 "
+                 "우회되지 않는다 (`scripts/ablation.py::assert_heldout_unused`)."),
         "arm": final_arm,
         "arm_config": vars(ablation.ARMS[final_arm]),
         "n_cases": report.get("n_cases"),
@@ -402,12 +465,12 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
         "dev_grid": {"correct": v2_dev.get("correct"), "n_scored": v2_dev.get("n_scored"),
                      "rate": v2_dev.get("rate"), "source": f"{root.parent.name}/{final_arm}"},
         "gap_pp": gap_v2,
-        #: v1(36) 과 나란히 읽는 축. 🔴 **재생(replay)이라 독립 측정이 아니다** (§12).
+        #: v1(36) 과 나란히 읽는 축. 🔴 **dev 쪽이 재생(replay)이라 독립 측정이 아니다** (§12).
         "dev_grid_measured36": (
             {"correct": dev_m36.get("correct"), "n_scored": dev_m36.get("n_scored"),
              "rate": dev_m36.get("rate"), "gap_pp": gap(dev_m36, held),
-             "caveat": "재생(replay) — 답변이 A7 과 바이트 동일. 독립 측정이 아니다"}
-            if dev_m36 else None),
+             "caveat": "재생(replay)이다 — 답변이 A7 과 바이트 동일이라 독립 측정이 아니다"}
+            if dev_m36 else {"unavailable": m36_error}),
         "wrong_ids": wrong_ids(report),
         "wrong_ids_v1": wrong_ids(v1_full),
         "same_failures_as_v1": wrong_ids(report) == wrong_ids(v1_full),
@@ -424,20 +487,55 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
                         "heldout 18문항만 두 판에서 동일하다. 두 낙폭의 차를 Δ 로 읽지 않는다."),
         "overfit_threshold_pp": -10.0,
         # 🔴 판정은 **가장 나쁜 축**으로 한다. 유리한 축으로 판정하면 과적합 검사가
-        #    검사이기를 그만둔다.
+        #    검사이기를 그만둔다. 축이 하나라도 빠지면 `worst_axis_available=False` 이고
+        #    그때는 '신호 없음' 이 아니라 **판정 불가**다.
         "gap_pp_worst": min([g for g in (gap_v2, gap(dev_m36, held))
                              if g is not None] or [None]),
+        "worst_axis_available": dev_m36 is not None,
+        "measured36_error": m36_error,
+        #: 🔴 **이 게이트는 이번이 마지막 사용이다.** heldout 을 다시 못 재므로 다음 판에는
+        #: 새 heldout 값이 없고, 낙폭의 분자가 83.3% 에 **영구 고정**된다. `measured 36` 은
+        #: n=36 이라 **1문항 = 2.8%p** — dev 가 33 → 34 로 1문항만 올라도 낙폭이 −11.1%p 로
+        #: 임계를 넘는다. 즉 다음 판에서는 "성능이 올랐다" 와 "과적합이다" 가 같은 수에서
+        #: 나온다. 그래서 이 게이트는 **은퇴**시키고 회귀 10 · 밸류체인 12 로 대체한다.
+        "gate_retired_after_this_run": True,
+        "gate_retirement_reason": (
+            "heldout 을 다시 못 재므로 낙폭의 분자가 83.3% 에 영구 고정된다. "
+            "measured 36 은 n=36 이라 1문항 = 2.8%p — dev 33→34 만으로 낙폭이 "
+            "-11.1%p 가 되어 임계(-10%p)를 넘는다. 성능 향상과 과적합이 같은 수에서 "
+            "나오는 지표는 지표가 아니다. 이후 회귀 10 · 밸류체인 12 로 감시한다."),
         "history": list(HELDOUT_HISTORY),
         "overfit_signal": None,          # 아래에서 채운다 (worst 축 기준)
+        "verdict": None,
         "spent_won": (report.get("this_run") or {}).get("spent_won"),
         "arm_cost_won": (report.get("totals") or {}).get("cost_won"),
         "failure_histogram": report.get("failure_histogram"),
         "root_cause_histogram": report.get("root_cause_histogram_grid")
                                 or report.get("root_cause_histogram"),
     }
-    worst = ledger["gap_pp_worst"]
-    ledger["overfit_signal"] = bool(
-        worst is not None and worst <= ledger["overfit_threshold_pp"])
+    worst, threshold = ledger["gap_pp_worst"], ledger["overfit_threshold_pp"]
+    if not ledger["worst_axis_available"] or worst is None:
+        # 🔴 유리한 축만 남았을 때 '신호 없음' 을 찍지 않는다 — 그것이 조용히 통과하는 길이다.
+        ledger["overfit_signal"] = None
+        ledger["verdict"] = (
+            "🔴 판정 불가 — 가장 나쁜 축(`measured 36`)을 못 구했다: "
+            f"{m36_error or '값 없음'}. 남은 축(dev 72)만으로 '과적합 아님' 이라고 "
+            "말하지 않는다.")
+    else:
+        ledger["overfit_signal"] = bool(worst <= threshold)
+        # 🔴 여유를 %p 로만 적으면 작아 보이지 않는다. 최악축(`measured 36`)은 n=36 이라
+        #    **1문항 = 2.8%p** 이므로, 여유를 **문항 수**로 환산해 함께 적는다.
+        n_worst = (dev_m36 or {}).get("n_scored") or 36
+        per_q = 100.0 / n_worst
+        slack_q = abs(worst - threshold) / per_q
+        ledger["overfit_slack_pp"] = round(abs(worst - threshold), 1)
+        ledger["overfit_slack_questions"] = round(slack_q, 2)
+        ledger["verdict"] = (
+            f"🔴 dev 과적합 신호 — 가장 나쁜 축 {worst:+.1f}%p ≤ 임계 {threshold:+.1f}%p"
+            if worst <= threshold else
+            f"과적합 신호 아님 — 가장 나쁜 축 {worst:+.1f}%p > 임계 {threshold:+.1f}%p. "
+            f"🔴 여유는 {abs(worst - threshold):.1f}%p 뿐이고 최악축은 n={n_worst} 이라 "
+            f"1문항 = {per_q:.1f}%p — **dev 가 1문항만 더 맞아도 임계를 넘는다**")
     root.mkdir(parents=True, exist_ok=True)
     (root / HELDOUT_LEDGER).write_text(
         json.dumps(ledger, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -1034,6 +1132,12 @@ def render_gate(root: Path, budget_cap: float) -> str:
                  f'{total_spend - (held["spent_won"] or 0):,.1f}원 + heldout '
                  f'{held["spent_won"] or 0:,.1f}원(§14). 앞엣것이 Ablation v2 측정 비용이고, '
                  "뒤엣것은 **최종 1회** 몫이라 회계가 다르다.\n")
+        o.append(f'🔴 **`summary.json` 의 `spent_won` 은 heldout 이전 값**'
+                 f'({total_spend - (held["spent_won"] or 0):,.1f})이다 — 그 파일은 사다리 '
+                 "실행 시점 산출물이고, heldout 은 별 프로세스라 거기 안 들어 있다. "
+                 f'라벨이 `"하위 폴더 포함"` 이라 오해를 부르는데, **총지출은 이 표의 '
+                 f'{total_spend:,.1f}원**이 권위값이다 (arm 폴더를 덮지 않으려고 '
+                 "`summary.json` 을 재생성하지 않았다).\n")
     o.append(f'\n상한 {budget_cap:,.0f}원 대비 **{total_spend / budget_cap * 100:.1f}%** '
              f'사용 (80% 정지선 {budget_cap * 0.8:,.0f}원). '
              f'요청 캐시가 **{arm_sum - total_spend:,.0f}원**을 막았다.\n')
@@ -1503,8 +1607,9 @@ def render_gate(root: Path, budget_cap: float) -> str:
         o.append(f'🔴 **{held["use"]}회째 사용이다.** v1 에서 `A6` 으로 1회 썼고 '
                  f'(15/18 = 83.3%), 이번이 두 번째이자 최종 구성 `{held["arm"]}` 1회다. '
                  "arm 별로 돌리지 않았다 — 그러면 heldout 이 개발셋이 되고 되돌릴 수 없다. "
-                 f'원장 `heldout/{HELDOUT_LEDGER}` 이 있으면 러너가 두 번째 유료 실행을 '
-                 "거부한다 (`assert_heldout_unused`).\n")
+                 f'원장 `{HELDOUT_LEDGER}` 이 `artifacts/` 아래 **어디에라도** 있으면 러너가 '
+                 "유료 실행을 거부한다 — `--out` 으로 우회되지 않는다 "
+                 "(`scripts/ablation.py::assert_heldout_unused`).\n")
         o.append("🔴 **낙폭은 축마다 다르게 나온다.** dev 쪽 분모가 v1 36 → v2 72 로 "
                  "늘었으므로 세 축을 다 낸다 — 하나만 적으면 그것이 '그 낙폭' 으로 굳고, "
                  "가장 유리한 축이 뽑히기 쉽다. heldout 쪽 18문항만 두 판에서 동일하다.\n")
@@ -1515,31 +1620,34 @@ def render_gate(root: Path, budget_cap: float) -> str:
                  f'| {_frac(v1["heldout"])} | {_pp_of(v1["gap_pp"])} |')
         o.append(f'| **v2 · dev 72 (증설 후 · 이번 판의 축)** | **{held["arm"]}** '
                  f'| {_frac(dev)} | **{_frac(held)}** | **{_pp_of(held["gap_pp"])}** |')
-        m36 = held.get("dev_grid_measured36")
-        if m36:
-            o.append(f'| v2 · measured 36 (v1 과 같은 문항, **재생**) | {held["arm"]} '
-                     f'| {_frac(m36)} | {_frac(held)} | **{_pp_of(m36["gap_pp"])}** |')
+        m36 = held.get("dev_grid_measured36") or {}
+        if m36.get("n_scored"):
+            o.append(f'| v2 · measured 36 (v1 과 같은 문항 · dev 쪽이 **재생**) '
+                     f'| {held["arm"]} | {_frac(m36)} | {_frac(held)} '
+                     f'| **{_pp_of(m36["gap_pp"])}** |')
+        else:
+            o.append("| 🔴 v2 · measured 36 | — | **구할 수 없었다** "
+                     f'({m36.get("unavailable")}) | — | **판정 불가** |')
         o.append(f'\n🔴 **비교 축.** {held["axis_caveat"]}\n')
-        if m36:
+        if m36.get("n_scored"):
             o.append(f'🔴 **가장 큰 낙폭은 `measured 36` 축의 {_pp_of(m36["gap_pp"])} 다** — '
-                     "v1 과 문항이 같은 유일한 축이므로 **판정은 이 수로 해야 한다.** "
+                     "dev 쪽을 v1 과 나란히 읽는 유일한 축이므로 **판정은 이 수로 해야 한다.** "
                      f'다만 이 축의 dev 값은 {m36["caveat"]} (§12).\n')
         if held.get("same_failures_as_v1"):
-            o.append("🔴 **heldout 쪽 수가 v1 과 글자 하나 안 다르다** — "
+            o.append("🔴 **정답 집합이 v1 과 문항 단위로 완전히 같다** — "
                      f'{_frac(held)} 이고 틀린 문항도 같은 '
                      f'{", ".join(held["wrong_ids"])} 다. 그러므로 '
                      f'`{_pp_of(v1["gap_pp"])} → {_pp_of(held["gap_pp"])}` 로 낙폭이 좁아진 '
                      "몫은 **일반화가 좋아진 것이 아니라 dev 쪽 정답률이 내려간 것**이다 "
                      "(문항 증설로 84.7%). 좁아진 낙폭을 개선으로 읽으면 안 된다.\n")
-        worst = min([g for g in (held["gap_pp"],
-                                (m36 or {}).get("gap_pp")) if g is not None] or [None])
-        o.append(f'**판정** — 가장 나쁜 축의 낙폭 {_pp_of(worst)} '
-                 f'(과적합 임계 {_pp_of(held["overfit_threshold_pp"])}): '
-                 + ("🔴 **dev 과적합 신호다.** 원인 분석을 "
-                    "`09-ablation.md` §I-7 에 남겼다.\n"
-                    if worst is not None and worst <= held["overfit_threshold_pp"]
-                    else "**과적합 신호가 아니다.** 다만 `measured 36` 축이 임계에 "
-                         "가장 가깝고, 그 축의 dev 값은 재생이다.\n"))
+            o.append("🔴 **그러나 이것은 재생이 아니다 — 독립 유료 측정이다.** 답변 텍스트가 "
+                     "**18/18 전부 다르고**(v1 A6 시점 코드와 프롬프트가 달라 요청 캐시 적중 0) "
+                     "토큰도 79,326 → 95,984 로 늘었다. 정답 집합만 같다. 그래서 이 15/18 은 "
+                     "**이 판에서 유일한 독립 측정치**이고, `measured 36`(dev 쪽이 재생)과 "
+                     "성격이 다르다.\n")
+        o.append(f'**판정** — {held.get("verdict") or "—"}\n')
+        if held.get("gate_retired_after_this_run"):
+            o.append(f'🔴 **이 게이트는 이번이 마지막 사용이다.** {held["gate_retirement_reason"]}\n')
         o.append(f'실지출 **{held["spent_won"] or 0:,.1f}원** (상한 1,000원) · '
                  f'arm 비용 {held["arm_cost_won"] or 0:,.1f}원 · '
                  f'실패 단계 `{json.dumps(held["failure_histogram"], ensure_ascii=False)}` · '
@@ -1666,6 +1774,24 @@ def main() -> None:
         run_retrieval(args)
         return
 
+    # 🔴 heldout 제동은 **디렉터리를 만들기 전에** 건다. 뒤에 걸면 거부된 실행이 빈 폴더와
+    #    `index_snapshot.json` 을 남기고, 산출물만 보는 사람에게 그것이 "돌렸다" 는 흔적이 된다.
+    heldout_final = ""
+    if args.heldout:
+        # 🔴 arm 을 **하나만** 받는다. 여러 개를 허용하면 heldout 이 개발셋이 되고
+        #    그것은 되돌릴 수 없다 — 인자 형태에서부터 막는다.
+        finals = [a.strip() for a in args.arm.split(",") if a.strip()]
+        if len(finals) != 1:
+            raise SystemExit(
+                "🔴 `--heldout` 은 **최종 구성 하나**만 받습니다 (예: `--arm A8`). "
+                f"받은 것: {finals or '없음'}\n"
+                "   arm 별로 돌리면 heldout 이 개발셋이 되고 그것은 되돌릴 수 없습니다.")
+        if finals[0] not in ablation.ARMS:
+            raise SystemExit(f"그런 arm 이 없습니다: {finals[0]} (있는 것: "
+                             f"{sorted(ablation.ARMS)})")
+        assert_heldout_unused(args.offline)
+        heldout_final = finals[0]
+
     if args.dry:
         # 리허설 응답을 본 실행 캐시에 섞으면 가짜 답이 영원히 굳는다. 폴더부터 가른다.
         OUT_DIR = ROOT / "artifacts" / "ablation_dry"
@@ -1681,36 +1807,24 @@ def main() -> None:
     (OUT_DIR / "index_snapshot.json").write_text(
         json.dumps(snapshot, ensure_ascii=False, indent=1), encoding="utf-8")
 
-    if args.heldout:
-        # 🔴 arm 을 **하나만** 받는다. 여러 개를 허용하면 heldout 이 개발셋이 되고
-        #    그것은 되돌릴 수 없다 — 인자 형태에서부터 막는다.
-        finals = [a.strip() for a in args.arm.split(",") if a.strip()]
-        if len(finals) != 1:
-            raise SystemExit(
-                "🔴 `--heldout` 은 **최종 구성 하나**만 받습니다 (예: `--arm A8`). "
-                f"받은 것: {finals or '없음'}\n"
-                "   arm 별로 돌리면 heldout 이 개발셋이 되고 그것은 되돌릴 수 없습니다.")
-        if finals[0] not in ablation.ARMS:
-            raise SystemExit(f"그런 arm 이 없습니다: {finals[0]} (있는 것: "
-                             f"{sorted(ablation.ARMS)})")
-        assert_heldout_unused(OUT_DIR, args.offline)
-        print(f"\n=== heldout 18문항 · 최종 구성 {finals[0]} · "
-              f"{len(HELDOUT_HISTORY) + 1}회째 사용 · "
+    if heldout_final:
+        print(f"\n=== heldout 18문항 · 최종 구성 {heldout_final} · "
+              f"{heldout_next_use()}회째 사용 · "
               f"정지선 {stop_won:,.0f}원 (상한 {budget_cap:,.0f}) ===")
-        report = run_heldout(finals[0], cache, records, stop_won, args.force)
-        ledger = write_heldout_ledger(OUT_DIR, finals[0], report)
+        report = run_heldout(heldout_final, cache, records, stop_won, args.force)
+        ledger = write_heldout_ledger(OUT_DIR, heldout_final, report)
         print(f'\nheldout {_frac(ledger)} · dev 그리드 {_frac(ledger["dev_grid"])} '
               f'· 낙폭 {_pp_of(ledger["gap_pp"])}')
         m36 = ledger.get("dev_grid_measured36") or {}
-        print(f'  v2 measured 36 축(=v1 과 같은 문항, 재생) {_frac(m36)} '
-              f'· 낙폭 {_pp_of(m36.get("gap_pp"))}')
+        print(f'  v2 measured 36 축(=v1 과 같은 문항, dev 쪽 재생) {_frac(m36)} '
+              f'· 낙폭 {_pp_of(m36.get("gap_pp"))}'
+              + (f' 🔴 구할 수 없었다: {m36["unavailable"]}'
+                 if m36.get("unavailable") else ""))
         print(f'  v1(A6) 낙폭 {_pp_of(ledger["v1"]["gap_pp"])} · '
               f'{ledger["axis_caveat"]}')
-        print(f'  가장 나쁜 축 {_pp_of(ledger["gap_pp_worst"])} → '
-              + ("🔴 dev 과적합 신호" if ledger["overfit_signal"]
-                 else "과적합 신호 없음 (임계 −10.0%p)"))
+        print(f'  판정: {ledger["verdict"]}')
         if ledger.get("same_failures_as_v1"):
-            print("  🔴 heldout 쪽 수가 v1 과 동일하다 — 틀린 문항도 같은 "
+            print("  🔴 정답 집합이 v1 과 문항 단위로 동일하다 — 틀린 문항도 같은 "
                   f'{ledger["wrong_ids"]}. 낙폭이 좁아진 몫은 dev 쪽 변화다.')
         print(f'  실지출 {ledger["spent_won"]:,.1f}원 · 요청 캐시 적중 {cache.hits} / '
               f'미적중 {cache.misses}')

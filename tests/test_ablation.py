@@ -730,34 +730,99 @@ def test_the_arm_loop_never_reaches_the_heldout_file():
         assert ids & held == set(), f"{cohort} 코호트가 heldout 을 물고 있다"
 
 
-def test_a_second_paid_heldout_run_is_refused(tmp_path):
+@pytest.fixture
+def fake_root(tmp_path, monkeypatch):
+    """`ROOT` 를 옮겨 heldout 제동을 실제 저장소 없이 검사한다."""
+    from scripts import ablation as runner
+
+    (tmp_path / "artifacts").mkdir()
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    return tmp_path
+
+
+def _put_ledger(root, where: str, **fields):
+    from scripts import ablation as runner
+
+    path = root / "artifacts" / where / runner.HELDOUT_LEDGER
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"use": 2, "arm": "A8", "correct": 15, "n_scored": 18,
+               "rate": 0.833, "generated": "2026-08-10T22:38:00"}
+    payload.update(fields)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def test_a_second_paid_heldout_run_is_refused(fake_root):
     """🔴 이 테스트가 이 파일에서 가장 값비싼 것을 지킨다 — 산출물이 있으면 거부한다."""
     from scripts import ablation as runner
 
-    (tmp_path / runner.HELDOUT_LEDGER).write_text(
-        json.dumps({"use": 2, "arm": "A8", "correct": 15, "n_scored": 18,
-                    "rate": 0.833, "generated": "2026-08-10T22:38:00"}),
-        encoding="utf-8")
+    _put_ledger(fake_root, "ablation/v2/heldout")
     with pytest.raises(SystemExit, match="최종 구성 1회용"):
-        runner.assert_heldout_unused(tmp_path, offline=False)
+        runner.assert_heldout_unused(offline=False)
 
 
-def test_a_rescore_is_allowed_because_offline_proves_zero_llm_calls(tmp_path):
+def test_changing_out_does_not_unlock_the_heldout_brake(fake_root):
+    """🔴 **가장 중요한 제동 테스트.** 제동이 `--out` 아래 원장 하나만 봤을 때는
+    `--out artifacts/ablation/v3/heldout` 으로 **무방비로 통과**했다. 되돌릴 수 없는
+    조작에서 "인자를 바꾸면 풀리는 제동" 은 제동이 아니다.
+
+    v2 원장만 있고 v3 폴더는 비어 있는 상태 — 그래도 거부돼야 한다.
+    """
+    from scripts import ablation as runner
+
+    _put_ledger(fake_root, "ablation/v2/heldout")
+    (fake_root / "artifacts" / "ablation" / "v3" / "heldout").mkdir(parents=True)
+    with pytest.raises(SystemExit, match="`--out` 을 바꿔도"):
+        runner.assert_heldout_unused(offline=False)
+
+
+def test_a_third_run_would_be_counted_as_the_third(fake_root):
+    """🔴 `len(HISTORY)+1` 로만 세면 3번째 실행도 '2회째' 로 기록된다 —
+    횟수가 틀리면 낙폭의 의미가 사라진다."""
+    from scripts import ablation as runner
+
+    assert runner.heldout_next_use() == 2                 # 원장 없음 → v1 다음
+    _put_ledger(fake_root, "ablation/v2/heldout", use=2)
+    assert runner.heldout_next_use() == 3
+
+
+def test_an_unreadable_ledger_counts_as_used_not_as_unused(fake_root):
+    """원장을 못 읽으면 '이미 썼다' 쪽으로 본다 — 파일 하나 깨진 것이
+    재측정 허가가 되면 안 된다."""
+    from scripts import ablation as runner
+
+    path = _put_ledger(fake_root, "ablation/v2/heldout")
+    path.write_text("{ 깨진 json", encoding="utf-8")
+    assert runner.heldout_next_use() == 3
+    with pytest.raises(SystemExit, match="최종 구성 1회용"):
+        runner.assert_heldout_unused(offline=False)
+
+
+def test_a_rescore_is_allowed_because_offline_proves_zero_llm_calls(fake_root):
     """`--offline` 은 요청 캐시 미적중이 예외라 **LLM 0회가 증명된다** — heldout 을
     새로 '여는' 것이 아니므로 거부 대상이 아니다."""
     from scripts import ablation as runner
 
-    (tmp_path / runner.HELDOUT_LEDGER).write_text('{"use": 2}', encoding="utf-8")
-    runner.assert_heldout_unused(tmp_path, offline=True)          # 예외가 없어야 한다
+    _put_ledger(fake_root, "ablation/v2/heldout")
+    runner.assert_heldout_unused(offline=True)            # 예외가 없어야 한다
 
 
-def test_the_first_heldout_run_is_not_blocked(tmp_path):
+def test_the_first_heldout_run_is_not_blocked(fake_root):
     from scripts import ablation as runner
 
-    runner.assert_heldout_unused(tmp_path, offline=False)
+    runner.assert_heldout_unused(offline=False)
 
 
-def test_the_use_count_carries_the_v1_run(tmp_path):
+def test_the_brake_does_not_take_a_path_argument(fake_root):
+    """🔴 서명으로 못박는다 — 위치를 인자로 받으면 `--out` 이 제동을 푼다."""
+    import inspect
+
+    from scripts import ablation as runner
+
+    assert list(inspect.signature(runner.assert_heldout_unused).parameters) == ["offline"]
+
+
+def test_the_use_count_carries_the_v1_run():
     """🔴 몇 회째인지가 코드에 있어야 한다. 문서에만 적으면 산출물만 보는 사람이
     '아직 안 썼다' 로 읽는다. v1 은 A6 으로 1회 썼고 15/18 이었다."""
     from scripts import ablation as runner
@@ -773,3 +838,112 @@ def test_the_heldout_folder_name_is_not_mistaken_for_an_arm():
     `ARMS` 에 없는 이름이 되어 `arm_config` 가 비고, 어떤 구성으로 쟀는지가 사라진다."""
     assert "A8_heldout_run" not in ablation.ARMS
     assert "A8" in ablation.ARMS
+
+
+def _heldout_report(correct_ids, all_ids, spent=673.8, cost=673.8):
+    """`write_heldout_ledger` 가 읽는 최소 report. 채점은 이미 끝난 상태를 흉내낸다."""
+    rows = [dict(_BLANK_ROW, question_id=q, track="grid", correct=q in correct_ids)
+            for q in all_ids]
+    scored = len(all_ids)
+    return {
+        "n_cases": scored, "rows": rows,
+        "crosstab": {"grid_overall": {"n": scored, "n_scored": scored,
+                                      "correct": len(correct_ids),
+                                      "rate": round(len(correct_ids) / scored, 3)}},
+        "totals": {"cost_won": cost}, "this_run": {"spent_won": spent},
+        "failure_histogram": {}, "root_cause_histogram_grid": {},
+    }
+
+
+def test_the_verdict_is_undecidable_when_the_worst_axis_is_missing(fake_root, monkeypatch):
+    """🔴 `measured 36` 축은 gitignore 된 `eval/error_analysis.json` 에 의존한다. 그 축이
+    없을 때 예전 코드는 조용히 넘겨 `gap_pp_worst` 가 **유리한 축으로 떨어지고**
+    '과적합 아님' 이 찍혔다. 그것이 과적합 검사를 무력화하는 경로다."""
+    from scripts import ablation as runner
+
+    monkeypatch.setattr(runner, "_load_report", lambda *a, **k: None)
+    out = fake_root / "artifacts" / "ablation" / "v2" / "heldout"
+    out.mkdir(parents=True)
+    ids = [f"Q-{i:03d}" for i in range(1, 19)]
+    ledger = runner.write_heldout_ledger(
+        out, "A8", _heldout_report(set(ids[:15]), ids))
+
+    assert ledger["worst_axis_available"] is False
+    assert ledger["measured36_error"]                       # 이유가 남아야 한다
+    # 🔴 `False`(=신호 없음)가 아니라 `None`(=판정 불가)이어야 한다. 이 구분이 전부다 —
+    #    `False` 면 보고서가 "과적합 아님" 을 찍고 검사가 조용히 통과한다.
+    assert ledger["overfit_signal"] is None
+    assert ledger["verdict"].startswith("🔴 판정 불가")
+    assert ledger["gap_pp_worst"] is None
+
+
+def test_the_verdict_uses_the_worst_axis_not_the_kindest(fake_root, monkeypatch):
+    """두 축이 다 있으면 **작은 쪽(=나쁜 쪽)** 으로 판정한다."""
+    from scripts import ablation as runner
+
+    ids = [f"Q-{i:03d}" for i in range(1, 19)]
+    # dev 72 축은 낙폭 −1.4%p, measured 36 축은 −8.4%p 가 되도록 꾸민다.
+    monkeypatch.setattr(runner, "_load_report", lambda root, arm: (
+        {"crosstab": {"grid_overall": {"correct": 61, "n_scored": 72, "rate": 0.847}},
+         "rows": []} if arm == "A8" else None))
+    monkeypatch.setattr(runner, "_grid_rate", lambda rows, wanted=None: {
+        "correct": 33, "n_scored": 36, "rate": 0.917})
+    out = fake_root / "artifacts" / "ablation" / "v2" / "heldout"
+    out.mkdir(parents=True)
+    ledger = runner.write_heldout_ledger(
+        out, "A8", _heldout_report(set(ids[:15]), ids))
+
+    assert ledger["gap_pp"] == -1.4
+    assert ledger["dev_grid_measured36"]["gap_pp"] == -8.4
+    assert ledger["gap_pp_worst"] == -8.4                   # 유리한 −1.4 가 아니다
+    assert ledger["overfit_signal"] is False                # −8.4 > −10.0
+    assert ledger["gate_retired_after_this_run"] is True
+
+
+def test_a_rescore_does_not_overwrite_the_paid_spend_record(fake_root, monkeypatch):
+    """🔴 재집계는 0원을 쓴다. 그 0 을 `run.json` 에 덮으면 **673.8원 기록이 사라진다**
+    (`_spend_meta` 가 같은 사고로 한 번 덮인 적이 있다)."""
+    from scripts import ablation as runner
+
+    out = fake_root / "artifacts" / "ablation" / "v2" / "heldout"
+    runner.OUT_DIR = out
+    run_dir = out / "A8_heldout_run"
+    run_dir.mkdir(parents=True)
+    (run_dir / "run.json").write_text(
+        json.dumps({"arm": "A8_heldout_run", "n_run": 18, "spent_won": 673.8}),
+        encoding="utf-8")
+
+    ids = [f"Q-{i:03d}" for i in range(1, 19)]
+    monkeypatch.setattr(runner, "load_heldout",
+                        lambda: [dict(_BLANK_ROW, question_id=q, split="heldout")
+                                 for q in ids])
+    monkeypatch.setattr(runner, "run_arm",
+                        lambda *a, **k: {"arm": "A8_heldout_run", "n_run": 18,
+                                         "stopped_at": None, "spent_won": 0.0,
+                                         "runs": []})
+    monkeypatch.setattr(runner, "score_arm",
+                        lambda *a, **k: _heldout_report(set(ids[:15]), ids))
+    report = runner.run_heldout("A8", cache=None, records={}, stop_won=800.0)
+
+    saved = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    assert saved["spent_won"] == 673.8                      # 0 으로 안 덮였다
+    assert saved["spent_won_rescore"] == 0.0                # 이번 실행분은 따로 남는다
+    assert report["arm"] == "A8"                            # 폴더 이름이 아니라 구성
+    assert report["arm_config"]["counterparty_hop"] is True
+    assert report["split"] == "heldout"
+
+
+def test_a_rescore_does_not_bump_the_use_count(fake_root, monkeypatch):
+    """재집계는 heldout 을 새로 여는 것이 아니므로 '3회째' 가 되면 안 된다."""
+    from scripts import ablation as runner
+
+    monkeypatch.setattr(runner, "_load_report", lambda *a, **k: None)
+    out = fake_root / "artifacts" / "ablation" / "v2" / "heldout"
+    out.mkdir(parents=True)
+    ids = [f"Q-{i:03d}" for i in range(1, 19)]
+    report = _heldout_report(set(ids[:15]), ids)
+
+    first = runner.write_heldout_ledger(out, "A8", report)
+    assert first["use"] == 2
+    again = runner.write_heldout_ledger(out, "A8", report)
+    assert again["use"] == 2, "재집계가 횟수를 올렸다"

@@ -1,7 +1,7 @@
 {
- "generated": "2026-08-10T22:43:38",
+ "generated": "2026-08-10T23:42:31",
  "use": 2,
- "note": "🔴 heldout 은 최종 구성 1회용이다. 이 원장이 있으면 러너가 유료 실행을 거부한다 (`assert_heldout_unused`).",
+ "note": "🔴 heldout 은 최종 구성 1회용이다. 이 원장이 `artifacts/` 아래 **어디에라도** 있으면 러너가 유료 실행을 거부한다 — `--out` 으로 우회되지 않는다 (`scripts/ablation.py::assert_heldout_unused`).",
  "arm": "A8",
  "arm_config": {
   "name": "A8",
@@ -31,7 +31,7 @@
   "n_scored": 36,
   "rate": 0.917,
   "gap_pp": -8.4,
-  "caveat": "재생(replay) — 답변이 A7 과 바이트 동일. 독립 측정이 아니다"
+  "caveat": "재생(replay)이다 — 답변이 A7 과 바이트 동일이라 독립 측정이 아니다"
  },
  "wrong_ids": [
   "Q-021",
@@ -61,6 +61,10 @@
  "axis_caveat": "v1 낙폭은 **A6 시점 · dev 분모 36**, v2 낙폭은 **A8 · dev 분모 72** 다. heldout 18문항만 두 판에서 동일하다. 두 낙폭의 차를 Δ 로 읽지 않는다.",
  "overfit_threshold_pp": -10.0,
  "gap_pp_worst": -8.4,
+ "worst_axis_available": true,
+ "measured36_error": null,
+ "gate_retired_after_this_run": true,
+ "gate_retirement_reason": "heldout 을 다시 못 재므로 낙폭의 분자가 83.3% 에 영구 고정된다. measured 36 은 n=36 이라 1문항 = 2.8%p — dev 33→34 만으로 낙폭이 -11.1%p 가 되어 임계(-10%p)를 넘는다. 성능 향상과 과적합이 같은 수에서 나오는 지표는 지표가 아니다. 이후 회귀 10 · 밸류체인 12 로 감시한다.",
  "history": [
   {
    "use": 1,
@@ -76,6 +80,7 @@
   }
  ],
  "overfit_signal": false,
+ "verdict": "과적합 신호 아님 — 가장 나쁜 축 -8.4%p > 임계 -10.0%p. 🔴 여유는 1.6%p 뿐이고 최악축은 n=36 이라 1문항 = 2.8%p — **dev 가 1문항만 더 맞아도 임계를 넘는다**",
  "spent_won": 673.8,
  "arm_cost_won": 673.8,
  "failure_histogram": {
@@ -85,5 +90,7 @@
  "root_cause_histogram": {
   "VERIFY/VERIFY": 2,
   "RETRIEVAL/MULTI_POINT_QUERY": 1
- }
+ },
+ "overfit_slack_pp": 1.6,
+ "overfit_slack_questions": 0.58
 }
