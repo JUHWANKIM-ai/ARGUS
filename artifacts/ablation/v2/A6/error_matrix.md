@@ -1,6 +1,6 @@
 # Phase H — 3축 교차집계 (dev)
 
-생성 2026-08-11 01:25 · 자동 생성물 (`scripts/error_analysis.py`)
+생성 2026-08-11 12:12 · 자동 생성물 (`scripts/error_analysis.py`)
 
 셀 표기 = `정답/채점대상` + 실패단계. **채점 대상에서 DATA_LIMIT 은 뺐다.**
 
@@ -13,7 +13,7 @@
 | search_extract | open | 4/4 | 4/4 | 4/4 |
 | multi_compare | closed | 3/4 GENERATION1 | 4/4 | 3/4 VERIFY1 |
 | multi_compare | open | 4/4 | 4/4 | 2/4 GENERATION1 RANKING1 |
-| complex_reason | closed | 4/4 | 2/4 GENERATION2 | 3/4 GENERATION1 |
+| complex_reason | closed | 4/4 | 2/4 GENERATION1 TOOL1 | 3/4 GENERATION1 |
 | complex_reason | open | 3/4 GENERATION1 | 4/4 | 3/4 RETRIEVAL1 |
 
 ## 축별 주변합
@@ -25,13 +25,13 @@
 |---|---|---|---|---|---|---|---|---|
 | search_extract | 0.917 (22/24) | 0 | 1 | 0 | 0 | 1 | 0 | 0 |
 | multi_compare | 0.833 (20/24) | 0 | 0 | 1 | 0 | 2 | 1 | 0 |
-| complex_reason | 0.792 (19/24) | 0 | 1 | 0 | 0 | 4 | 0 | 0 |
+| complex_reason | 0.792 (19/24) | 0 | 1 | 0 | 1 | 3 | 0 | 0 |
 
 ### answer_mode
 
 | 값 | 정답률 | ROUTING | RETRIEVAL | RANKING | TOOL | GENERATION | VERIFY | DATA_LIMIT |
 |---|---|---|---|---|---|---|---|---|
-| closed | 0.806 (29/36) | 0 | 1 | 0 | 0 | 5 | 1 | 0 |
+| closed | 0.806 (29/36) | 0 | 1 | 0 | 1 | 4 | 1 | 0 |
 | open | 0.889 (32/36) | 0 | 1 | 1 | 0 | 2 | 0 | 0 |
 
 ### difficulty
@@ -39,7 +39,7 @@
 | 값 | 정답률 | ROUTING | RETRIEVAL | RANKING | TOOL | GENERATION | VERIFY | DATA_LIMIT |
 |---|---|---|---|---|---|---|---|---|
 | 하 | 0.917 (22/24) | 0 | 0 | 0 | 0 | 2 | 0 | 0 |
-| 중 | 0.875 (21/24) | 0 | 0 | 0 | 0 | 3 | 0 | 0 |
+| 중 | 0.875 (21/24) | 0 | 0 | 0 | 1 | 2 | 0 | 0 |
 | 상 | 0.750 (18/24) | 0 | 2 | 1 | 0 | 2 | 1 | 0 |
 
 ## 실패 단계 히스토그램
@@ -48,25 +48,27 @@
 |---|---|---|
 | RETRIEVAL | 3 |  |
 | RANKING | 1 |  |
-| GENERATION | 8 |  |
+| TOOL | 2 |  |
+| GENERATION | 6 |  |
 | VERIFY | 1 |  |
 
 ## 근본 원인 — 6단계만으로는 arm 이 안 갈린다 (**그리드만**)
 
 | 단계 / 원인 | 건수 | 문항 | 겨냥할 arm |
 |---|---|---|---|
-| GENERATION/INDEX_FIELD_MISSING | 5 | Q-044 Q-097 Q-098 Q-099 Q-101 | **A1b** — 필드 추출 (⚠ 계산 답이면 오라벨) |
+| GENERATION/INDEX_FIELD_MISSING | 4 | Q-044 Q-098 Q-099 Q-101 | **A1b** — 필드 추출 (⚠ 계산 답이면 오라벨) |
 | RETRIEVAL/MULTI_POINT_QUERY | 2 | Q-076 Q-105 | **A4** — 시점·기업별 질의 분해 |
 | GENERATION/REASONING | 1 | Q-023 | **A4** — 다단계 추론 |
 | GENERATION/UNVERIFIED | 1 | Q-047 | — 대조할 수치가 없다 |
 | VERIFY/VERIFY | 1 | Q-087 | 미분류 — 원문 대조 필요 (VERIFY 는 A6 을 의미하지 않는다) |
 | RANKING/LOW_RANK | 1 | Q-094 | **A3** — 리랭커 |
+| TOOL/TOOL | 1 | Q-097 | **A5** — 계산 Tool |
 
 ### 그리드 밖 트랙 (정답률·겨냥 건수에 합치지 않는다)
 
 | 단계 / 원인 | 건수 | 문항 | track |
 |---|---|---|---|
-| GENERATION/INDEX_FIELD_MISSING | 1 | Q-065 | regression |
+| TOOL/TOOL | 1 | Q-065 | regression |
 | RETRIEVAL/MULTI_POINT_QUERY | 1 | Q-066 | regression |
 
 ## 🔴 arm 배분 — 자동 분류기 vs 수동 원문 대조 (**정본은 수동**)
@@ -77,22 +79,20 @@
 
 | arm | 자동(그리드) | 자동(전 트랙) | **수동 정본(전 트랙)** |
 |---|---|---|---|
-| A1b | 5 | 6 | **2** |
+| A1b | 4 | 4 | **2** |
 | A3 | 1 | 1 | **1** |
 | A4 | 3 | 4 | **5** |
-| A5 | 0 | 0 | **4** |
+| A5 | 1 | 2 | **4** |
 | A6 | 0 | 0 | **1** |
 | 미분류 | 2 | 2 | **0** |
 
-**불일치 6/13건** — 문항 단위로 적는다. 사람이 기억으로 잇던 자리이고, 그 기억이 두 번 틀렸다.
+**불일치 4/13건** — 문항 단위로 적는다. 사람이 기억으로 잇던 자리이고, 그 기억이 두 번 틀렸다.
 
 | 문항 | track | 자동 버킷 | 자동 arm | **수동 정본 arm** |
 |---|---|---|---|---|
 | Q-044 | grid | `GENERATION/INDEX_FIELD_MISSING` | A1b | **A5** |
 | Q-047 | grid | `GENERATION/UNVERIFIED` | 미분류 | **A5** |
-| Q-065 | regression | `GENERATION/INDEX_FIELD_MISSING` | A1b | **A5** |
 | Q-087 | grid | `VERIFY/VERIFY` | 미분류 | **A6** |
-| Q-097 | grid | `GENERATION/INDEX_FIELD_MISSING` | A1b | **A5** |
 | Q-098 | grid | `GENERATION/INDEX_FIELD_MISSING` | A1b | **A4** |
 
 critic 이 오답을 통과시킨 문항 (귀속 단계와 무관하게 센다): Q-065 Q-066 Q-087 Q-097 Q-101

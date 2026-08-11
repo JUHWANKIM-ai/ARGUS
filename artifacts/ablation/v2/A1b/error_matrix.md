@@ -1,6 +1,6 @@
 # Phase H — 3축 교차집계 (dev)
 
-생성 2026-08-11 01:25 · 자동 생성물 (`scripts/error_analysis.py`)
+생성 2026-08-11 12:12 · 자동 생성물 (`scripts/error_analysis.py`)
 
 셀 표기 = `정답/채점대상` + 실패단계. **채점 대상에서 DATA_LIMIT 은 뺐다.**
 
@@ -13,7 +13,7 @@
 | search_extract | open | 4/4 | 4/4 | 3/4 RETRIEVAL1 |
 | multi_compare | closed | 1/4 GENERATION1 RETRIEVAL2 | 2/4 RETRIEVAL2 | 2/4 RETRIEVAL2 |
 | multi_compare | open | 3/4 RETRIEVAL1 | 4/4 | 0/4 RETRIEVAL4 |
-| complex_reason | closed | 4/4 | 1/4 GENERATION3 | 2/4 RETRIEVAL2 |
+| complex_reason | closed | 4/4 | 1/4 GENERATION2 TOOL1 | 2/4 RETRIEVAL2 |
 | complex_reason | open | 3/4 GENERATION1 | 4/4 | 2/4 RETRIEVAL2 |
 
 ## 축별 주변합
@@ -25,13 +25,13 @@
 |---|---|---|---|---|---|---|---|---|
 | search_extract | 0.750 (18/24) | 0 | 5 | 0 | 1 | 0 | 0 | 0 |
 | multi_compare | 0.500 (12/24) | 0 | 11 | 0 | 0 | 1 | 0 | 0 |
-| complex_reason | 0.667 (16/24) | 0 | 4 | 0 | 0 | 4 | 0 | 0 |
+| complex_reason | 0.667 (16/24) | 0 | 4 | 0 | 1 | 3 | 0 | 0 |
 
 ### answer_mode
 
 | 값 | 정답률 | ROUTING | RETRIEVAL | RANKING | TOOL | GENERATION | VERIFY | DATA_LIMIT |
 |---|---|---|---|---|---|---|---|---|
-| closed | 0.528 (19/36) | 0 | 12 | 0 | 1 | 4 | 0 | 0 |
+| closed | 0.528 (19/36) | 0 | 12 | 0 | 2 | 3 | 0 | 0 |
 | open | 0.750 (27/36) | 0 | 8 | 0 | 0 | 1 | 0 | 0 |
 
 ### difficulty
@@ -39,7 +39,7 @@
 | 값 | 정답률 | ROUTING | RETRIEVAL | RANKING | TOOL | GENERATION | VERIFY | DATA_LIMIT |
 |---|---|---|---|---|---|---|---|---|
 | 하 | 0.792 (19/24) | 0 | 3 | 0 | 0 | 2 | 0 | 0 |
-| 중 | 0.750 (18/24) | 0 | 2 | 0 | 1 | 3 | 0 | 0 |
+| 중 | 0.750 (18/24) | 0 | 2 | 0 | 2 | 2 | 0 | 0 |
 | 상 | 0.375 (9/24) | 0 | 15 | 0 | 0 | 0 | 0 | 0 |
 
 ## 실패 단계 히스토그램
@@ -47,8 +47,8 @@
 | 단계 | 건수 | 비고 |
 |---|---|---|
 | RETRIEVAL | 24 |  |
-| TOOL | 1 |  |
-| GENERATION | 5 |  |
+| TOOL | 2 |  |
+| GENERATION | 4 |  |
 
 ## 근본 원인 — 6단계만으로는 arm 이 안 갈린다 (**그리드만**)
 
@@ -56,8 +56,8 @@
 |---|---|---|---|
 | RETRIEVAL/CHAIN_NOT_TRAVERSED | 10 | Q-005 Q-006 Q-018 Q-023 Q-024 Q-030 Q-075 Q-087 Q-093 Q-099 | **A4** — `get_history` 로 정정 체인을 밟는 hop |
 | RETRIEVAL/MULTI_POINT_QUERY | 9 | Q-012 Q-014 Q-015 Q-020 Q-076 Q-084 Q-085 Q-094 Q-105 | **A4** — 시점·기업별 질의 분해 |
-| GENERATION/INDEX_FIELD_MISSING | 3 | Q-097 Q-098 Q-101 | **A1b** — 필드 추출 (⚠ 계산 답이면 오라벨) |
-| TOOL/TOOL | 1 | Q-003 | **A5** — 계산 Tool |
+| TOOL/TOOL | 2 | Q-003 Q-097 | **A5** — 계산 Tool |
+| GENERATION/INDEX_FIELD_MISSING | 2 | Q-098 Q-101 | **A1b** — 필드 추출 (⚠ 계산 답이면 오라벨) |
 | GENERATION/REASONING | 1 | Q-028 | **A4** — 다단계 추론 |
 | RETRIEVAL/CHAIN_PARTIAL | 1 | Q-035 | **A4** — 체인 + 후속공시 연결 규칙 |
 | GENERATION/UNVERIFIED | 1 | Q-047 | — 대조할 수치가 없다 |
@@ -79,14 +79,14 @@
 
 | arm | 자동(그리드) | 자동(전 트랙) | **수동 정본(전 트랙)** |
 |---|---|---|---|
-| A1b | 3 | 3 | **2** |
+| A1b | 2 | 2 | **2** |
 | A3 | 0 | 0 | **1** |
 | A4 | 21 | 25 | **5** |
-| A5 | 1 | 1 | **4** |
+| A5 | 2 | 2 | **4** |
 | A6 | 0 | 0 | **1** |
 | 미분류 | 1 | 1 | **0** |
 
-**불일치 25/30건** — 문항 단위로 적는다. 사람이 기억으로 잇던 자리이고, 그 기억이 두 번 틀렸다.
+**불일치 24/30건** — 문항 단위로 적는다. 사람이 기억으로 잇던 자리이고, 그 기억이 두 번 틀렸다.
 
 | 문항 | track | 자동 버킷 | 자동 arm | **수동 정본 arm** |
 |---|---|---|---|---|
@@ -112,7 +112,6 @@
 | Q-087 | grid | `RETRIEVAL/CHAIN_NOT_TRAVERSED` | A4 | **A6** |
 | Q-093 | grid | `RETRIEVAL/CHAIN_NOT_TRAVERSED` | A4 | **—** |
 | Q-094 | grid | `RETRIEVAL/MULTI_POINT_QUERY` | A4 | **A3** |
-| Q-097 | grid | `GENERATION/INDEX_FIELD_MISSING` | A1b | **A5** |
 | Q-098 | grid | `GENERATION/INDEX_FIELD_MISSING` | A1b | **A4** |
 | Q-099 | grid | `RETRIEVAL/CHAIN_NOT_TRAVERSED` | A4 | **A1b** |
 

@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-11T01:25:19",
+ "generated": "2026-08-11T12:12:04",
  "split": "dev",
  "cohort": "full",
  "n_cases": 88,
@@ -143,7 +143,8 @@
     "rate": 0.5,
     "data_limit": 0,
     "stages": {
-     "GENERATION": 2
+     "TOOL": 1,
+     "GENERATION": 1
     }
    },
    "complex_reason|closed|상": {
@@ -218,7 +219,8 @@
      "data_limit": 0,
      "stages": {
       "RETRIEVAL": 1,
-      "GENERATION": 4
+      "TOOL": 1,
+      "GENERATION": 3
      }
     }
    },
@@ -231,7 +233,8 @@
      "data_limit": 0,
      "stages": {
       "RETRIEVAL": 1,
-      "GENERATION": 5,
+      "TOOL": 1,
+      "GENERATION": 4,
       "VERIFY": 1
      }
     },
@@ -266,7 +269,8 @@
      "rate": 0.875,
      "data_limit": 0,
      "stages": {
-      "GENERATION": 3
+      "TOOL": 1,
+      "GENERATION": 2
      }
     },
     "상": {
@@ -293,7 +297,8 @@
    "stages": {
     "RETRIEVAL": 2,
     "RANKING": 1,
-    "GENERATION": 7,
+    "TOOL": 1,
+    "GENERATION": 6,
     "VERIFY": 1
    }
   },
@@ -315,7 +320,8 @@
     "stages": {
      "RETRIEVAL": 2,
      "RANKING": 1,
-     "GENERATION": 7,
+     "TOOL": 1,
+     "GENERATION": 6,
      "VERIFY": 1
     }
    },
@@ -335,7 +341,7 @@
     "data_limit": 0,
     "stages": {
      "RETRIEVAL": 1,
-     "GENERATION": 1
+     "TOOL": 1
     }
    }
   },
@@ -348,7 +354,8 @@
    "stages": {
     "RETRIEVAL": 3,
     "RANKING": 1,
-    "GENERATION": 8,
+    "TOOL": 2,
+    "GENERATION": 6,
     "VERIFY": 1
    }
   }
@@ -382,45 +389,50 @@
  },
  "difficulty_audit": [],
  "failure_histogram": {
-  "GENERATION": 8,
+  "GENERATION": 6,
   "RETRIEVAL": 3,
   "VERIFY": 1,
-  "RANKING": 1
+  "RANKING": 1,
+  "TOOL": 2
  },
  "failure_histogram_grid": {
-  "GENERATION": 7,
+  "GENERATION": 6,
   "RETRIEVAL": 2,
   "VERIFY": 1,
-  "RANKING": 1
+  "RANKING": 1,
+  "TOOL": 1
  },
  "by_track_failures": {
   "grid": {
-   "GENERATION": 7,
+   "GENERATION": 6,
    "RETRIEVAL": 2,
    "VERIFY": 1,
-   "RANKING": 1
+   "RANKING": 1,
+   "TOOL": 1
   },
   "info_limit": {},
   "regression": {
-   "GENERATION": 1,
+   "TOOL": 1,
    "RETRIEVAL": 1
   }
  },
  "root_cause_histogram": {
   "GENERATION/REASONING": 1,
-  "GENERATION/INDEX_FIELD_MISSING": 6,
+  "GENERATION/INDEX_FIELD_MISSING": 4,
   "GENERATION/UNVERIFIED": 1,
   "RETRIEVAL/MULTI_POINT_QUERY": 3,
   "VERIFY/VERIFY": 1,
-  "RANKING/LOW_RANK": 1
+  "RANKING/LOW_RANK": 1,
+  "TOOL/TOOL": 2
  },
  "root_cause_histogram_grid": {
   "GENERATION/REASONING": 1,
-  "GENERATION/INDEX_FIELD_MISSING": 5,
+  "GENERATION/INDEX_FIELD_MISSING": 4,
   "GENERATION/UNVERIFIED": 1,
   "RETRIEVAL/MULTI_POINT_QUERY": 2,
   "VERIFY/VERIFY": 1,
-  "RANKING/LOW_RANK": 1
+  "RANKING/LOW_RANK": 1,
+  "TOOL/TOOL": 1
  },
  "arm_allocation_reconciliation": {
   "authoritative": "manual",
@@ -429,8 +441,8 @@
   "by_arm": [
    {
     "arm": "A1b",
-    "auto_grid": 5,
-    "auto_all_tracks": 6,
+    "auto_grid": 4,
+    "auto_all_tracks": 4,
     "manual_all_tracks": 2
    },
    {
@@ -447,8 +459,8 @@
    },
    {
     "arm": "A5",
-    "auto_grid": 0,
-    "auto_all_tracks": 0,
+    "auto_grid": 1,
+    "auto_all_tracks": 2,
     "manual_all_tracks": 4
    },
    {
@@ -484,29 +496,11 @@
     "critic_passed_wrong_answer": false
    },
    {
-    "question_id": "Q-065",
-    "track": "regression",
-    "bucket": "GENERATION/INDEX_FIELD_MISSING",
-    "auto_arm": "A1b",
-    "manual_arm": "A5",
-    "agree": false,
-    "critic_passed_wrong_answer": true
-   },
-   {
     "question_id": "Q-087",
     "track": "grid",
     "bucket": "VERIFY/VERIFY",
     "auto_arm": "미분류",
     "manual_arm": "A6",
-    "agree": false,
-    "critic_passed_wrong_answer": true
-   },
-   {
-    "question_id": "Q-097",
-    "track": "grid",
-    "bucket": "GENERATION/INDEX_FIELD_MISSING",
-    "auto_arm": "A1b",
-    "manual_arm": "A5",
     "agree": false,
     "critic_passed_wrong_answer": true
    },
@@ -520,7 +514,7 @@
     "critic_passed_wrong_answer": false
    }
   ],
-  "n_disagreements": 6,
+  "n_disagreements": 4,
   "n_compared": 13,
   "critic_passed_wrong_answer": [
    "Q-065",
@@ -560,10 +554,10 @@
    {
     "question_id": "Q-065",
     "track": "regression",
-    "bucket": "GENERATION/INDEX_FIELD_MISSING",
-    "auto_arm": "A1b",
+    "bucket": "TOOL/TOOL",
+    "auto_arm": "A5",
     "manual_arm": "A5",
-    "agree": false,
+    "agree": true,
     "critic_passed_wrong_answer": true
    },
    {
@@ -605,10 +599,10 @@
    {
     "question_id": "Q-097",
     "track": "grid",
-    "bucket": "GENERATION/INDEX_FIELD_MISSING",
-    "auto_arm": "A1b",
+    "bucket": "TOOL/TOOL",
+    "auto_arm": "A5",
     "manual_arm": "A5",
-    "agree": false,
+    "agree": true,
     "critic_passed_wrong_answer": true
    },
    {
@@ -660,7 +654,8 @@
    "data_limit": 0,
    "stages": {
     "RETRIEVAL": 1,
-    "GENERATION": 5,
+    "TOOL": 2,
+    "GENERATION": 3,
     "VERIFY": 1
    }
   },
@@ -701,7 +696,8 @@
    "rate": 0.844,
    "data_limit": 0,
    "stages": {
-    "GENERATION": 4,
+    "TOOL": 1,
+    "GENERATION": 3,
     "VERIFY": 1
    }
   },
@@ -5930,8 +5926,7 @@
    ],
    "golden_evidence_all": true,
    "calc_checked": [
-    "amount",
-    "share"
+    "amount"
    ],
    "calc_skipped": [],
    "calc_mismatch": false,
@@ -6194,9 +6189,9 @@
    "correct": false,
    "scored_by": "em:number_won",
    "judge": null,
-   "first_failure": "GENERATION",
-   "root_cause": "INDEX_FIELD_MISSING",
-   "failure_why": "골든 근거가 프롬프트에 실렸는데 답이 틀렸다 (critic 이 supported=True 로 통과시켰다)",
+   "first_failure": "TOOL",
+   "root_cause": "TOOL",
+   "failure_why": "per_unit: 답변 207,838,797,710원 vs 재계산 207,684,631,210",
    "critic_supported": true,
    "critic_passed_wrong_answer": true,
    "gold_value_in_evidence": false,
@@ -6243,14 +6238,17 @@
    ],
    "golden_evidence_all": true,
    "calc_checked": [
-    "amount"
+    "amount",
+    "per_unit"
    ],
    "calc_skipped": [
     "period",
     "share"
    ],
-   "calc_mismatch": false,
-   "calc_reasons": [],
+   "calc_mismatch": true,
+   "calc_reasons": [
+    "per_unit: 답변 207,838,797,710원 vs 재계산 207,684,631,210"
+   ],
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -6398,7 +6396,9 @@
    ],
    "calc_skipped": [],
    "calc_mismatch": false,
-   "calc_reasons": [],
+   "calc_reasons": [
+    "amount: 답변 903,559,577,175원 vs 재계산 902,863,854,765"
+   ],
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -7306,9 +7306,9 @@
    "correct": false,
    "scored_by": "em:number_won",
    "judge": null,
-   "first_failure": "GENERATION",
-   "root_cause": "INDEX_FIELD_MISSING",
-   "failure_why": "골든 근거가 프롬프트에 실렸는데 답이 틀렸다 (critic 이 supported=True 로 통과시켰다)",
+   "first_failure": "TOOL",
+   "root_cause": "TOOL",
+   "failure_why": "amount: 답변 492,909억 vs 재계산 4,928,968,079,043 (10^+1 배 자릿수 오류)",
    "critic_supported": true,
    "critic_passed_wrong_answer": true,
    "gold_value_in_evidence": false,
@@ -7365,9 +7365,9 @@
     "period",
     "share"
    ],
-   "calc_mismatch": false,
+   "calc_mismatch": true,
    "calc_reasons": [
-    "amount: 답변 23,381억 vs 재계산 4,928,968,079,043"
+    "amount: 답변 492,909억 vs 재계산 4,928,968,079,043 (10^+1 배 자릿수 오류)"
    ],
    "data_limit": {
     "withheld": [],

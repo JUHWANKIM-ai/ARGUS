@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-08-11T01:22:18",
+  "generated": "2026-08-11T12:03:04",
   "cohort": "valuechain",
   "n_cases": 12,
   "question_ids": [
@@ -17,16 +17,16 @@
    "Q-117",
    "Q-118"
   ],
-  "budget_won": 400.0,
-  "stop_won": 320.0,
+  "budget_won": 800.0,
+  "stop_won": 640.0,
   "price_won_per_1k": 7.02,
   "index_snapshot": {
-   "artifacts/exchange_bm25.json": "dcb531a9ac4edc61:835184",
+   "artifacts/exchange_bm25.json": "24d6e5c1009292ee:824984",
    "artifacts/major_bm25.json": "46b6b72efd3add7f:492039",
    "artifacts/holding_bm25.json": "6915045cf1b79252:943447",
    "artifacts/section_index.json": "d69679c75e9322cf:19194287",
    "artifacts/section_index.npz": "bd1ab274b9d82084:197781168",
-   "artifacts/exchange_records.jsonl": "90511f06ae3cc3db:4418643",
+   "artifacts/exchange_records.jsonl": "7a8caacc4c839c9c:4537830",
    "artifacts/major_records.jsonl": "f1726becba5f32e7:4347024",
    "artifacts/holding_records.jsonl": "ebbf4c2c99ef75d6:6075638",
    "artifacts/periodic_sections.jsonl": "7d83a7d54b7f1b7d:55150457",
@@ -35,72 +35,72 @@
    "data/dart-disclosures/manifest.jsonl": "04750795e1a2d5c3:2419214",
    "data/dart-disclosures/universe.csv": "96560165c836b10e:10674"
   },
-  "spent_won": 383.8,
+  "spent_won": 478.0,
   "spent_won_source": "arm·코호트별 run.json 합 (하위 폴더 포함)",
   "spent_won_by_arm": {
-   "A8": 234.9,
+   "A8": 329.1,
    "L3": 148.9
   },
-  "this_process_spent_won": 234.9,
-  "cache_hits": 9,
-  "cache_misses": 16,
-  "fresh_prompt_tokens": 31182,
-  "fresh_completion_tokens": 2284,
+  "this_process_spent_won": 329.1,
+  "cache_hits": 3,
+  "cache_misses": 23,
+  "fresh_prompt_tokens": 43872,
+  "fresh_completion_tokens": 3008,
   "cache_stats_are_this_process": true,
   "this_run": {
    "A8": {
     "arm": "A8",
     "n_run": 12,
     "stopped_at": null,
-    "spent_won": 234.9,
+    "spent_won": 329.1,
     "runs": [
      {
       "question_id": "Q-107",
       "cached": false,
       "judge_cached": null,
       "request_cache_hits": 0,
-      "spent_won": 30.94,
+      "spent_won": 31.48,
       "llm_calls": 2,
-      "prompt_tokens": 4173,
-      "completion_tokens": 234,
+      "prompt_tokens": 4267,
+      "completion_tokens": 218,
       "judge_tokens": 0,
-      "latency_s": 17.309
+      "latency_s": 6.575
      },
      {
       "question_id": "Q-108",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 3,
-      "spent_won": 0.0,
+      "request_cache_hits": 0,
+      "spent_won": 46.69,
       "llm_calls": 2,
-      "prompt_tokens": 3853,
+      "prompt_tokens": 3987,
       "completion_tokens": 422,
       "judge_tokens": 2242,
-      "latency_s": 0.013
+      "latency_s": 10.601
      },
      {
       "question_id": "Q-109",
       "cached": false,
       "judge_cached": null,
       "request_cache_hits": 0,
-      "spent_won": 15.09,
-      "llm_calls": 1,
-      "prompt_tokens": 1961,
-      "completion_tokens": 188,
+      "spent_won": 28.12,
+      "llm_calls": 2,
+      "prompt_tokens": 3833,
+      "completion_tokens": 172,
       "judge_tokens": 0,
-      "latency_s": 4.686
+      "latency_s": 4.862
      },
      {
       "question_id": "Q-110",
       "cached": false,
       "judge_cached": false,
       "request_cache_hits": 0,
-      "spent_won": 45.98,
+      "spent_won": 44.53,
       "llm_calls": 2,
-      "prompt_tokens": 3877,
-      "completion_tokens": 355,
-      "judge_tokens": 2318,
-      "latency_s": 8.928
+      "prompt_tokens": 3901,
+      "completion_tokens": 261,
+      "judge_tokens": 2182,
+      "latency_s": 7.775
      },
      {
       "question_id": "Q-111",
@@ -118,61 +118,61 @@
       "question_id": "Q-112",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 3,
-      "spent_won": 0.0,
+      "request_cache_hits": 0,
+      "spent_won": 32.44,
       "llm_calls": 2,
-      "prompt_tokens": 2581,
-      "completion_tokens": 361,
-      "judge_tokens": 1559,
-      "latency_s": 0.022
+      "prompt_tokens": 2711,
+      "completion_tokens": 356,
+      "judge_tokens": 1554,
+      "latency_s": 8.598
      },
      {
       "question_id": "Q-113",
       "cached": false,
       "judge_cached": null,
       "request_cache_hits": 0,
-      "spent_won": 39.79,
+      "spent_won": 40.42,
       "llm_calls": 2,
-      "prompt_tokens": 5241,
-      "completion_tokens": 427,
+      "prompt_tokens": 5324,
+      "completion_tokens": 434,
       "judge_tokens": 0,
-      "latency_s": 12.697
+      "latency_s": 10.771
      },
      {
       "question_id": "Q-114",
       "cached": false,
       "judge_cached": false,
       "request_cache_hits": 0,
-      "spent_won": 31.93,
+      "spent_won": 32.38,
       "llm_calls": 2,
-      "prompt_tokens": 2758,
-      "completion_tokens": 203,
-      "judge_tokens": 1587,
-      "latency_s": 5.352
+      "prompt_tokens": 2840,
+      "completion_tokens": 206,
+      "judge_tokens": 1566,
+      "latency_s": 5.42
      },
      {
       "question_id": "Q-115",
       "cached": false,
       "judge_cached": null,
       "request_cache_hits": 0,
-      "spent_won": 29.28,
+      "spent_won": 31.46,
       "llm_calls": 2,
-      "prompt_tokens": 3907,
-      "completion_tokens": 264,
+      "prompt_tokens": 4125,
+      "completion_tokens": 356,
       "judge_tokens": 0,
-      "latency_s": 6.952
+      "latency_s": 8.999
      },
      {
       "question_id": "Q-116",
       "cached": false,
       "judge_cached": null,
       "request_cache_hits": 0,
-      "spent_won": 10.49,
+      "spent_won": 10.17,
       "llm_calls": 1,
-      "prompt_tokens": 1305,
-      "completion_tokens": 190,
+      "prompt_tokens": 1295,
+      "completion_tokens": 154,
       "judge_tokens": 0,
-      "latency_s": 4.614
+      "latency_s": 3.815
      },
      {
       "question_id": "Q-117",
@@ -191,14 +191,16 @@
       "cached": false,
       "judge_cached": null,
       "request_cache_hits": 0,
-      "spent_won": 31.44,
+      "spent_won": 31.41,
       "llm_calls": 2,
-      "prompt_tokens": 4128,
-      "completion_tokens": 350,
+      "prompt_tokens": 4125,
+      "completion_tokens": 349,
       "judge_tokens": 0,
-      "latency_s": 8.947
+      "latency_s": 9.028
      }
-    ]
+    ],
+    "spent_won_previous": 234.9,
+    "spent_won_source": "이번 실행 기록. 🔴 앞선 실행이 234.9원을 결제했고 그것은 이 값에 안 들어 있다 — 누계는 두 값을 더해야 한다."
    }
   }
  },
@@ -211,8 +213,8 @@
     "rate_reported": null,
     "n_grid": 0,
     "data_limit": 0,
-    "overall": 0.417,
-    "overall_correct": 5,
+    "overall": 0.5,
+    "overall_correct": 6,
     "overall_n_scored": 12,
     "info_limit_correct": 0,
     "info_limit_n": 0,
@@ -221,33 +223,33 @@
      "valuechain": {
       "n": 12,
       "n_scored": 12,
-      "correct": 5,
-      "rate": 0.417,
+      "correct": 6,
+      "rate": 0.5,
       "data_limit": 0,
       "stages": {
        "ROUTING": 1,
-       "RETRIEVAL": 4,
+       "RETRIEVAL": 3,
        "GENERATION": 2
       }
      }
     },
-    "tokens": 48158,
-    "arm_cost_won": 338.1,
-    "llm_calls": 20,
-    "latency_s_mean_recorded": 5.79,
+    "tokens": 50554,
+    "arm_cost_won": 354.9,
+    "llm_calls": 21,
+    "latency_s_mean_recorded": 6.37,
     "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
     "failures": {
-     "RETRIEVAL": 4,
+     "RETRIEVAL": 3,
      "GENERATION": 2,
      "ROUTING": 1
     },
     "failures_all": {
-     "RETRIEVAL": 4,
+     "RETRIEVAL": 3,
      "GENERATION": 2,
      "ROUTING": 1
     },
     "root_causes": {
-     "RETRIEVAL/MULTI_POINT_QUERY": 3,
+     "RETRIEVAL/MULTI_POINT_QUERY": 2,
      "GENERATION/INDEX_FIELD_MISSING": 2,
      "ROUTING/ROUTING": 1,
      "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1

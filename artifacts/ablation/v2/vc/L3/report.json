@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-11T01:22:18",
+ "generated": "2026-08-11T12:03:04",
  "split": "dev",
  "cohort": "valuechain",
  "n_cases": 12,
@@ -1307,14 +1307,18 @@
     "20241203800532"
    ],
    "golden_evidence_all": true,
-   "calc_checked": [],
+   "calc_checked": [
+    "amount"
+   ],
    "calc_skipped": [
-    "amount",
     "period",
     "share"
    ],
    "calc_mismatch": false,
-   "calc_reasons": [],
+   "calc_reasons": [
+    "amount: 답변 890,200백만원 vs 재계산 1,652,800,000,000",
+    "amount: 답변 106,796.8백만원 vs 재계산 105,400,000,000"
+   ],
    "data_limit": {
     "withheld": [],
     "no_amount": [],

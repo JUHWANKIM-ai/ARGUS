@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-11T01:25:20",
+ "generated": "2026-08-11T12:12:04",
  "split": "dev",
  "cohort": "full",
  "n_cases": 88,
@@ -149,7 +149,8 @@
     "rate": 0.25,
     "data_limit": 0,
     "stages": {
-     "GENERATION": 3
+     "TOOL": 1,
+     "GENERATION": 2
     }
    },
    "complex_reason|closed|상": {
@@ -223,7 +224,8 @@
      "data_limit": 0,
      "stages": {
       "RETRIEVAL": 4,
-      "GENERATION": 4
+      "TOOL": 1,
+      "GENERATION": 3
      }
     }
    },
@@ -236,8 +238,8 @@
      "data_limit": 0,
      "stages": {
       "RETRIEVAL": 12,
-      "TOOL": 1,
-      "GENERATION": 4
+      "TOOL": 2,
+      "GENERATION": 3
      }
     },
     "open": {
@@ -272,8 +274,8 @@
      "data_limit": 0,
      "stages": {
       "RETRIEVAL": 2,
-      "TOOL": 1,
-      "GENERATION": 3
+      "TOOL": 2,
+      "GENERATION": 2
      }
     },
     "상": {
@@ -296,8 +298,8 @@
    "data_limit": 0,
    "stages": {
     "RETRIEVAL": 20,
-    "TOOL": 1,
-    "GENERATION": 5
+    "TOOL": 2,
+    "GENERATION": 4
    }
   },
   "info_limit": {
@@ -317,8 +319,8 @@
     "data_limit": 0,
     "stages": {
      "RETRIEVAL": 20,
-     "TOOL": 1,
-     "GENERATION": 5
+     "TOOL": 2,
+     "GENERATION": 4
     }
    },
    "info_limit": {
@@ -348,8 +350,8 @@
    "data_limit": 0,
    "stages": {
     "RETRIEVAL": 24,
-    "TOOL": 1,
-    "GENERATION": 5
+    "TOOL": 2,
+    "GENERATION": 4
    }
   }
  },
@@ -431,20 +433,20 @@
   }
  ],
  "failure_histogram": {
-  "TOOL": 1,
+  "TOOL": 2,
   "RETRIEVAL": 24,
-  "GENERATION": 5
+  "GENERATION": 4
  },
  "failure_histogram_grid": {
-  "TOOL": 1,
+  "TOOL": 2,
   "RETRIEVAL": 20,
-  "GENERATION": 5
+  "GENERATION": 4
  },
  "by_track_failures": {
   "grid": {
-   "TOOL": 1,
+   "TOOL": 2,
    "RETRIEVAL": 20,
-   "GENERATION": 5
+   "GENERATION": 4
   },
   "info_limit": {},
   "regression": {
@@ -452,22 +454,22 @@
   }
  },
  "root_cause_histogram": {
-  "TOOL/TOOL": 1,
+  "TOOL/TOOL": 2,
   "RETRIEVAL/CHAIN_NOT_TRAVERSED": 11,
   "RETRIEVAL/MULTI_POINT_QUERY": 12,
   "GENERATION/REASONING": 1,
   "RETRIEVAL/CHAIN_PARTIAL": 1,
   "GENERATION/UNVERIFIED": 1,
-  "GENERATION/INDEX_FIELD_MISSING": 3
+  "GENERATION/INDEX_FIELD_MISSING": 2
  },
  "root_cause_histogram_grid": {
-  "TOOL/TOOL": 1,
+  "TOOL/TOOL": 2,
   "RETRIEVAL/CHAIN_NOT_TRAVERSED": 10,
   "RETRIEVAL/MULTI_POINT_QUERY": 9,
   "GENERATION/REASONING": 1,
   "RETRIEVAL/CHAIN_PARTIAL": 1,
   "GENERATION/UNVERIFIED": 1,
-  "GENERATION/INDEX_FIELD_MISSING": 3
+  "GENERATION/INDEX_FIELD_MISSING": 2
  },
  "arm_allocation_reconciliation": {
   "authoritative": "manual",
@@ -476,8 +478,8 @@
   "by_arm": [
    {
     "arm": "A1b",
-    "auto_grid": 3,
-    "auto_all_tracks": 3,
+    "auto_grid": 2,
+    "auto_all_tracks": 2,
     "manual_all_tracks": 2
    },
    {
@@ -494,8 +496,8 @@
    },
    {
     "arm": "A5",
-    "auto_grid": 1,
-    "auto_all_tracks": 1,
+    "auto_grid": 2,
+    "auto_all_tracks": 2,
     "manual_all_tracks": 4
    },
    {
@@ -711,15 +713,6 @@
     "critic_passed_wrong_answer": false
    },
    {
-    "question_id": "Q-097",
-    "track": "grid",
-    "bucket": "GENERATION/INDEX_FIELD_MISSING",
-    "auto_arm": "A1b",
-    "manual_arm": "A5",
-    "agree": false,
-    "critic_passed_wrong_answer": false
-   },
-   {
     "question_id": "Q-098",
     "track": "grid",
     "bucket": "GENERATION/INDEX_FIELD_MISSING",
@@ -738,7 +731,7 @@
     "critic_passed_wrong_answer": false
    }
   ],
-  "n_disagreements": 25,
+  "n_disagreements": 24,
   "n_compared": 30,
   "critic_passed_wrong_answer": [
    "Q-003",
@@ -984,10 +977,10 @@
    {
     "question_id": "Q-097",
     "track": "grid",
-    "bucket": "GENERATION/INDEX_FIELD_MISSING",
-    "auto_arm": "A1b",
+    "bucket": "TOOL/TOOL",
+    "auto_arm": "A5",
     "manual_arm": "A5",
-    "agree": false,
+    "agree": true,
     "critic_passed_wrong_answer": false
    },
    {
@@ -1039,8 +1032,8 @@
    "data_limit": 0,
    "stages": {
     "RETRIEVAL": 14,
-    "TOOL": 1,
-    "GENERATION": 2
+    "TOOL": 2,
+    "GENERATION": 1
    }
   },
   "holding": {
@@ -1085,8 +1078,8 @@
    "data_limit": 0,
    "stages": {
     "RETRIEVAL": 12,
-    "TOOL": 1,
-    "GENERATION": 2
+    "TOOL": 2,
+    "GENERATION": 1
    }
   },
   "holding": {
@@ -6292,9 +6285,7 @@
    "calc_checked": [
     "amount"
    ],
-   "calc_skipped": [
-    "share"
-   ],
+   "calc_skipped": [],
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -6549,9 +6540,9 @@
    "correct": false,
    "scored_by": "em:number_won",
    "judge": null,
-   "first_failure": "GENERATION",
-   "root_cause": "INDEX_FIELD_MISSING",
-   "failure_why": "골든 근거가 프롬프트에 실렸는데 답이 틀렸다",
+   "first_failure": "TOOL",
+   "root_cause": "TOOL",
+   "failure_why": "per_unit: 답변 207,850,797,210원 vs 재계산 207,684,631,210",
    "critic_supported": null,
    "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": false,
@@ -6591,14 +6582,17 @@
    ],
    "golden_evidence_all": true,
    "calc_checked": [
-    "amount"
+    "amount",
+    "per_unit"
    ],
    "calc_skipped": [
     "period",
     "share"
    ],
-   "calc_mismatch": false,
-   "calc_reasons": [],
+   "calc_mismatch": true,
+   "calc_reasons": [
+    "per_unit: 답변 207,850,797,210원 vs 재계산 207,684,631,210"
+   ],
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -6743,7 +6737,9 @@
    ],
    "calc_skipped": [],
    "calc_mismatch": false,
-   "calc_reasons": [],
+   "calc_reasons": [
+    "amount: 답변 903,559,577,175원 vs 재계산 902,863,854,765"
+   ],
    "data_limit": {
     "withheld": [],
     "no_amount": [],
