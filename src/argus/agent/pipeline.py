@@ -488,7 +488,11 @@ def _expand_chain(picked: list[dict], seen: set, budget: Budget,
             trace.append(f"hop={CHAIN_HOP} stop=step_budget ({exc})")
             gap += missing
             break
-        out = tools.execute("get_history", {"rcept_no": seed["rcept_no"]})
+        # `followup_hop` 은 이 hop 안에서만 읽힌다 — `L4` 가 `※관련공시` 후속공시만 떼어
+        # `L1` 에 섞여 있던 두 엣지를 가른다 (`ablation` 머리말 §followup_hop).
+        out = tools.execute("get_history",
+                            {"rcept_no": seed["rcept_no"],
+                             "include_followups": ablation.enabled("followup_hop")})
         if "error" in out:
             trace.append(f'hop={CHAIN_HOP} strat=chain tool=get_history '
                          f'corp="{seed["corp"] or "-"}" skip=tool_error '
@@ -814,6 +818,32 @@ def upstream_failure(think_trace: str) -> dict | None:
         return None
     return {"stage": match.group(1), "status": match.group(2),
             "retryable": match.group(3) == "True"}
+
+
+#: `fault_response` 가 쓰는 stage 이름. `generate`·`critic` 과 갈라 적어야 **상류(CLOVA)
+#: 장애**와 **우리 코드의 예외**를 사후에 구분할 수 있다.
+FAULT_STAGE = "api"
+
+
+def fault_response(question_id: str, question: str, exc: BaseException) -> dict:
+    """어떤 예외로도 5키 스키마를 만들어 낸다. **`/answer` 의 마지막 방어선이다.**
+
+    🔴 **왜 필요한가 (주최측 답변 2026-08-12 #3).** 호출 에러 시 재시도가 **2회**다.
+    5xx 를 내면 같은 질의가 최대 **3회** 들어오고, 세 번 다 실패하면 그 문항은 **0점**이다.
+    반면 200 + 한계 고지는 **정보한계대응이라는 채점 항목**(#9)에 걸려 0 이 아닐 수 있다.
+    비결정적 실패라면 재시도가 캐시를 못 타므로 **크레딧까지 3배**로 나간다.
+
+    🔴 **파이프라인의 기존 방어로는 부족하다.** `answer_question` 은 생성·critic 단계의
+    `RuntimeError` 만 잡는다(§상류 장애 표식). `KeyError`·`TypeError` 같은 우리 버그와
+    검색·계획 단계의 예외는 그대로 올라와 FastAPI 가 500 을 낸다.
+
+    **삼키지 않는다** — `upstream_failure()` 가 되읽는 표식을 남기므로 평가 러너는 이것을
+    "우리 답" 으로 캐시하지 않는다. `stage=api` 라서 상류 장애와도 갈린다.
+    """
+    trace = (f"{_upstream_mark(FAULT_STAGE, exc)} "
+             f"서버 예외: {type(exc).__name__}: {exc}")
+    return {"question_id": question_id, "question": question,
+            "retrieved_context": "", "think_trace": trace, "answer": UNANSWERABLE}
 
 
 #: 섹션 근거는 한 건이 최대 8,000자다. exchange 레코드 10건과 같은 상한(MAX_EVIDENCE)을

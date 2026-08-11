@@ -102,17 +102,61 @@ def test_the_ladder_ends_at_the_full_configuration():
 
 
 def test_loo_arms_differ_from_a8_by_exactly_one_flag():
-    """LOO 는 한 요소만 빼야 Δ 귀속이 가능하다. **기준선은 A8**(완성 구성)이다."""
+    """LOO 는 한 요소만 빼야 Δ 귀속이 가능하다. **기준선은 A8**(완성 구성)이다.
+
+    🔴 **예외는 도달 의존뿐이다.** `followup_hop` 은 `chain_hop` 안에서만 읽히므로
+    `L1` 은 둘을 함께 끈다 — 부모 없이 자식만 켜 두면 Δ 가 조용히 0 이 된다. 그 예외는
+    `ablation.FLAG_DEPENDENCIES` 에 **데이터로** 선언돼 있고, 여기서 그것만 허용한다.
+    선언 밖에서 플래그가 둘 이상 움직이면 단일 변수 조작이 깨진 것이다.
+    """
     for name, flag in (("L1", "chain_hop"), ("L2", "schema_fields"),
-                       ("L3", "counterparty_hop")):
+                       ("L3", "counterparty_hop"), ("L4", "followup_hop")):
         arm = ablation.ARMS[name]
-        diff = [f for f in FLAGS if getattr(arm, f) != getattr(ablation.A8, f)]
-        assert diff == [flag], (name, diff)
+        diff = {f for f in FLAGS if getattr(arm, f) != getattr(ablation.A8, f)}
+        allowed = {flag} | set(ablation.FLAG_DEPENDENCIES.get(flag, ()))
+        assert diff <= allowed and flag in diff, (name, sorted(diff), sorted(allowed))
+
+
+def test_followup_flag_is_actually_wired_into_the_chain_hop():
+    """🔴 **플래그가 배선 안 되면 조용한 no-op 이고 Δ 가 0 으로 보고된다.**
+
+    `_expand_chain` 이 `get_history` 를 부를 때 `include_followups` 를 arm 에서 읽는지
+    직접 확인한다 — 도구 호출을 가로채 인자를 본다. LLM 0회 · 검색 0회.
+    """
+    from argus.agent import pipeline
+    from argus.agent.budget import Budget
+
+    seen_args = []
+
+    def _capture(name, args):
+        seen_args.append((name, dict(args)))
+        return {"error": "테스트 — 체인 조회를 여기서 끊는다"}
+
+    seed = {"rcept_no": "20241015800258", "links": ["00000000000000"],
+            "corp": "테스트", "is_latest": False}
+    for arm, expected in (("A8", True), ("L4", False), ("L2", True)):
+        seen_args.clear()
+        with ablation.use(arm), pytest.MonkeyPatch.context() as mp:
+            mp.setattr(pipeline.tools, "execute", _capture)
+            mp.setattr(pipeline, "_chain_seeds", lambda picked: [seed])
+            pipeline._expand_chain([], set(), Budget(), [], "")
+
+        assert seen_args, f"{arm}: get_history 가 호출되지 않았다"
+        name, args = seen_args[0]
+        assert name == "get_history"
+        assert args.get("include_followups") is expected, (arm, args)
 
 
 def test_every_loo_arm_has_a_label_for_the_report():
-    """보고서가 '무엇을 뺐는가' 칸을 이 사전에서 읽는다. 빠지면 표가 비어 나간다."""
-    assert set(ablation.LOO_REMOVED) == {"L1", "L2", "L3"}
+    """보고서가 '무엇을 뺐는가' 칸을 이 사전에서 읽는다. 빠지면 표가 비어 나간다.
+
+    🔴 라벨 집합을 리터럴로 박지 않는다 — `L4` 를 넣을 때 이 테스트가 먼저 깨졌다.
+    `ARMS` 에 있는 `L*` arm 전부가 라벨을 가져야 한다는 **규칙**을 단언한다.
+    """
+    loo = {n for n in ablation.ARMS if n.startswith("L")}
+    assert loo, "LOO arm 이 없다"
+    assert set(ablation.LOO_REMOVED) == loo
+    assert all(ablation.LOO_REMOVED[n] for n in loo), "빈 라벨이 있다"
 
 
 # --- A8 — 발주처 2-hop 은 **BM25 이후 단계**에 선다 -------------------------------
@@ -1209,12 +1253,17 @@ def test_the_budget_line_comes_from_the_artifact_not_the_cli_flag():
 
 
 def test_the_gate_does_not_keep_its_own_copy_of_the_manual_allocation():
-    """🔴 겨냥 배분 13건은 **채점기가 단일 원천**이다 (`ea.TARGETED_BY_MANUAL_REVIEW`).
+    """🔴 겨냥 배분은 **채점기가 단일 원천**이다 (`ea.TARGETED_BY_MANUAL_REVIEW`).
     게이트가 같은 표를 다시 적으면 둘이 갈리고, 어느 쪽이 참인지 산출물로 판정할 수
     없다 — "A6·A1b 공동 1위" 라는 틀린 판정이 두 번 나온 자리다.
 
     배분표가 **묶음으로** 다시 적혀 있으면 안 된다 (산문에서 한 문항을 언급하는 것은
     사본이 아니다 — §13 이 Q-094 를 근거로 든다). 대신 상수를 참조해야 한다.
+
+    🔴 **건수를 리터럴로 적지 않는다.** 종전에는 `== 13` 이 박혀 있었고, 재측정으로
+    오답이 11 로 줄었을 때 **상수가 아니라 이 테스트가** 낡음을 붙잡았다. 총수의 정본
+    대조는 `tests/test_error_analysis.py::test_manual_targeting_matches_the_current_wrong_set`
+    이 최신 세대 산출물과 직접 한다.
     """
     from pathlib import Path as P
 
@@ -1227,7 +1276,7 @@ def test_the_gate_does_not_keep_its_own_copy_of_the_manual_allocation():
         if len(ids) < 2:
             continue
         assert '", "'.join(ids) not in source, f"{arm} 의 배분표가 게이트에 사본으로 남았다"
-    assert sum(len(ids) for _, ids, _ in ea.TARGETED_BY_MANUAL_REVIEW) == 13
+    assert ea.TARGETED_BY_MANUAL_REVIEW, "단일 원천이 비었다"
 
 
 def test_the_regenerated_v2_gate_reads_the_way_the_documents_quote_it():

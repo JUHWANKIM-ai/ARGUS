@@ -22,13 +22,43 @@
 | `dense` | **임베딩 하이브리드 (dense + RRF)** | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | `hop_ladder` | 재검색 hop 1~3 · 이벤트 폴백 | ✗ | ✗ | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `chain_hop` | 정정·후속 공시 체인 hop | ✗ | ✗ | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `followup_hop` | 그 hop 안에서 **`※관련공시` 역방향 후속공시**까지 끌어오는가 | ✗ | ✗ | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `split_query` | 다지점 질의 분해 | ✗ | ✗ | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `calc_values` | 결정적 계산 결과를 근거에 싣는가 | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ | ✓ | ✓ |
 | `verifier` | `verify_calculation` + `verify_completeness` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ | ✓ |
 | `counterparty_hop` | 발주처 2-hop (밸류체인 fan-in/fan-out) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | **✓** |
 
 LOO 는 **A8**(= 완성 구성)에서 플래그 하나만 되돌린다 —
-`L1 = A8 − chain_hop`, `L2 = A8 − schema_fields`, `L3 = A8 − counterparty_hop`.
+`L1 = A8 − chain_hop`, `L2 = A8 − schema_fields`, `L3 = A8 − counterparty_hop`,
+`L4 = A8 − followup_hop`.
+
+## 🔴 `followup_hop` 을 `chain_hop` 에서 떼어낸 이유 — 두 엣지가 한 hop 에 섞여 있었다
+
+`CHAIN_HOP` 은 `get_history` **한 번**으로 두 종류를 함께 돌려준다:
+
+    chain      `공시 —정정한다→ 공시`   550엣지 (`record["related"]`)
+    followups  `공시 —관련→ 공시`       1,267엣지 (`※관련공시` 역방향 `_followup_index`)
+
+그래서 `L1`(= `chain_hop` 제거)의 **−9.7%p 는 두 엣지의 합**이고, 어느 쪽 몫인지 갈린 적이
+없다. `tools.get_history(include_followups=…)` 가 이미 있으므로 **플래그 하나로 갈린다.**
+
+🔴 **다만 판정력은 실측으로 이미 좁혀졌다 (2026-08-12, LLM 0회 · 0원).** A8 산출물의
+`think_trace` 에서 `CHAIN_HOP` 씨앗을 뽑아 `get_history` 를 다시 부른 결과:
+
+    grid+회귀 88문항   CHAIN_HOP 발화 16문항 · 고유 씨앗 15 · followups 를 반환한 씨앗 **1**
+    밸류체인 12문항    발화 1문항(Q-113)      · 고유 씨앗  1 · followups **0**
+
+**즉 `L4` 의 Δ 상한은 1문항(Q-035, ±1.4%p)이고 87/88 은 프롬프트가 바이트 동일해
+캐시 전량 적중이다 — 예상 비용 13~15원.** 재는 값이 있는 이유는 그 15원으로
+"`REFERS_TO` 는 이 코호트에서 기여 0" 을 **주장이 아니라 측정**으로 바꿀 수 있기 때문이다.
+
+🔴 **기회가 왜 1건뿐인가 — 씨앗 조건이다.** `_chain_seeds` 는 `is_latest=False` 이고
+`links` 가 있는 후보만 씨앗으로 삼는다. `_followup_index` 는 키 478(원계약) · 값 1,233 이고
+그중 대체본은 301 인데, **해지 공시는 `is_correction=False` 라 `related` 가 비므로**
+(`corpus/corrections.py`) 원계약이 **정정까지 받은 경우**에만 씨앗이 된다.
+평가셋의 해지·철회 문항은 dev 7 · 회귀 2 · 밸류체인 2 = **11문항**인데 후속공시가 실릴
+기회는 1건이다. **씨앗 조건을 넓히는 것이 `A9`(더하기)이고, 그것은 회귀 Q-066 의 처방과
+같은 뿌리이며 같은 위험(현재 정답 Q-008·031·033·034)을 진다.** `L4` 와 섞지 않는다.
 
 ## 🔴 `A7` 은 플래그가 없다 — 이름만 있는 칸이다
 
@@ -110,7 +140,16 @@ RETRIEVAL_MODES = ("meta", "exchange", "all")
 #: 발화가 0 임을 실측하고 나서야 계획을 고쳤다. 계획서 '확정된 사항 ②' 는 A8 한 arm 에
 #: 대해서만 "BM25 이후에 세워라" 라고 지시했고, 같은 구조적 의존이 나머지 셋에도 있다는
 #: 일반화는 하지 않았다. 이 상수가 그 일반화다.
-META_UNREACHABLE_FLAGS = ("hop_ladder", "chain_hop", "split_query", "counterparty_hop")
+META_UNREACHABLE_FLAGS = ("hop_ladder", "chain_hop", "split_query", "counterparty_hop",
+                          "followup_hop")
+
+#: 🔴 **플래그 사이의 도달 의존.** 키가 꺼지면 값들도 반드시 함께 꺼져야 한다 —
+#: 부모 hop 안에서만 읽히는 플래그라 부모 없이 켜면 `META_UNREACHABLE_FLAGS` 와 똑같이
+#: **Δ 가 조용히 0** 이 된다. `__post_init__` 이 이 사전으로 막고, LOO 의 '단일 변수 조작'
+#: 검사도 이 사전을 읽어 **부모와 함께 움직인 자식은 예외로 허용**한다.
+#:
+#: 산문으로만 적어 두면 검사가 그것을 못 읽는다 — 그래서 데이터로 둔다.
+FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {"chain_hop": ("followup_hop",)}
 
 
 @dataclass(frozen=True)
@@ -133,6 +172,7 @@ class Arm:
     split_query: bool = True
     calc_values: bool = True
     verifier: bool = True
+    followup_hop: bool = True
 
     def __post_init__(self) -> None:
         if self.retrieval not in RETRIEVAL_MODES:
@@ -144,6 +184,14 @@ class Arm:
                     f"retrieval='meta' 는 `_gather_meta` 뒤에서 즉시 반환하므로 {on} 은 "
                     f"켜도 코드가 도달하지 않습니다 — Δ 가 조용히 0 이 됩니다 (arm {self.name!r}). "
                     f"BM25 이후 arm 에 붙이십시오.")
+        for parent, children in FLAG_DEPENDENCIES.items():
+            if getattr(self, parent):
+                continue
+            on = [c for c in children if getattr(self, c)]
+            if on:
+                raise ValueError(
+                    f"{parent}=False 이면 {on} 은 코드가 도달하지 않습니다 — Δ 가 조용히 "
+                    f"0 이 됩니다 (arm {self.name!r}). 함께 끄십시오.")
 
     @property
     def uses_bm25(self) -> bool:
@@ -158,10 +206,13 @@ class Arm:
 # --- 누적 사다리 (§I-4b) -------------------------------------------------------
 A0 = Arm("A0", retrieval="meta", schema_fields=False, hop_ladder=False,
          chain_hop=False, counterparty_hop=False, split_query=False,
-         calc_values=False, verifier=False)
+         calc_values=False, verifier=False, followup_hop=False)
 A1 = replace(A0, name="A1", retrieval="exchange")
 A1B = replace(A1, name="A1b", retrieval="all", schema_fields=True)
-A4 = replace(A1B, name="A4", hop_ladder=True, chain_hop=True, split_query=True)
+#: `followup_hop` 을 여기서 **명시적으로** 켠다. `chain_hop` 과 짝이므로 함께 적어야
+#: 한쪽만 옮겨지는 사고를 막는다 (`__post_init__` 이 짝을 검사한다).
+A4 = replace(A1B, name="A4", hop_ladder=True, chain_hop=True, split_query=True,
+             followup_hop=True)
 A5 = replace(A4, name="A5", calc_values=True)
 A6 = replace(A5, name="A6", verifier=True)
 #: 플래그가 A6 과 같다 — A7 은 무조건 코드다 (머리말 참조). 사다리 번호를 §I-5d 와
@@ -170,12 +221,19 @@ A7 = replace(A6, name="A7")
 A8 = replace(A7, name="A8", counterparty_hop=True)
 
 # --- Leave-one-out — **A8 에서** 한 요소만 되돌린다 ------------------------------
-L1 = replace(A8, name="L1", chain_hop=False)        # 실패의 41%
+#: 🔴 `followup_hop` 도 함께 끈다 — `chain_hop` 없이는 도달하지 않는 플래그다.
+#: 그래서 `L1` 은 **엄밀히는 단일 변수 조작이 아니다**: 정정 550엣지와 관련공시 1,267엣지를
+#: 한꺼번에 뺀다. 그 사실을 `L4` 가 갈라 준다 (머리말 §followup_hop).
+L1 = replace(A8, name="L1", chain_hop=False, followup_hop=False)   # 실패의 41%
 L2 = replace(A8, name="L2", schema_fields=False)    # 실패의 24%
 #: L3 은 플래그로 보면 **A7 과 같다** (A8 − counterparty_hop = A7). 이름을 따로 두는
 #: 이유는 읽는 방향이 반대라서다 — 사다리는 '더하면 얼마 오르나', LOO 는 '빼면 얼마
 #: 잃나' 를 묻는다. 두 수는 부호만 다른 같은 값이어야 하고, 아니면 어딘가 틀렸다.
 L3 = replace(A8, name="L3", counterparty_hop=False)
+#: 🔴 `L1` 안에 섞여 있던 `※관련공시` 후속공시만 떼어낸다. **v3 신설** — Δ 상한이
+#: 1문항(Q-035)임을 사전 실측으로 확인했다(머리말). 그 15원으로 "REFERS_TO 는 이 코호트에서
+#: 기여 0" 을 주장이 아니라 측정으로 바꾼다.
+L4 = replace(A8, name="L4", followup_hop=False)
 
 # --- A2 — 임베딩 하이브리드 (사다리 밖 곁가지) ----------------------------------
 A2 = replace(A1B, name="A2", dense=True)            # §I-2 자리: A1b + dense
@@ -184,20 +242,24 @@ A2F = replace(A8, name="A2F", dense=True)           # 제출 구성 위: A8 + de
 #: 실행 순서는 **A8 부터 역순**이다 (§I-4b) — 가장 비싼 구성을 먼저 확보해야
 #: 중간에 예산이 끊겨도 최신 성능을 안다. A2 계열은 사다리를 다 확보한 뒤 맨 끝이다 —
 #: G1 불허로 A2 를 버려도 앞의 여덟 칸이 그대로 남아야 한다.
-RUN_ORDER = ("A8", "L1", "L2", "L3", "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
+RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
              "A2F", "A2")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
 LADDER = ("A0", "A1", "A1b", "A4", "A5", "A6", "A7", "A8")
 
-#: LOO 3구성과 각자가 뺀 것. 보고서가 이 사전을 그대로 읽는다.
-LOO_REMOVED = {"L1": "정정체인 hop", "L2": "major·holding 필드", "L3": "발주처 2-hop"}
+#: LOO 구성과 각자가 뺀 것. 보고서가 이 사전을 그대로 읽는다.
+#: 🔴 `L1` 의 라벨을 "정정체인 hop" 이라고만 적으면 안 된다 — `followup_hop` 까지 함께
+#: 끄므로 `※관련공시` 1,267엣지가 그 안에 섞여 있다. `L4` 가 그것을 갈라 준다.
+LOO_REMOVED = {"L1": "CHAIN_HOP 전체 (정정체인 550엣지 + 관련공시 후속공시)",
+               "L2": "major·holding 필드", "L3": "발주처 2-hop",
+               "L4": "관련공시 REFERS_TO 후속공시만 (정정체인은 유지)"}
 
 #: dense 를 켜는 arm. G1 이 불허로 확정되면 **이 둘만 빼면 된다.**
 DENSE_ARMS = ("A2", "A2F")
 
 ARMS: dict[str, Arm] = {a.name: a for a in
-                        (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, A2, A2F)}
+                        (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, A2, A2F)}
 
 #: 모든 스위치 이름. 새 플래그를 넣으면 여기 자동으로 잡힌다 — 목록을 손으로 적어 두면
 #: 빠뜨린 플래그가 LOO 의 '단일 변수 조작' 검사를 조용히 통과한다.
