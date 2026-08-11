@@ -1174,15 +1174,36 @@ def spend_from_runs(root: Path, recursive: bool = False) -> dict:
     `recursive=True` 는 하위 코호트 폴더(`v2/vc/` 등)까지 센다 — **총지출을 말할 때는
     이쪽이다.** 기본값이 얕은 이유는 §1 의 표가 직속 arm 과 코호트 arm 을 따로 내기
     때문이고, 둘을 한 번에 세면 그 표가 이중계상된다.
+
+    🔴 **결함은 쓰기가 아니라 읽기였다** (재검토 B I1). `_write_run` 이 이전 세대를
+    `spent_won_previous` 로 보존하는데 여기서 그것을 안 읽었다. arm 을 두 번 돌리면
+    첫 실행의 결제가 회계에서 사라졌다 — 실측 9파일 합 **4,627.7원**.
+
+    그래서 두 축을 낸다. `won_current` 는 이번 세대만, `won_cumulative` 는 승계분까지다.
+    **"실제 결제" 를 말할 때는 누계**이고, 세대별 비교를 할 때만 현세대를 쓴다.
     """
     total, per_arm = 0.0, {}
+    carried, per_arm_cum = 0.0, {}
     paths = root.rglob("*/run.json") if recursive else root.glob("*/run.json")
     for path in sorted(paths):
         run = json.loads(path.read_text(encoding="utf-8"))
         key = str(path.parent.relative_to(root)).replace("\\", "/")
-        per_arm[key] = run.get("spent_won", 0.0)
-        total += run.get("spent_won", 0.0)
-    return {"won": round(total, 1), "per_arm": per_arm}
+        now = run.get("spent_won", 0.0) or 0.0
+        prev = run.get("spent_won_previous", 0.0) or 0.0
+        per_arm[key] = now
+        per_arm_cum[key] = now + prev
+        total += now
+        carried += prev
+    return {"won": round(total, 1), "per_arm": per_arm,
+            "won_current": round(total, 1),
+            "won_carried": round(carried, 1),
+            "won_cumulative": round(total + carried, 1),
+            "per_arm_cumulative": per_arm_cum,
+            "note": ("`won` 은 이번 세대만이다 — 실제 결제 총액은 `won_cumulative` 다. "
+                     "arm 을 다시 돌리면 이전 결제가 `spent_won_previous` 로 밀려나고, "
+                     "🔴 슬롯이 하나뿐이라 **3세대째에는 첫 세대가 흔적 없이 사라진다.** "
+                     "그리고 `run.json` 이 없는 지출(A2 임베딩 113.4원 · A7 표적 80.3원)은 "
+                     "어떤 규칙으로도 여기 안 잡힌다 — 이 수는 하한이다.")}
 
 
 def version_dirs() -> list[Path]:
@@ -1791,16 +1812,30 @@ def render_gate(root: Path, budget_cap: float) -> str:
     else:
         vc_delta = "이득을 본다 (§6 — 밸류체인 산출물이 없어 Δ 를 못 적는다)"
     # 꺾이는 지점도 문자열로 박지 않는다 — 2026-08-11 에 A5 에서 A4 로 옮겨갔다.
-    # 하드코딩이던 동안 §11 은 "꺾이는 지점은 A5" 라고 쓰면서 바로 위 표는 A4→A5 를
-    # "뺄 후보" 로 판정하고 있었다. 밸류체인 Δ 와 정확히 같은 사고다.
-    flat = [up for lo, up in zip(ladder, ladder[1:])
-            if (arms[up]["rate"] or 0) - (arms[lo]["rate"] or 0) == 0]
-    knee = (f'**꺾이는 지점은 `{flat[0]}`**' if flat
-            else "**정답률 Δ 가 0 이 되는 지점이 없다**")
+    # 🔴 첫 수정이 `flat[0]`(전이의 **위쪽** arm)을 써서 **같은 틀린 A5 를 계산으로
+    # 재생산**했다(재검토 B I2). 꺾이는 지점은 **마지막으로 번 arm** — 즉 Δ=0 인 첫 전이의
+    # 아래쪽이다. 그리고 "전부 한계 비용 0" 도 실측해서 쓴다. A5 는 +79원이라 거짓이었다.
+    zeros = [(lo, up) for lo, up in zip(ladder, ladder[1:])
+             if (arms[up]["rate"] or 0) - (arms[lo]["rate"] or 0) == 0]
+    flat = [up for _, up in zeros]
+    if zeros:
+        knee = f'**꺾이는 지점은 `{zeros[0][0]}`**'
+        paid = [up for lo, up in zeros
+                if abs(arms[up]["arm_cost_won"] - arms[lo]["arm_cost_won"]) >= 1.0]
+        cost_note = ("전부 **그리드에서** 한계 비용이 0 이다"
+                     if not paid else
+                     "대부분 **그리드에서** 한계 비용이 0 인데 "
+                     + " · ".join(
+                         f'`{up}` 는 {arms[up]["arm_cost_won"] - arms[lo]["arm_cost_won"]:+,.0f}원'
+                         for lo, up in zeros if up in paid)
+                     + " 이다 — 🔴 **그 arm 은 그리드 기준으로 뺄 후보다**")
+    else:
+        knee = "**정답률 Δ 가 0 이 되는 지점이 없다**"
+        cost_note = "한계 비용은 위 표를 보라"
     o.append(f"\n{knee} — 그 뒤 arm 은 그리드에서 Δ 가 0 이다"
              + (f" ({' · '.join(flat)})" if len(flat) > 1 else "")
-             + ". 그럼에도 **다 넣는다**: 전부 **그리드에서** 한계 비용이 0 이고"
-             f"(A6·A7 은 LLM 0회, A8 은 발화 0건 → 토큰 0 증가), A8 은 밸류체인에서 "
+             + f". 그럼에도 **다 넣는다**: {cost_note}"
+             f"(A6·A7 은 LLM 0회, A8 은 발화 0건 → 토큰 0 증가). A8 은 밸류체인에서 "
              f"{vc_delta}.\n")
     o.append("🔴 **A8 의 정당화를 정답률에 싣지 않는다** — n=12 에서 Δ 가 문항 하나(Q-110)에 "
              "매달리고, 실제로 두 라운드 연속 뒤집혔다(6→5→6/12, L3 도 4→5). 정본 축은 "
@@ -1926,13 +1961,22 @@ def render_gate(root: Path, budget_cap: float) -> str:
              "따로 세고, 지어내면 `HALLUCINATION` 으로 잡는다 (§4).\n")
     o.append("- 근본 원인 히스토그램은 **그리드 기준**이다 (`root_cause_histogram_grid`). "
              "전체 88 기준을 쓰면 회귀 트랙이 섞여 겨냥 건수가 부푼다.\n")
-    o.append("- 🔴 **`latency_s_mean` 을 '평균 응답 시간' 으로 인용하지 않는다.** 그 값은 "
-             "응답 파일에 저장된 벽시계 시간의 평균이고, 그 파일을 만들 때 요청 캐시가 "
-             "적중했다면 파이프라인이 ~1ms 에 끝난 시간이 저장돼 있다 — 실측으로 A0 은 "
-             "3.73초(88 중 28건만 <0.5s)인데 **A5·A8 은 0.02~0.03초**(88/88 캐시 적중)다. "
-             "기울기가 언제나 **빠르게 보이는 한 방향**이라 그대로 인용하면 두 자릿수 배로 "
-             "틀린다. `summary.json` 에서는 이름을 `latency_s_mean_recorded` 로 갈고 경고를 "
-             "붙였다. 진짜 응답 시간은 캐시 없이 다시 재야 나온다 (제출 후).\n")
+    # 🔴 이 문단의 실측 수치도 문자열이었다 — 재실행으로 방향까지 뒤집혔는데(옛 문자열은
+    # "A0 3.73초 vs A5·A8 0.02~0.03초") 갱신되지 않았다. 하드코딩 사고의 네 번째 얼굴이다.
+    # 이제 산출물에서 읽는다. 값이 없으면 수를 쓰지 않는다.
+    lat = [(a, c.get("latency_s_mean_recorded", c.get("latency_s_mean")))
+           for a, c in arms.items()]
+    lat = sorted(((a, v) for a, v in lat if v is not None), key=lambda t: -t[1])
+    o.append("- 🔴 **기록된 지연을 '평균 응답 시간' 으로 인용하지 않는다.** 그 값은 응답 "
+             "파일에 저장된 벽시계 시간의 평균인데, 그 파일을 만들 때 요청 캐시가 적중했다면 "
+             "파이프라인이 ~1ms 에 끝난 시간이 저장돼 있다. **캐시 적중률이 arm 마다 다르므로 "
+             "arm 사이 비교가 성립하지 않고, 세대가 바뀌면 순서까지 뒤집힌다** — 실제로 이 "
+             "문단의 수치가 한 번 뒤집혔다."
+             + (" 현 세대 실측: "
+                + " · ".join(f"`{a}` {v:.2f}초" for a, v in lat[:3])
+                + (f" … `{lat[-1][0]}` {lat[-1][1]:.2f}초" if len(lat) > 3 else "")
+                if lat else " 현 세대 산출물에 값이 없다.")
+             + " 진짜 응답 시간은 캐시 없이 다시 재야 나온다 (제출 후, 배포 리허설에서).\n")
     o.append("- **A2·A3 는 v1 에서 실측으로 제외했다** — A2 는 dense 가 top_k 에 31건을 "
              "새로 올렸는데 골든 0건, A3 는 겨냥점 1건. 다만 **A3 겨냥점의 종류가 바뀌었다**: "
              "v1 의 `WRONG_SECTION` 은 해소됐고, 신규 섹터에서 `RANKING/LOW_RANK` "
@@ -1961,6 +2005,21 @@ def render_gate(root: Path, budget_cap: float) -> str:
         o.append("🔴 **낙폭은 축마다 다르게 나온다.** dev 쪽 분모가 v1 36 → v2 72 로 "
                  "늘었으므로 세 축을 다 낸다 — 하나만 적으면 그것이 '그 낙폭' 으로 굳고, "
                  "가장 유리한 축이 뽑히기 쉽다. heldout 쪽 18문항만 두 판에서 동일하다.\n")
+        # 🔴 이 절의 dev 쪽 수는 **원장이 얼어붙은 시점**의 것이다. heldout 은 다시 못 재므로
+        # 원장을 갱신하지 않는 것이 옳지만, 그 결과 dev 수가 §2·§12 와 갈린다. 라벨이 없으면
+        # 같은 문서 안에서 모순으로 읽힌다 (재검토 B C1 — 실제로 그 상태였다).
+        live = arms.get(held.get("arm")) or {}
+        if live.get("n_scored") and (
+                live.get("correct") != dev.get("correct")
+                or live.get("n_scored") != dev.get("n_scored")):
+            o.append(
+                f'🔴 **이 절의 dev 수는 얼어붙은 값이다.** heldout 을 측정한 시점의 dev 는 '
+                f'**{dev["correct"]}/{dev["n_scored"]}** 이었고, 지금 dev 는 '
+                f'**{live["correct"]}/{live["n_scored"]}** 이다(§2·§12). 원장을 갱신하지 '
+                "않는 이유는 **heldout 을 다시 못 재기 때문**이다 — 새 dev 와 옛 heldout 을 "
+                "짝지으면 그 낙폭은 어느 시스템의 것도 아니다. **이 절의 낙폭은 그 시점의 "
+                "시스템에 대한 판정이고, 현재 시스템의 일반화 추정치가 아니다.** 현재 시스템의 "
+                "값을 알려면 새 홀드아웃이 필요하다.\n")
         o.append("| 축 | 구성 | dev 그리드 | heldout | 낙폭 |")
         o.append("|---|---|---|---|---|")
         v1 = held["v1"]
