@@ -787,11 +787,26 @@ def test_no_false_alarm_on_stored_dev_responses(snapshot):
 
 A8_SNAPSHOT = "artifacts/ablation/v2/A8"
 
-#: 새 집계로 발화하는 문항. **전부 오답이어야 한다** (정답 문항 거짓 경보 0).
-A8_CALC_CAUGHT = {"Q-065", "Q-066", "Q-097"}
+#: 🔴 **W1 이 든 뒤 A8 스냅샷이 재생성되면서 이 집합이 바뀌었다.**
+#:
+#:     구분        W1 이전(직전 A8)          W1 이후(현행 A8)
+#:     caught      {Q-065, Q-066, Q-097}     {Q-023, Q-066, Q-097}
+#:     hard        {Q-065}                   {Q-023}
+#:
+#: Q-065 는 자릿수 가드가 생성 단계에서 먼저 막아 **정답으로 뒤집혔고**(X→O,
+#: 469,528억원 → 2,590,850,129,043원), 정답이 된 뒤로는 발화하지 않는다 — 발화하면
+#: 그것이 거짓 경보다. 빈자리에 Q-023 이 섰다(답변 1,020억원 vs 재계산
+#: 1,013,700,000,000, `10^-1 배 자릿수 오류`). **자릿수 적중이 사라진 게 아니라 옮겨간
+#: 것**이고, 옛 실패 양식 자체는 `test_the_digit_guard_still_fires_on_the_pre_w1_q065`
+#: 가 W1 이전 저장 응답으로 계속 붙들고 있다.
+A8_CALC_CAUGHT = {"Q-023", "Q-066", "Q-097"}
 
-#: 그중 자릿수 오류로 잡히는 것. 종전 집계에서는 통과했다.
-A8_CALC_HARD = {"Q-065"}
+#: 그중 자릿수 오류로 잡히는 것. W1 이전에는 {"Q-065"} 였다.
+A8_CALC_HARD = {"Q-023"}
+
+#: W1 이전 Q-065 의 저장 응답 — 유료 측정 산출물이라 옛 실패 양식을 원문 그대로
+#: 붙들고 있다(답변 "492,909억", 실제 4,928,968,079,043 → 10^+1 배).
+PRE_W1_Q065 = "artifacts/eval/responses_v2/Q-065.json"
 
 
 def _a8_snapshot():
@@ -808,7 +823,10 @@ def _a8_snapshot():
 
 
 def test_new_aggregation_on_the_a8_snapshot():
-    """정답 문항 거짓 경보 0 · 자릿수 적중 Q-065. 두 조건을 함께 고정한다."""
+    """정답 문항 거짓 경보 0 · 자릿수 적중 Q-023. 두 조건을 함께 고정한다.
+
+    W1 이전에는 자릿수 적중이 Q-065 였다 (`A8_CALC_CAUGHT` 주석의 대조표).
+    """
     loaded = _a8_snapshot()
     if loaded is None:
         pytest.skip("v2/A8 산출물이 없다")
@@ -829,15 +847,45 @@ def test_new_aggregation_on_the_a8_snapshot():
     assert hard == A8_CALC_HARD, f"자릿수 적중이 달라졌다: {sorted(hard)}"
 
 
-def test_the_old_aggregation_let_q065_through_on_the_a8_snapshot():
-    """무엇을 고쳤는지 스냅샷으로 남긴다 — 종전 규칙은 Q-065 를 통과시켰다."""
+def test_the_digit_guard_still_fires_on_the_pre_w1_q065():
+    """🔴 회귀 감시 — **옛 실패 양식이 다시 통과하기 시작하면 여기서 알아야 한다.**
+
+    종전에는 현행 A8 스냅샷의 Q-065 로 이 대조를 했다. W1 이 든 뒤 그 문항이 정답으로
+    뒤집혀 스냅샷에서 10배 오류가 사라졌고, 그 자리에서 재면 "가드가 없어도 통과한다"와
+    "가드가 있어서 안 잡는다"를 **구별할 수 없다.** 그래서 대조 대상을 W1 **이전에 저장된
+    유료 측정 응답**(`artifacts/eval/responses_v2/Q-065.json`)으로 옮긴다 — 그 파일은
+    옛 실패 양식(답변 "492,909억", 실제 4,928,968,079,043)을 원문 그대로 얼려 둔 것이라
+    가드가 약해지는 순간 이 테스트가 먼저 깨진다.
+    """
+    path = _ROOT / PRE_W1_Q065
+    if not path.exists():
+        pytest.skip(f"{PRE_W1_Q065} 이 없다 (W1 이전 저장 응답)")
+    resp = json.loads(path.read_text(encoding="utf-8"))["response"]
+    assert "469,528억" in resp["answer"], "이 파일은 W1 이전 응답이어야 한다"
+
+    reports = _calc_reports(resp)
+    assert any(rep["ok"] and rep["checked"] for rep in reports)     # 종전 규칙: 통과
+    out = critic.aggregate_calculation(reports)
+    assert out["failed"] is True                                    # 지금: 발화
+    assert out["hard_kinds"] == ["amount"]                          # 자릿수로 잡는다
+    assert any("자릿수" in r for r in out["reasons"])
+
+
+def test_w1_removed_the_q065_digit_error_from_the_a8_snapshot():
+    """🔴 같은 사실의 반대편 — 현행 A8 에서 Q-065 는 **정답이고 발화하지 않는다.**
+
+    두 테스트를 함께 읽어야 W1 의 효과가 보인다: 옛 응답에서는 가드가 발화하고
+    (`test_the_digit_guard_still_fires_on_the_pre_w1_q065`), 새 응답에서는 발화할 것이
+    없다. 여기서 `failed` 가 True 로 돌아오면 10배 오류가 되살아난 것이다.
+    """
     loaded = _a8_snapshot()
     if loaded is None:
         pytest.skip("v2/A8 산출물이 없다")
-    responses, _ = loaded
-    reports = _calc_reports(responses["Q-065"])
-    assert any(rep["ok"] and rep["checked"] for rep in reports)     # 종전: 통과
-    assert critic.aggregate_calculation(reports)["failed"] is True  # 지금: 발화
+    responses, rows = loaded
+    assert rows["Q-065"]["correct"] is True, "Q-065 가 다시 오답이 됐다 — W1 회귀"
+    out = critic.aggregate_calculation(_calc_reports(responses["Q-065"]))
+    assert out["failed"] is False, f"정답 문항에 거짓 경보: {out['reasons']}"
+    assert out["hard_kinds"] == []
 
 
 # --- 규칙이 낡는 것을 드러내는 계기 ------------------------------------------

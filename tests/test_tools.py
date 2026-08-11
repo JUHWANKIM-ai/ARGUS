@@ -236,13 +236,49 @@ def test_query_by_counterparty_reports_unknown_orderer():
     assert out.get("error")
 
 
-def test_query_by_counterparty_distinguishes_boilerplate_from_vague():
-    """"비밀유지" 안내문은 비실명과 다른 사유(회사명이 아니라 안내문)로 거절돼야 한다."""
+#: W3(`normalize.exchange_body_rows()`, 기재정정 표 제외) 이전에 `counterparty` 로
+#: 올라오던 안내문 원문 (삼성바이오로직스 20230328801361). 정정 표 칸에만 있던 값이라
+#: 지금 코퍼스에는 없다 — `artifacts/counterparty_graph.json` 의 `excluded_boilerplate`
+#: 가 27종 → **0종**이 됐다 (tests/test_counterparty.py 의 `BOILERPLATE_BEFORE_W3`).
+_BOILERPLATE_RAW_BEFORE_W3 = (
+    "- 계약상대는 경영상 비밀 유지사유로 2023년 6월 30일 이전 공개될 예정 이며, "
+    "해당 일자는 추후 변동 가능함"
+)
+
+
+def test_query_by_counterparty_distinguishes_boilerplate_from_vague(monkeypatch):
+    """"비밀유지" 안내문은 비실명과 다른 사유(회사명이 아니라 안내문)로 거절돼야 한다.
+
+    🔴 **이 분기는 현행 코퍼스에서 도달 불가다.** `excluded_boilerplate` 가 비어서
+    (W3 이 안내문을 상류에서 지웠다) 실물 그래프로는 사유 분기를 태울 수 없고, 같은
+    문자열을 넣으면 일반 사유("2회 이상 등장하는 발주처가 아닙니다")로 떨어진다.
+
+    도달 불가라고 테스트를 지우면 **분기가 죽은 채로 썩는다** — 상류가 다시 더러워졌을
+    때(정정 표 복귀·새 서식) 사유가 뭉개진 것을 아무도 모른다. 그래서 ① 지금 실물
+    그래프가 비어 있다는 사실과 ② 비면 일반 사유로 떨어진다는 현재 동작, ③ 안내문이
+    기록돼 있을 때는 별도 사유가 나온다는 계약을, 셋 다 고정한다.
+    """
+    from argus.agent import tools
+
     graph = json.loads(_GRAPH_PATH.read_text(encoding="utf-8"))
-    sample = graph["excluded_boilerplate"][0]["raw"]
-    out = execute("query_by_counterparty", {"name": sample})
+    # ① 상류가 깨끗해졌다 (필터가 약해진 것이 아니다).
+    assert graph["excluded_boilerplate"] == []
+
+    # ② 기록이 없으면 일반 사유로 떨어진다 — 비실명 사유와는 여전히 다르다.
+    out = execute("query_by_counterparty", {"name": _BOILERPLATE_RAW_BEFORE_W3})
     assert out.get("error")
     assert "비실명" not in out["error"]
+
+    # ③ 기록이 있으면 안내문 전용 사유가 나온다 (W3 이전 그래프를 합성해 재현).
+    revived = dict(graph, excluded_boilerplate=[
+        {"raw": _BOILERPLATE_RAW_BEFORE_W3, "count": 2,
+         "reason": "B1: 회사명이 아니라 비밀유지/공시유보 안내문"},
+    ])
+    monkeypatch.setattr(tools, "_counterparty_graph", lambda: revived)
+    out = execute("query_by_counterparty", {"name": _BOILERPLATE_RAW_BEFORE_W3})
+    assert out.get("error")
+    assert "비실명" not in out["error"]
+    assert "안내문" in out["error"]
 
 
 def test_query_by_counterparty_filters_by_year():

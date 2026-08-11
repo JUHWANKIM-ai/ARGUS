@@ -220,6 +220,43 @@ def test_counterparty_profile_records_surface_form_variants():
     assert prof["singleton_ratio"] > 0.5
 
 
+# ── W3 이후: 걸러야 할 것이 상류에서 사라졌다 ─────────────────────────────────
+# 🔴 **필터가 깨진 것이 아니라 필터할 것이 없어졌다.** `normalize.exchange_body_rows()`
+# (W3, Q-099 겨냥)가 exchange **기재정정 표를 필드 추출에서 빼면서**, 정정 표 칸에만
+# 있던 안내문·문장이 `counterparty` 값으로 더는 올라오지 않는다.
+#
+# 실측(2026-08-11, LLM 0회 · `exchange_records.jsonl` 1,469건을 원본 XML 까지 되짚어
+# 정정 표 포함/제외 두 판으로 다시 뽑아 대조):
+#
+#     구분                      정정 표 포함(W3 이전)   정정 표 제외(현행)
+#     보일러플레이트 안내문      27종 / 34건            **0종 / 0건**
+#     문장형(sentence_like)      14종 / 14건            **3종 / 3건**
+#     비실명(vague)              33종 / 196건           **34종 / 207건**  ← 늘었다
+#     노드 · 쌍 · 허브           145 · 44 · 25          **145 · 44 · 25** (불변)
+#     승격 후보(min_count 전)    342                    **342** (불변)
+#
+# vague 만 늘어난 것이 이 변화의 서명이다 — 정정 표에서 안내문을 읽던 레코드가 이제
+# 본문 칸을 읽고, 그 본문 값 11건이 비실명이었다. 노드·쌍·허브·후보 수가 **네 항목 다
+# 불변**인 것이 "누출 없음"의 증거다: 사라진 34+11건 중 실명 회사로 승격된 것은 없다.
+#
+# 아래 세 테스트는 새 실측값을 단언하되 **옛 수를 지우지 않는다.** 옛 수가 다시 나오면
+# 그것은 정정 표가 필드 추출로 되돌아왔다는 뜻이고 Q-099 가 함께 깨진다.
+BOILERPLATE_BEFORE_W3 = (27, 34)          # (표기 종수, 건수) — 정정 표 포함 판
+SENTENCE_LIKE_BEFORE_W3 = (14, 14)
+VAGUE_BEFORE_W3 = (33, 196)
+
+#: W3 이전에 `counterparty` 로 올라오던 안내문 원문 두 개 (삼성바이오로직스,
+#: 접수번호 20230328801361 · 20230629800664). 지금은 정정 표 구간에만 있어 레코드에
+#: 안 실리지만, **어휘 필터가 여전히 이것을 잡는지**는 계속 고정한다 — 상류가 다시
+#: 더러워졌을 때 필터가 이미 녹슬어 있으면 안 된다.
+BOILERPLATE_RAWS_BEFORE_W3 = (
+    "- 계약상대는 경영상 비밀 유지사유로 2023년 6월 30일 이전 공개될 예정 이며, "
+    "해당 일자는 추후 변동 가능함",
+    "- 계약상대는 경영상 비밀 유지사유로 2023년 8월 31일 이전 공개될 예정 이며, "
+    "해당일자는 추후 변동 가능함",
+)
+
+
 # ── Task 3: counterparty 2-hop 그래프 ──────────────────────────────────────
 
 
@@ -284,24 +321,35 @@ def test_graph_matches_the_evalset_normalizer():
 
 def test_boilerplate_secrecy_notices_are_excluded_from_nodes():
     """B1 — "계약상대는 경영상 비밀유지 사유로 …" 안내문 전체가 counterparty 값으로
-    들어간 사례(실측 27종 표기·34건)는 회사명이 아니다. 같은 문장이 반복되면
-    canonical()이 겹쳐 count>=2 로 노드가 될 뻔했다 — 실측: 필터 없이 돌리면 정확히
-    이런 문장 11개가 노드로 승격된다(각각 count=2, partners 0~1개).
+    들어간 사례는 회사명이 아니다. 같은 문장이 반복되면 canonical()이 겹쳐 count>=2 로
+    노드가 될 뻔했다 — 필터 없이 돌리면 정확히 이런 문장 11개가 노드로 승격됐다
+    (각각 count=2, partners 0~1개).
 
-    리뷰(라운드 1) 지적대로 `>= 20` 은 느슨해서 회귀 탐지력이 떨어진다 — 정적
-    스냅샷이라 값이 안 바뀌므로 실측값 27로 **정확히 고정**한다.
+    🔴 **이 테스트의 기대값이 27 → 0 으로 바뀐 이유는 필터가 아니라 상류다.**
+    W3(`normalize.exchange_body_rows()`, 기재정정 표를 필드 추출에서 제외)이 들어간 뒤
+    안내문은 `counterparty` 값으로 아예 올라오지 않는다 — 27종/34건 → **0종/0건**
+    (`BOILERPLATE_BEFORE_W3`, 원본 XML 재대조 실측). 노드·쌍·허브가 145·44·25 로
+    불변인 것이 누출 없음의 증거다.
+
+    그래서 두 가지를 함께 단언한다: ① 안내문이 노드로 승격되지 않는다(원래 계약),
+    ② 어휘 필터는 여전히 옛 원문을 잡는다(`BOILERPLATE_RAWS_BEFORE_W3`) — 상류가
+    다시 더러워졌을 때 필터가 녹슬어 있으면 안 되므로 0건이어도 계속 잰다.
     """
     g = json.loads((ROOT / "artifacts/counterparty_graph.json").read_text(encoding="utf-8"))
     for n in g["nodes"]:
         assert not BOILERPLATE_NOTE.search(n["display"]), (
             f"보일러플레이트 안내문이 노드로 승격됐다: {n['display']!r}"
         )
-    # 거른 것은 조용히 버리지 않고 사유와 함께 기록한다.
-    assert g["stats"]["boilerplate_excluded_unique"] == 27
-    assert g["stats"]["boilerplate_excluded_occurrences"] >= g["stats"]["boilerplate_excluded_unique"]
-    assert len(g["excluded_boilerplate"]) == g["stats"]["boilerplate_excluded_unique"]
-    for item in g["excluded_boilerplate"]:
-        assert item["raw"] and item["count"] >= 1 and item["reason"]
+    # W3 이후 실측 고정 — 거를 것이 없다. 이 수가 27 로 되돌아오면 정정 표가 필드
+    # 추출로 되살아난 것이고, 같은 원인으로 Q-099(902,863,854,765)가 함께 깨진다.
+    assert g["stats"]["boilerplate_excluded_unique"] == 0, (
+        f"안내문이 상류에서 되살아났다 — W3 이전에는 {BOILERPLATE_BEFORE_W3[0]}종이었다"
+    )
+    assert g["stats"]["boilerplate_excluded_occurrences"] == 0
+    assert g["excluded_boilerplate"] == []
+    # 필터 자체는 살아 있어야 한다 (W3 이전 원문으로 확인).
+    for raw in BOILERPLATE_RAWS_BEFORE_W3:
+        assert BOILERPLATE_NOTE.search(raw), f"어휘 필터가 녹슬었다: {raw!r}"
 
 
 def test_boilerplate_filter_does_not_cut_real_company_names():
@@ -373,26 +421,34 @@ def test_sentence_like_filter_does_not_cut_real_company_names():
 def test_excluded_sentence_like_records_the_raw_and_the_reason(tmp_path):
     """걸러진 것을 조용히 버리지 않는다 — 원문·건수·사유를 남긴다.
 
-    종전에는 이 14종이 애초에 어느 필터에도 안 걸려 `excluded_boilerplate` 에도
+    종전에는 이 문장들이 애초에 어느 필터에도 안 걸려 `excluded_boilerplate` 에도
     기록이 없었다. `excluded_vague` 도 건수만 남고 원문이 없어 사후 오탐 확인이
     불가능했다 — 둘 다 원문을 남긴다.
+
+    🔴 **기대값이 세 개 다 바뀌었고 방향이 갈린다 — 그것이 W3 의 서명이다.**
+    문장형 14종/14건 → **3종/3건**(`SENTENCE_LIKE_BEFORE_W3`)으로 줄고, 비실명은
+    33종/196건 → **34종/207건**(`VAGUE_BEFORE_W3`)으로 **늘었다.** 정정 표에서
+    안내문·문장을 읽던 레코드가 이제 본문 칸을 읽고, 그 본문 값 11건이 비실명이다.
     """
     if not RECORDS_PATH.exists():
         pytest.skip(f"{RECORDS_PATH} 이 없어 그래프를 재생성할 수 없다 (원본 5.2GB 필요).")
     g = build_graph(tmp_path / "graph.json")
 
-    assert g["stats"]["sentence_like_excluded_unique"] == 14      # 실측 고정
-    assert g["stats"]["sentence_like_excluded_occurrences"] == 14
-    assert len(g["excluded_sentence_like"]) == 14
+    assert g["stats"]["sentence_like_excluded_unique"] == 3       # W3 이후 실측 고정
+    assert g["stats"]["sentence_like_excluded_occurrences"] == 3
+    assert len(g["excluded_sentence_like"]) == 3
     for item in g["excluded_sentence_like"]:
         assert item["raw"] and item["count"] >= 1 and item["reason"]
         assert sentence_like(item["raw"])
-    # 쌍둥이 두 종이 실제로 걸렸는지 (B1 사고 기전의 핵심)
+    # 🔴 개월 수만 다른 쌍둥이("… 10개월 이내에 …" / "… 8개월 이내에 …")는 정정 표
+    # 칸에만 있던 값이라 W3 이후 코퍼스에서 사라졌다. **필터가 놓친 것과 구별한다** —
+    # 구조 필터는 여전히 그 문장을 잡는다(`test_sentence_like_values_are_blocked_by_
+    # structure_not_by_min_count` 가 원문 그대로 고정). 여기서는 코퍼스에 없다는 것만 센다.
     twins = [i["raw"] for i in g["excluded_sentence_like"] if "대선계약" in i["raw"]]
-    assert len(twins) == 2, f"개월 수만 다른 쌍둥이가 안 걸렸다: {twins}"
+    assert twins == [], f"쌍둥이가 코퍼스에 되살아났다 — 정정 표가 되돌아왔는지 본다: {twins}"
 
-    assert g["stats"]["vague_excluded_unique"] == 33              # 실측 고정
-    assert g["stats"]["vague_excluded_occurrences"] == 196
+    assert g["stats"]["vague_excluded_unique"] == 34              # W3 이후 실측 고정
+    assert g["stats"]["vague_excluded_occurrences"] == 207
     for item in g["excluded_vague"]:
         assert item["raw"] and item["count"] >= 1 and item["reason"]
 
@@ -408,13 +464,20 @@ def test_the_normalizer_and_boilerplate_fixes_leave_the_graph_unchanged(tmp_path
         그것은 `_SUFFIX` 목록에 아예 없다 — 이 수정으로는 합쳐질 수 없다.
     앵커판과 현행을 462종 전량 대조하면 키가 바뀌는 것은 6종(전부 `overseas`)뿐이고
     **canonical 그룹 수 407 = 407 · 오병합 0 · 분열 0** 이다. 코디네이터 측정이 맞다.
+
+    🔴 **W3 이 들어온 뒤에도 이 전제가 그대로다** — 정정 표를 필드 추출에서 빼면서
+    안내문 34건·문장 11건이 상류에서 사라졌는데도 `(145, 44, 25)` 와 승격 후보 342 가
+    **네 항목 다 불변**이다. 사라진 값 중 실명 회사로 승격될 것이 하나도 없었다는 뜻이고,
+    이것이 "필터가 깨진 게 아니라 필터할 것이 없어졌다"의 증거다.
     """
     if not RECORDS_PATH.exists():
         pytest.skip(f"{RECORDS_PATH} 이 없어 그래프를 재생성할 수 없다 (원본 5.2GB 필요).")
     s = build_graph(tmp_path / "graph.json")["stats"]
     assert (s["nodes"], s["pairs"], s["hubs_2plus_partners"]) == (145, 44, 25)
-    assert s["boilerplate_excluded_unique"] == 27
-    assert s["boilerplate_excluded_occurrences"] == 34
+    assert s["candidates_before_min_count"] == 342
+    # W3 이전에는 (27, 34) 였다 (`BOILERPLATE_BEFORE_W3`). 상류가 깨끗해져 0 이 됐을 뿐
+    # 그래프는 한 칸도 안 움직였다 — 두 사실을 한 테스트에 붙여 둔다.
+    assert (s["boilerplate_excluded_unique"], s["boilerplate_excluded_occurrences"]) == (0, 0)
 
 
 def test_country_plus_generic_noun_hubs_are_reported_not_silently_promoted():
