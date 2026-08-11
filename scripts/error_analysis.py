@@ -348,7 +348,12 @@ def _list_f1(answer: str, gold: str) -> float:
 #: 경고 없이 채점하면 False, 경고를 붙이면 True — 즉 **검증기가 정확해질수록 채점이
 #: 오염된다.** W1 이 자릿수 가드를 넣어 이 경로가 처음 열렸고, 막지 않으면 다음 재측정에서
 #: 부당 정답 1건이 생긴다.
-_VERIFY_TAIL = re.compile(r"\n*\(주의:[^)]*\)\s*$")
+#: 🔴 `[^)]*` 였다가 실패했다 — **사유에 괄호가 들어가면 꼬리를 못 뗀다.** W1 이 새로
+#: 만든 자릿수 사유가 정확히 괄호를 쓴다(`(10^+1 배 자릿수 오류)`). 저장 응답 194개 꼬리 중
+#: 19건이 안 떼졌다. 앞서 두 번 난 하드코딩 사고와 같은 가족이고 방향만 반대다 —
+#: **생성되는 문자열이 갱신됐는데 그것을 읽는 정규식이 안 따라갔다.**
+#: 검증했던 Q-097(`per_unit`) 사유에는 괄호가 없어 통과했다. 검증한 케이스만 통과한 것이다.
+_VERIFY_TAIL = re.compile(r"\n*\(주의:.*?\)\s*$", re.S)
 
 
 def strip_verify_tail(answer: str) -> str:
@@ -744,8 +749,13 @@ def run_judge(case: dict, response: dict, force: bool = False) -> tuple[dict, bo
     from argus.clova import CALL_LOG
 
     CALL_LOG.clear()
+    # 🔴 판정기에도 우리 경고문을 넘기지 않는다 — `score_closed` 만 막았던 것이 반쪽이었다.
+    # v2 의 open 응답 62/428 이 우리 재계산값과 "결함이 발견되었습니다" 를 달고 채점됐다.
+    # 판정기는 `no_fabrication`·`grounded` 를 보는데, 우리가 붙인 문장이 답변의 일부로
+    # 읽히면 그 판정이 우리 주석에 대한 판정이 된다. 모델이 쓴 것만 채점 대상이다.
     verdict = judge_open(case["question"], response.get("retrieved_context", ""),
-                         case.get("answer_key_points"), response.get("answer", ""))
+                         case.get("answer_key_points"),
+                         strip_verify_tail(response.get("answer", "")))
     calls = _call_rows(CALL_LOG.records)
     record = {
         "question_id": case["question_id"],

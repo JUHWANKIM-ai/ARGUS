@@ -167,9 +167,31 @@ def _percent_claims(answer: str) -> list[tuple[float, float, str]]:
     return out
 
 
+#: 🔴 **우리 프롬프트가 시키는 표기를 우리 검증기가 못 읽고 있었다.**
+#: 규칙 9 가 조 단위를 `4조 9,290억원` 으로 쓰라고 하는데(W1 이 콤마 밀림을 막으려고
+#: 도입), `_MONEY_RE` 는 그것을 `4조`(=4e12)와 `9,290억원`(=9.29e11) **두 조각**으로
+#: 쪼갠다. 그래서 정답에 자릿수 거짓 경보가 났다 — 현 세대 `hard` 발화 3건 중 2건
+#: (vc Q-107·Q-109)이 그것이다. `aggregate_calculation` 이 hard 를 일부러 관용에서
+#: 빼 놓았으므로 완충이 없다.
+#: 복합 표기를 **먼저** 잡아 하나의 값으로 합친다.
+_COMPOUND_MONEY_RE = re.compile(
+    r"(-?\d[\d,]*)\s*조\s*(\d[\d,]*)\s*억\s*원?")
+
+
 def _money_claims(answer: str) -> list[tuple[float, float, str]]:
     out = []
+    seen: list[tuple[int, int]] = []
+    for m in _COMPOUND_MONEY_RE.finditer(answer):
+        jo, eok = _to_float(m.group(1)), _to_float(m.group(2))
+        if jo is None or eok is None:
+            continue
+        value = jo * 1e12 + eok * 1e8
+        out.append((value, _half_ulp(m.group(2), 1e8), m.group(0)))
+        seen.append(m.span())
     for m in _MONEY_RE.finditer(answer):
+        # 복합 표기 안의 조각(`4조`·`9,290억원`)을 두 번 세지 않는다.
+        if any(s <= m.start() and m.end() <= e for s, e in seen):
+            continue
         value = _to_float(m.group(1))
         if value is not None:
             scale = _SCALE[m.group(2)]
