@@ -177,7 +177,12 @@ counterparty 값 있음        1,125 / 1,469
 **판정을 닫는 절차가 트랙으로 열렸다** — 18건을 (i) 허브 미포함 / (ii) hop 미발화 /
 (iii) 프롬프트 절단 으로 가른다. **LLM 0회 · 크레딧 0원**(이미 산 산출물을 읽는다).
 (i) 이 다수면 **최종 기각**이고 제안서에 그렇게 쓴다:
-[다음 라운드 계획 Phase 1b](../superpowers/plans/2026-08-11-clova-native-apis.md).
+[Ablation v3 계획 §1b·Phase 1b](../superpowers/plans/2026-08-12-ablation-v3.md).
+
+🔴 **그리고 이 문서가 세운 그래프 중 두 개는 ablation 에 한 번도 안 올라갔다** —
+`REFERS_TO` 910건/1,267엣지와 **2부 그래프 골격 자체**다. 사다리에 arm 으로 선 그래프는
+`A8`(계약상대 2-hop) **하나뿐이고 그 Δ 는 0.0%p** 다. 즉 C-1 이 채택한 스키마의 값은
+`L1`(정정체인 −9.7%p) 하나로만 뒷받침된다. **v3 가 `L4`·`L5` 를 신설해 네 축으로 닫는다.**
 
 ### 정정 (Task 3 실측, `scripts/build_counterparty_graph.py`, 2026-08-10)
 
