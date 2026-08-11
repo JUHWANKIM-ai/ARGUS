@@ -1246,8 +1246,14 @@ def test_the_regenerated_v2_gate_reads_the_way_the_documents_quote_it():
     assert "| measured 42 |" not in text
     # I-1 — measured 36 낙폭이 −8.3%p 다 (이중 반올림이면 −8.4)
     assert "-8.4%p" not in text
-    # I-6 — 지연 값을 응답 시간으로 인용하지 말라는 경고가 문서에 있다
-    assert "latency_s_mean" in text and "평균 응답 시간" in text
+    # I-6 — 지연 값을 응답 시간으로 인용하지 말라는 경고가 문서에 있다.
+    # 🔴 필드 이름(`latency_s_mean`)을 단언하지 않는다. 그 이름은 이미 두 번 바뀌었고
+    # (`latency_s_mean` → `latency_s_mean_recorded` → 문단이 산출물에서 계산),
+    # 이 단언이 그때마다 깨졌다 — **경고의 존재**를 재야지 표기를 재면 안 된다.
+    assert "'평균 응답 시간' 으로 인용하지 않는다" in text
+    # 그리고 그 경고 옆의 수치가 문자열이 아니라 산출물에서 온 것인지 — arm 이름과 초 단위가
+    # 함께 찍혀야 한다. 하드코딩이던 동안 이 문단은 방향까지 반대인 값을 싣고 있었다.
+    assert "현 세대 실측:" in text or "현 세대 산출물에 값이 없다" in text
     # M-7 — 부분 실행 검사가 표에 있다
     assert "부분 실행 검사" in text
     # M-8 — "요청 캐시가 막았다" 가 아니라 "캐시 전체"
