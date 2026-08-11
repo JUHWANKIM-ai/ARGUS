@@ -462,9 +462,13 @@ def test_the_report_reconciles_the_automatic_and_manual_arm_allocations():
     침묵이 최악이다 — 차이와 정본을 산출물에 명시한다.
     """
     rows = [_row("Q-087", "search_extract", "closed", "중", False, "VERIFY"),
-            _row("Q-094", "search_extract", "closed", "중", False, "RANKING",
-                 root_cause="LOW_RANK"),
-            _row("Q-023", "search_extract", "closed", "중", True)]
+            # 자동·수동이 **일치**하는 사례. Q-023 은 GENERATION/REASONING → 양쪽 다 A4 다.
+            # (종전에는 Q-094/A3 를 썼는데 그 문항이 정답이 되어 상수에서 빠졌다 —
+            #  일치 사례를 상수 밖 문항으로 쓰면 상수가 바뀔 때마다 이 테스트가 깨진다.)
+            # 🔴 A5/TOOL 행은 쓰지 않는다 — 아래 `auto_grid == 0` 단언과 부딪힌다.
+            _row("Q-023", "search_extract", "closed", "중", False, "GENERATION",
+                 root_cause="REASONING"),
+            _row("Q-001", "search_extract", "closed", "중", True)]
     rec = ea.arm_allocation_reconciliation(rows)
 
     assert rec["authoritative"] == "manual"
@@ -475,9 +479,12 @@ def test_the_report_reconciles_the_automatic_and_manual_arm_allocations():
     disagree = {d["question_id"]: d["manual_arm"] for d in rec["disagreements"]}
     assert disagree.get("Q-087") == "A6"
     # 일치하는 것은 불일치 목록에 없다.
-    assert "Q-094" not in disagree
+    assert "Q-097" not in disagree
     by_arm = {i["arm"]: i for i in rec["by_arm"]}
-    assert by_arm["A5"]["manual_all_tracks"] == 4      # 수동 정본은 A5 4건
+    # 🔴 건수를 리터럴로 박지 않는다 — 상수에서 센다. 종전의 `== 4` 는 겨냥이 갱신되자
+    #    상수가 아니라 **테스트가** 낡음을 붙잡고 있었다.
+    expected_a5 = sum(len(ids) for arm, ids, _ in ea.TARGETED_BY_MANUAL_REVIEW if arm == "A5")
+    assert by_arm["A5"]["manual_all_tracks"] == expected_a5
     assert by_arm["A5"]["auto_grid"] == 0              # 자동은 구조적으로 0건
 
 
@@ -488,8 +495,13 @@ def test_the_manual_allocation_is_a_single_source_shared_with_the_gate():
     불일치로 이미 두 번 오판했다. 여기가 단일 원천이고, 게이트가 이 상수를 읽어야 한다.
     """
     mine = {arm: set(ids) for arm, ids, _ in ea.TARGETED_BY_MANUAL_REVIEW}
-    assert sum(len(v) for v in mine.values()) == 13     # 오답 13건 전량
-    assert set(mine) == {"A4", "A5", "A1b", "A6", "A3"}
+    # 🔴 건수와 arm 집합을 리터럴로 박지 않는다. 종전에는 `== 13` 과
+    #    `== {"A4","A5","A1b","A6","A3"}` 가 박혀 있었고, 재측정으로 오답이 11 로 줄고
+    #    A3 겨냥이 0 이 됐을 때 **상수가 아니라 이 테스트가** 낡음을 붙잡았다.
+    #    총수의 정본 대조는 `test_manual_targeting_matches_the_current_wrong_set` 이 한다.
+    known_arms = {"A0", "A1", "A1b", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "—"}
+    assert set(mine) <= known_arms, f"모르는 arm 이름: {sorted(set(mine) - known_arms)}"
+    assert mine, "배분표가 비었다"
     # 문항이 두 arm 에 동시에 배분되면 안 된다 (배분표는 분할이다).
     flat = [q for ids in mine.values() for q in ids]
     assert len(flat) == len(set(flat))
@@ -770,3 +782,51 @@ def test_boolean_verdict_reads_past_tense_forms():
     assert ea.boolean_verdict("정정공시가 2건 있었습니다.") is True
     # 마지막 판정이 이긴다 — 확인 과정을 서술한 뒤 부정으로 끝나는 형태
     assert ea.boolean_verdict("변동이 있었는지 확인했으나 없었습니다.") is False
+
+
+# --- 겨냥 상수의 신선도 --------------------------------------------------------
+# 🔴 `TARGETED_BY_MANUAL_REVIEW` 는 Task 7 시점에 굳어 **넉 달을 낡은 채 살았다.**
+# 재측정으로 오답이 13 → 11 로 줄었는데 표는 그대로였고, `gate_I §5·§9` 가 이미 정답이 된
+# 문항(Q-094)을 겨냥으로 렌더했다. **사람이 기억으로 갱신하는 상수는 다시 낡는다** —
+# 그래서 최신 세대 산출물과 기계적으로 대조한다.
+
+def _latest_final_arm_report() -> Path | None:
+    """가장 최근 ablation 세대의 최종 arm 보고서. **경로를 손으로 박지 않는다.**
+
+    `v2` → `v3` 처럼 세대가 올라가면 자동으로 따라간다(문자열 정렬이라 `v9` 까지).
+    🔴 **최종 arm 이 `A8` 이 아니게 되면 이 glob 을 갱신해야 한다** — 그때는 매치가
+    0건이 되어 아래 테스트가 skip 되고, skip 사유가 그 사실을 말한다.
+    """
+    found = sorted(Path("artifacts/ablation").glob("v*/A8/report.json"))
+    return found[-1] if found else None
+
+
+def test_manual_targeting_matches_the_current_wrong_set():
+    """겨냥 상수 = 최신 세대의 오답 집합. **어긋나면 겨냥이 낡은 것이다.**
+
+    두 방향 다 결함이다:
+      * 상수에만 있는 문항 → **이미 정답인 것을 겨냥**하고 있다 (Q-094 가 그랬다)
+      * 산출물에만 있는 문항 → **배분을 빠뜨렸다.** 배분할 arm 이 없다고 판단했다면
+        빈 arm(`—`)으로 **명시**한다 (Q-093 이 그렇다). 침묵과 구분되어야 한다
+    """
+    report = _latest_final_arm_report()
+    if report is None:
+        pytest.skip("최종 arm 보고서가 없다 — 최종 arm 이 A8 이 아니면 glob 을 갱신하라")
+
+    rows = json.loads(report.read_text(encoding="utf-8"))["rows"]
+    wrong = {r["question_id"] for r in rows if r.get("first_failure")}
+    claimed = {q for _, ids, _ in ea.TARGETED_BY_MANUAL_REVIEW for q in ids}
+
+    assert claimed == wrong, (
+        f"{report}\n"
+        f"  상수에만 (이미 정답인데 겨냥 중): {sorted(claimed - wrong)}\n"
+        f"  산출물에만 (배분 누락):          {sorted(wrong - claimed)}")
+
+
+def test_manual_targeting_has_no_duplicate_or_empty_groups():
+    """한 문항이 두 arm 에 걸리면 `by_arm` 합이 분모를 넘는다. 빈 행도 금지."""
+    ids = [q for _, group, _ in ea.TARGETED_BY_MANUAL_REVIEW for q in group]
+    assert len(ids) == len(set(ids)), f"중복 겨냥: {sorted({q for q in ids if ids.count(q) > 1})}"
+    for arm, group, label in ea.TARGETED_BY_MANUAL_REVIEW:
+        assert group, f"{arm} 행이 비었다 — 겨냥이 0 이면 행을 지워라 (A3 가 그랬다)"
+        assert label, f"{arm} 행에 사유가 없다"

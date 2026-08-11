@@ -1977,10 +1977,18 @@ def render_gate(root: Path, budget_cap: float) -> str:
                 + (f" … `{lat[-1][0]}` {lat[-1][1]:.2f}초" if len(lat) > 3 else "")
                 if lat else " 현 세대 산출물에 값이 없다.")
              + " 진짜 응답 시간은 캐시 없이 다시 재야 나온다 (제출 후, 배포 리허설에서).\n")
+    # 🔴 A3 의 겨냥 건수를 **손으로 적지 않는다.** 종전에는 "겨냥점 1건 (Q-094, rank 8·9)"
+    #    이 문자열로 박혀 있었고, Q-094 가 리랭커 없이 정답이 된 뒤에도 그대로 렌더됐다.
+    #    상수가 단일 원천이므로 거기서 센다 (I-6 과 같은 뿌리 — 문자열이 상수를 복제한 경우).
+    a3 = next((ids for arm, ids, _ in ea.TARGETED_BY_MANUAL_REVIEW if arm == "A3"), ())
     o.append("- **A2·A3 는 v1 에서 실측으로 제외했다** — A2 는 dense 가 top_k 에 31건을 "
-             "새로 올렸는데 골든 0건, A3 는 겨냥점 1건. 다만 **A3 겨냥점의 종류가 바뀌었다**: "
-             "v1 의 `WRONG_SECTION` 은 해소됐고, 신규 섹터에서 `RANKING/LOW_RANK` "
-             "(Q-094, rank 8·9) 가 새로 섰다.\n")
+             "새로 올렸는데 골든 0건, A3 는 겨냥점 1건. "
+             + (f"**현 세대 A3 겨냥 {len(a3)}건**: {' '.join(a3)}.\n" if a3 else
+                "🔴 **현 세대 A3 겨냥은 0건이다** — v1 의 `WRONG_SECTION` 도, 그 뒤 신규 "
+                "섹터에서 섰던 `RANKING/LOW_RANK`(Q-094)도 리랭커 없이 해소됐다. Q-094 는 "
+                "다문서 질의 분해만으로 맞았고 원 진단이 틀렸다 "
+                "(`docs/pipeline/05-reranker.md §E-4`). **잴 대상이 사라진 것이지 "
+                "못 한 것이 아니다.**\n"))
 
     # --- 14. heldout — 게이트 I 의 마지막 항목 ---
     o.append("\n## 14. heldout 최종 측정 — 일반화 낙폭\n")
