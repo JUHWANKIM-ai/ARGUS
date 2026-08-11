@@ -8,12 +8,12 @@
  "calls": [
   {
    "tag": "judge_open",
-   "prompt_tokens": 1756,
+   "prompt_tokens": 1690,
    "completion_tokens": 20,
-   "latency_s": 0.953,
+   "latency_s": 0.997,
    "finish": "stop"
   }
  ],
- "prompt_tokens": 1756,
+ "prompt_tokens": 1690,
  "completion_tokens": 20
 }

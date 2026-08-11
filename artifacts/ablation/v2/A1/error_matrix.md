@@ -1,6 +1,6 @@
 # Phase H — 3축 교차집계 (dev)
 
-생성 2026-08-11 12:12 · 자동 생성물 (`scripts/error_analysis.py`)
+생성 2026-08-11 13:00 · 자동 생성물 (`scripts/error_analysis.py`)
 
 셀 표기 = `정답/채점대상` + 실패단계. **채점 대상에서 DATA_LIMIT 은 뺐다.**
 
@@ -10,8 +10,8 @@
 | task_type | mode | 하 | 중 | 상 |
 |---|---|---|---|---|
 | search_extract | closed | 2/4 ROUTING2 | 1/4 ROUTING2 TOOL1 | 0/4 RETRIEVAL3 ROUTING1 |
-| search_extract | open | 3/4 ROUTING1 | 2/4 ROUTING2 | 1/4 ROUTING3 |
-| multi_compare | closed | 1/4 ROUTING3 | 0/4 RETRIEVAL2 ROUTING2 | 0/4 RETRIEVAL2 ROUTING2 |
+| search_extract | open | 3/4 ROUTING1 | 1/4 ROUTING3 | 1/4 ROUTING3 |
+| multi_compare | closed | 2/4 ROUTING2 | 0/4 RETRIEVAL2 ROUTING2 | 0/4 RETRIEVAL2 ROUTING2 |
 | multi_compare | open | 1/4 ROUTING3 | 1/4 ROUTING3 | 0/4 RETRIEVAL3 ROUTING1 |
 | complex_reason | closed | 3/4 ROUTING1 | 0/4 ROUTING3 TOOL1 | 0/4 RETRIEVAL1 ROUTING3 |
 | complex_reason | open | 1/4 GENERATION1 ROUTING2 | 2/4 ROUTING2 | 0/4 RETRIEVAL1 ROUTING3 |
@@ -23,23 +23,23 @@
 
 | 값 | 정답률 | ROUTING | RETRIEVAL | RANKING | TOOL | GENERATION | VERIFY | DATA_LIMIT |
 |---|---|---|---|---|---|---|---|---|
-| search_extract | 0.375 (9/24) | 11 | 3 | 0 | 1 | 0 | 0 | 0 |
-| multi_compare | 0.125 (3/24) | 14 | 7 | 0 | 0 | 0 | 0 | 0 |
+| search_extract | 0.333 (8/24) | 12 | 3 | 0 | 1 | 0 | 0 | 0 |
+| multi_compare | 0.167 (4/24) | 13 | 7 | 0 | 0 | 0 | 0 | 0 |
 | complex_reason | 0.250 (6/24) | 14 | 2 | 0 | 1 | 1 | 0 | 0 |
 
 ### answer_mode
 
 | 값 | 정답률 | ROUTING | RETRIEVAL | RANKING | TOOL | GENERATION | VERIFY | DATA_LIMIT |
 |---|---|---|---|---|---|---|---|---|
-| closed | 0.194 (7/36) | 19 | 8 | 0 | 2 | 0 | 0 | 0 |
-| open | 0.306 (11/36) | 20 | 4 | 0 | 0 | 1 | 0 | 0 |
+| closed | 0.222 (8/36) | 18 | 8 | 0 | 2 | 0 | 0 | 0 |
+| open | 0.278 (10/36) | 21 | 4 | 0 | 0 | 1 | 0 | 0 |
 
 ### difficulty
 
 | 값 | 정답률 | ROUTING | RETRIEVAL | RANKING | TOOL | GENERATION | VERIFY | DATA_LIMIT |
 |---|---|---|---|---|---|---|---|---|
-| 하 | 0.458 (11/24) | 12 | 0 | 0 | 0 | 1 | 0 | 0 |
-| 중 | 0.250 (6/24) | 14 | 2 | 0 | 2 | 0 | 0 | 0 |
+| 하 | 0.500 (12/24) | 11 | 0 | 0 | 0 | 1 | 0 | 0 |
+| 중 | 0.208 (5/24) | 15 | 2 | 0 | 2 | 0 | 0 | 0 |
 | 상 | 0.042 (1/24) | 13 | 10 | 0 | 0 | 0 | 0 | 0 |
 
 ## 실패 단계 히스토그램
@@ -55,7 +55,7 @@
 
 | 단계 / 원인 | 건수 | 문항 | 겨냥할 arm |
 |---|---|---|---|
-| ROUTING/ROUTING | 39 | Q-010 Q-012 Q-014 Q-016 Q-020 Q-022 Q-028 Q-030 Q-043 Q-044 Q-046 Q-047 Q-048 Q-049 Q-050 Q-051 Q-052 Q-053 Q-054 Q-072 Q-074 Q-076 Q-078 Q-080 Q-082 Q-084 Q-086 Q-088 Q-090 Q-092 Q-094 Q-096 Q-098 Q-100 Q-102 Q-103 Q-104 Q-105 Q-106 | — |
+| ROUTING/ROUTING | 39 | Q-010 Q-012 Q-014 Q-016 Q-020 Q-022 Q-028 Q-030 Q-043 Q-044 Q-045 Q-046 Q-048 Q-049 Q-050 Q-051 Q-052 Q-053 Q-054 Q-072 Q-074 Q-076 Q-078 Q-080 Q-082 Q-084 Q-086 Q-088 Q-090 Q-092 Q-094 Q-096 Q-098 Q-100 Q-102 Q-103 Q-104 Q-105 Q-106 | — |
 | RETRIEVAL/CHAIN_NOT_TRAVERSED | 9 | Q-005 Q-006 Q-018 Q-023 Q-024 Q-075 Q-087 Q-093 Q-099 | **A4** — `get_history` 로 정정 체인을 밟는 hop |
 | TOOL/TOOL | 2 | Q-003 Q-097 | **A5** — 계산 Tool |
 | RETRIEVAL/MULTI_POINT_QUERY | 2 | Q-015 Q-085 | **A4** — 시점·기업별 질의 분해 |
@@ -111,8 +111,8 @@
 | Q-035 | grid | `RETRIEVAL/CHAIN_PARTIAL` | A4 | **—** |
 | Q-043 | grid | `ROUTING/ROUTING` | 미분류 | **—** |
 | Q-044 | grid | `ROUTING/ROUTING` | 미분류 | **A5** |
+| Q-045 | grid | `ROUTING/ROUTING` | 미분류 | **—** |
 | Q-046 | grid | `ROUTING/ROUTING` | 미분류 | **—** |
-| Q-047 | grid | `ROUTING/ROUTING` | 미분류 | **A5** |
 | Q-048 | grid | `ROUTING/ROUTING` | 미분류 | **—** |
 | Q-049 | grid | `ROUTING/ROUTING` | 미분류 | **—** |
 | Q-050 | grid | `ROUTING/ROUTING` | 미분류 | **—** |
@@ -153,7 +153,7 @@
 | Q-105 | grid | `ROUTING/ROUTING` | 미분류 | **A4** |
 | Q-106 | grid | `ROUTING/ROUTING` | 미분류 | **—** |
 
-critic 이 오답을 통과시킨 문항 (귀속 단계와 무관하게 센다): Q-003 Q-006 Q-023 Q-024 Q-035 Q-043 Q-049 Q-051 Q-065 Q-066 Q-075 Q-085 Q-087 Q-093 Q-101
+critic 이 오답을 통과시킨 문항 (귀속 단계와 무관하게 센다): Q-003 Q-006 Q-023 Q-024 Q-035 Q-043 Q-045 Q-050 Q-051 Q-065 Q-085 Q-087 Q-093 Q-101
 
 
 ## 트랙별 (합치지 않는다)
@@ -186,12 +186,12 @@ RETRIEVAL 실패 **3건** (문턱 3) → 🔴 **발동** — Phase E 보류 근�
 | 항목 | 값 |
 |---|---|
 | questions | 88 |
-| llm_calls | 106 |
-| prompt_tokens | 68859 |
-| completion_tokens | 10699 |
-| judge_tokens | 25784 |
-| total_tokens | 105342 |
-| cost_won | 739.5 |
-| latency_s_mean | 1.39 |
+| llm_calls | 104 |
+| prompt_tokens | 67962 |
+| completion_tokens | 10960 |
+| judge_tokens | 25711 |
+| total_tokens | 104633 |
+| cost_won | 734.5 |
+| latency_s_mean | 0.73 |
 | hops_total | 0 |
 | steps_max | 2 |

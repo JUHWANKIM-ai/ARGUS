@@ -1,6 +1,6 @@
 # Phase H — 3축 교차집계 (dev)
 
-생성 2026-08-11 12:03 · 자동 생성물 (`scripts/error_analysis.py`)
+생성 2026-08-11 12:59 · 자동 생성물 (`scripts/error_analysis.py`)
 
 셀 표기 = `정답/채점대상` + 실패단계. **채점 대상에서 DATA_LIMIT 은 뺐다.**
 
@@ -47,7 +47,7 @@
 | 단계 | 건수 | 비고 |
 |---|---|---|
 | ROUTING | 2 |  |
-| RETRIEVAL | 4 |  |
+| RETRIEVAL | 3 |  |
 | GENERATION | 2 |  |
 
 ## 근본 원인 — 6단계만으로는 arm 이 안 갈린다 (**그리드만**)
@@ -62,7 +62,6 @@
 |---|---|---|---|
 | RETRIEVAL/MULTI_POINT_QUERY | 1 | Q-107 | valuechain |
 | GENERATION/INDEX_FIELD_MISSING | 1 | Q-109 | valuechain |
-| RETRIEVAL/MULTI_POINT_QUERY | 1 | Q-110 | valuechain |
 | ROUTING/ROUTING | 1 | Q-111 | valuechain |
 | RETRIEVAL/CHAIN_NOT_TRAVERSED | 1 | Q-113 | valuechain |
 | ROUTING/ROUTING | 1 | Q-114 | valuechain |
@@ -79,32 +78,31 @@
 |---|---|---|---|
 | A1b | 0 | 2 | **2** |
 | A3 | 0 | 0 | **1** |
-| A4 | 0 | 4 | **5** |
+| A4 | 0 | 3 | **5** |
 | A5 | 0 | 0 | **4** |
 | A6 | 0 | 0 | **1** |
 | 미분류 | 0 | 2 | **0** |
 
-**불일치 8/8건** — 문항 단위로 적는다. 사람이 기억으로 잇던 자리이고, 그 기억이 두 번 틀렸다.
+**불일치 7/7건** — 문항 단위로 적는다. 사람이 기억으로 잇던 자리이고, 그 기억이 두 번 틀렸다.
 
 | 문항 | track | 자동 버킷 | 자동 arm | **수동 정본 arm** |
 |---|---|---|---|---|
 | Q-107 | valuechain | `RETRIEVAL/MULTI_POINT_QUERY` | A4 | **—** |
 | Q-109 | valuechain | `GENERATION/INDEX_FIELD_MISSING` | A1b | **—** |
-| Q-110 | valuechain | `RETRIEVAL/MULTI_POINT_QUERY` | A4 | **—** |
 | Q-111 | valuechain | `ROUTING/ROUTING` | 미분류 | **—** |
 | Q-113 | valuechain | `RETRIEVAL/CHAIN_NOT_TRAVERSED` | A4 | **—** |
 | Q-114 | valuechain | `ROUTING/ROUTING` | 미분류 | **—** |
 | Q-115 | valuechain | `GENERATION/INDEX_FIELD_MISSING` | A1b | **—** |
 | Q-117 | valuechain | `RETRIEVAL/MULTI_POINT_QUERY` | A4 | **—** |
 
-critic 이 오답을 통과시킨 문항 (귀속 단계와 무관하게 센다): Q-110 Q-115 Q-117
+critic 이 오답을 통과시킨 문항 (귀속 단계와 무관하게 센다): Q-107 Q-109 Q-113 Q-115 Q-117
 
 
 ## 트랙별 (합치지 않는다)
 
 | track | 정답/채점대상 | 정답률 | DATA_LIMIT | 비고 |
 |---|---|---|---|---|
-| valuechain | 4/12 | 0.333 | 0 | 현재 시스템이 원리상 못 푸는 문항 포함 (Q-117) |
+| valuechain | 5/12 | 0.417 | 0 | 현재 시스템이 원리상 못 푸는 문항 포함 (Q-117) |
 
 ## 정보한계 문항 (answerable=false)
 
@@ -123,12 +121,12 @@ RETRIEVAL 실패 **0건** (문턱 3) → 미발동 — 보류 유지
 | 항목 | 값 |
 |---|---|
 | questions | 12 |
-| llm_calls | 18 |
-| prompt_tokens | 25323 |
-| completion_tokens | 3154 |
-| judge_tokens | 7429 |
-| total_tokens | 35906 |
-| cost_won | 252.1 |
-| latency_s_mean | 4.22 |
+| llm_calls | 22 |
+| prompt_tokens | 30840 |
+| completion_tokens | 3212 |
+| judge_tokens | 7452 |
+| total_tokens | 41504 |
+| cost_won | 291.4 |
+| latency_s_mean | 4.1 |
 | hops_total | 4 |
 | steps_max | 5 |

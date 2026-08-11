@@ -4,7 +4,7 @@
   "question_id": "Q-069",
   "question": "효성중공업이 2023년 11월 9일 공시한 노르웨이 송전청(Statnett SF) 대상 420kV 변압기 등 공급계약의 최초 공시 당시 계약금액은 얼마인가?",
   "retrieved_context": "## [공급계약 체결] 효성중공업 – 단일판매ㆍ공급계약체결 — 420kV 변압기 등 공급계약\n- 공시일: 2023-11-09 (접수번호 20231109800432)\n- 섹터: 전력기기\n- 계약금액: 101,836,451,885원\n- 매출액 대비: 2.9%\n- 계약상대: 노르웨이 송전청(Statnett SF)\n- 기간: 2023-11-08 ~ 2027-04-14\n- 확정일: 2023-11-08\n\n## [공급계약 체결] 효성중공업 – 단일판매ㆍ공급계약체결 — 대전 갑천역 APT 신축공사\n- 공시일: 2023-11-03 (접수번호 20231103800460)\n- 섹터: 전력기기\n- 계약금액: 124,365,086,036원\n- 매출액 대비: 3.54%\n- 계약상대: (주)도담하우징\n- 확정일: 2023-11-02",
-  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"효성중공업\" period=ym:202311 top_k=5 q=\"효성중공업 2023 11 공시한 노르웨 송전청 Statnett SF 대상 420 kV 변압기 최초 당시 얼마인\" n=2 top_score=73.585 ids=exchange_20231109800432,exchange_20231103800460 | hop=0 verdict=sufficient evidence=2 | generate tokens=694+93 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 근거에 있는 정보가 정확하게 반영되어 있으며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | budget steps=1 hops=0 llm=2 tokens=1305",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"효성중공업\" period=ym:202311 top_k=5 q=\"효성중공업 2023 11 공시한 노르웨 송전청 Statnett SF 대상 420 kV 변압기 최초 당시 얼마인\" n=2 top_score=72.906 ids=exchange_20231109800432,exchange_20231103800460 | hop=0 verdict=sufficient evidence=2 | generate tokens=694+93 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 근거에 있는 정보가 정확하게 반영되어 있으며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | budget steps=1 hops=0 llm=2 tokens=1305",
   "answer": "효성중공업이 2023년 11월 9일에 공시한 내용에 따르면, 노르웨이 송전청(Statnett SF) 대상 420kV 변압기 등 공급계약의 최초 공시 당시 계약금액은 **101,836,451,885원**입니다. \n\n(근거: 단일판매ㆍ공급계약체결, 2023-11-09, 20231109800432)"
  },
  "calls": [
@@ -26,6 +26,6 @@
  "prompt_tokens": 1163,
  "completion_tokens": 142,
  "llm_calls": 2,
- "latency_s": 4.004,
- "ts": "2026-08-10T21:23:25"
+ "latency_s": 0.006,
+ "ts": "2026-08-11T12:43:52"
 }

@@ -1,19 +1,19 @@
 {
  "question_id": "Q-045",
- "covers_key_points": true,
- "grounded": true,
- "no_fabrication": true,
- "correct": true,
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
  "reason": "",
  "calls": [
   {
    "tag": "judge_open",
-   "prompt_tokens": 851,
+   "prompt_tokens": 908,
    "completion_tokens": 20,
-   "latency_s": 0.809,
+   "latency_s": 0.956,
    "finish": "stop"
   }
  ],
- "prompt_tokens": 851,
+ "prompt_tokens": 908,
  "completion_tokens": 20
 }

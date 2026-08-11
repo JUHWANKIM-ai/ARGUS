@@ -4,16 +4,16 @@
  "grounded": false,
  "no_fabrication": false,
  "correct": false,
- "reason": "제시된 답변은 모범답안의 정보를 전혀 포함하지 않고 있으며, 오히려 잘못된 정보를 제공하고 있습니다. 제6기 매출액 추정이 잘못되었고, 제4기~제6기 매출액과 감소액에 대한 정보도 제공되지 않았습니다.",
+ "reason": "제출 답변에는 제4기~제6기 매출액과 관련된 정보가 부족합니다.",
  "calls": [
   {
    "tag": "judge_open",
-   "prompt_tokens": 1069,
-   "completion_tokens": 79,
-   "latency_s": 2.13,
+   "prompt_tokens": 982,
+   "completion_tokens": 42,
+   "latency_s": 1.271,
    "finish": "stop"
   }
  ],
- "prompt_tokens": 1069,
- "completion_tokens": 79
+ "prompt_tokens": 982,
+ "completion_tokens": 42
 }

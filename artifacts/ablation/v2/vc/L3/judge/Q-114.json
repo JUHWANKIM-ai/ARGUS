@@ -4,16 +4,16 @@
  "grounded": false,
  "no_fabrication": false,
  "correct": false,
- "reason": "제시된 답변에는 모범답안의 요소들이 전혀 포함되어 있지 않으며, 질문의 핵심인 삼성E&A와 삼성중공업에 대한 언급이 없습니다.",
+ "reason": "",
  "calls": [
   {
    "tag": "judge_open",
-   "prompt_tokens": 782,
-   "completion_tokens": 57,
-   "latency_s": 1.597,
+   "prompt_tokens": 739,
+   "completion_tokens": 20,
+   "latency_s": 0.886,
    "finish": "stop"
   }
  ],
- "prompt_tokens": 782,
- "completion_tokens": 57
+ "prompt_tokens": 739,
+ "completion_tokens": 20
 }

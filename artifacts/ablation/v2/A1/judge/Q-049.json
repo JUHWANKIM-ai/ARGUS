@@ -2,18 +2,18 @@
  "question_id": "Q-049",
  "covers_key_points": false,
  "grounded": false,
- "no_fabrication": true,
+ "no_fabrication": false,
  "correct": false,
  "reason": "",
  "calls": [
   {
    "tag": "judge_open",
-   "prompt_tokens": 1607,
+   "prompt_tokens": 1776,
    "completion_tokens": 20,
-   "latency_s": 0.801,
+   "latency_s": 0.968,
    "finish": "stop"
   }
  ],
- "prompt_tokens": 1607,
+ "prompt_tokens": 1776,
  "completion_tokens": 20
 }

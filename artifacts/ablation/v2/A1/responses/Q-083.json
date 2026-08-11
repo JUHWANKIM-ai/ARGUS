@@ -4,7 +4,7 @@
   "question_id": "Q-083",
   "question": "현대글로비스가 2024년 12월 31일 같은 날 공시한 두 건의 완성차 해상운송계약 중 계약금액이 더 큰 건의 금액은 얼마인가?",
   "retrieved_context": "## [공급계약 체결] 현대글로비스 – 단일판매ㆍ공급계약체결 — 완성차 해상운송계약\n- 공시일: 2024-12-31 (접수번호 20241231800107)\n- 섹터: 운송·물류\n- 계약금액: 3,334,000,000,000원\n- 매출액 대비: 13.0%\n- 계약상대: 기아(주)\n- 기간: 2025-01-01 ~ 2029-12-31\n- 확정일: 2024-12-31\n\n## [공급계약 체결] 현대글로비스 – 단일판매ㆍ공급계약체결 — 완성차 해상운송계약\n- 공시일: 2024-12-31 (접수번호 20241231800103)\n- 섹터: 운송·물류\n- 계약금액: 3,365,500,000,000원\n- 매출액 대비: 13.1%\n- 계약상대: 현대자동차(주)\n- 기간: 2025-01-01 ~ 2029-12-31\n- 확정일: 2024-12-31",
-  "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"현대글로비스\" period=ym:202412 top_k=5 q=\"현대글로비스 2024 12 31 같은 공시한 건의 완성차 해상운송계약 금액 얼마인\" n=2 top_score=76.121 ids=exchange_20241231800107,exchange_20241231800103 | hop=0 verdict=sufficient evidence=2 | generate tokens=701+206 | budget steps=1 hops=0 llm=1 tokens=907",
+  "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"현대글로비스\" period=ym:202412 top_k=5 q=\"현대글로비스 2024 12 31 같은 공시한 건의 완성차 해상운송계약 금액 얼마인\" n=2 top_score=75.741 ids=exchange_20241231800107,exchange_20241231800103 | hop=0 verdict=sufficient evidence=2 | generate tokens=701+206 | budget steps=1 hops=0 llm=1 tokens=907",
   "answer": "현대글로비스가 2024년 12월 31일에 공시한 두 건의 완성차 해상운송계약 중에서 계약금액이 더 큰 건을 찾기 위해 각 계약의 금액을 비교하겠습니다.\n\n1. 첫 번째 계약\n   - 계약금액: 3,334,000,000,000원\n\n2. 두 번째 계약\n   - 계약금액: 3,365,500,000,000원\n\n두 계약을 비교해보면, 두 번째 계약의 금액인 3,365,500,000,000원이 첫 번째 계약의 금액보다 큽니다.\n\n따라서, 현대글로비스가 2024년 12월 31일에 공시한 두 건의 완성차 해상운송계약 중 계약금액이 더 큰 건의 금액은 **3,365,500,000,000원**입니다.\n\n(근거: 공급계약 체결 보고서, 2024-12-31, 접수번호 20241231800103 및 20241231800107)"
  },
  "calls": [
@@ -20,5 +20,5 @@
  "completion_tokens": 206,
  "llm_calls": 1,
  "latency_s": 0.006,
- "ts": "2026-08-10T21:26:31"
+ "ts": "2026-08-11T12:57:28"
 }

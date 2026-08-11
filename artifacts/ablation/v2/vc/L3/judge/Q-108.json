@@ -10,7 +10,7 @@
    "tag": "judge_open",
    "prompt_tokens": 2222,
    "completion_tokens": 20,
-   "latency_s": 0.979,
+   "latency_s": 0.999,
    "finish": "stop"
   }
  ],

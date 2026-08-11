@@ -3,29 +3,29 @@
  "response": {
   "question_id": "Q-008",
   "question": "두산퓨얼셀이 2024년 6월에 공시한 연료전지 시스템 공급계약 해지의 계약상대가 어디인지 근거와 함께 설명해줘.",
-  "retrieved_context": "## [공급계약 해지] 두산퓨얼셀 – 단일판매ㆍ공급계약 해지 — 연료전지 시스템 공급 계약\n- 공시일: 2024-06-03 (접수번호 20240603800359)\n- 섹터: 신재생에너지\n- 해지금액: 19,300,000,000원\n- 매출액 대비: 5.06%\n- 계약상대: Zhejiang Beisen Hydrogen Science & Technology Co., Ltd.\n- 확정일: 2024-05-31\n\n## [기재정정] [공급계약 체결] 두산퓨얼셀 – 단일판매ㆍ공급계약체결 — 연료전지 시스템 공급 계약\n- 공시일: 2024-06-28 (접수번호 20240628800803)\n- 섹터: 신재생에너지\n- 계약금액: 2원\n- 계약상대: 두산에너빌리티㈜ 최대주주\n- 확정일: 2021-12-22\n- 공시유보: 경영상 비밀유지",
-  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산퓨얼셀\" period=ym:202406 top_k=5 q=\"두산퓨얼셀 2024 월에 공시한 연료전지 시스템 해지 어디인지 근거 함께\" n=2 top_score=44.544 ids=exchange_20240603800359,exchange_20240628800803 | hop=0 verdict=sufficient evidence=2 | generate tokens=671+69 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인할 수 있으며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | budget steps=1 hops=0 llm=2 tokens=1212",
+  "retrieved_context": "## [공급계약 해지] 두산퓨얼셀 – 단일판매ㆍ공급계약 해지 — 연료전지 시스템 공급 계약\n- 공시일: 2024-06-03 (접수번호 20240603800359)\n- 섹터: 신재생에너지\n- 해지금액: 19,300,000,000원\n- 매출액 대비: 5.06%\n- 계약상대: Zhejiang Beisen Hydrogen Science & Technology Co., Ltd.\n- 확정일: 2024-05-31\n\n## [기재정정] [공급계약 체결] 두산퓨얼셀 – 단일판매ㆍ공급계약체결 — 연료전지 시스템 공급 계약\n- 공시일: 2024-06-28 (접수번호 20240628800803)\n- 섹터: 신재생에너지\n- 계약금액: 400,000,000,000원\n- 계약상대: 두산에너빌리티㈜\n- 확정일: 2021-12-22\n- 공시유보: 경영상 비밀유지",
+  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산퓨얼셀\" period=ym:202406 top_k=5 q=\"두산퓨얼셀 2024 월에 공시한 연료전지 시스템 해지 어디인지 근거 함께\" n=2 top_score=44.196 ids=exchange_20240603800359,exchange_20240628800803 | hop=0 verdict=sufficient evidence=2 | generate tokens=674+69 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인할 수 있으며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | budget steps=1 hops=0 llm=2 tokens=1218",
   "answer": "두산퓨얼셀이 2024년 6월에 공시한 연료전지 시스템 공급계약 해지의 계약 상대방은 '**Zhejiang Beisen Hydrogen Science & Technology Co., Ltd.'** 입니다.\n\n(근거: 공급계약 해지, 2024-06-03, 20240603800359)"
  },
  "calls": [
   {
    "tag": "answer",
-   "prompt_tokens": 671,
+   "prompt_tokens": 674,
    "completion_tokens": 69,
-   "latency_s": 1.819,
+   "latency_s": 1.815,
    "finish": "stop"
   },
   {
    "tag": "critic",
-   "prompt_tokens": 427,
+   "prompt_tokens": 430,
    "completion_tokens": 45,
-   "latency_s": 1.196,
+   "latency_s": 1.301,
    "finish": "stop"
   }
  ],
- "prompt_tokens": 1098,
+ "prompt_tokens": 1104,
  "completion_tokens": 114,
  "llm_calls": 2,
- "latency_s": 3.032,
- "ts": "2026-08-10T21:17:45"
+ "latency_s": 3.123,
+ "ts": "2026-08-11T12:41:27"
 }

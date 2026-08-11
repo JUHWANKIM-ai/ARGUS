@@ -4,7 +4,7 @@
   "question_id": "Q-006",
   "question": "HD현대일렉트릭이 2024년 1월에 공시한 362kV 및 170kV 고압차단기 등 공급계약의 계약금액은 정정공시 반영 후 얼마인가?",
   "retrieved_context": "## [공급계약 체결] HD현대일렉트릭 – 단일판매ㆍ공급계약체결 — 362kV 및 170kV 고압차단기 등\n- 공시일: 2024-01-30 (접수번호 20240130800387)\n- 섹터: 전력기기\n- 계약금액: 58,300,000,000원 (583억원)\n- 매출액 대비: 2.77%\n- 계약상대: 에이치엘디앤아이한라 주식회사\n- 기간: 2024-01-30 ~ 2026-01-30 (2년 0개월)\n- 확정일: 2024-01-30",
-  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202401 top_k=5 q=\"HD 현대일렉트릭 2024 월에 공시한 362 kV 170 고압차단기 정정공시 반영 얼마인\" n=1 top_score=65.107 ids=exchange_20240130800387 | hop=0 verdict=sufficient evidence=1 | generate tokens=593+72 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 근거에 명시된 정보가 모두 포함되어 있으며, 접수번호까지 정확히 기재되어 있습니다. | verify calc_checked=amount complete_checked=evidence_gap ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1065",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202401 top_k=5 q=\"HD 현대일렉트릭 2024 월에 공시한 362 kV 170 고압차단기 정정공시 반영 얼마인\" n=1 top_score=64.495 ids=exchange_20240130800387 | hop=0 verdict=sufficient evidence=1 | generate tokens=593+72 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 근거에 명시된 정보가 모두 포함되어 있으며, 접수번호까지 정확히 기재되어 있습니다. | verify calc_checked=amount complete_checked=evidence_gap ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1065",
   "answer": "정정공시가 없는 것으로 확인됩니다. 따라서 최초 공시된 금액을 기준으로 말씀드리겠습니다.\n\n계약금액은 **58,300,000,000원**(583억 원)입니다.\n(근거: 단일판매ㆍ공급계약체결, 2024-01-30, 20240130800387)"
  },
  "calls": [
@@ -26,6 +26,6 @@
  "prompt_tokens": 948,
  "completion_tokens": 117,
  "llm_calls": 2,
- "latency_s": 3.449,
- "ts": "2026-08-10T21:01:30"
+ "latency_s": 0.007,
+ "ts": "2026-08-11T12:49:28"
 }

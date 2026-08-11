@@ -1,6 +1,6 @@
 # Phase H — 3축 교차집계 (dev)
 
-생성 2026-08-11 12:12 · 자동 생성물 (`scripts/error_analysis.py`)
+생성 2026-08-11 13:00 · 자동 생성물 (`scripts/error_analysis.py`)
 
 셀 표기 = `정답/채점대상` + 실패단계. **채점 대상에서 DATA_LIMIT 은 뺐다.**
 
@@ -146,7 +146,7 @@
 | Q-104 | grid | `RETRIEVAL/MULTI_POINT_QUERY` | A4 | **—** |
 | Q-106 | grid | `GENERATION/INDEX_FIELD_MISSING` | A1b | **—** |
 
-critic 이 오답을 통과시킨 문항 (귀속 단계와 무관하게 센다): Q-003 Q-006 Q-010 Q-024 Q-035 Q-044 Q-061 Q-066 Q-082 Q-084 Q-085 Q-087 Q-093 Q-096 Q-101 Q-103
+critic 이 오답을 통과시킨 문항 (귀속 단계와 무관하게 센다): Q-003 Q-006 Q-010 Q-023 Q-024 Q-035 Q-044 Q-061 Q-066 Q-075 Q-082 Q-084 Q-085 Q-087 Q-093 Q-096 Q-101 Q-103
 
 
 ## 트랙별 (합치지 않는다)
@@ -181,12 +181,12 @@ RETRIEVAL 실패 **6건** (문턱 3) → 🔴 **발동** — Phase E 보류 근�
 | 항목 | 값 |
 |---|---|
 | questions | 88 |
-| llm_calls | 129 |
-| prompt_tokens | 215646 |
-| completion_tokens | 15097 |
-| judge_tokens | 67639 |
-| total_tokens | 298382 |
-| cost_won | 2094.6 |
-| latency_s_mean | 3.73 |
+| llm_calls | 131 |
+| prompt_tokens | 217548 |
+| completion_tokens | 14944 |
+| judge_tokens | 67503 |
+| total_tokens | 299995 |
+| cost_won | 2106.0 |
+| latency_s_mean | 0.33 |
 | hops_total | 0 |
 | steps_max | 0 |

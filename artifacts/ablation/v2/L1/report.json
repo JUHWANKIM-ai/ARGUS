@@ -1,22 +1,22 @@
 {
- "generated": "2026-08-11T12:12:04",
+ "generated": "2026-08-11T13:00:19",
  "split": "dev",
  "cohort": "full",
  "n_cases": 88,
  "n_analysed": 88,
  "totals": {
   "questions": 88,
-  "llm_calls": 128,
-  "prompt_tokens": 240838,
-  "completion_tokens": 15298,
-  "judge_tokens": 72599,
-  "total_tokens": 328735,
-  "cost_won": 2307.7,
+  "llm_calls": 130,
+  "prompt_tokens": 264213,
+  "completion_tokens": 14736,
+  "judge_tokens": 76486,
+  "total_tokens": 355435,
+  "cost_won": 2495.2,
   "cost_won_scope": "코호트 전 행(캐시 재생 포함)의 누적 재생 비용 — 이번 실행의 신규 지출이 아니다. 신규 지출은 report.this_run.spent_won",
   "price_won_per_1k": 7.02,
-  "latency_s_total": 87.0,
-  "latency_s_mean": 0.99,
-  "hops_total": 34,
+  "latency_s_total": 42.2,
+  "latency_s_mean": 0.48,
+  "hops_total": 33,
   "steps_max": 4
  },
  "crosstab": {
@@ -42,11 +42,11 @@
    "search_extract|closed|상": {
     "n": 4,
     "n_scored": 4,
-    "correct": 0,
-    "rate": 0.0,
+    "correct": 1,
+    "rate": 0.25,
     "data_limit": 0,
     "stages": {
-     "RETRIEVAL": 4
+     "RETRIEVAL": 3
     }
    },
    "search_extract|open|하": {
@@ -125,7 +125,7 @@
     "data_limit": 0,
     "stages": {
      "RETRIEVAL": 2,
-     "RANKING": 1
+     "GENERATION": 1
     }
    },
    "complex_reason|closed|하": {
@@ -150,11 +150,11 @@
    "complex_reason|closed|상": {
     "n": 4,
     "n_scored": 4,
-    "correct": 3,
-    "rate": 0.75,
+    "correct": 2,
+    "rate": 0.5,
     "data_limit": 0,
     "stages": {
-     "RETRIEVAL": 1
+     "RETRIEVAL": 2
     }
    },
    "complex_reason|open|하": {
@@ -182,7 +182,8 @@
     "rate": 0.5,
     "data_limit": 0,
     "stages": {
-     "RETRIEVAL": 2
+     "RETRIEVAL": 1,
+     "VERIFY": 1
     }
    }
   },
@@ -191,11 +192,11 @@
     "search_extract": {
      "n": 24,
      "n_scored": 24,
-     "correct": 19,
-     "rate": 0.792,
+     "correct": 20,
+     "rate": 0.833,
      "data_limit": 0,
      "stages": {
-      "RETRIEVAL": 4,
+      "RETRIEVAL": 3,
       "GENERATION": 1
      }
     },
@@ -207,20 +208,20 @@
      "data_limit": 0,
      "stages": {
       "RETRIEVAL": 4,
-      "RANKING": 1,
-      "GENERATION": 1
+      "GENERATION": 2
      }
     },
     "complex_reason": {
      "n": 24,
      "n_scored": 24,
-     "correct": 18,
-     "rate": 0.75,
+     "correct": 17,
+     "rate": 0.708,
      "data_limit": 0,
      "stages": {
       "RETRIEVAL": 3,
       "TOOL": 1,
-      "GENERATION": 2
+      "GENERATION": 2,
+      "VERIFY": 1
      }
     }
    },
@@ -244,9 +245,9 @@
      "rate": 0.833,
      "data_limit": 0,
      "stages": {
-      "RETRIEVAL": 4,
-      "RANKING": 1,
-      "GENERATION": 1
+      "RETRIEVAL": 3,
+      "GENERATION": 2,
+      "VERIFY": 1
      }
     }
    },
@@ -279,8 +280,9 @@
      "rate": 0.5,
      "data_limit": 0,
      "stages": {
-      "RETRIEVAL": 11,
-      "RANKING": 1
+      "RETRIEVAL": 10,
+      "GENERATION": 1,
+      "VERIFY": 1
      }
     }
    }
@@ -292,10 +294,10 @@
    "rate": 0.764,
    "data_limit": 0,
    "stages": {
-    "RETRIEVAL": 11,
-    "RANKING": 1,
+    "RETRIEVAL": 10,
     "TOOL": 1,
-    "GENERATION": 4
+    "GENERATION": 5,
+    "VERIFY": 1
    }
   },
   "info_limit": {
@@ -314,10 +316,10 @@
     "rate": 0.764,
     "data_limit": 0,
     "stages": {
-     "RETRIEVAL": 11,
-     "RANKING": 1,
+     "RETRIEVAL": 10,
      "TOOL": 1,
-     "GENERATION": 4
+     "GENERATION": 5,
+     "VERIFY": 1
     }
    },
    "info_limit": {
@@ -331,33 +333,32 @@
    "regression": {
     "n": 10,
     "n_scored": 10,
-    "correct": 7,
-    "rate": 0.7,
+    "correct": 8,
+    "rate": 0.8,
     "data_limit": 0,
     "stages": {
-     "RETRIEVAL": 2,
-     "TOOL": 1
+     "RETRIEVAL": 2
     }
    }
   },
   "overall": {
    "n": 88,
    "n_scored": 88,
-   "correct": 68,
-   "rate": 0.773,
+   "correct": 69,
+   "rate": 0.784,
    "data_limit": 0,
    "stages": {
-    "RETRIEVAL": 13,
-    "RANKING": 1,
-    "TOOL": 2,
-    "GENERATION": 4
+    "RETRIEVAL": 12,
+    "TOOL": 1,
+    "GENERATION": 5,
+    "VERIFY": 1
    }
   }
  },
  "new_sector_retrieval": {
-  "n": 4,
+  "n": 2,
   "threshold": 3,
-  "triggers_reranker_review": true,
+  "triggers_reranker_review": false,
   "sectors": [
    "게임",
    "로봇",
@@ -372,66 +373,58 @@
    ],
    "소비재·유통": [
     "Q-087"
-   ],
-   "자동차·모빌리티": [
-    "Q-076"
-   ],
-   "통신": [
-    "Q-105"
    ]
   },
   "question_ids": [
    "Q-075",
-   "Q-076",
-   "Q-087",
-   "Q-105"
+   "Q-087"
   ],
   "off_grid_n": 0,
   "off_grid_question_ids": []
  },
  "difficulty_audit": [],
  "failure_histogram": {
-  "RETRIEVAL": 13,
-  "GENERATION": 4,
-  "RANKING": 1,
-  "TOOL": 2
+  "RETRIEVAL": 12,
+  "GENERATION": 5,
+  "TOOL": 1,
+  "VERIFY": 1
  },
  "failure_histogram_grid": {
-  "RETRIEVAL": 11,
-  "GENERATION": 4,
-  "RANKING": 1,
-  "TOOL": 1
+  "RETRIEVAL": 10,
+  "GENERATION": 5,
+  "TOOL": 1,
+  "VERIFY": 1
  },
  "by_track_failures": {
   "grid": {
-   "RETRIEVAL": 11,
-   "GENERATION": 4,
-   "RANKING": 1,
-   "TOOL": 1
+   "RETRIEVAL": 10,
+   "GENERATION": 5,
+   "TOOL": 1,
+   "VERIFY": 1
   },
   "info_limit": {},
   "regression": {
-   "RETRIEVAL": 2,
-   "TOOL": 1
+   "RETRIEVAL": 2
   }
  },
  "root_cause_histogram": {
+  "RETRIEVAL/CHAIN_NOT_TRAVERSED": 10,
+  "RETRIEVAL/CHAIN_PARTIAL": 1,
+  "GENERATION/INDEX_FIELD_MISSING": 3,
+  "GENERATION/UNVERIFIED": 1,
+  "GENERATION/REASONING": 1,
+  "TOOL/TOOL": 1,
+  "VERIFY/VERIFY": 1,
+  "RETRIEVAL/MULTI_POINT_QUERY": 1
+ },
+ "root_cause_histogram_grid": {
   "RETRIEVAL/CHAIN_NOT_TRAVERSED": 9,
   "RETRIEVAL/CHAIN_PARTIAL": 1,
   "GENERATION/INDEX_FIELD_MISSING": 3,
   "GENERATION/UNVERIFIED": 1,
-  "RETRIEVAL/MULTI_POINT_QUERY": 3,
-  "RANKING/LOW_RANK": 1,
-  "TOOL/TOOL": 2
- },
- "root_cause_histogram_grid": {
-  "RETRIEVAL/CHAIN_NOT_TRAVERSED": 8,
-  "RETRIEVAL/CHAIN_PARTIAL": 1,
-  "GENERATION/INDEX_FIELD_MISSING": 3,
-  "GENERATION/UNVERIFIED": 1,
-  "RETRIEVAL/MULTI_POINT_QUERY": 2,
-  "RANKING/LOW_RANK": 1,
-  "TOOL/TOOL": 1
+  "GENERATION/REASONING": 1,
+  "TOOL/TOOL": 1,
+  "VERIFY/VERIFY": 1
  },
  "arm_allocation_reconciliation": {
   "authoritative": "manual",
@@ -446,8 +439,8 @@
    },
    {
     "arm": "A3",
-    "auto_grid": 1,
-    "auto_all_tracks": 1,
+    "auto_grid": 0,
+    "auto_all_tracks": 0,
     "manual_all_tracks": 1
    },
    {
@@ -459,7 +452,7 @@
    {
     "arm": "A5",
     "auto_grid": 1,
-    "auto_all_tracks": 2,
+    "auto_all_tracks": 1,
     "manual_all_tracks": 4
    },
    {
@@ -470,8 +463,8 @@
    },
    {
     "arm": "미분류",
-    "auto_grid": 1,
-    "auto_all_tracks": 1,
+    "auto_grid": 2,
+    "auto_all_tracks": 2,
     "manual_all_tracks": 0
    }
   ],
@@ -501,7 +494,7 @@
     "auto_arm": "A4",
     "manual_arm": "—",
     "agree": false,
-    "critic_passed_wrong_answer": false
+    "critic_passed_wrong_answer": true
    },
    {
     "question_id": "Q-024",
@@ -511,6 +504,15 @@
     "manual_arm": "—",
     "agree": false,
     "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-030",
+    "track": "grid",
+    "bucket": "RETRIEVAL/CHAIN_NOT_TRAVERSED",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": false
    },
    {
     "question_id": "Q-035",
@@ -546,7 +548,7 @@
     "auto_arm": "A4",
     "manual_arm": "—",
     "agree": false,
-    "critic_passed_wrong_answer": true
+    "critic_passed_wrong_answer": false
    },
    {
     "question_id": "Q-075",
@@ -555,7 +557,7 @@
     "auto_arm": "A4",
     "manual_arm": "—",
     "agree": false,
-    "critic_passed_wrong_answer": true
+    "critic_passed_wrong_answer": false
    },
    {
     "question_id": "Q-087",
@@ -565,6 +567,15 @@
     "manual_arm": "A6",
     "agree": false,
     "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-093",
+    "track": "grid",
+    "bucket": "GENERATION/REASONING",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": false
    },
    {
     "question_id": "Q-098",
@@ -583,24 +594,32 @@
     "manual_arm": "A1b",
     "agree": false,
     "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-105",
+    "track": "grid",
+    "bucket": "VERIFY/VERIFY",
+    "auto_arm": "미분류",
+    "manual_arm": "A4",
+    "agree": false,
+    "critic_passed_wrong_answer": true
    }
   ],
-  "n_disagreements": 12,
-  "n_compared": 20,
+  "n_disagreements": 15,
+  "n_compared": 19,
   "critic_passed_wrong_answer": [
    "Q-005",
    "Q-006",
+   "Q-018",
    "Q-023",
    "Q-024",
    "Q-035",
-   "Q-061",
-   "Q-065",
    "Q-066",
-   "Q-075",
    "Q-087",
    "Q-097",
    "Q-099",
-   "Q-101"
+   "Q-101",
+   "Q-105"
   ],
   "per_question": [
    {
@@ -628,7 +647,7 @@
     "auto_arm": "A4",
     "manual_arm": "—",
     "agree": false,
-    "critic_passed_wrong_answer": false
+    "critic_passed_wrong_answer": true
    },
    {
     "question_id": "Q-023",
@@ -647,6 +666,15 @@
     "manual_arm": "—",
     "agree": false,
     "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-030",
+    "track": "grid",
+    "bucket": "RETRIEVAL/CHAIN_NOT_TRAVERSED",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": false
    },
    {
     "question_id": "Q-035",
@@ -682,16 +710,7 @@
     "auto_arm": "A4",
     "manual_arm": "—",
     "agree": false,
-    "critic_passed_wrong_answer": true
-   },
-   {
-    "question_id": "Q-065",
-    "track": "regression",
-    "bucket": "TOOL/TOOL",
-    "auto_arm": "A5",
-    "manual_arm": "A5",
-    "agree": true,
-    "critic_passed_wrong_answer": true
+    "critic_passed_wrong_answer": false
    },
    {
     "question_id": "Q-066",
@@ -709,15 +728,6 @@
     "auto_arm": "A4",
     "manual_arm": "—",
     "agree": false,
-    "critic_passed_wrong_answer": true
-   },
-   {
-    "question_id": "Q-076",
-    "track": "grid",
-    "bucket": "RETRIEVAL/MULTI_POINT_QUERY",
-    "auto_arm": "A4",
-    "manual_arm": "A4",
-    "agree": true,
     "critic_passed_wrong_answer": false
    },
    {
@@ -730,12 +740,12 @@
     "critic_passed_wrong_answer": true
    },
    {
-    "question_id": "Q-094",
+    "question_id": "Q-093",
     "track": "grid",
-    "bucket": "RANKING/LOW_RANK",
-    "auto_arm": "A3",
-    "manual_arm": "A3",
-    "agree": true,
+    "bucket": "GENERATION/REASONING",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
     "critic_passed_wrong_answer": false
    },
    {
@@ -777,16 +787,16 @@
    {
     "question_id": "Q-105",
     "track": "grid",
-    "bucket": "RETRIEVAL/MULTI_POINT_QUERY",
-    "auto_arm": "A4",
+    "bucket": "VERIFY/VERIFY",
+    "auto_arm": "미분류",
     "manual_arm": "A4",
-    "agree": true,
-    "critic_passed_wrong_answer": false
+    "agree": false,
+    "critic_passed_wrong_answer": true
    }
   ]
  },
- "citation_rate": 0.765,
- "citation_rate_grid": 0.75,
+ "citation_rate": 0.778,
+ "citation_rate_grid": 0.764,
  "by_doc_group": {
   "exchange": {
    "n": 35,
@@ -796,8 +806,8 @@
    "data_limit": 0,
    "stages": {
     "RETRIEVAL": 10,
-    "TOOL": 2,
-    "GENERATION": 1
+    "TOOL": 1,
+    "GENERATION": 2
    }
   },
   "holding": {
@@ -811,23 +821,22 @@
   "major": {
    "n": 12,
    "n_scored": 12,
-   "correct": 11,
-   "rate": 0.917,
+   "correct": 10,
+   "rate": 0.833,
    "data_limit": 0,
    "stages": {
-    "RETRIEVAL": 1
+    "RETRIEVAL": 2
    }
   },
   "periodic": {
    "n": 32,
    "n_scored": 32,
-   "correct": 26,
-   "rate": 0.812,
+   "correct": 28,
+   "rate": 0.875,
    "data_limit": 0,
    "stages": {
-    "RETRIEVAL": 2,
-    "RANKING": 1,
-    "GENERATION": 3
+    "GENERATION": 3,
+    "VERIFY": 1
    }
   }
  },
@@ -835,13 +844,13 @@
   "exchange": {
    "n": 32,
    "n_scored": 32,
-   "correct": 21,
-   "rate": 0.656,
+   "correct": 20,
+   "rate": 0.625,
    "data_limit": 0,
    "stages": {
     "RETRIEVAL": 9,
     "TOOL": 1,
-    "GENERATION": 1
+    "GENERATION": 2
    }
   },
   "holding": {
@@ -855,21 +864,22 @@
   "major": {
    "n": 8,
    "n_scored": 8,
-   "correct": 8,
-   "rate": 1.0,
+   "correct": 7,
+   "rate": 0.875,
    "data_limit": 0,
-   "stages": {}
+   "stages": {
+    "RETRIEVAL": 1
+   }
   },
   "periodic": {
    "n": 24,
    "n_scored": 24,
-   "correct": 18,
-   "rate": 0.75,
+   "correct": 20,
+   "rate": 0.833,
    "data_limit": 0,
    "stages": {
-    "RETRIEVAL": 2,
-    "RANKING": 1,
-    "GENERATION": 3
+    "GENERATION": 3,
+    "VERIFY": 1
    }
   }
  },
@@ -908,7 +918,7 @@
    "prompt_tokens": 944,
    "completion_tokens": 131,
    "judge_tokens": 0,
-   "latency_s": 0.161,
+   "latency_s": 0.157,
    "calls": [
     {
      "tag": "answer",
@@ -955,7 +965,7 @@
     "blocking": false
    },
    "answer": "HD현대일렉트릭이 2023년 1월에 체결한 2500kVA 배전변압기 등 3,500대 공급계약의 계약금액은 **97,000,000,000원**(970억 원)입니다. \n(근거: 단일판매ㆍ공급계약체결, 2023-01-31, 20230131800162)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202301 top_k=5 q=\"HD 현대일렉트릭 2023 월에 체결한 2500 kVA 배전변압기 3,500 얼마인\" n=1 top_score=73.669 ids=exchange_20230131800162 | hop=0 verdict=sufficient evidence=1 | generate tokens=584+82 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 계약 금액과 관련된 정보가 정확하게 포함되어 있으며, 접수번호를 포함한 근거 표기도 존재합니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1075"
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202301 top_k=5 q=\"HD 현대일렉트릭 2023 월에 체결한 2500 kVA 배전변압기 3,500 얼마인\" n=1 top_score=73.014 ids=exchange_20230131800162 | hop=0 verdict=sufficient evidence=1 | generate tokens=584+82 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 계약 금액과 관련된 정보가 정확하게 포함되어 있으며, 접수번호를 포함한 근거 표기도 존재합니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1075"
   },
   {
    "question_id": "Q-003",
@@ -1038,7 +1048,7 @@
     "blocking": false
    },
    "answer": "HD현대일렉트릭이 2023년 1월에 체결한 2500kVA 배전변압기 등 3,500대 공급계약의 계약기간은 **1년 9개월**입니다. \n\n(근거: 단일판매ㆍ공급계약체결, 2023-01-31, 20230131800162)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202301 top_k=5 q=\"HD 현대일렉트릭 2023 월에 체결한 2500 kVA 배전변압기 3,500 개월인\" n=1 top_score=75.238 ids=exchange_20230131800162 | hop=0 verdict=sufficient evidence=1 | generate tokens=588+75 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=period complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1060"
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202301 top_k=5 q=\"HD 현대일렉트릭 2023 월에 체결한 2500 kVA 배전변압기 3,500 개월인\" n=1 top_score=74.570 ids=exchange_20230131800162 | hop=0 verdict=sufficient evidence=1 | generate tokens=588+75 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=period complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1060"
   },
   {
    "question_id": "Q-005",
@@ -1074,7 +1084,7 @@
    "prompt_tokens": 1167,
    "completion_tokens": 111,
    "judge_tokens": 0,
-   "latency_s": 3.24,
+   "latency_s": 0.006,
    "calls": [
     {
      "tag": "answer",
@@ -1121,7 +1131,7 @@
     "blocking": false
    },
    "answer": "정정공시가 없어 변경된 내용이 없습니다. 따라서 최초 공시된 금액인 227,500,000,000원으로 유지됩니다.\n(근거: 단일판매ㆍ공급계약체결, 2023-06-02, 20230602800079)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성중공업\" period=ym:202306 top_k=5 q=\"삼성중공업 2023 월에 공시한 원유운반선 이후 정정공시 바뀌었는\" n=2 top_score=37.637 ids=exchange_20230602800079,exchange_20230613800116 | hop=0 verdict=sufficient evidence=2 | generate tokens=707+58 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제공된 근거에 기반하여 작성되었으며, 필요한 정보(공시일, 접수번호 등)가 모두 포함되어 있습니다. | verify calc_checked=- complete_checked=evidence_gap ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1278"
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성중공업\" period=ym:202306 top_k=5 q=\"삼성중공업 2023 월에 공시한 원유운반선 이후 정정공시 바뀌었는\" n=2 top_score=37.318 ids=exchange_20230602800079,exchange_20230613800116 | hop=0 verdict=sufficient evidence=2 | generate tokens=707+58 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제공된 근거에 기반하여 작성되었으며, 필요한 정보(공시일, 접수번호 등)가 모두 포함되어 있습니다. | verify calc_checked=- complete_checked=evidence_gap ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1278"
   },
   {
    "question_id": "Q-006",
@@ -1157,7 +1167,7 @@
    "prompt_tokens": 948,
    "completion_tokens": 117,
    "judge_tokens": 0,
-   "latency_s": 3.449,
+   "latency_s": 0.007,
    "calls": [
     {
      "tag": "answer",
@@ -1207,7 +1217,7 @@
     "blocking": false
    },
    "answer": "정정공시가 없는 것으로 확인됩니다. 따라서 최초 공시된 금액을 기준으로 말씀드리겠습니다.\n\n계약금액은 **58,300,000,000원**(583억 원)입니다.\n(근거: 단일판매ㆍ공급계약체결, 2024-01-30, 20240130800387)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202401 top_k=5 q=\"HD 현대일렉트릭 2024 월에 공시한 362 kV 170 고압차단기 정정공시 반영 얼마인\" n=1 top_score=65.107 ids=exchange_20240130800387 | hop=0 verdict=sufficient evidence=1 | generate tokens=593+72 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 근거에 명시된 정보가 모두 포함되어 있으며, 접수번호까지 정확히 기재되어 있습니다. | verify calc_checked=amount complete_checked=evidence_gap ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1065"
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202401 top_k=5 q=\"HD 현대일렉트릭 2024 월에 공시한 362 kV 170 고압차단기 정정공시 반영 얼마인\" n=1 top_score=64.495 ids=exchange_20240130800387 | hop=0 verdict=sufficient evidence=1 | generate tokens=593+72 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 근거에 명시된 정보가 모두 포함되어 있으며, 접수번호까지 정확히 기재되어 있습니다. | verify calc_checked=amount complete_checked=evidence_gap ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1065"
   },
   {
    "question_id": "Q-007",
@@ -1233,10 +1243,10 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
-   "critic_supported": null,
+   "critic_supported": true,
    "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": null,
-   "has_citation": true,
+   "has_citation": false,
    "route": "closed_lookup",
    "route_group": "exchange",
    "route_corps": [
@@ -1244,17 +1254,24 @@
    ],
    "n_hops": 1,
    "n_steps": 2,
-   "n_llm_calls": 1,
-   "prompt_tokens": 798,
-   "completion_tokens": 183,
-   "judge_tokens": 766,
+   "n_llm_calls": 2,
+   "prompt_tokens": 1488,
+   "completion_tokens": 137,
+   "judge_tokens": 656,
    "latency_s": 0.009,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 798,
-     "completion_tokens": 183,
-     "latency_s": 4.291,
+     "prompt_tokens": 930,
+     "completion_tokens": 73,
+     "latency_s": 2.043,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 558,
+     "completion_tokens": 64,
+     "latency_s": 1.771,
      "finish": "stop"
     }
    ],
@@ -1271,12 +1288,12 @@
     "20240424800596"
    ],
    "golden_evidence_all": true,
-   "calc_checked": [
+   "calc_checked": [],
+   "calc_skipped": [
     "amount",
     "period",
     "share"
    ],
-   "calc_skipped": [],
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1286,8 +1303,8 @@
     "asks_value": false,
     "blocking": false
    },
-   "answer": "SK하이닉스가 2024년 4월 24일에 공시한 신규 시설 투자의 투자 대상은 '**청주 M15X 건설**'입니다. \n\n이는 '신규시설투자등'이라는 제목으로 공시되었으며, 구체적인 내용은 다음과 같습니다.\n- **투자 금액**: 5,296,200,000,000원 (52,962억 원)\n- **자기자본 대비 비율**: 9.9%\n- **기간**: 2024년 4월 24일부터 2026년 10월 30일까지 (총 2년 6개월)\n\n따라서, SK하이닉스는 청주에 위치한 M15X 건설 프로젝트에 대규모 투자를 진행할 계획임을 알 수 있습니다. (근거: 신규시설투자등, 2024-04-24, 접수번호 20240424800596)",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"SK하이닉스\" period=ym:202404 top_k=5 q=\"SK 하이닉스 2024 24 공시한 신규 시설투자 투자 대상 무엇인지 근거 함께\" n=1 top_score=53.778 ids=exchange_20240424800596 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"SK하이닉스\" period=year:2024 top_k=8 q=\"SK 하이닉스 2024 24 공시한 신규 시설투자 투자 대상 무엇인지 근거 함께\" n=3 top_score=53.778 ids=exchange_20240424800596,exchange_20240726800615,exchange_20241220800005 | hop=1 verdict=sufficient evidence=3 | generate tokens=798+183 | verify calc_checked=amount,period,share complete_checked=- ok=True kinds=- | budget steps=2 hops=1 llm=1 tokens=981"
+   "answer": "SK하이닉스가 2024년 4월 24일에 공시한 신규 시설투자의 투자 대상은 '**청주 M15X 건설**'입니다.\n\n(근거: 신규 시설투자등 — 청주 M15X 건설, 2024-04-24, 2024-04-24800596)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"SK하이닉스\" period=ym:202404 top_k=5 q=\"SK 하이닉스 2024 24 공시한 신규 시설투자 투자 대상 무엇인지 근거 함께\" n=1 top_score=53.423 ids=exchange_20240424800596 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"SK하이닉스\" period=year:2024 top_k=8 q=\"SK 하이닉스 2024 24 공시한 신규 시설투자 투자 대상 무엇인지 근거 함께\" n=3 top_score=53.423 ids=exchange_20240424800596,exchange_20240726800615,exchange_20241220800005 | hop=1 verdict=sufficient evidence=3 | generate tokens=930+73 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 신규 시설투자의 대상이 '청주 M15X 건설'이며, 해당 정보가 2024년 4월 24일에 공시되었다는 점이 포함되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=1 llm=2 tokens=1625"
   },
   {
    "question_id": "Q-008",
@@ -1325,23 +1342,23 @@
    "n_hops": 0,
    "n_steps": 1,
    "n_llm_calls": 2,
-   "prompt_tokens": 1110,
+   "prompt_tokens": 1120,
    "completion_tokens": 114,
-   "judge_tokens": 538,
-   "latency_s": 3.189,
+   "judge_tokens": 543,
+   "latency_s": 3.228,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 677,
+     "prompt_tokens": 682,
      "completion_tokens": 69,
-     "latency_s": 1.899,
+     "latency_s": 1.881,
      "finish": "stop"
     },
     {
      "tag": "critic",
-     "prompt_tokens": 433,
+     "prompt_tokens": 438,
      "completion_tokens": 45,
-     "latency_s": 1.282,
+     "latency_s": 1.338,
      "finish": "stop"
     }
    ],
@@ -1373,7 +1390,7 @@
     "blocking": false
    },
    "answer": "두산퓨얼셀이 2024년 6월에 공시한 연료전지 시스템 공급계약 해지의 계약 상대방은 '**Zhejiang Beisen Hydrogen Science & Technology Co., Ltd.'** 입니다.\n\n(근거: 공급계약 해지, 2024-06-03, 20240603800359)",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산퓨얼셀\" period=ym:202406 top_k=5 q=\"두산퓨얼셀 2024 월에 공시한 연료전지 시스템 해지 어디인지 근거 함께\" n=2 top_score=44.544 ids=exchange_20240603800359,exchange_20240628800803 | hop=0 verdict=sufficient evidence=2 | generate tokens=677+69 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인할 수 있으며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1224"
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산퓨얼셀\" period=ym:202406 top_k=5 q=\"두산퓨얼셀 2024 월에 공시한 연료전지 시스템 해지 어디인지 근거 함께\" n=2 top_score=44.196 ids=exchange_20240603800359,exchange_20240628800803 | hop=0 verdict=sufficient evidence=2 | generate tokens=682+69 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인할 수 있으며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1234"
   },
   {
    "question_id": "Q-010",
@@ -1500,7 +1517,7 @@
    "prompt_tokens": 1907,
    "completion_tokens": 433,
    "judge_tokens": 1153,
-   "latency_s": 0.054,
+   "latency_s": 0.057,
    "calls": [
     {
      "tag": "answer",
@@ -1571,10 +1588,10 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
-   "critic_supported": null,
+   "critic_supported": true,
    "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": null,
-   "has_citation": true,
+   "has_citation": false,
    "route": "multi_compare",
    "route_group": "exchange",
    "route_corps": [
@@ -1583,17 +1600,24 @@
    ],
    "n_hops": 0,
    "n_steps": 4,
-   "n_llm_calls": 1,
-   "prompt_tokens": 1667,
-   "completion_tokens": 220,
+   "n_llm_calls": 2,
+   "prompt_tokens": 3330,
+   "completion_tokens": 234,
    "judge_tokens": 0,
-   "latency_s": 5.299,
+   "latency_s": 6.161,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 1667,
-     "completion_tokens": 220,
-     "latency_s": 5.29,
+     "prompt_tokens": 1798,
+     "completion_tokens": 190,
+     "latency_s": 4.688,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 1532,
+     "completion_tokens": 44,
+     "latency_s": 1.463,
      "finish": "stop"
     }
    ],
@@ -1627,8 +1651,8 @@
     "asks_value": false,
     "blocking": false
    },
-   "answer": "삼성SDI가 2025년 3월에 결의한 유상증자의 시설자금은 454,100,000,000원이고, 고려아연이 2024년 10월에 결의한 유상증자의 시설자금은 135,052,488,000원입니다. 따라서 삼성SDI의 시설자금 조달액이 고려아연의 것보다 큽니다.\n\n계산 과정:\n1. 삼성SDI의 시설자금: 454,100,000,000원\n2. 고려아연의 시설자금: 135,052,488,000원\n3. 비교 결과: 454,100,000,000 > 135,052,488,000\n\n따라서 삼성SDI의 시설자금 조달액이 더 큽니다.\n\n(근거: [유상증자결정] 삼성SDI, 2025-03-14, 접수번호 20250314000027; [유상증자결정] 고려아연, 2024-10-30, 접수번호 20241030000098)",
-   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202503 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=2 top_score=33.743 ids=major_20250314000027,major_20250324000773 | hop=0 strat=narrow tool=search_chunks corp=\"고려아연\" period=ym:202503 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=1 top_score=14.328 ids=major_20250313000896 | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202410 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=0 top_score=- ids=- | hop=0 strat=narrow tool=search_chunks corp=\"고려아연\" period=ym:202410 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=3 top_score=41.560 ids=major_20241030000098,major_20241002000155,major_20241011000053 | hop=0 verdict=sufficient evidence=5 | generate tokens=1667+220 | verify calc_checked=- complete_checked=missing_corp ok=True kinds=- | budget steps=4 hops=0 llm=1 tokens=1887"
+   "answer": "삼성SDI가 2025년 3월에 결의한 유상증자의 시설자금 조달액은 **454,100,000,000원**(454십억 원)이고, 고려아연이 2024년 10월에 결의한 유상증자의 시설자금 조달액은 **135,052,488,000원**(135십억 원)입니다. 따라서 삼성SDI의 시설자금 조달액이 고려아연의 것보다 큽니다.\n\n- 삼성SDI 유상증자 시설자금: 454십억 원 (근거: [유상증자결정] 삼성SDI, 2025-03-14)\n- 고려아연 유상증자 시설자금: 135십억 원 (근거: [유상증자결정] 고려아연, 2024-10-30)\n\n따라서 질문에 대한 답변 '네'는 이러한 이유로 도출되었습니다.",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202503 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=2 top_score=33.743 ids=major_20250314000027,major_20250324000773 | hop=0 strat=narrow tool=search_chunks corp=\"고려아연\" period=ym:202503 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=1 top_score=14.328 ids=major_20250313000896 | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202410 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=0 top_score=- ids=- | hop=0 strat=narrow tool=search_chunks corp=\"고려아연\" period=ym:202410 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=3 top_score=41.560 ids=major_20241030000098,major_20241002000155,major_20241011000053 | hop=0 verdict=sufficient evidence=5 | generate tokens=1798+190 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거에서 확인할 수 있으며, 정확한 비교를 통해 결론을 도출하였습니다. | verify calc_checked=- complete_checked=missing_corp ok=True kinds=- | budget steps=4 hops=0 llm=2 tokens=3564"
   },
   {
    "question_id": "Q-015",
@@ -1715,7 +1739,7 @@
     "blocking": false
    },
    "answer": "HD현대일렉트릭이 2025년 7월에 영국 National Grid와 체결한 변압기 공급계약 금액은 140,400,000,000원으로, 이는 2024년 5월에 체결한 계약 금액인 82,100,000,000원에 비해 **58,300,000,000원**(583억 원) 큽니다.\n\n(근거: [단일판매ㆍ공급계약 체결] HD현대일렉트릭, 2025-07-31, 20250731800031; [단일판매ㆍ공급계약 체결] HD현대일렉트릭, 2024-05-29, 20240529800105)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202507 top_k=3 q=\"HD 현대일렉트릭 2025 영국 National Grid 체결한 변압기 2024 같은 상대 계약보다 얼마나 큰가\" n=1 top_score=57.739 ids=exchange_20250731800031 | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202405 top_k=3 q=\"HD 현대일렉트릭 2025 영국 National Grid 체결한 변압기 2024 같은 상대 계약보다 얼마나 큰가\" n=2 top_score=57.838 ids=exchange_20240529800105,exchange_20240531801074 | hop=0 verdict=sufficient evidence=3 | generate tokens=871+142 | 근거 표기 누락 — critic 호출 | critic supported=True reason=제공된 두 개의 공급계약 체결 공시를 통해 금액 차이를 정확히 계산할 수 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=1757"
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202507 top_k=3 q=\"HD 현대일렉트릭 2025 영국 National Grid 체결한 변압기 2024 같은 상대 계약보다 얼마나 큰가\" n=1 top_score=57.237 ids=exchange_20250731800031 | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202405 top_k=3 q=\"HD 현대일렉트릭 2025 영국 National Grid 체결한 변압기 2024 같은 상대 계약보다 얼마나 큰가\" n=2 top_score=57.340 ids=exchange_20240529800105,exchange_20240531801074 | hop=0 verdict=sufficient evidence=3 | generate tokens=871+142 | 근거 표기 누락 — critic 호출 | critic supported=True reason=제공된 두 개의 공급계약 체결 공시를 통해 금액 차이를 정확히 계산할 수 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=1757"
   },
   {
    "question_id": "Q-016",
@@ -1751,7 +1775,7 @@
    "prompt_tokens": 1320,
    "completion_tokens": 151,
    "judge_tokens": 0,
-   "latency_s": 3.637,
+   "latency_s": 0.006,
    "calls": [
     {
      "tag": "answer",
@@ -1809,10 +1833,10 @@
    "first_failure": "RETRIEVAL",
    "root_cause": "CHAIN_NOT_TRAVERSED",
    "failure_why": "골든 1/2 건이 어떤 hop 후보에도 없다: ['20241223800052']",
-   "critic_supported": false,
-   "critic_passed_wrong_answer": false,
+   "critic_supported": true,
+   "critic_passed_wrong_answer": true,
    "gold_value_in_evidence": false,
-   "has_citation": false,
+   "has_citation": true,
    "route": "closed_lookup",
    "route_group": "exchange",
    "route_corps": [
@@ -1821,23 +1845,23 @@
    "n_hops": 0,
    "n_steps": 1,
    "n_llm_calls": 2,
-   "prompt_tokens": 1178,
-   "completion_tokens": 120,
+   "prompt_tokens": 1326,
+   "completion_tokens": 147,
    "judge_tokens": 0,
-   "latency_s": 5.963,
+   "latency_s": 4.011,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 705,
-     "completion_tokens": 68,
-     "latency_s": 1.846,
+     "prompt_tokens": 831,
+     "completion_tokens": 90,
+     "latency_s": 2.382,
      "finish": "stop"
     },
     {
      "tag": "critic",
-     "prompt_tokens": 473,
-     "completion_tokens": 52,
-     "latency_s": 4.109,
+     "prompt_tokens": 495,
+     "completion_tokens": 57,
+     "latency_s": 1.622,
      "finish": "stop"
     }
    ],
@@ -1855,14 +1879,17 @@
     "20230703800173"
    ],
    "golden_evidence_all": false,
-   "calc_checked": [],
+   "calc_checked": [
+    "amount"
+   ],
    "calc_skipped": [
-    "amount",
     "period",
     "share"
    ],
    "calc_mismatch": false,
-   "calc_reasons": [],
+   "calc_reasons": [
+    "amount: 답변 1,566,300,000,000원 vs 재계산 1,842,200,000,000"
+   ],
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1870,8 +1897,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "FPU 1기 공급계약과 관련된 정정공시가 존재하는지 확인해봐야 합니다. 현재 제공된 정보에는 최초 공시 외에 다른 정정공시의 흔적이 없습니다. 따라서, 계약 금액의 변동 여부를 알 수 없습니다.\n\n정정공시 여부에 대한 추가 정보가 필요합니다. (근거: 없음)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 제공된 근거 내에서 정정공시에 관한 언급은 없으나, 이를 확인할 방법이 없다는 답변은 추측성 발언으로 간주됩니다.)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대중공업\" period=ym:202307 top_k=5 q=\"HD 현대중공업 2023 월에 공시한 FPU 정정공시 얼마나 증가했는\" n=2 top_score=25.861 ids=exchange_20230703800173,exchange_20230707800096 | hop=0 verdict=sufficient evidence=2 | generate tokens=705+68 | 근거 표기 누락 — critic 호출 | critic supported=False reason=제공된 근거 내에서 정정공시에 관한 언급은 없으나, 이를 확인할 방법이 없다는 답변은 추측성 발언으로 간주됩니다. | verify calc_checked=- complete_checked=evidence_gap ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1298"
+   "answer": "FPU 1기 공급계약의 최초 공시 금액은 **1,566,300,000,000원**(1조 5,663억원)이며, 이는 변동 없이 유지되었습니다. 따라서 정정공시로 인한 계약금액의 증가는 없습니다.\n\n(근거: 단일판매ㆍ공급계약체결 [FPU 1기], 2023-07-03, 20230703800173)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대중공업\" period=ym:202307 top_k=5 q=\"HD 현대중공업 2023 월에 공시한 FPU 정정공시 얼마나 증가했는\" n=2 top_score=25.651 ids=exchange_20230703800173,exchange_20230707800096 | hop=0 verdict=sufficient evidence=2 | generate tokens=831+90 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 FPU 1기의 공급계약 금액과 관련된 정보가 정확하게 포함되어 있으며, 해당 정보의 출처인 공시 내용과 접수번호도 명시되어 있습니다. | verify calc_checked=amount complete_checked=evidence_gap ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1473"
   },
   {
    "question_id": "Q-020",
@@ -1992,16 +2019,16 @@
    "n_hops": 0,
    "n_steps": 1,
    "n_llm_calls": 1,
-   "prompt_tokens": 1072,
-   "completion_tokens": 236,
-   "judge_tokens": 1130,
-   "latency_s": 5.486,
+   "prompt_tokens": 1197,
+   "completion_tokens": 273,
+   "judge_tokens": 1167,
+   "latency_s": 6.438,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 1072,
-     "completion_tokens": 236,
-     "latency_s": 5.482,
+     "prompt_tokens": 1197,
+     "completion_tokens": 273,
+     "latency_s": 6.434,
      "finish": "stop"
     }
    ],
@@ -2031,8 +2058,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "삼성SDI가 2025년 3월에 결의한 유상증자의 자금조달 목적별 금액 및 총 조달 규모는 다음과 같습니다.\n\n1. **총 조달 규모**: 2,000,113,200,000원 (20,001억 원)\n\n2. **목적별 금액**\n   - 시설자금: 454,100,000,000원\n   - 타법인 증권 취득자금: 1,546,013,200,000원\n\n위 정보는 최초 공시된 내용과 수정된 내용을 모두 포함하며, 정정된 부분은 신주 배정 기준일과 청약 예정일이 변경되었으나 이는 자금 용도와 직접적인 관련이 없으므로 결과에 영향을 주지 않습니다.\n\n(근거: [유상증자결정] 삼성SDI 주요사항보고서(유상증자결정), 정정본, 2025-03-14, 접수번호 20250314000027; [기재정정] [유상증자결정] 삼성SDI 주요사항보고서(유상증자결정), 2025-03-24, 접수번호 20250324000773)",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202503 top_k=5 q=\"삼성 SDI 2025 월에 결의한 유상증자 자금조달 목적별 금액 조달 규모\" n=2 top_score=25.784 ids=major_20250314000027,major_20250324000773 | hop=0 verdict=sufficient evidence=2 | generate tokens=1072+236 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=1308"
+   "answer": "삼성SDI가 2025년 3월에 결의한 유상증자의 자금조달 목적별 금액 및 총 조달 규모는 다음과 같습니다.\n\n1. 총 조달 규모: 2,000,113,200,000원 (2조 1억원)\n\n2. 자금 용도별 세부 내역\n- 시설자금: 454,100,000,000원\n- 타법인 증권 취득자금: 1,546,013,200,000원\n\n위 내용은 최초 공시된 내용과 수정된 내용을 모두 포함하고 있습니다. 최초 공시에서는 신주 배정 기준일이 2025년 4월 18일로 명시되었으나, 이후 정정공시를 통해 2025년 4월 11일로 변경되었습니다. 또한, 신주 발행가는 변동 없이 169,200원으로 확정되었습니다.\n\n(근거: [유상증자결정] 삼성SDI 주요사항보고서(유상증자결정), 정정본, 2025-03-14, 접수번호 20250314000027; [기재정정] [유상증자결정] 삼성SDI 주요사항보고서(유상증자결정), 2025-03-24, 접수번호 20250324000773)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202503 top_k=5 q=\"삼성 SDI 2025 월에 결의한 유상증자 자금조달 목적별 금액 조달 규모\" n=2 top_score=25.784 ids=major_20250314000027,major_20250324000773 | hop=0 verdict=sufficient evidence=2 | generate tokens=1197+273 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=1470"
   },
   {
    "question_id": "Q-023",
@@ -2070,23 +2097,23 @@
    "n_hops": 0,
    "n_steps": 1,
    "n_llm_calls": 2,
-   "prompt_tokens": 2088,
-   "completion_tokens": 235,
-   "judge_tokens": 1267,
-   "latency_s": 6.507,
+   "prompt_tokens": 2193,
+   "completion_tokens": 208,
+   "judge_tokens": 1246,
+   "latency_s": 6.488,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 1113,
-     "completion_tokens": 185,
-     "latency_s": 5.072,
+     "prompt_tokens": 1240,
+     "completion_tokens": 163,
+     "latency_s": 5.133,
      "finish": "stop"
     },
     {
      "tag": "critic",
-     "prompt_tokens": 975,
-     "completion_tokens": 50,
-     "latency_s": 1.426,
+     "prompt_tokens": 953,
+     "completion_tokens": 45,
+     "latency_s": 1.346,
      "finish": "stop"
     }
    ],
@@ -2116,9 +2143,7 @@
    ],
    "calc_mismatch": false,
    "calc_reasons": [
-    "amount: 답변 1,102,000,000,000원 vs 재계산 443,500,000,000",
-    "amount: 답변 1,102,000,000,000원 vs 재계산 905,200,000,000",
-    "amount: 답변 1,102,000,000,000원 vs 재계산 912,000,000,000"
+    "amount: 답변 1,020억원 vs 재계산 443,500,000,000"
    ],
    "data_limit": {
     "withheld": [],
@@ -2127,8 +2152,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "한화오션의 2023년 12월 잠수함 1척 공급계약 관련 정정 내역을 시간순으로 정리하면 다음과 같습니다:\n\n1. **최초 공시**: 2023년 12월 22일에 최초로 공시가 이루어졌으며, 이때 계약 금액은 **1,102,000,000,000원**(11,020억 원)이었습니다.\n2. **정정 과정에서의 변화**: 본 건에 대한 추가적인 정정 공시는 확인되지 않습니다. 따라서 최초 공시 이후 계약 금액에는 변동이 없었을 것으로 추정됩니다.\n\n따라서, 2023년 12월에 공시한 잠수함 1척 공급계약의 경우, 정정 과정에서 계약 금액이 변경되지 않았습니다.\n\n(근거: 단일판매ㆍ공급계약체결, 2023-12-22, 20231222800809)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — evidence_gap: 정정·해지 결과값을 물었으나 답이 근거 부족을 자백했다 ('확인되지 않'); stale_value: 근거에 최신본이 있는데 답이 대체본 값 11,020, 1,102,000,000,000 을 썼다)",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한화오션\" period=ym:202312 top_k=5 q=\"한화오션 2023 12 월에 공시한 잠수함 이후 여러 차례 정정됐다 정정 과정 어떻게 바뀌었는지 시간순\" n=5 top_score=34.286 ids=exchange_20231222800809,exchange_20231229800466,exchange_20231222800421,exchange_20231211800451,exchange_20231221800398 | hop=0 verdict=sufficient evidence=5 | generate tokens=1113+185 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제공된 근거에 기반하여 작성되었으며, 해당 내용에 대해 정확한 접수번호 및 날짜 정보를 포함하고 있습니다. | verify calc_checked=amount complete_checked=evidence_gap,stale_value ok=False kinds=evidence_gap,stale_value | budget steps=1 hops=0 llm=2 tokens=2323"
+   "answer": "한화오션이 2023년 12월에 공시한 잠수함 1척 공급계약의 정정 과정은 다음과 같습니다.\n\n1. 최초 공시 (2023-12-22): \n   - 계약금액: 1,102,000,000,000원 (1조 1,020억원)\n\n이후 추가적인 정정 공시가 없는 것으로 확인됩니다. 따라서, 최초 공시 이후 계약금액 변동이 없었습니다.\n\n따라서, 한화오션의 잠수함 1척 공급계약은 최초 공시 이후 변동 없이 유지되었습니다.\n\n(근거: [단일판매ㆍ공급계약체결] 한화오션 — 잠수함 1척, 2023-12-22, 20231222800809)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — amount: 답변 1,020억원 vs 재계산 1,013,700,000,000 (10^-1 배 자릿수 오류); stale_value: 근거에 최신본이 있는데 답이 대체본 값 1,102,000,000,000 을 썼다)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한화오션\" period=ym:202312 top_k=5 q=\"한화오션 2023 12 월에 공시한 잠수함 이후 여러 차례 정정됐다 정정 과정 어떻게 바뀌었는지 시간순\" n=5 top_score=34.013 ids=exchange_20231222800809,exchange_20231229800466,exchange_20231222800421,exchange_20231211800451,exchange_20231221800398 | hop=0 verdict=sufficient evidence=5 | generate tokens=1240+163 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제공된 근거에 기반하여 작성되었으며, 해당 공시 내용을 정확하게 반영하고 있습니다. | verify calc_checked=amount complete_checked=evidence_gap,stale_value ok=False kinds=calculation,stale_value | budget steps=1 hops=0 llm=2 tokens=2401"
   },
   {
    "question_id": "Q-024",
@@ -2169,7 +2194,7 @@
    "prompt_tokens": 3094,
    "completion_tokens": 268,
    "judge_tokens": 1757,
-   "latency_s": 9.018,
+   "latency_s": 0.011,
    "calls": [
     {
      "tag": "answer",
@@ -2225,7 +2250,7 @@
     "blocking": false
    },
    "answer": "한전기술이 2024년에 공시한 EUR Rev.E 인증 관련 APR1000 설계용역 계약 금액 변화를 다음과 같이 정리할 수 있습니다.\n\n1. 최초 공시 (2024-05-31): 53,618,694,910원 (536억원)\n2. 첫 번째 수정 공시 (2024-07-03): 53,579,286,750원 (536억원)\n\n두 번의 공시 모두 계약 금액이 소폭 감소하였으나 여전히 536억원의 규모를 유지하고 있습니다.\n\n따라서, 한전기술의 EUR Rev.E 인증 관련 APR1000 설계용역 계약 금액 변화는 아래와 같습니다.\n- 초기 금액: 53,618,694,910원 (536억원)\n- 변경 후 금액: 53,579,286,750원 (536억원)\n\n이는 총 **39,312,640원**(약 0.073%)의 감소를 나타냅니다.\n\n(근거: 공급계약 체결 보고서들, 각 2024년 5월 31일과 7월 3일 기준)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — share: 답변 0.073% vs 재계산 12)",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한전기술\" period=ym:202405 top_k=5 q=\"한전기술 2024 월에 공시한 EUR Rev 인증 관련 APR 1000 설계용역 계약 차례 공시됐다 어떻게 변해 왔는지\" n=1 top_score=53.331 ids=exchange_20240531800927 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"한전기술\" period=year:2024 top_k=8 q=\"한전기술 2024 월에 공시한 EUR Rev 인증 관련 APR 1000 설계용역 계약 차례 공시됐다 어떻게 변해 왔는지\" n=8 top_score=53.331 ids=exchange_20240531800927,exchange_20240703800584,exchange_20241202800420,exchange_20241212800740,exchange_20241223800452,exchange_20241223800623,exchange_20240730800209,exchange_20240415800074 | hop=1 verdict=sufficient evidence=8 | generate tokens=1596+223 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 데이터는 제공된 근거에서 확인할 수 있으며, 정확한 계산과 함께 제시되었습니다. | verify calc_checked=amount,share complete_checked=- ok=False kinds=calculation | budget steps=2 hops=1 llm=2 tokens=3362"
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한전기술\" period=ym:202405 top_k=5 q=\"한전기술 2024 월에 공시한 EUR Rev 인증 관련 APR 1000 설계용역 계약 차례 공시됐다 어떻게 변해 왔는지\" n=1 top_score=52.887 ids=exchange_20240531800927 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"한전기술\" period=year:2024 top_k=8 q=\"한전기술 2024 월에 공시한 EUR Rev 인증 관련 APR 1000 설계용역 계약 차례 공시됐다 어떻게 변해 왔는지\" n=8 top_score=52.887 ids=exchange_20240531800927,exchange_20240703800584,exchange_20241202800420,exchange_20241212800740,exchange_20241223800452,exchange_20241223800623,exchange_20240730800209,exchange_20240415800074 | hop=1 verdict=sufficient evidence=8 | generate tokens=1596+223 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 데이터는 제공된 근거에서 확인할 수 있으며, 정확한 계산과 함께 제시되었습니다. | verify calc_checked=amount,share complete_checked=- ok=False kinds=calculation | budget steps=2 hops=1 llm=2 tokens=3362"
   },
   {
    "question_id": "Q-025",
@@ -2246,10 +2271,10 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
-   "critic_supported": true,
+   "critic_supported": null,
    "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": null,
-   "has_citation": false,
+   "has_citation": true,
    "route": "closed_lookup",
    "route_group": "exchange",
    "route_corps": [
@@ -2257,24 +2282,17 @@
    ],
    "n_hops": 0,
    "n_steps": 1,
-   "n_llm_calls": 2,
-   "prompt_tokens": 1366,
-   "completion_tokens": 196,
+   "n_llm_calls": 1,
+   "prompt_tokens": 860,
+   "completion_tokens": 89,
    "judge_tokens": 0,
    "latency_s": 0.006,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 755,
-     "completion_tokens": 152,
-     "latency_s": 3.661,
-     "finish": "stop"
-    },
-    {
-     "tag": "critic",
-     "prompt_tokens": 611,
-     "completion_tokens": 44,
-     "latency_s": 1.482,
+     "prompt_tokens": 860,
+     "completion_tokens": 89,
+     "latency_s": 2.316,
      "finish": "stop"
     }
    ],
@@ -2306,8 +2324,8 @@
     "asks_value": false,
     "blocking": false
    },
-   "answer": "네, 삼성전자는 2025년 7월 28일 최초 공시한 반도체 위탁생산 공급계약에 대해 이후 정정공시를 했습니다. \n\n정정공시의 내용은 다음과 같습니다.\n- 계약상대가 '글로벌 대형기업'에서 '테슬라(Tesla, Inc.)'로 변경되었습니다.\n- 기타 사항은 동일합니다.\n\n(근거: [기재정정] [공급계약 체결] 삼성전자 – 단일판매ㆍ공급계약체결 — 계약상대방의 영업비밀 보호 요청에 따라 체결계약명, 주요 계약조건은 유보기한일의 다음 영업일에 공개될 예정임, 2025-07-31, 20250731800028)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성전자\" period=ym:202507 top_k=5 q=\"삼성전자 2025 28 공시한 반도체 위탁생산 이후 정정공시 있었는\" n=2 top_score=48.265 ids=exchange_20250728800035,exchange_20250731800028 | hop=0 verdict=sufficient evidence=2 | generate tokens=755+152 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1562"
+   "answer": "네, 삼성전자는 2025년 7월 28일에 최초 공시한 반도체 위탁생산 공급계약에 대해 2025년 7월 31일 자로 정정공시를 하였습니다. \n\n(근거: [단일판매ㆍ공급계약 체결], [기재정정] [공급계약 체결] 삼성전자, 접수번호 20250728800035 및 20250731800028)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성전자\" period=ym:202507 top_k=5 q=\"삼성전자 2025 28 공시한 반도체 위탁생산 이후 정정공시 있었는\" n=2 top_score=47.154 ids=exchange_20250728800035,exchange_20250731800028 | hop=0 verdict=sufficient evidence=2 | generate tokens=860+89 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=949"
   },
   {
    "question_id": "Q-026",
@@ -2343,7 +2361,7 @@
    "prompt_tokens": 946,
    "completion_tokens": 122,
    "judge_tokens": 0,
-   "latency_s": 0.007,
+   "latency_s": 0.006,
    "calls": [
     {
      "tag": "answer",
@@ -2389,7 +2407,7 @@
     "blocking": false
    },
    "answer": "공시된 내용에 따르면, HD현대일렉트릭이 2023년 1월 31일에 공시한 2500kVA 배전변압기 등 3,500대 공급계약에 대한 정정공시는 없었습니다. \n(근거: 단일판매ㆍ공급계약체결, 2023-01-31, 20230131800162)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202301 top_k=5 q=\"HD 현대일렉트릭 2023 31 공시한 2500 kVA 배전변압기 3,500 이후 정정공시 있었는\" n=1 top_score=75.708 ids=exchange_20230131800162 | hop=0 verdict=sufficient evidence=1 | generate tokens=588+80 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제공된 근거를 바탕으로 하며, 필요한 정보를 정확하게 인용하고 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1068"
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202301 top_k=5 q=\"HD 현대일렉트릭 2023 31 공시한 2500 kVA 배전변압기 3,500 이후 정정공시 있었는\" n=1 top_score=75.078 ids=exchange_20230131800162 | hop=0 verdict=sufficient evidence=1 | generate tokens=588+80 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제공된 근거를 바탕으로 하며, 필요한 정보를 정확하게 인용하고 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1068"
   },
   {
    "question_id": "Q-028",
@@ -2484,13 +2502,13 @@
    ],
    "answerable": true,
    "answer_form": "boolean",
-   "correct": true,
+   "correct": false,
    "scored_by": "boolean",
    "judge": null,
-   "first_failure": null,
-   "root_cause": "",
-   "failure_why": "correct",
-   "critic_supported": true,
+   "first_failure": "RETRIEVAL",
+   "root_cause": "CHAIN_NOT_TRAVERSED",
+   "failure_why": "골든 1/2 건이 어떤 hop 후보에도 없다: ['20241113000148']",
+   "critic_supported": null,
    "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": null,
    "has_citation": true,
@@ -2501,24 +2519,17 @@
    ],
    "n_hops": 0,
    "n_steps": 1,
-   "n_llm_calls": 2,
-   "prompt_tokens": 3431,
-   "completion_tokens": 150,
+   "n_llm_calls": 1,
+   "prompt_tokens": 1955,
+   "completion_tokens": 91,
    "judge_tokens": 0,
-   "latency_s": 4.405,
+   "latency_s": 2.471,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 1817,
-     "completion_tokens": 96,
-     "latency_s": 2.625,
-     "finish": "stop"
-    },
-    {
-     "tag": "critic",
-     "prompt_tokens": 1614,
-     "completion_tokens": 54,
-     "latency_s": 1.776,
+     "prompt_tokens": 1955,
+     "completion_tokens": 91,
+     "latency_s": 2.467,
      "finish": "stop"
     }
    ],
@@ -2551,8 +2562,8 @@
     "asks_value": false,
     "blocking": false
    },
-   "answer": "공시 내용에 따르면, 고려아연의 2024년 10월 30일 이사회 결의에 따른 일반 공모 방식의 유상증자가 철회되었다는 정보는 없습니다. 따라서 해당 유상증자는 아직 유효하다고 볼 수 있습니다.\n(근거: [유상증자결정] 고려아연 – 주요사항보고서(유상증자결정), 2024-10-30, 20241030000098)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"고려아연\" period=ym:202410 top_k=5 q=\"고려아연 2024 10 30 이사회 결의한 일반공모 유상증자 이후 철회되었는\" n=5 top_score=37.406 ids=major_20241030000098,major_20241002000155,major_20241011000053,major_20241002000553,major_20241004000001 | hop=0 verdict=sufficient evidence=5 | generate tokens=1817+96 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 유상증자의 유효성을 언급하며, 이를 뒷받침하기 위해 공시의 세부 사항을 정확하게 인용하고 있다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=3581"
+   "answer": "아니요, 고려아연은 2024년 10월 30일 이사회에서 결의한 일반공모 유상증자를 철회하지 않았습니다. 해당 정보는 최초 공시된 내용을 통해 확인할 수 있습니다.\n\n(근거: [유상증자결정] 고려아연 – 주요사항보고서(유상증자결정), 2024-10-30, 접수번호 20241030000098)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"고려아연\" period=ym:202410 top_k=5 q=\"고려아연 2024 10 30 이사회 결의한 일반공모 유상증자 이후 철회되었는\" n=5 top_score=37.406 ids=major_20241030000098,major_20241002000155,major_20241011000053,major_20241002000553,major_20241004000001 | hop=0 verdict=sufficient evidence=5 | generate tokens=1955+91 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=2046"
   },
   {
    "question_id": "Q-031",
@@ -2590,23 +2601,23 @@
    "n_hops": 0,
    "n_steps": 1,
    "n_llm_calls": 2,
-   "prompt_tokens": 2072,
-   "completion_tokens": 153,
-   "judge_tokens": 1042,
-   "latency_s": 0.007,
+   "prompt_tokens": 2209,
+   "completion_tokens": 156,
+   "judge_tokens": 1045,
+   "latency_s": 0.006,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 1140,
-     "completion_tokens": 106,
-     "latency_s": 2.788,
+     "prompt_tokens": 1274,
+     "completion_tokens": 109,
+     "latency_s": 2.805,
      "finish": "stop"
     },
     {
      "tag": "critic",
-     "prompt_tokens": 932,
+     "prompt_tokens": 935,
      "completion_tokens": 47,
-     "latency_s": 1.481,
+     "latency_s": 1.321,
      "finish": "stop"
     }
    ],
@@ -2639,8 +2650,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "LG에너지솔루션이 2025년 12월 17일에 공시한 전기차 배터리 공급계약 해지의 해지 금액은 **9,603,075,000,000원**(96,031억 원)입니다.\n\n- (근거: [공급계약 해지] LG에너지솔루션 – 단일판매ㆍ공급계약 해지 — 전기차 배터리 공급계약, 2025-12-17, 20251217800800)\n\n따라서, 질문에 대한 답변으로 해지 금액을 제시할 수 있습니다.",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG에너지솔루션\" period=ym:202512 top_k=5 q=\"LG 에너지솔루션 2025 12 17 공시한 전기차 배터리 해지 금액 얼마인지 근거 함께\" n=5 top_score=65.138 ids=exchange_20251217800800,exchange_20251226800706,exchange_20251217800853,exchange_20251208800031,exchange_20251226800767 | hop=0 verdict=sufficient evidence=5 | generate tokens=1140+106 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 해지 금액과 관련된 정보가 정확하게 포함되어 있으며, 해당 정보는 제공된 근거에서 확인할 수 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2225"
+   "answer": "LG에너지솔루션이 2025년 12월 17일에 공시한 전기차 배터리 공급계약 해지의 해지 금액은 **9,603,075,000,000원**(9조 6,031억원)입니다.\n\n- **근거**: [공급계약 해지] LG에너지솔루션 – 단일판매ㆍ공급계약 해지 — 전기차 배터리 공급계약, 공시일 2025-12-17 (접수번호 20251217800800)\n\n따라서, 질문에 대한 답변은 위와 같습니다.",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG에너지솔루션\" period=ym:202512 top_k=5 q=\"LG 에너지솔루션 2025 12 17 공시한 전기차 배터리 해지 금액 얼마인지 근거 함께\" n=5 top_score=64.580 ids=exchange_20251217800800,exchange_20251226800706,exchange_20251217800853,exchange_20251208800031,exchange_20251226800767 | hop=0 verdict=sufficient evidence=5 | generate tokens=1274+109 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 해지 금액과 관련된 정보가 정확하게 포함되어 있으며, 해당 정보는 제공된 근거에서 확인할 수 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2365"
   },
   {
    "question_id": "Q-033",
@@ -2666,7 +2677,7 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
-   "critic_supported": null,
+   "critic_supported": true,
    "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": true,
@@ -2677,17 +2688,24 @@
    ],
    "n_hops": 0,
    "n_steps": 1,
-   "n_llm_calls": 1,
-   "prompt_tokens": 887,
-   "completion_tokens": 139,
-   "judge_tokens": 837,
+   "n_llm_calls": 2,
+   "prompt_tokens": 1713,
+   "completion_tokens": 174,
+   "judge_tokens": 831,
    "latency_s": 0.006,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 887,
-     "completion_tokens": 139,
-     "latency_s": 3.447,
+     "prompt_tokens": 1013,
+     "completion_tokens": 133,
+     "latency_s": 3.307,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 700,
+     "completion_tokens": 41,
+     "latency_s": 1.199,
      "finish": "stop"
     }
    ],
@@ -2720,8 +2738,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "삼성E&A가 2024년 11월에 공시한 알제리 Hassi Messaoud 정유 프로젝트 계약 해지에 대한 정보는 다음과 같습니다.\n\n1. **해지 금액**: 1,937,231,667,470원 (19,372억 원)\n2. **계약 상대방**: SONATRACH (알제리 국영석유회사)\n3. **원래 계약 기간**: 2020-02-25부터 2024-12-21까지 (총 4년 9개월)\n\n(근거: 공급계약 해지 보고서, 2024-11-28, 접수번호 20241128800504)",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성E&A\" period=ym:202411 top_k=5 q=\"삼성 2024 11 월에 공시한 알제리 Hassi Messaoud 정유 프로젝트 계약 해지 금액 원래\" n=3 top_score=73.670 ids=exchange_20241128800504,exchange_20241115800040,exchange_20241129800158 | hop=0 verdict=sufficient evidence=3 | generate tokens=887+139 | verify calc_checked=amount,period complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=1026"
+   "answer": "삼성E&A가 2024년 11월에 공시한 알제리 Hassi Messaoud 정유 프로젝트 계약 해지에 대한 정보는 다음과 같습니다.\n\n- **해지 금액**: 1,937,231,667,470원 (1조 9,372억원)\n- **계약 상대방**: SONATRACH (알제리 국영석유회사)\n- **원래 계약 기간**: 2020-02-25부터 2024-12-21까지 (4년 9개월)\n\n(근거: 공급계약 해지, 2024-11-28, 20241128800504)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성E&A\" period=ym:202411 top_k=5 q=\"삼성 2024 11 월에 공시한 알제리 Hassi Messaoud 정유 프로젝트 계약 해지 금액 원래\" n=3 top_score=73.107 ids=exchange_20241128800504,exchange_20241115800040,exchange_20241129800158 | hop=0 verdict=sufficient evidence=3 | generate tokens=1013+133 | 근거 표기 누락 — critic 호출 | critic supported=True reason=제공된 답변은 모두 제공된 근거에 기반하여 작성되었습니다. | verify calc_checked=amount,period complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1887"
   },
   {
    "question_id": "Q-034",
@@ -2759,23 +2777,23 @@
    "n_hops": 0,
    "n_steps": 1,
    "n_llm_calls": 2,
-   "prompt_tokens": 2043,
-   "completion_tokens": 274,
-   "judge_tokens": 1172,
+   "prompt_tokens": 1984,
+   "completion_tokens": 236,
+   "judge_tokens": 1124,
    "latency_s": 0.006,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 1065,
-     "completion_tokens": 228,
-     "latency_s": 5.329,
+     "prompt_tokens": 1055,
+     "completion_tokens": 189,
+     "latency_s": 4.5,
      "finish": "stop"
     },
     {
      "tag": "critic",
-     "prompt_tokens": 978,
-     "completion_tokens": 46,
-     "latency_s": 1.39,
+     "prompt_tokens": 929,
+     "completion_tokens": 47,
+     "latency_s": 1.374,
      "finish": "stop"
     }
    ],
@@ -2816,8 +2834,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "두산퓨얼셀이 2025년 3~4월에 공시한 계약 해지 3건은 다음과 같습니다:\n\n1. **2025년 3월 31일 공시**\n   - 계약 상대방: 한국전력기술㈜, 금호건설㈜, LS일렉트릭㈜\n   - 해지 금액: 398,800,000,000원 (3,988억원)\n\n2. **2025년 4월 2일 공시 (첫 번째)**\n   - 계약 상대방: ㈜태영건설\n   - 해지 금액: 72,200,000,000원 (722억원)\n\n3. **2025년 4월 2일 공시 (두 번째)**\n   - 계약 상대방: ZKRG Smart Energy Technology (Foshan) Co., Ltd.\n   - 해지 금액: 346,900,000,000원 (3,469억원)\n\n따라서 세 건의 해지 금액 합계는 **778,100,000,000원**(총 7,781억원)입니다.\n\n(근거: 각 공시별 상세내역 참조)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 정보는 제공된 근거 내에서 확인할 수 있으며, 추가적인 허위 정보 없이 정확하게 요약되었습니다.)",
-   "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산퓨얼셀\" period=year:2025 top_k=5 q=\"두산퓨얼셀 2025 월에 공시한 계약 해지 건의 금액 정리하고 합계\" n=5 top_score=28.633 ids=exchange_20250402800768,exchange_20250331802527,exchange_20250402800874,exchange_20250424800733,exchange_20250903800038 | hop=0 verdict=sufficient evidence=5 | generate tokens=1065+228 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보는 제공된 근거 내에서 확인할 수 있으며, 추가적인 허위 정보 없이 정확하게 요약되었습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2317"
+   "answer": "두산퓨얼셀이 2025년 3~4월에 공시한 계약 해지 3건은 다음과 같습니다:\n\n1. **㈜태영건설**\n   - 해지 금액: 72,200,000,000원 (722억 원)\n\n2. **한국전력기술㈜, 금호건설㈜, LS일렉트릭㈜**\n   - 해지 금액: 398,800,000,000원 (3,988억 원)\n\n3. **ZKRG Smart Energy Technology (Foshan) Co., Ltd. (ZKRG)**\n   - 해지 금액: 346,900,000,000원 (3,469억 원)\n\n따라서 세 건의 해지 금액 합계는 **757,900,000,000원**(7,579억 원)입니다.\n\n(근거: 각 공급계약 해지 보고서들, 2025년 3~4월 기준)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 계약 해지 정보가 제공된 근거에서 확인할 수 있으며, 정확한 금액과 상대방도 명시되어 있습니다.)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산퓨얼셀\" period=year:2025 top_k=5 q=\"두산퓨얼셀 2025 월에 공시한 계약 해지 건의 금액 정리하고 합계\" n=5 top_score=28.441 ids=exchange_20250402800768,exchange_20250331802527,exchange_20250402800874,exchange_20250424800733,exchange_20250903800038 | hop=0 verdict=sufficient evidence=5 | generate tokens=1055+189 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 계약 해지 정보가 제공된 근거에서 확인할 수 있으며, 정확한 금액과 상대방도 명시되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2220"
   },
   {
    "question_id": "Q-035",
@@ -2858,7 +2876,7 @@
    "prompt_tokens": 1519,
    "completion_tokens": 286,
    "judge_tokens": 904,
-   "latency_s": 7.034,
+   "latency_s": 0.008,
    "calls": [
     {
      "tag": "answer",
@@ -2911,7 +2929,7 @@
     "blocking": false
    },
    "answer": "LG에너지솔루션이 2024년 10월에 공시한 Ford Motor Company와의 전기차 배터리 공급계약에 대한 정정 및 해지 이력은 다음과 같습니다.\n\n1. 최초 공시 (2024-10-15, 접수번호 20241015800261):\n   - 계약 상대방: Ford Motor Company\n   - 계약 기간: 2026-10-01부터 2030-12-31까지 (총 4년 2개월)\n\n2. 정정 공시 (2024-10-15, 접수번호 20241015800258):\n   - 계약 상대방: Ford Motor Company\n   - 계약 기간: 2027-01-01부터 2032-12-31까지 (총 5년 11개월)\n   - 이는 기존 계약을 수정하여 기간이 연장되고 새로운 일정이 추가된 것을 의미합니다.\n\n따라서, 처음 공시된 계약 기간은 변경되어 총 5년 11개월 동안 지속되는 것으로 최종 확정되었습니다. 현재까지 공시된 정보에는 계약 해지에 관한 내용은 없습니다.\n\n(근거: 각 공시 보고서, 2024-10-15 기준)",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG에너지솔루션\" period=ym:202410 top_k=5 q=\"LG 에너지솔루션 2024 10 월에 공시한 Ford Motor Company 와의 전기차 배터리 이후 어떻게 처리되었는지 정정 해지 이력 함께\" n=3 top_score=70.376 ids=exchange_20241015800261,exchange_20241015800258,exchange_20241008800163 | hop=0 verdict=sufficient evidence=3 | generate tokens=799+239 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거에서 확인할 수 있으며, 접수번호를 포함한 정확한 공시 정보를 바탕으로 답변을 구성하였습니다. | verify calc_checked=period complete_checked=evidence_gap ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1805"
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG에너지솔루션\" period=ym:202410 top_k=5 q=\"LG 에너지솔루션 2024 10 월에 공시한 Ford Motor Company 와의 전기차 배터리 이후 어떻게 처리되었는지 정정 해지 이력 함께\" n=3 top_score=69.757 ids=exchange_20241015800261,exchange_20241015800258,exchange_20241008800163 | hop=0 verdict=sufficient evidence=3 | generate tokens=799+239 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거에서 확인할 수 있으며, 접수번호를 포함한 정확한 공시 정보를 바탕으로 답변을 구성하였습니다. | verify calc_checked=period complete_checked=evidence_gap ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1805"
   },
   {
    "question_id": "Q-037",
@@ -3189,7 +3207,7 @@
     "blocking": false
    },
    "answer": "공시에서 대우건설의 2026년 하반기 신규 수주 전망치에 대한 정보는 확인되지 않습니다.\n(근거: 없음)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 답변이 주어진 근거와 관련이 없으며, 해당 내용에 대해 확인할 수 있는 정보가 없습니다.)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"대우건설\" period=year:2026 top_k=5 q=\"대우건설 2026 하반기 신규 수주 전망치 얼마인\" n=5 top_score=12.733 ids=exchange_20260119800228,exchange_20260202800101,exchange_20260316800085,exchange_20260128800877,exchange_20260206800121 | hop=0 verdict=sufficient evidence=5 | generate tokens=922+29 | 근거 표기 누락 — critic 호출 | critic supported=False reason=답변이 주어진 근거와 관련이 없으며, 해당 내용에 대해 확인할 수 있는 정보가 없습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1661"
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"대우건설\" period=year:2026 top_k=5 q=\"대우건설 2026 하반기 신규 수주 전망치 얼마인\" n=5 top_score=12.619 ids=exchange_20260119800228,exchange_20260202800101,exchange_20260316800085,exchange_20260128800877,exchange_20260206800121 | hop=0 verdict=sufficient evidence=5 | generate tokens=922+29 | 근거 표기 누락 — critic 호출 | critic supported=False reason=답변이 주어진 근거와 관련이 없으며, 해당 내용에 대해 확인할 수 있는 정보가 없습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1661"
   },
   {
    "question_id": "Q-042",
@@ -3278,7 +3296,7 @@
    "prompt_tokens": 3192,
    "completion_tokens": 83,
    "judge_tokens": 0,
-   "latency_s": 0.398,
+   "latency_s": 0.431,
    "calls": [
     {
      "tag": "answer",
@@ -3425,7 +3443,7 @@
    "prompt_tokens": 6143,
    "completion_tokens": 229,
    "judge_tokens": 3769,
-   "latency_s": 0.045,
+   "latency_s": 0.046,
    "calls": [
     {
      "tag": "answer",
@@ -3742,7 +3760,7 @@
    "prompt_tokens": 6306,
    "completion_tokens": 211,
    "judge_tokens": 3547,
-   "latency_s": 0.06,
+   "latency_s": 0.062,
    "calls": [
     {
      "tag": "answer",
@@ -3822,7 +3840,7 @@
    "prompt_tokens": 10365,
    "completion_tokens": 203,
    "judge_tokens": 3615,
-   "latency_s": 0.03,
+   "latency_s": 0.031,
    "calls": [
     {
      "tag": "answer",
@@ -3900,7 +3918,7 @@
    "prompt_tokens": 5483,
    "completion_tokens": 177,
    "judge_tokens": 0,
-   "latency_s": 0.062,
+   "latency_s": 0.063,
    "calls": [
     {
      "tag": "answer",
@@ -3971,7 +3989,7 @@
    "prompt_tokens": 7772,
    "completion_tokens": 132,
    "judge_tokens": 0,
-   "latency_s": 0.06,
+   "latency_s": 0.061,
    "calls": [
     {
      "tag": "answer",
@@ -4134,7 +4152,7 @@
    "prompt_tokens": 4557,
    "completion_tokens": 242,
    "judge_tokens": 3682,
-   "latency_s": 0.019,
+   "latency_s": 0.02,
    "calls": [
     {
      "tag": "answer",
@@ -4206,7 +4224,7 @@
    "prompt_tokens": 899,
    "completion_tokens": 117,
    "judge_tokens": 0,
-   "latency_s": 0.006,
+   "latency_s": 0.005,
    "calls": [
     {
      "tag": "answer",
@@ -4253,7 +4271,7 @@
     "blocking": false
    },
    "answer": "LG유플러스가 2025년 4월에 공시한 파주 AIDC 신규 구축의 투자금액은 **615,600,000,000원**(6,156억원)입니다. \n(근거: 신규시설투자등, 2025-04-29, 20250429800933)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG유플러스\" period=ym:202504 top_k=5 q=\"LG 유플러스 2025 월에 공시한 파주 AIDC 신규 구축 투자금액 얼마인\" n=1 top_score=71.354 ids=exchange_20250429800933 | hop=0 verdict=sufficient evidence=1 | generate tokens=561+73 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1016"
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG유플러스\" period=ym:202504 top_k=5 q=\"LG 유플러스 2025 월에 공시한 파주 AIDC 신규 구축 투자금액 얼마인\" n=1 top_score=70.829 ids=exchange_20250429800933 | hop=0 verdict=sufficient evidence=1 | generate tokens=561+73 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1016"
   },
   {
    "question_id": "Q-072",
@@ -4289,7 +4307,7 @@
    "prompt_tokens": 1021,
    "completion_tokens": 123,
    "judge_tokens": 0,
-   "latency_s": 0.003,
+   "latency_s": 0.004,
    "calls": [
     {
      "tag": "answer",
@@ -4418,7 +4436,7 @@
     "blocking": false
    },
    "answer": "현대오토에버가 2025년 7월에 공시한 hCloud 서비스 제공 계약의 계약기간은 **4년 11개월**입니다. \n(근거: 단일판매ㆍ공급계약체결, 2025-07-31, 20250731800497)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대오토에버\" period=ym:202507 top_k=5 q=\"현대오토에버 2025 월에 공시한 hCloud 서비스 제공 계약 년인\" n=1 top_score=62.520 ids=exchange_20250731800497 | hop=0 verdict=sufficient evidence=1 | generate tokens=571+63 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=period complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1017"
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대오토에버\" period=ym:202507 top_k=5 q=\"현대오토에버 2025 월에 공시한 hCloud 서비스 제공 계약 년인\" n=1 top_score=61.944 ids=exchange_20250731800497 | hop=0 verdict=sufficient evidence=1 | generate tokens=571+63 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=period complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1017"
   },
   {
    "question_id": "Q-074",
@@ -4454,7 +4472,7 @@
    "prompt_tokens": 6788,
    "completion_tokens": 195,
    "judge_tokens": 0,
-   "latency_s": 0.038,
+   "latency_s": 0.039,
    "calls": [
     {
      "tag": "answer",
@@ -4517,8 +4535,8 @@
    "first_failure": "RETRIEVAL",
    "root_cause": "CHAIN_NOT_TRAVERSED",
    "failure_why": "골든 1/2 건이 어떤 hop 후보에도 없다: ['20260327903037']",
-   "critic_supported": true,
-   "critic_passed_wrong_answer": true,
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": false,
    "has_citation": true,
    "route": "closed_lookup",
@@ -4528,24 +4546,17 @@
    ],
    "n_hops": 0,
    "n_steps": 1,
-   "n_llm_calls": 2,
-   "prompt_tokens": 1124,
-   "completion_tokens": 139,
+   "n_llm_calls": 1,
+   "prompt_tokens": 662,
+   "completion_tokens": 116,
    "judge_tokens": 0,
-   "latency_s": 3.745,
+   "latency_s": 2.813,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 672,
-     "completion_tokens": 86,
-     "latency_s": 2.2,
-     "finish": "stop"
-    },
-    {
-     "tag": "critic",
-     "prompt_tokens": 452,
-     "completion_tokens": 53,
-     "latency_s": 1.527,
+     "prompt_tokens": 662,
+     "completion_tokens": 116,
+     "latency_s": 2.805,
      "finish": "stop"
     }
    ],
@@ -4581,8 +4592,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "레인보우로보틱스의 2024년 4월 신규 시설 투자에 대한 최종 정정본의 투자 금액은 27,850,000,000원으로 변경되지 않았습니다. 이는 최초 공시 내용과 동일하며, 추가적인 정정 사항이 없는 것으로 확인됩니다.\n\n(근거: 신규시설투자등, 2024-04-30, 20240430900455)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"레인보우로보틱스\" period=ym:202404 top_k=5 q=\"레인보우로보틱스 2024 월에 공시한 이후 차례 정정됐다 최종 정정본 기준 투자금액 얼마인\" n=2 top_score=55.048 ids=exchange_20240430900455,exchange_20240426900872 | hop=0 verdict=sufficient evidence=2 | generate tokens=672+86 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 신규 시설투자에 관한 정보가 정확하게 반영되어 있으며, 접수번호를 포함한 근거 표기도 존재합니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1263"
+   "answer": "레인보우로보틱스의 2024년 4월 신규 시설 투자와 관련된 최종 정정본의 투자 금액은 27,850,000,000원으로 동일합니다. \n\n다만, 본 건과 관련하여 총 세 번의 정정이 있었으나, 최초 및 최종 공시 모두 투자 금액에는 변동이 없었습니다. 따라서 최종 정정본에서도 동일한 금액을 확인할 수 있습니다. \n(근거: 신규 시설투자 등, 정정 후, 2024-04-30, 접수번호 20240430900455)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"레인보우로보틱스\" period=ym:202404 top_k=5 q=\"레인보우로보틱스 2024 월에 공시한 이후 차례 정정됐다 최종 정정본 기준 투자금액 얼마인\" n=2 top_score=54.638 ids=exchange_20240430900455,exchange_20240426900872 | hop=0 verdict=sufficient evidence=2 | generate tokens=662+116 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=778"
   },
   {
    "question_id": "Q-076",
@@ -4597,16 +4608,16 @@
    ],
    "answerable": true,
    "answer_form": "number_won",
-   "correct": false,
+   "correct": true,
    "scored_by": "em:number_won",
    "judge": null,
-   "first_failure": "RETRIEVAL",
-   "root_cause": "MULTI_POINT_QUERY",
-   "failure_why": "골든 2/2 건이 어떤 hop 후보에도 없다: ['20240307000911', '20240312000909']",
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
    "critic_supported": null,
    "critic_passed_wrong_answer": false,
-   "gold_value_in_evidence": false,
-   "has_citation": false,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
    "route": "closed_lookup",
    "route_group": "periodic",
    "route_corps": [
@@ -4615,16 +4626,16 @@
    "n_hops": 0,
    "n_steps": 2,
    "n_llm_calls": 1,
-   "prompt_tokens": 4737,
-   "completion_tokens": 161,
+   "prompt_tokens": 5815,
+   "completion_tokens": 119,
    "judge_tokens": 0,
-   "latency_s": 0.051,
+   "latency_s": 0.046,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 4737,
-     "completion_tokens": 161,
-     "latency_s": 4.459,
+     "prompt_tokens": 5815,
+     "completion_tokens": 119,
+     "latency_s": 3.68,
      "finish": "stop"
     }
    ],
@@ -4632,10 +4643,19 @@
     "20240307000911",
     "20240312000909"
    ],
-   "golden_rank": {},
-   "golden_in_candidates": [],
-   "golden_in_evidence": [],
-   "golden_evidence_all": false,
+   "golden_rank": {
+    "20240307000911": 1,
+    "20240312000909": 2
+   },
+   "golden_in_candidates": [
+    "20240307000911",
+    "20240312000909"
+   ],
+   "golden_in_evidence": [
+    "20240307000911",
+    "20240312000909"
+   ],
+   "golden_evidence_all": true,
    "calc_checked": [],
    "calc_skipped": [],
    "calc_mismatch": false,
@@ -4647,8 +4667,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "기아 제80기 사업보고서의 연결재무제표 주석 '9. 유형자산 및 사용권자산'에서 전기 유형자산처분이익은 **28,571백만 원**입니다.\n\n정정 전에는 28,571백만 원이었던 것이 정정 후에는 동일한 금액으로 유지되었습니다. 이는 사업보고서 2024의 9-2. 사용권자산(연결) 섹션의 전기 부분을 통해 확인할 수 있습니다. (근거: [사업보고서 2024] 기아 – III. 재무에 관한 사항 > 3. 연결재무제표 주석 > 9-2. 사용권자산 (연결), 접수번호 20250313001390, 공시일 20250313)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"기아\" filters=base_year=2024,doc_subtype=annual path=\"III. 재무에 관한 사항 > 3. 연결재무제표 주석\" top_k=8 q=\"기아 80 사업보고서 2024 12 정정됐다 연결재무제표 주석 유형자산 사용권자산 전기 유형자산처분이익 정정 백만원 단위 얼마인\" n=8 top_score=69.705 ids=periodic_20250306000691,periodic_20250313001390,periodic_20250313001390,periodic_20250306000691,periodic_20250313001390,periodic_20250306000691,periodic_20250313001390,periodic_20250306000691 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"기아\" filters=base_year=2024,doc_subtype=annual path=\"정 정 신 고 (보고)\" top_k=8 q=\"기아 80 사업보고서 2024 12 정정됐다 연결재무제표 주석 유형자산 사용권자산 전기 유형자산처분이익 정정 백만원 단위 얼마인\" n=1 top_score=50.505 ids=periodic_20250313001390 | hop=4 verdict=sufficient evidence=4 | generate tokens=4737+161 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=4898"
+   "answer": "정정된 기아 제80기 사업보고서에 따르면, 연결재무제표 주석 '9. 유형자산 및 사용권자산'의 전기 유형자산처분이익은 **7,362백만원**입니다. \n(근거: [사업보고서 2023] 기아 – III. 재무에 관한 사항 > 3. 연결재무제표 주석 > 9. 유형자산 및 사용권자산 (연결) [2/2 조각], 접수번호 20240312000909, 공시일 20240312)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"기아\" filters=doc_subtype=annual path=\"III. 재무에 관한 사항 > 3. 연결재무제표 주석\" top_k=8 q=\"기아 80 사업보고서 2024 12 정정됐다 연결재무제표 주석 유형자산 사용권자산 전기 유형자산처분이익 정정 백만원 단위 얼마인\" n=8 top_score=74.332 ids=periodic_20240307000911,periodic_20240312000909,periodic_20240312000909,periodic_20240307000911,periodic_20260312001224,periodic_20250306000691,periodic_20250313001390,periodic_20250313001390 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"기아\" filters=doc_subtype=annual path=\"정 정 신 고 (보고)\" top_k=8 q=\"기아 80 사업보고서 2024 12 정정됐다 연결재무제표 주석 유형자산 사용권자산 전기 유형자산처분이익 정정 백만원 단위 얼마인\" n=2 top_score=115.619 ids=periodic_20240312000909,periodic_20250313001390 | hop=4 verdict=sufficient evidence=4 | generate tokens=5815+119 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=5934"
   },
   {
    "question_id": "Q-077",
@@ -4674,7 +4694,7 @@
    "first_failure": null,
    "root_cause": "",
    "failure_why": "correct",
-   "critic_supported": null,
+   "critic_supported": true,
    "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": true,
@@ -4685,17 +4705,24 @@
    ],
    "n_hops": 2,
    "n_steps": 3,
-   "n_llm_calls": 1,
-   "prompt_tokens": 785,
-   "completion_tokens": 75,
-   "judge_tokens": 639,
-   "latency_s": 0.009,
+   "n_llm_calls": 2,
+   "prompt_tokens": 1308,
+   "completion_tokens": 109,
+   "judge_tokens": 626,
+   "latency_s": 0.01,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 785,
-     "completion_tokens": 75,
-     "latency_s": 1.98,
+     "prompt_tokens": 774,
+     "completion_tokens": 73,
+     "latency_s": 1.966,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 534,
+     "completion_tokens": 36,
+     "latency_s": 1.145,
      "finish": "stop"
     }
    ],
@@ -4728,8 +4755,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "NC가 2024년 2월에 공시한 글로벌 RDI 센터(가칭) 건립 신규 시설 투자의 투자 금액은 **580,000,000,000원**(5,800억 원)입니다.\n\n(근거: 신규 시설투자 등, 2024-02-07, 접수번호 20240207801456)",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"NC\" period=ym:202402 top_k=5 q=\"NC 2024 월에 공시한 글로벌 RDI 센터 가칭 건립 투자금액 근거 함께\" n=1 top_score=66.388 ids=exchange_20240207801456 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"NC\" period=year:2024 top_k=8 q=\"NC 2024 월에 공시한 글로벌 RDI 센터 가칭 건립 투자금액 근거 함께\" n=1 top_score=66.388 ids=exchange_20240207801456 | hop=1 verdict=insufficient evidence=1 reason=few:1<2 | hop=2 strat=corp_only tool=search_chunks corp=\"NC\" period=none top_k=10 q=\"NC 월에 글로벌 RDI 센터 가칭 건립 투자금액 근거 함께\" n=3 top_score=63.835 ids=exchange_20240207801456,exchange_20230222800834,exchange_20250905800516 | hop=2 verdict=sufficient evidence=3 | generate tokens=785+75 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=3 hops=2 llm=1 tokens=860"
+   "answer": "NC가 2024년 2월에 공시한 글로벌 RDI 센터(가칭) 건립 신규 시설 투자의 투자 금액은 **580,000,000,000원**(5,800억 원)입니다.\n\n(근거: 신규 시설투자 등, 2024-02-07, 20240207801456)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"NC\" period=ym:202402 top_k=5 q=\"NC 2024 월에 공시한 글로벌 RDI 센터 가칭 건립 투자금액 근거 함께\" n=1 top_score=65.583 ids=exchange_20240207801456 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"NC\" period=year:2024 top_k=8 q=\"NC 2024 월에 공시한 글로벌 RDI 센터 가칭 건립 투자금액 근거 함께\" n=1 top_score=65.583 ids=exchange_20240207801456 | hop=1 verdict=insufficient evidence=1 reason=few:1<2 | hop=2 strat=corp_only tool=search_chunks corp=\"NC\" period=none top_k=10 q=\"NC 월에 글로벌 RDI 센터 가칭 건립 투자금액 근거 함께\" n=3 top_score=63.045 ids=exchange_20240207801456,exchange_20230222800834,exchange_20250905800516 | hop=2 verdict=sufficient evidence=3 | generate tokens=774+73 | 근거 표기 누락 — critic 호출 | critic supported=True reason=투자 금액과 관련된 정보가 정확하게 인용되었습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=3 hops=2 llm=2 tokens=1417"
   },
   {
    "question_id": "Q-078",
@@ -4770,7 +4797,7 @@
    "prompt_tokens": 997,
    "completion_tokens": 114,
    "judge_tokens": 881,
-   "latency_s": 0.01,
+   "latency_s": 0.009,
    "calls": [
     {
      "tag": "answer",
@@ -4887,7 +4914,7 @@
     "blocking": false
    },
    "answer": "한미반도체가 2024년 6월에 공시한 HBM 제조용 'DUAL TC BONDER GRIFFIN' 장비 공급계약의 정보는 다음과 같습니다.\n\n- 계약금액: **149,919,000,000원**(1,499억 원)\n- 최근 매출액 대비 비율: **94.28%**\n- 계약기간: **2024-06-07부터 2024-12-02까지**(0년 5개월)\n\n(근거: 단일판매ㆍ공급계약체결, 2024-06-07, 접수번호 20240607800056)",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한미반도체\" period=ym:202406 top_k=5 q=\"한미반도체 2024 월에 공시한 HBM 제조용 DUAL TC BONDER GRIFFIN 장비 대비 비율\" n=1 top_score=72.894 ids=exchange_20240607800056 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"한미반도체\" period=year:2024 top_k=8 q=\"한미반도체 2024 월에 공시한 HBM 제조용 DUAL TC BONDER GRIFFIN 장비 대비 비율\" n=4 top_score=72.894 ids=exchange_20240607800056,exchange_20240411800031,exchange_20240322800090,exchange_20240202800122 | hop=1 verdict=sufficient evidence=4 | generate tokens=1050+127 | verify calc_checked=amount,period,share complete_checked=- ok=True kinds=- | budget steps=2 hops=1 llm=1 tokens=1177"
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한미반도체\" period=ym:202406 top_k=5 q=\"한미반도체 2024 월에 공시한 HBM 제조용 DUAL TC BONDER GRIFFIN 장비 대비 비율\" n=1 top_score=72.244 ids=exchange_20240607800056 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"한미반도체\" period=year:2024 top_k=8 q=\"한미반도체 2024 월에 공시한 HBM 제조용 DUAL TC BONDER GRIFFIN 장비 대비 비율\" n=4 top_score=72.244 ids=exchange_20240607800056,exchange_20240411800031,exchange_20240322800090,exchange_20240202800122 | hop=1 verdict=sufficient evidence=4 | generate tokens=1050+127 | verify calc_checked=amount,period,share complete_checked=- ok=True kinds=- | budget steps=2 hops=1 llm=1 tokens=1177"
   },
   {
    "question_id": "Q-080",
@@ -5008,23 +5035,23 @@
    "n_hops": 0,
    "n_steps": 1,
    "n_llm_calls": 2,
-   "prompt_tokens": 2078,
-   "completion_tokens": 302,
-   "judge_tokens": 1253,
-   "latency_s": 0.008,
+   "prompt_tokens": 2067,
+   "completion_tokens": 293,
+   "judge_tokens": 1244,
+   "latency_s": 0.007,
    "calls": [
     {
      "tag": "answer",
      "prompt_tokens": 1069,
-     "completion_tokens": 258,
-     "latency_s": 6.066,
+     "completion_tokens": 247,
+     "latency_s": 5.784,
      "finish": "stop"
     },
     {
      "tag": "critic",
-     "prompt_tokens": 1009,
-     "completion_tokens": 44,
-     "latency_s": 1.28,
+     "prompt_tokens": 998,
+     "completion_tokens": 46,
+     "latency_s": 1.446,
      "finish": "stop"
     }
    ],
@@ -5067,8 +5094,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "엘에스일렉트릭의 Barton Malow Company-BlueOval SK 관련 공급계약은 다음과 같이 두 번 정정되었습니다.\n\n1. 최초 공시 (2024-01-25): \n   - 계약 금액: 89,446,399,107원 (894억 원)\n\n2. 첫 번째 정정 공시 (2024-09-30):\n   - 변경 사항: 계약 기간이 '2022-06-01 ~ 2024-09-30'에서 '2022-06-01 ~ 2025-02-28'(2년 8개월)으로 연장됨\n   - 계약 금액 변동 없음: 여전히 89,446,399,107원 (894억 원)\n\n3. 두 번째 정정 공시 (2024-12-13):\n   - 변경 사항: 계약 금액이 감소하여 73,029,784,233원 (730억 원)으로 변경됨\n   - 계약 기간은 그대로 유지 ('2022-06-01 ~ 2025-02-28')\n\n따라서, 계약 금액은 처음 894억 원에서 마지막으로 730억 원으로 총 164억 원이 줄어들었습니다.\n\n(근거: 각 정정공시의 내용을 종합하여 비교함)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 수치가 근거에서 확인되며, 추가적인 출처 없이도 정확한 정보를 제공하고 있습니다.)",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"엘에스일렉트릭\" period=none top_k=5 q=\"엘에스일렉트릭 Barton Malow Company BlueOval SK 관련 차례 정정됐다 어떻게 바뀌었는지 정정 순서대\" n=5 top_score=50.465 ids=exchange_20240125800285,exchange_20240930800476,exchange_20241213801356,exchange_20230824800184,exchange_20260211801720 | hop=0 verdict=sufficient evidence=5 | generate tokens=1069+258 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인되며, 추가적인 출처 없이도 정확한 정보를 제공하고 있습니다. | verify calc_checked=amount,period complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2380"
+   "answer": "엘에스일렉트릭의 Barton Malow Company-BlueOval SK 관련 공급계약의 변경 내역은 다음과 같습니다.\n\n1. 최초 공시 (2024-01-25):\n    - 계약 금액: 89,446,399,107원 (894억 원)\n\n2. 첫 번째 수정 공시 (2024-09-30):\n    - 계약 금액 변동 없음: 여전히 89,446,399,107원 (894억 원)\n    - 계약 기간이 기존 '2022-06-01~2024-09-30'에서 '**2022-06-01~2025-02-28**'(2년 8개월)으로 연장됨\n\n3. 두 번째 수정 공시 (2024-12-13):\n    - 계약 금액이 감소하여 **73,029,784,233원**(730억 원)으로 변경\n    - 계약 기간은 그대로 유지 ('2022-06-01~2025-02-28')\n\n따라서, 계약 금액은 처음 894억 원에서 마지막으로 730억 원으로 총 164억 원이 줄어들었습니다.\n\n(근거: 각 공시별 상세내역 참조)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 수치가 근거에서 확인되며, 추가적인 출처 없이도 정확한 정보 전달이 이루어졌습니다.)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"엘에스일렉트릭\" period=none top_k=5 q=\"엘에스일렉트릭 Barton Malow Company BlueOval SK 관련 차례 정정됐다 어떻게 바뀌었는지 정정 순서대\" n=5 top_score=49.992 ids=exchange_20240125800285,exchange_20240930800476,exchange_20241213801356,exchange_20230824800184,exchange_20260211801720 | hop=0 verdict=sufficient evidence=5 | generate tokens=1069+247 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인되며, 추가적인 출처 없이도 정확한 정보 전달이 이루어졌습니다. | verify calc_checked=amount,period complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2360"
   },
   {
    "question_id": "Q-082",
@@ -5109,7 +5136,7 @@
    "prompt_tokens": 5192,
    "completion_tokens": 294,
    "judge_tokens": 3709,
-   "latency_s": 0.044,
+   "latency_s": 0.043,
    "calls": [
     {
      "tag": "answer",
@@ -5178,16 +5205,16 @@
    "n_hops": 0,
    "n_steps": 1,
    "n_llm_calls": 1,
-   "prompt_tokens": 723,
-   "completion_tokens": 173,
+   "prompt_tokens": 852,
+   "completion_tokens": 178,
    "judge_tokens": 0,
-   "latency_s": 0.007,
+   "latency_s": 0.006,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 723,
-     "completion_tokens": 173,
-     "latency_s": 4.175,
+     "prompt_tokens": 852,
+     "completion_tokens": 178,
+     "latency_s": 4.256,
      "finish": "stop"
     }
    ],
@@ -5224,8 +5251,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "현대글로비스가 2024년 12월 31일에 공시한 두 건의 완성차 해상운송계약 중에서 계약금액이 더 큰 건을 비교하면 다음과 같습니다.\n\n1. 첫 번째 계약\n   - 계약금액: 3,334,000,000,000원 (33,340억 원)\n\n2. 두 번째 계약\n   - 계약금액: 3,365,500,000,000원 (33,655억 원)\n\n따라서, 계약금액이 더 큰 건은 두 번째 계약이며, 그 금액은 **3,365,500,000,000원**(33,655억 원)입니다.\n\n(근거: 공급계약 체결 보고서, 기준연월 2024-12-31, 접수번호 20241231800103 및 20241231800107)",
-   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"현대글로비스\" period=ym:202412 top_k=5 q=\"현대글로비스 2024 12 31 같은 공시한 건의 완성차 해상운송계약 금액 얼마인\" n=2 top_score=76.121 ids=exchange_20241231800107,exchange_20241231800103 | hop=0 verdict=sufficient evidence=2 | generate tokens=723+173 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=896"
+   "answer": "두 건 중 계약금액이 더 큰 건은 '현대자동차(주)'와의 계약이며, 그 금액은 **3,365,500,000,000원**(3조 3,655억 원)입니다.\n\n- 두 계약의 금액 비교: 3,334,000,000,000원 < 3,365,500,000,000원\n\n따라서, 현대글로비스가 2024년 12월 31일에 공시한 두 건의 완성차 해상운송계약 중 계약금액이 더 큰 건은 '**현대자동차(주)**'와 체결한 것이며, 그 금액은 **3,365,500,000,000원**(3조 3,655억 원)입니다.\n\n(근거: 공급계약 체결 보고서, 2024-12-31, 접수번호 20241231800103)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"현대글로비스\" period=ym:202412 top_k=5 q=\"현대글로비스 2024 12 31 같은 공시한 건의 완성차 해상운송계약 금액 얼마인\" n=2 top_score=75.741 ids=exchange_20241231800107,exchange_20241231800103 | hop=0 verdict=sufficient evidence=2 | generate tokens=852+178 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=1030"
   },
   {
    "question_id": "Q-084",
@@ -5346,7 +5373,7 @@
    "prompt_tokens": 1401,
    "completion_tokens": 309,
    "judge_tokens": 0,
-   "latency_s": 0.011,
+   "latency_s": 0.012,
    "calls": [
     {
      "tag": "answer",
@@ -5397,7 +5424,7 @@
     "blocking": false
    },
    "answer": "LG이노텍이 2024년 2월과 2025년 11월에 각각 공시한 광학솔루션사업부 시설투자의 투자금액 차이를 구하기 위해 각 시기의 금액을 비교하겠습니다.\n\n1. 2024년 2월의 투자금액은 383,000,000,000원입니다.\n2. 2025년 11월의 투자금액은 341,100,000,000원입니다.\n\n두 금액의 차이를 계산하면 다음과 같습니다.\n- 383,000,000,000원 - 341,100,000,000원 = 41,900,000,000원\n\n따라서, LG이노텍이 2024년 2월과 2025년 11월에 각각 공시한 광학솔루션사업부 시설투자의 투자금액 차이는 **41,900,000,000원**(419억원)입니다.\n\n(근거: [신규 시설투자] LG이노텍 – 신규시설투자등 — 광학솔루션사업부 시설투자, 2024-02-20 및 2025-11-27, 접수번호 각각 20240220800842와 20251127800903)",
-   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"LG이노텍\" period=ym:202402 top_k=3 q=\"LG 이노텍 2024 월과 2025 11 월에 각각 공시한 광학솔루션사업부 시설투자 투자금액 차이 얼마인\" n=1 top_score=94.939 ids=exchange_20240220800842 | hop=0 strat=narrow tool=search_chunks corp=\"LG이노텍\" period=ym:202511 top_k=3 q=\"LG 이노텍 2024 월과 2025 11 월에 각각 공시한 광학솔루션사업부 시설투자 투자금액 차이 얼마인\" n=1 top_score=96.247 ids=exchange_20251127800903 | hop=0 verdict=sufficient evidence=2 | generate tokens=727+268 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인되며, 접수번호도 정확히 기재되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=1710"
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"LG이노텍\" period=ym:202402 top_k=3 q=\"LG 이노텍 2024 월과 2025 11 월에 각각 공시한 광학솔루션사업부 시설투자 투자금액 차이 얼마인\" n=1 top_score=94.201 ids=exchange_20240220800842 | hop=0 strat=narrow tool=search_chunks corp=\"LG이노텍\" period=ym:202511 top_k=3 q=\"LG 이노텍 2024 월과 2025 11 월에 각각 공시한 광학솔루션사업부 시설투자 투자금액 차이 얼마인\" n=1 top_score=95.486 ids=exchange_20251127800903 | hop=0 verdict=sufficient evidence=2 | generate tokens=727+268 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인되며, 접수번호도 정확히 기재되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=1710"
   },
   {
    "question_id": "Q-086",
@@ -5433,7 +5460,7 @@
    "prompt_tokens": 4477,
    "completion_tokens": 121,
    "judge_tokens": 0,
-   "latency_s": 0.036,
+   "latency_s": 0.035,
    "calls": [
     {
      "tag": "answer",
@@ -5504,7 +5531,7 @@
    "prompt_tokens": 793,
    "completion_tokens": 122,
    "judge_tokens": 0,
-   "latency_s": 3.449,
+   "latency_s": 0.008,
    "calls": [
     {
      "tag": "answer",
@@ -5551,7 +5578,7 @@
     "blocking": false
    },
    "answer": "공시에서 확인되지 않습니다. \n\n정정된 계약 내용에 대한 구체적인 정보는 제공된 문서에서 찾을 수 없습니다. 추가적인 정보가 필요하시다면, 해당 문서의 정정 내역 또는 이와 관련된 후속 공시를 확인해 보시기 바랍니다. (근거: 투자판단 관련 주요경영사항, 2024-06-04, 20240604800108)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"이마트\" period=ym:202406 top_k=5 q=\"이마트 2024 공시한 에스에스지닷컴 지분 매매계약 그해 11 정정됐다 정정 확정된 매수인 누구인\" n=1 top_score=25.435 ids=exchange_20240604800108 | hop=0 verdict=sufficient evidence=1 | generate tokens=513+76 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 주어진 근거 내에서 정보를 제공하고 있으며, 추가 정보 확인을 위한 지침을 제시하고 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=915"
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"이마트\" period=ym:202406 top_k=5 q=\"이마트 2024 공시한 에스에스지닷컴 지분 매매계약 그해 11 정정됐다 정정 확정된 매수인 누구인\" n=1 top_score=25.279 ids=exchange_20240604800108 | hop=0 verdict=sufficient evidence=1 | generate tokens=513+76 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 주어진 근거 내에서 정보를 제공하고 있으며, 추가 정보 확인을 위한 지침을 제시하고 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=915"
   },
   {
    "question_id": "Q-088",
@@ -5587,7 +5614,7 @@
    "prompt_tokens": 13501,
    "completion_tokens": 129,
    "judge_tokens": 0,
-   "latency_s": 0.041,
+   "latency_s": 0.042,
    "calls": [
     {
      "tag": "answer",
@@ -5671,7 +5698,7 @@
    "prompt_tokens": 1555,
    "completion_tokens": 170,
    "judge_tokens": 817,
-   "latency_s": 0.005,
+   "latency_s": 0.006,
    "calls": [
     {
      "tag": "answer",
@@ -5722,7 +5749,7 @@
     "blocking": false
    },
    "answer": "LG씨엔에스가 2025년 12월 30일에 LG전자와 체결한 두 건의 계약 금액은 다음과 같습니다.\n\n1. 첫 번째 계약: 'N-ERP 구축 SI 인건비 계약'으로, 계약 금액은 **242,151,000,000원**(2,422억 원)입니다.\n2. 두 번째 계약: '25년 N-ERP 확산 계약(차세대 ERP 구축 통합 테스트 및 확산)'으로, 계약 금액은 **226,178,000,000원**(2,262억 원)입니다.\n\n(근거: 각 보고서명 별 접수번호 참조)",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG씨엔에스\" period=ym:202512 top_k=5 q=\"LG 씨엔에스 2025 12 30 같은 전자 체결했다고 공시한 건의 각각\" n=3 top_score=33.514 ids=exchange_20251230800216,exchange_20251230800219,exchange_20251229800114 | hop=0 verdict=sufficient evidence=3 | generate tokens=868+130 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인되며, 접수번호도 명시되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1725"
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG씨엔에스\" period=ym:202512 top_k=5 q=\"LG 씨엔에스 2025 12 30 같은 전자 체결했다고 공시한 건의 각각\" n=3 top_score=33.246 ids=exchange_20251230800216,exchange_20251230800219,exchange_20251229800114 | hop=0 verdict=sufficient evidence=3 | generate tokens=868+130 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인되며, 접수번호도 명시되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1725"
   },
   {
    "question_id": "Q-090",
@@ -5899,7 +5926,7 @@
     "blocking": false
    },
    "answer": "현대건설이 2023년 1월 27일에 공시한 카타르 Lusail Plaza Towers Plot3 및 Plot4 건설공사의 계약 금액은 다음과 같습니다:\n\n- Plot4 공사 계약 금액: 630,179,460,000원 (6,302억 원)\n- Plot3 공사 계약 금액: 588,939,240,000원 (5,889억 원)\n\n두 프로젝트 간의 계약 금액 차이는 다음과 같이 계산할 수 있습니다.\n\n- 차이 = 630,179,460,000원 - 588,939,240,000원 = 41,240,220,000원 (412억 원)\n\n따라서, 두 프로젝트 간 계약 금액의 차이는 **412억 원**입니다.\n\n(근거: [카타르 Lusail Plaza Towers(Plot4) 건설공사], [카타르 Lusail Plaza Towers(Plot3) 건설공사], 2023-01-27)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 정보가 제공된 근거에서 확인할 수 있으며, 추가적인 허위 정보는 없습니다.)",
-   "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대건설\" period=ym:202301 top_k=5 q=\"현대건설 2023 27 같은 공시한 카타르 Lusail Plaza Towers Plot 건설공사 차이\" n=5 top_score=71.169 ids=exchange_20230127800714,exchange_20230127800757,exchange_20230131800272,exchange_20230113800518,exchange_20230110800416 | hop=0 verdict=sufficient evidence=5 | generate tokens=1062+197 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거에서 확인할 수 있으며, 추가적인 허위 정보는 없습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2240"
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대건설\" period=ym:202301 top_k=5 q=\"현대건설 2023 27 같은 공시한 카타르 Lusail Plaza Towers Plot 건설공사 차이\" n=5 top_score=70.586 ids=exchange_20230127800714,exchange_20230127800757,exchange_20230131800272,exchange_20230113800518,exchange_20230110800416 | hop=0 verdict=sufficient evidence=5 | generate tokens=1062+197 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거에서 확인할 수 있으며, 추가적인 허위 정보는 없습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2240"
   },
   {
    "question_id": "Q-092",
@@ -5940,7 +5967,7 @@
    "prompt_tokens": 4833,
    "completion_tokens": 196,
    "judge_tokens": 3506,
-   "latency_s": 0.064,
+   "latency_s": 0.063,
    "calls": [
     {
      "tag": "answer",
@@ -5990,17 +6017,17 @@
    ],
    "answerable": true,
    "answer_form": "narrative",
-   "correct": true,
+   "correct": false,
    "scored_by": "judge",
    "judge": {
-    "covers_key_points": true,
-    "grounded": true,
-    "no_fabrication": true,
-    "reason": ""
+    "covers_key_points": false,
+    "grounded": false,
+    "no_fabrication": false,
+    "reason": "정정 사유와 출자 일자 변경에 대한 정보가 누락되어 있습니다."
    },
-   "first_failure": null,
-   "root_cause": "",
-   "failure_why": "correct",
+   "first_failure": "GENERATION",
+   "root_cause": "REASONING",
+   "failure_why": "골든 근거가 프롬프트에 실렸는데 답이 틀렸다",
    "critic_supported": null,
    "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
@@ -6013,16 +6040,16 @@
    "n_hops": 0,
    "n_steps": 2,
    "n_llm_calls": 1,
-   "prompt_tokens": 653,
-   "completion_tokens": 192,
-   "judge_tokens": 695,
+   "prompt_tokens": 643,
+   "completion_tokens": 186,
+   "judge_tokens": 698,
    "latency_s": 0.012,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 653,
-     "completion_tokens": 192,
-     "latency_s": 4.502,
+     "prompt_tokens": 643,
+     "completion_tokens": 186,
+     "latency_s": 4.462,
      "finish": "stop"
     }
    ],
@@ -6056,8 +6083,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "크래프톤이 2025년 12월에 공시한 신기술사업투자조합 출자 결정은 2026년 3월의 정정공시로 인해 다음과 같이 변경되었습니다.\n\n1. **출자금액**: 최초 및 정정 후 금액 동일하게 200,000,000,000원 (2,000억 원)으로 변동이 없습니다.\n2. **추가 정보**: 정정 후에는 '자기자본 대비' 비율이 추가되어 1.0%라는 정보가 포함되었습니다.\n\n따라서, 출자금액은 변동 없이 그대로 유지되었으며, 추가로 자기자본 대비 비율 정보가 제공됨으로써 투자자들이 보다 명확히 이해할 수 있도록 보완되었습니다.\n\n(근거: [투자판단 관련 주요경영사항] 크래프톤 – 투자판단 관련 주요경영사항, 정정본, 2026-03-06 기준, 접수번호 20260306801011)",
-   "think_trace": "route=complex_reason difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"크래프톤\" period=ym:202512 top_k=3 q=\"크래프톤 2025 12 월에 공시한 신기술사업투자조합 출자 결정 2026 정정됐다 정정 바뀌었는지 출자금액 변동 여부 함께\" n=1 top_score=64.390 ids=exchange_20251219800469 | hop=0 strat=narrow tool=search_chunks corp=\"크래프톤\" period=ym:202603 top_k=3 q=\"크래프톤 2025 12 월에 공시한 신기술사업투자조합 출자 결정 2026 정정됐다 정정 바뀌었는지 출자금액 변동 여부 함께\" n=1 top_score=62.500 ids=exchange_20260306801011 | hop=0 verdict=sufficient evidence=2 | generate tokens=653+192 | verify calc_checked=amount,share complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=845"
+   "answer": "정정 전후의 내용을 비교하여 변경 여부를 확인해 보겠습니다.\n\n1. 최초 공시 (2025-12-19): 출자금액은 200,000,000,000원으로 총 2,000억 원입니다.\n2. 정정 공시 (2026-03-06): 출자금액이 여전히 200,000,000,000원으로 동일하게 유지되고 있으며, 이는 2,000억 원에 해당합니다.\n\n따라서, 크래프톤이 2025년 12월에 공시한 신기술사업투자조합 출자 결정의 경우, 2026년 3월의 정정 과정에서 출자금액에는 변동이 없었습니다.\n\n(근거: [투자판단 관련 주요경영사항] 크래프톤 – 투자판단 관련 주요경영사항, 정정본, 2026-03-06, 접수번호 20260306801011)",
+   "think_trace": "route=complex_reason difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"크래프톤\" period=ym:202512 top_k=3 q=\"크래프톤 2025 12 월에 공시한 신기술사업투자조합 출자 결정 2026 정정됐다 정정 바뀌었는지 출자금액 변동 여부 함께\" n=1 top_score=63.960 ids=exchange_20251219800469 | hop=0 strat=narrow tool=search_chunks corp=\"크래프톤\" period=ym:202603 top_k=3 q=\"크래프톤 2025 12 월에 공시한 신기술사업투자조합 출자 결정 2026 정정됐다 정정 바뀌었는지 출자금액 변동 여부 함께\" n=1 top_score=64.309 ids=exchange_20260306801011 | hop=0 verdict=sufficient evidence=2 | generate tokens=643+186 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=829"
   },
   {
    "question_id": "Q-094",
@@ -6072,18 +6099,18 @@
    ],
    "answerable": true,
    "answer_form": "narrative",
-   "correct": false,
+   "correct": true,
    "scored_by": "judge",
    "judge": {
-    "covers_key_points": false,
-    "grounded": false,
-    "no_fabrication": false,
-    "reason": "제출 답변에는 모범답안 요소들이 포함되어 있지 않으며, 오히려 잘못된 정보를 제공하고 있습니다."
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
    },
-   "first_failure": "RANKING",
-   "root_cause": "LOW_RANK",
-   "failure_why": "후보에는 있으나 근거로 실리지 못했다 (rank={'20250318001264': 8, '20250328002285': 9})",
-   "critic_supported": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
    "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": true,
    "has_citation": false,
@@ -6092,19 +6119,26 @@
    "route_corps": [
     "NC"
    ],
-   "n_hops": 1,
-   "n_steps": 3,
-   "n_llm_calls": 1,
-   "prompt_tokens": 2308,
-   "completion_tokens": 402,
-   "judge_tokens": 2603,
-   "latency_s": 0.07,
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 2,
+   "prompt_tokens": 14398,
+   "completion_tokens": 188,
+   "judge_tokens": 3923,
+   "latency_s": 0.049,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 2308,
-     "completion_tokens": 402,
-     "latency_s": 11.869,
+     "prompt_tokens": 7294,
+     "completion_tokens": 138,
+     "latency_s": 4.406,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 7104,
+     "completion_tokens": 50,
+     "latency_s": 2.999,
      "finish": "stop"
     }
    ],
@@ -6113,15 +6147,18 @@
     "20250328002285"
    ],
    "golden_rank": {
-    "20250318001264": 8,
-    "20250328002285": 9
+    "20250318001264": 1,
+    "20250328002285": 2
    },
    "golden_in_candidates": [
     "20250318001264",
     "20250328002285"
    ],
-   "golden_in_evidence": [],
-   "golden_evidence_all": false,
+   "golden_in_evidence": [
+    "20250318001264",
+    "20250328002285"
+   ],
+   "golden_evidence_all": true,
    "calc_checked": [],
    "calc_skipped": [],
    "calc_mismatch": false,
@@ -6133,8 +6170,8 @@
     "asks_value": false,
     "blocking": false
    },
-   "answer": "NC 제28기 사업보고서의 연결재무제표 주석에 포함된 배당금 지급 내역을 비교하여 정정 전후의 차이를 설명드리겠습니다.\n\n### 정정 전 (원공시; 20260318)\n- **전기 배당 정보**\n  - 보통주에 지급된 배당금: 63,562,284천 원\n  - 배당 기준 총 발행 주식 수: 21,954,022주\n  - 주당 배당금: 3,130원/주\n\n### 정정 후 (최종본; 20260318 수정)\n- **전기 배당 정보**\n  - 보통주에 지급된 배당금: 63,562,284천 원 -> 28,314,463천 원\n  - 배당 기준 총 발행 주식 수: 동일 (21,954,022주)\n  - 주당 배당금: 3,130원/주 -> 1,460원/주\n\n정정 후에는 전기 배당에 대한 정보가 대폭 수정되었습니다. 특히 주목할 점은 다음과 같습니다:\n\n1. **보통주에 지급된 배당금**: 원래 63,562,284천 원이었던 것이 28,314,463천 원으로 감소했습니다.\n2. **주당 배당금**: 원래 3,130원이었던 것이 1,460원으로 줄어들었습니다.\n\n이러한 변화는 회사의 배당 정책이나 실제 배당 실행 과정에서 중요한 변화가 있었음을 시사하며, 이는 기업의 재무 상태나 경영 전략의 변화를 나타낼 수도 있습니다. 따라서 투자자나 이해관계자들은 이러한 변화에 대해 추가적인 분석을 필요로 할 것입니다.\n\n(근거: [사업보고서 2025] NC – III. 재무에 관한 사항 > 3. 연결재무제표 주석 > 26. 이익잉여금 (연결), 접수번호 20260318001448 (수정본))",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"NC\" filters=base_year=2025,doc_subtype=annual path=\"III. 재무에 관한 사항 > 3. 연결재무제표 주석\" top_k=8 q=\"NC 28 사업보고서 2025 정정됐다 연결재무제표 주석 배당금 지급 내역 정정 전후 달라졌는지\" n=8 top_score=28.913 ids=periodic_20260318001448,periodic_20260318001448,periodic_20260318001448,periodic_20260318001448,periodic_20260318001448,periodic_20260318001448,periodic_20260318001448,periodic_20260318001448 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"NC\" filters=base_year=2025,doc_subtype=annual path=\"정 정 신 고 (보고)\" top_k=8 q=\"NC 28 사업보고서 2025 정정됐다 연결재무제표 주석 배당금 지급 내역 정정 전후 달라졌는지\" n=0 top_score=- ids=- | hop=1 strat=toc_corp tool=search_chunks group=periodic corp=\"NC\" filters=- path=\"III. 재무에 관한 사항 > 3. 연결재무제표 주석\" top_k=10 q=\"NC 28 사업보고서 2025 정정됐다 연결재무제표 주석 배당금 지급 내역 정정 전후 달라졌는지\" n=10 top_score=45.014 ids=periodic_20251114003037,periodic_20250515002885,periodic_20250814004246,periodic_20240516001966,periodic_20260515002636,periodic_20241114002966,periodic_20240814004455,periodic_20250515002885,periodic_20250318001264,periodic_20250328002285 | hop=4 verdict=sufficient evidence=4 | generate tokens=2308+402 | verify calc_checked=- complete_checked=interim_source ok=True kinds=- | budget steps=3 hops=1 llm=1 tokens=2710"
+   "answer": "NC 제28기 사업보고서의 연결재무제표 주석 내 배당금 지급 내역 표에서 정정 전후로 달라진 점은 '**주당 배당금 단위**'입니다.\n\n- **정정 전**: '보통주에 지급된 주당배당금'이라는 항목으로 3,130천 원을 기록하였으나 단위에 대한 구체적인 표시가 없었습니다.\n- **정정 후**: 같은 금액이지만 단위가 '**원/주**'로 명확히 표시되어 있습니다.\n\n이는 단순한 기재 오류로 인한 수정이며, 배당금 지급액 자체에는 변동이 없습니다. (근거: 정정공시, 20250328)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"NC\" filters=doc_subtype=annual path=\"III. 재무에 관한 사항 > 3. 연결재무제표 주석\" top_k=8 q=\"NC 28 사업보고서 2025 정정됐다 연결재무제표 주석 배당금 지급 내역 정정 전후 달라졌는지\" n=8 top_score=37.088 ids=periodic_20250318001264,periodic_20250328002285,periodic_20240320001965,periodic_20250318001264,periodic_20250328002285,periodic_20240320001965,periodic_20250318001264,periodic_20250328002285 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"NC\" filters=doc_subtype=annual path=\"정 정 신 고 (보고)\" top_k=8 q=\"NC 28 사업보고서 2025 정정됐다 연결재무제표 주석 배당금 지급 내역 정정 전후 달라졌는지\" n=8 top_score=81.521 ids=periodic_20250328002285,periodic_20240322000989,periodic_20240322000989,periodic_20240322000989,periodic_20240322000989,periodic_20240322000989,periodic_20240322000989,periodic_20240322000989 | hop=4 verdict=sufficient evidence=4 | generate tokens=7294+138 | 근거 표기 누락 — critic 호출 | critic supported=True reason=정정 전후의 차이를 보여주는 자료가 명시되어 있으며, 이는 단순한 기재 오류를 수정한 것임을 확인할 수 있다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=14586"
   },
   {
    "question_id": "Q-095",
@@ -6216,7 +6253,7 @@
     "blocking": false
    },
    "answer": "아모레퍼시픽이 2024년 2월에 공시한 용산 본사 사옥 임대차 계약의 최근 매출액 대비 비율은 **5.07**%입니다.\n\n(근거: 단일판매ㆍ공급계약체결, 2024-02-28, 20240228800335)",
-   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"아모레퍼시픽\" period=ym:202402 top_k=5 q=\"아모레퍼시픽 2024 월에 공시한 용산 본사 사옥 임대차 계약 대비 비율\" n=1 top_score=65.937 ids=exchange_20240228800335 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"아모레퍼시픽\" period=year:2024 top_k=8 q=\"아모레퍼시픽 2024 월에 공시한 용산 본사 사옥 임대차 계약 대비 비율\" n=1 top_score=65.937 ids=exchange_20240228800335 | hop=1 verdict=insufficient evidence=1 reason=few:1<2 | hop=2 strat=corp_only tool=search_chunks corp=\"아모레퍼시픽\" period=none top_k=10 q=\"아모레퍼시픽 월에 용산 본사 사옥 임대차 비율\" n=1 top_score=59.190 ids=exchange_20240228800335 | hop=2 verdict=insufficient evidence=1 reason=few:1<2 | hop=2 stop=stalled (2회 연속 새 후보 없음) | generate tokens=601+67 | 근거 표기 누락 — critic 호출 | critic supported=True reason=제시된 답변은 제공된 근거의 내용을 정확히 반영하고 있으며, 필요한 정보인 매출액 대비 비율과 함께 접수번호까지 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=3 hops=2 llm=2 tokens=1078"
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"아모레퍼시픽\" period=ym:202402 top_k=5 q=\"아모레퍼시픽 2024 월에 공시한 용산 본사 사옥 임대차 계약 대비 비율\" n=1 top_score=65.353 ids=exchange_20240228800335 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"아모레퍼시픽\" period=year:2024 top_k=8 q=\"아모레퍼시픽 2024 월에 공시한 용산 본사 사옥 임대차 계약 대비 비율\" n=1 top_score=65.353 ids=exchange_20240228800335 | hop=1 verdict=insufficient evidence=1 reason=few:1<2 | hop=2 strat=corp_only tool=search_chunks corp=\"아모레퍼시픽\" period=none top_k=10 q=\"아모레퍼시픽 월에 용산 본사 사옥 임대차 비율\" n=1 top_score=58.643 ids=exchange_20240228800335 | hop=2 verdict=insufficient evidence=1 reason=few:1<2 | hop=2 stop=stalled (2회 연속 새 후보 없음) | generate tokens=601+67 | 근거 표기 누락 — critic 호출 | critic supported=True reason=제시된 답변은 제공된 근거의 내용을 정확히 반영하고 있으며, 필요한 정보인 매출액 대비 비율과 함께 접수번호까지 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=3 hops=2 llm=2 tokens=1078"
   },
   {
    "question_id": "Q-096",
@@ -6252,7 +6289,7 @@
    "prompt_tokens": 1802,
    "completion_tokens": 91,
    "judge_tokens": 0,
-   "latency_s": 0.01,
+   "latency_s": 0.011,
    "calls": [
     {
      "tag": "answer",
@@ -6309,7 +6346,7 @@
    "judge": null,
    "first_failure": "TOOL",
    "root_cause": "TOOL",
-   "failure_why": "per_unit: 답변 207,838,797,710원 vs 재계산 207,684,631,210",
+   "failure_why": "per_unit: 답변 2,078억 vs 재계산 207,684,631,210",
    "critic_supported": true,
    "critic_passed_wrong_answer": true,
    "gold_value_in_evidence": false,
@@ -6322,23 +6359,23 @@
    "n_hops": 0,
    "n_steps": 1,
    "n_llm_calls": 2,
-   "prompt_tokens": 1006,
-   "completion_tokens": 184,
+   "prompt_tokens": 1130,
+   "completion_tokens": 185,
    "judge_tokens": 0,
-   "latency_s": 0.007,
+   "latency_s": 0.008,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 586,
-     "completion_tokens": 143,
-     "latency_s": 5.148,
+     "prompt_tokens": 712,
+     "completion_tokens": 141,
+     "latency_s": 3.28,
      "finish": "stop"
     },
     {
      "tag": "critic",
-     "prompt_tokens": 420,
-     "completion_tokens": 41,
-     "latency_s": 1.186,
+     "prompt_tokens": 418,
+     "completion_tokens": 44,
+     "latency_s": 1.318,
      "finish": "stop"
     }
    ],
@@ -6365,7 +6402,7 @@
    ],
    "calc_mismatch": true,
    "calc_reasons": [
-    "per_unit: 답변 207,838,797,710원 vs 재계산 207,684,631,210"
+    "per_unit: 답변 2,078억 vs 재계산 207,684,631,210"
    ],
    "data_limit": {
     "withheld": [],
@@ -6374,8 +6411,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "현대글로비스가 2023년 10월에 공시한 10,800RT급 LNG DF 자동차선 12척 선대 확보 투자에서 1척당 평균 투자금액을 계산하면 다음과 같습니다.\n\n- 총 투자 금액: 2,492,215,574,520원 = 24,922억 원\n- 선박 척수: 12척\n\n따라서, 1척 당 평균 투자금액은 약 207,838,797,710원이 됩니다.\n\n(계산식: 24,922 / 12)\n\n(근거: 신규 시설투자 등 보고서, 2023-10-26, 20231026800363)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대글로비스\" period=ym:202310 top_k=5 q=\"현대글로비스 2023 10 월에 공시한 10,800 RT LNG DF 자동차선 12 선대 확보 투자 척당 평균 투자금액 얼마인\" n=1 top_score=103.143 ids=exchange_20231026800363 | hop=0 verdict=sufficient evidence=1 | generate tokens=586+143 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인되며, 접수번호까지 정확히 기재되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1190"
+   "answer": "1척 당 평균 투자금액은 다음과 같이 산출할 수 있습니다.\n\n- 총 투자금액: 2,492,215,574,520원\n- 선박 척수: 12척\n- 1척 당 평균 투자금액 = 207,848,465,710원 \n\n따라서, 현대글로비스가 2023년 10월에 공시한 10,800RT급 LNG DF 자동차선 12척 선대 확보 투자에서 1척당 평균 투자금액은 약 2,078억 원입니다. \n(근거: 신규 시설투자 등, 2023-10-26, 20231026800363)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — per_unit: 답변 2,078억 vs 재계산 207,684,631,210)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대글로비스\" period=ym:202310 top_k=5 q=\"현대글로비스 2023 10 월에 공시한 10,800 RT LNG DF 자동차선 12 선대 확보 투자 척당 평균 투자금액 얼마인\" n=1 top_score=102.218 ids=exchange_20231026800363 | hop=0 verdict=sufficient evidence=1 | generate tokens=712+141 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있다. | verify calc_checked=amount,per_unit complete_checked=- ok=False kinds=calculation | budget steps=1 hops=0 llm=2 tokens=1315"
   },
   {
    "question_id": "Q-098",
@@ -6482,7 +6519,7 @@
    "prompt_tokens": 1193,
    "completion_tokens": 282,
    "judge_tokens": 0,
-   "latency_s": 6.708,
+   "latency_s": 0.008,
    "calls": [
     {
      "tag": "answer",
@@ -6529,7 +6566,7 @@
     "blocking": false
    },
    "answer": "NAVER가 2025년 9월에 공시한 왈라팝(WALLAPOP) 주식매매계약상 지위 양도와 관련하여, 최초 및 최종 확정된 매매 대금은 다음과 같습니다.\n\n1. 최초 공시 (2025-09-18): 매매 금액은 903,559,577,175원 (9,036억 원)으로 공시되었습니다.\n2. 최종 공시 (2025-09-30): 매매 금액은 동일하게 903,559,577,175원 (9,036억 원)으로 재확인되었습니다.\n\n따라서, 최종 확정된 매매 대금의 총액은 여전히 903,559,577,175원 (9,036억 원)입니다.\n\n근거: [투자판단 관련 주요 경영 사항] NAVER – 투자 판단 관련 주요 경영 사항, 정정본, 기준 연월 2025-09-18 및 2025-09-30, 접수번호 각각 20250918800247, 20250930800838, 섹션 경로 AI 소프트웨어·플랫폼",
-   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"NAVER\" period=ym:202509 top_k=5 q=\"NAVER 2025 월에 공시한 왈라팝 WALLAPOP 주식매매계약상 지위 양도 건은 이후 차례 정정됐다 최종 확정된 매매대금 총액 얼마인\" n=2 top_score=23.264 ids=exchange_20250918800247,exchange_20250930800838 | hop=0 verdict=sufficient evidence=2 | generate tokens=644+230 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 두 번의 공시 모두 매매금액과 일자가 정확하게 기재되어 있으며, 이를 통해 정보의 정확성을 확인할 수 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1475"
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"NAVER\" period=ym:202509 top_k=5 q=\"NAVER 2025 월에 공시한 왈라팝 WALLAPOP 주식매매계약상 지위 양도 건은 이후 차례 정정됐다 최종 확정된 매매대금 총액 얼마인\" n=2 top_score=24.571 ids=exchange_20250918800247,exchange_20250930800838 | hop=0 verdict=sufficient evidence=2 | generate tokens=644+230 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 두 번의 공시 모두 매매금액과 일자가 정확하게 기재되어 있으며, 이를 통해 정보의 정확성을 확인할 수 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1475"
   },
   {
    "question_id": "Q-100",
@@ -6644,7 +6681,7 @@
    "prompt_tokens": 844,
    "completion_tokens": 199,
    "judge_tokens": 499,
-   "latency_s": 0.012,
+   "latency_s": 0.01,
    "calls": [
     {
      "tag": "answer",
@@ -6688,7 +6725,7 @@
     "blocking": false
    },
    "answer": "현대제철이 2025년 3월에 공시한 미국 전기로 제철소 건설 추진 건의 투자금액은 다음과 같습니다.\n\n- **투자 금액**: 공시 내용에 따르면 구체적인 투자 금액은 명시되어 있지 않습니다. 다만, '미국 내 전기로 제철소 건설 및 운영을 위한 신규 투자를 검토 중'이라는 내용이 포함되어 있습니다.\n\n따라서, 현재까지 공시된 정보로는 정확한 투자 금액을 알 수 없습니다. 추가적인 정보가 필요하시면 회사 측의 공식 발표나 후속 공시를 참고하시기 바랍니다.\n\n(근거: 투자판단 관련 주요경영사항, 2025-03-25, 20250325800001)",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대제철\" period=ym:202503 top_k=5 q=\"현대제철 2025 월에 공시한 미국 전기 제철소 건설 추진 건의 투자금액 근거 함께\" n=1 top_score=35.558 ids=exchange_20250325800001 | hop=0 verdict=insufficient evidence=1 reason=few:1<2,missing_field:금액 | hop=1 strat=relax_period tool=search_chunks corp=\"현대제철\" period=year:2025 top_k=8 q=\"현대제철 2025 월에 공시한 미국 전기 제철소 건설 추진 건의 투자금액 근거 함께\" n=1 top_score=35.558 ids=exchange_20250325800001 | hop=1 verdict=insufficient evidence=1 reason=few:1<2,missing_field:금액 | hop=2 strat=corp_only tool=search_chunks corp=\"현대제철\" period=none top_k=10 q=\"현대제철 월에 미국 전기 제철소 건설 추진 건의 투자금액 근거 함께\" n=1 top_score=32.918 ids=exchange_20250325800001 | hop=2 verdict=insufficient evidence=1 reason=few:1<2,missing_field:금액 | hop=2 stop=stalled (2회 연속 새 후보 없음) | generate tokens=510+133 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 근거에 있는 내용을 바탕으로 투자 금액이 명시되지 않았음을 정확히 언급하고 있으며, 추가 정보를 얻기 위해 공식 발표나 후속 공시를 참고하라는 적절한 권고가 포함되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=3 hops=2 llm=2 tokens=1043"
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대제철\" period=ym:202503 top_k=5 q=\"현대제철 2025 월에 공시한 미국 전기 제철소 건설 추진 건의 투자금액 근거 함께\" n=1 top_score=35.343 ids=exchange_20250325800001 | hop=0 verdict=insufficient evidence=1 reason=few:1<2,missing_field:금액 | hop=1 strat=relax_period tool=search_chunks corp=\"현대제철\" period=year:2025 top_k=8 q=\"현대제철 2025 월에 공시한 미국 전기 제철소 건설 추진 건의 투자금액 근거 함께\" n=1 top_score=35.343 ids=exchange_20250325800001 | hop=1 verdict=insufficient evidence=1 reason=few:1<2,missing_field:금액 | hop=2 strat=corp_only tool=search_chunks corp=\"현대제철\" period=none top_k=10 q=\"현대제철 월에 미국 전기 제철소 건설 추진 건의 투자금액 근거 함께\" n=1 top_score=32.720 ids=exchange_20250325800001 | hop=2 verdict=insufficient evidence=1 reason=few:1<2,missing_field:금액 | hop=2 stop=stalled (2회 연속 새 후보 없음) | generate tokens=510+133 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 근거에 있는 내용을 바탕으로 투자 금액이 명시되지 않았음을 정확히 언급하고 있으며, 추가 정보를 얻기 위해 공식 발표나 후속 공시를 참고하라는 적절한 권고가 포함되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=3 hops=2 llm=2 tokens=1043"
   },
   {
    "question_id": "Q-102",
@@ -6887,7 +6924,7 @@
    "prompt_tokens": 5858,
    "completion_tokens": 186,
    "judge_tokens": 3012,
-   "latency_s": 0.047,
+   "latency_s": 0.048,
    "calls": [
     {
      "tag": "answer",
@@ -6950,13 +6987,13 @@
     "covers_key_points": false,
     "grounded": false,
     "no_fabrication": false,
-    "reason": "제출답변은 모범답안의 핵심 요소를 누락했습니다. 반기·분기보고서에는 해당 항목이 아예 없다는 점을 명시해야 합니다."
+    "reason": "제출답변은 모범답안의 요소들을 제대로 반영하지 못했으며, 반기·분기보고서와 사업보고서의 차이점을 명확히 설명하지 않았습니다."
    },
-   "first_failure": "RETRIEVAL",
-   "root_cause": "MULTI_POINT_QUERY",
-   "failure_why": "골든 3/3 건이 어떤 hop 후보에도 없다: ['20250814003695', '20251114002201', '20250321001834']",
-   "critic_supported": null,
-   "critic_passed_wrong_answer": false,
+   "first_failure": "VERIFY",
+   "root_cause": "VERIFY",
+   "failure_why": "critic 이 supported=True 로 오답을 통과시켰다 (대조할 골든 수치가 없어 생성 단계로는 가를 수 없다)",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": true,
    "gold_value_in_evidence": null,
    "has_citation": false,
    "route": "multi_compare",
@@ -6965,18 +7002,25 @@
     "케이티"
    ],
    "n_hops": 0,
-   "n_steps": 2,
-   "n_llm_calls": 1,
-   "prompt_tokens": 1047,
-   "completion_tokens": 386,
-   "judge_tokens": 1368,
-   "latency_s": 0.042,
+   "n_steps": 3,
+   "n_llm_calls": 2,
+   "prompt_tokens": 9512,
+   "completion_tokens": 205,
+   "judge_tokens": 3680,
+   "latency_s": 0.054,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 1047,
-     "completion_tokens": 386,
-     "latency_s": 8.799,
+     "prompt_tokens": 4847,
+     "completion_tokens": 149,
+     "latency_s": 4.277,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 4665,
+     "completion_tokens": 56,
+     "latency_s": 2.235,
      "finish": "stop"
     }
    ],
@@ -6985,10 +7029,22 @@
     "20251114002201",
     "20250321001834"
    ],
-   "golden_rank": {},
-   "golden_in_candidates": [],
-   "golden_in_evidence": [],
-   "golden_evidence_all": false,
+   "golden_rank": {
+    "20250814003695": 1,
+    "20251114002201": 3,
+    "20250321001834": 4
+   },
+   "golden_in_candidates": [
+    "20250321001834",
+    "20250814003695",
+    "20251114002201"
+   ],
+   "golden_in_evidence": [
+    "20250814003695",
+    "20251114002201",
+    "20250321001834"
+   ],
+   "golden_evidence_all": true,
    "calc_checked": [],
    "calc_skipped": [],
    "calc_mismatch": false,
@@ -7000,8 +7056,8 @@
     "asks_value": false,
     "blocking": false
    },
-   "answer": "케이티의 각 연도별 보고서의 'IV. 이사의 경영진단 및 분석의견' 내용을 비교하겠습니다.\n\n1. **2025년 반기보고서와 2025년 3분기 분기보고서**\n   - 공시된 자료에서는 2025년 반기보고서와 3분기 분기보고서의 'IV. 이사의 경영진단 및 분석의견'에 대한 구체적인 내용이 확인되지 않습니다.\n   (근거: 사업보고서 2025, 접수번호 20260323001553, 섹션 경로 없음)\n\n2. **2024년 사업보고서**\n   - 2024년 사업보고서에서 'IV. 이사의 경영진단 및 분석의견'은 다음과 같이 기재되어 있습니다.\n     - 예측정보에 대한 주의사항: 미래에 발생할 것으로 예상되는 활동, 사건 또는 현상에 대해 설명하며, 이는 작성 시점에서의 사건 및 재무 성과에 대한 회사의 견해라고 밝히고 있습니다. 또한 예측 정보는 미래 사업 환경에 대한 다양한 가정에 기초하여 작성되었으며, 이러한 가정들이 부정확할 수 있음을 경고하고 있습니다.\n     - 부외거래: 잠재적 위험이 될 수 있는 요소들을 현재 진행 중인 소송건과 약정사항을 통해 참고하도록 안내하고 있습니다.\n   \n위의 내용은 주어진 사업보고서 내에서 확인할 수 있는 정보이며, 추가적인 세부 사항은 별도의 문서나 자료를 통해 확인해야 할 필요가 있을 수 있습니다.\n\n최종 답변:\n- 2025년 반기보고서와 3분기 분기보고서의 'IV. 이사의 경영진단 및 분석의견'에 대한 내용은 공시에서 확인되지 않습니다.\n- 2024년 사업보고서에서는 예측정보에 대한 주의사항과 부외거래에 대해 상세히 기술되어 있습니다.\n(근거: 사업보고서 2025, 접수번호 20260323001553, 섹션 경로 없음)",
-   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"케이티\" filters=base_year=2025,doc_subtype=annual path=\"IV. 이사의 경영진단 및 분석의견\" top_k=8 q=\"케이티 2025 반기보고서 분기 분기보고서 2024 사업보고서 IV 이사 경영진단 분석의견 각각 어떻게 기재돼 있는지 비교해줘\" n=8 top_score=83.125 ids=periodic_20260323001553,periodic_20260323001553,periodic_20260323001553,periodic_20260323001553,periodic_20260323001553,periodic_20260323001553,periodic_20260323001553,periodic_20260323001553 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"케이티\" filters=base_year=2025,doc_subtype=annual path=\"VI. 이사회 등 회사의 기관에 관한 사항\" top_k=8 q=\"케이티 2025 반기보고서 분기 분기보고서 2024 사업보고서 IV 이사 경영진단 분석의견 각각 어떻게 기재돼 있는지 비교해줘\" n=6 top_score=21.781 ids=periodic_20260323001553,periodic_20260323001553,periodic_20260323001553,periodic_20260323001553,periodic_20260323001553,periodic_20260323001553 | hop=4 verdict=sufficient evidence=4 | generate tokens=1047+386 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=1433"
+   "answer": "케이티(KT)의 각 문서에서 'IV. 이사의 경영진단 및 분석의견' 항목의 내용은 다음과 같이 동일하게 기재되어 있습니다:\n\n모든 문서에서 이 항목은 '**기업공시서식 작성기준에 따라 분·반기보고서에 기재하지 않습니다. (사업보고서에 기재 예정)**'이라고 명시하고 있습니다.\n\n따라서 세 문서 간 비교 결과는 아래와 같습니다.\n\n- **2025년 반기보고서**: 해당 내용이 기재됨\n- **2025년 3분기 분기보고서**: 해당 내용이 기재됨\n- **2024년 사업보고서**: 해당 내용이 기재됨\n\n(근거: 각 문서 IV. 이사의 경영진단 및 분석의견 섹션)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"케이티\" filters=base_year=2025,doc_subtype=half path=\"IV. 이사의 경영진단 및 분석의견\" top_k=8 q=\"케이티 2025 반기보고서 분기 분기보고서 2024 사업보고서 IV 이사 경영진단 분석의견 각각 어떻게 기재돼 있는지 비교해줘\" n=1 top_score=121.648 ids=periodic_20250814003695 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"케이티\" filters=base_year=2025,doc_subtype=quarter path=\"IV. 이사의 경영진단 및 분석의견\" top_k=8 q=\"케이티 2025 반기보고서 분기 분기보고서 2024 사업보고서 IV 이사 경영진단 분석의견 각각 어떻게 기재돼 있는지 비교해줘\" n=2 top_score=121.648 ids=periodic_20250515002428,periodic_20251114002201 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"케이티\" filters=base_year=2024,doc_subtype=annual path=\"IV. 이사의 경영진단 및 분석의견\" top_k=8 q=\"케이티 2025 반기보고서 분기 분기보고서 2024 사업보고서 IV 이사 경영진단 분석의견 각각 어떻게 기재돼 있는지 비교해줘\" n=5 top_score=76.101 ids=periodic_20250321001834,periodic_20250321001834,periodic_20250321001834,periodic_20250321001834,periodic_20250321001834 | hop=0 stop=named_reports_covered (부른 보고서 3종을 모두 회수) | hop=4 verdict=sufficient evidence=4 | generate tokens=4847+149 | 근거 표기 누락 — critic 호출 | critic supported=True reason=세 개의 문서 모두 'IV. 이사의 경영진단 및 분석의견' 항목에 동일한 내용을 기재하고 있으며, 이는 근거에서 확인할 수 있다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=3 hops=0 llm=2 tokens=9717"
   },
   {
    "question_id": "Q-106",
@@ -7042,7 +7098,7 @@
    "prompt_tokens": 2753,
    "completion_tokens": 375,
    "judge_tokens": 1620,
-   "latency_s": 0.006,
+   "latency_s": 0.005,
    "calls": [
     {
      "tag": "answer",
@@ -7116,8 +7172,8 @@
    "first_failure": "RETRIEVAL",
    "root_cause": "CHAIN_NOT_TRAVERSED",
    "failure_why": "골든 2/3 건이 어떤 hop 후보에도 없다: ['20250409001154', '20250519000120']",
-   "critic_supported": true,
-   "critic_passed_wrong_answer": true,
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": false,
    "has_citation": true,
    "route": "multi_compare",
@@ -7127,24 +7183,17 @@
    ],
    "n_hops": 0,
    "n_steps": 1,
-   "n_llm_calls": 2,
-   "prompt_tokens": 2045,
-   "completion_tokens": 252,
+   "n_llm_calls": 1,
+   "prompt_tokens": 1214,
+   "completion_tokens": 189,
    "judge_tokens": 0,
-   "latency_s": 6.418,
+   "latency_s": 4.578,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 1089,
-     "completion_tokens": 195,
-     "latency_s": 4.628,
-     "finish": "stop"
-    },
-    {
-     "tag": "critic",
-     "prompt_tokens": 956,
-     "completion_tokens": 57,
-     "latency_s": 1.785,
+     "prompt_tokens": 1214,
+     "completion_tokens": 189,
+     "latency_s": 4.573,
      "finish": "stop"
     }
    ],
@@ -7163,15 +7212,12 @@
     "20250314000027"
    ],
    "golden_evidence_all": false,
-   "calc_checked": [
+   "calc_checked": [],
+   "calc_skipped": [
     "amount"
    ],
-   "calc_skipped": [],
    "calc_mismatch": false,
-   "calc_reasons": [
-    "amount: 답변 2,000,113,200,000원 vs 재계산 1,728,230,200,000",
-    "amount: 답변 2,000,113,200,000원 vs 재계산 1,654,940,000,000"
-   ],
+   "calc_reasons": [],
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -7179,8 +7225,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "최종 정정공시와 최초 공시의 내용을 비교하여 조달 총액이 얼마만큼 변했는지 확인해보겠습니다.\n\n1. 최초 공시에서의 조달 금액은 2,000,113,200,000원입니다.\n2. 최종 정정공시에서도 조달 금액은 동일하게 2,000,113,200,000원으로 유지되고 있습니다.\n\n따라서, 최종 정정공시 기준으로 조달 총액은 최초 공시 대비 변화가 없습니다.\n\n최종 답변: 공시에서 확인되지 않습니다. 최초와 최종 정정공시 모두 동일한 2,000,113,200,000원의 조달금액을 나타내고 있습니다.\n(근거: [유상증자결정], [기재정정][유상증자결정] 삼성SDI – 주요사항보고서(유상증자결정), 접수번호 각각 20250314000027 및 20250324000773)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — evidence_gap: 정정·해지 결과값을 물었으나 답이 근거 부족을 자백했다 ('확인되지 않'))",
-   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202503 top_k=5 q=\"삼성 SDI 2025 14 결의한 유상증자 이후 차례 정정공시됐다 최종 정정공시 기준 조달 총액 최초 대비 얼마나 줄었는\" n=2 top_score=30.282 ids=major_20250314000027,major_20250324000773 | hop=0 verdict=sufficient evidence=2 | generate tokens=1089+195 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에서는 최초와 최종 정정공시의 조달금액이 동일함을 명시하고 있으며, 이는 제공된 근거에서 확인할 수 있는 정보입니다. | verify calc_checked=amount complete_checked=evidence_gap,stale_value ok=False kinds=evidence_gap | budget steps=1 hops=0 llm=2 tokens=2297"
+   "answer": "최종 정정공시와 최초 공시의 내용을 비교하여 조달 총액 차이를 계산하겠습니다.\n\n1. 최초 공시에서의 조달 총액: 2,000,113,200,000원\n2. 최종 정정공시에서의 조달 총액: 2,000,113,200,000원\n\n두 값이 동일하므로, 최종 정정공시 기준 조달 총액은 최초 공시 대비 변동이 없습니다.\n\n따라서, 최종 정정공시 기준 조달 총액은 최초 공시 대비 **0원** 만큼 줄었습니다.\n\n(근거: [유상증자결정] 삼성SDI – 주요사항보고서(유상증자결정), 2025-03-14, 접수번호 20250314000027 및 재정정본, 2025-03-24, 접수번호 20250324000773)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202503 top_k=5 q=\"삼성 SDI 2025 14 결의한 유상증자 이후 차례 정정공시됐다 최종 정정공시 기준 조달 총액 최초 대비 얼마나 줄었는\" n=2 top_score=30.282 ids=major_20250314000027,major_20250324000773 | hop=0 verdict=sufficient evidence=2 | generate tokens=1214+189 | verify calc_checked=- complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=1403"
   },
   {
    "question_id": "Q-062",
@@ -7213,23 +7259,23 @@
    "n_hops": 0,
    "n_steps": 1,
    "n_llm_calls": 2,
-   "prompt_tokens": 1116,
-   "completion_tokens": 134,
+   "prompt_tokens": 1241,
+   "completion_tokens": 133,
    "judge_tokens": 0,
-   "latency_s": 0.004,
+   "latency_s": 0.003,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 665,
-     "completion_tokens": 90,
-     "latency_s": 2.269,
+     "prompt_tokens": 791,
+     "completion_tokens": 89,
+     "latency_s": 2.268,
      "finish": "stop"
     },
     {
      "tag": "critic",
-     "prompt_tokens": 451,
+     "prompt_tokens": 450,
      "completion_tokens": 44,
-     "latency_s": 1.246,
+     "latency_s": 1.325,
      "finish": "stop"
     }
    ],
@@ -7259,8 +7305,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "한화솔루션이 2026년 3월 26일 결의한 유상증자에서 채무상환자금으로 조달하려는 금액은 **1,489,900,000,000원**(1조 4,899억 원)입니다. \n(근거: 주요사항보고서(유상증자결정), 2026-03-26, 20260326000538)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한화솔루션\" period=ym:202603 top_k=5 q=\"한화솔루션 2026 26 결의한 유상증자 채무상환자금 조달하려 금액 얼마인\" n=1 top_score=50.924 ids=major_20260326000538 | hop=0 verdict=sufficient evidence=1 | generate tokens=665+90 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1250"
+   "answer": "한화솔루션이 2026년 3월 26일 결의한 유상증자에서 채무상환자금으로 조달하려는 금액은 **1,489,900,000,000원**(1조 4,899억원)입니다. \n(근거: 주요사항보고서(유상증자결정), 2026-03-26, 20260326000538)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한화솔루션\" period=ym:202603 top_k=5 q=\"한화솔루션 2026 26 결의한 유상증자 채무상환자금 조달하려 금액 얼마인\" n=1 top_score=50.924 ids=major_20260326000538 | hop=0 verdict=sufficient evidence=1 | generate tokens=791+89 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1374"
   },
   {
    "question_id": "Q-063",
@@ -7375,7 +7421,7 @@
    "prompt_tokens": 1155,
    "completion_tokens": 154,
    "judge_tokens": 0,
-   "latency_s": 0.009,
+   "latency_s": 0.01,
    "calls": [
     {
      "tag": "answer",
@@ -7427,14 +7473,14 @@
    ],
    "answerable": true,
    "answer_form": "number_won",
-   "correct": false,
+   "correct": true,
    "scored_by": "em:number_won",
    "judge": null,
-   "first_failure": "TOOL",
-   "root_cause": "TOOL",
-   "failure_why": "amount: 답변 492,909억 vs 재계산 4,928,968,079,043 (10^+1 배 자릿수 오류)",
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
    "critic_supported": true,
-   "critic_passed_wrong_answer": true,
+   "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": false,
    "has_citation": false,
    "route": "closed_lookup",
@@ -7445,23 +7491,23 @@
    "n_hops": 0,
    "n_steps": 2,
    "n_llm_calls": 2,
-   "prompt_tokens": 2477,
-   "completion_tokens": 176,
+   "prompt_tokens": 2649,
+   "completion_tokens": 187,
    "judge_tokens": 0,
    "latency_s": 0.014,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 1340,
-     "completion_tokens": 127,
-     "latency_s": 3.285,
+     "prompt_tokens": 1472,
+     "completion_tokens": 167,
+     "latency_s": 4.048,
      "finish": "stop"
     },
     {
      "tag": "critic",
-     "prompt_tokens": 1137,
-     "completion_tokens": 49,
-     "latency_s": 1.484,
+     "prompt_tokens": 1177,
+     "completion_tokens": 20,
+     "latency_s": 0.836,
      "finish": "stop"
     }
    ],
@@ -7489,10 +7535,8 @@
     "period",
     "share"
    ],
-   "calc_mismatch": true,
-   "calc_reasons": [
-    "amount: 답변 492,909억 vs 재계산 4,928,968,079,043 (10^+1 배 자릿수 오류)"
-   ],
+   "calc_mismatch": false,
+   "calc_reasons": [],
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -7500,8 +7544,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "Dukovany 5&6 NSSS 계약 금액은 492,909억 원이고, 신한울 원자력 발전소 3,4호기 원자로 설비 공급 계약 금액은 23,381억 원이므로, 차이는 **469,528억 원**입니다. \n\n(근거: [단일판매ㆍ공급계약체결] 두산에너빌리티 – Dukovany 5&6 NSSS Contract, [단일판매ㆍ공급계약체결] 두산에너빌리티 – 신한울 원자력 발전소 3,4호기 원자로설비 공급 계약)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202512 top_k=3 q=\"두산에너빌리티 2025 12 월에 공시한 Dukovany NSSS 계약 2023 신한울 원자력 발전소 3,4 호기 원자로설비 계약금액보다 얼마나 큰가\" n=3 top_score=57.011 ids=exchange_20251216801147,exchange_20251216801163,exchange_20251231800182 | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202303 top_k=3 q=\"두산에너빌리티 2025 12 월에 공시한 Dukovany NSSS 계약 2023 신한울 원자력 발전소 3,4 호기 원자로설비 계약금액보다 얼마나 큰가\" n=3 top_score=112.670 ids=exchange_20230329801108,exchange_20230329801112,exchange_20230315800453 | hop=0 verdict=sufficient evidence=6 | generate tokens=1340+127 | 근거 표기 누락 — critic 호출 | critic supported=True reason=두 계약의 금액 차이를 계산할 때 필요한 모든 정보가 제공되었으며, 이를 바탕으로 정확한 차이가 산출되었습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=2653"
+   "answer": "Dukovany 5&6 NSSS 계약의 계약금액은 4,928,968,079,043원이고, 신한울 원자력 발전소 3,4호기 원자로설비 공급 계약의 계약금액은 2,338,117,950,000원이므로, 차이는 **2,590,850,129,043원**(2조 5,908억원)입니다.\n(근거: [단일판매ㆍ공급계약 체결] 두산에너빌리티 – Dukovany 5&6 NSSS Contract, 2025-12-16; [단일판매ㆍ공급계약 체결] 두산에너빌리티 – 신한울 원자력 발전소 3,4호기 원자로설비 공급 계약, 2023-03-29)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202512 top_k=3 q=\"두산에너빌리티 2025 12 월에 공시한 Dukovany NSSS 계약 2023 신한울 원자력 발전소 3,4 호기 원자로설비 계약금액보다 얼마나 큰가\" n=3 top_score=56.550 ids=exchange_20251216801147,exchange_20251216801163,exchange_20251231800182 | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202303 top_k=3 q=\"두산에너빌리티 2025 12 월에 공시한 Dukovany NSSS 계약 2023 신한울 원자력 발전소 3,4 호기 원자로설비 계약금액보다 얼마나 큰가\" n=3 top_score=111.985 ids=exchange_20230329801108,exchange_20230329801112,exchange_20230315800453 | hop=0 verdict=sufficient evidence=6 | generate tokens=1472+167 | 근거 표기 누락 — critic 호출 | critic supported=True reason= | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=2836"
   },
   {
    "question_id": "Q-066",
@@ -7534,23 +7578,23 @@
    "n_hops": 0,
    "n_steps": 1,
    "n_llm_calls": 2,
-   "prompt_tokens": 1423,
-   "completion_tokens": 127,
+   "prompt_tokens": 1411,
+   "completion_tokens": 132,
    "judge_tokens": 0,
-   "latency_s": 3.425,
+   "latency_s": 3.805,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 827,
+     "prompt_tokens": 821,
      "completion_tokens": 76,
-     "latency_s": 2.055,
+     "latency_s": 2.215,
      "finish": "stop"
     },
     {
      "tag": "critic",
-     "prompt_tokens": 596,
-     "completion_tokens": 51,
-     "latency_s": 1.362,
+     "prompt_tokens": 590,
+     "completion_tokens": 56,
+     "latency_s": 1.582,
      "finish": "stop"
     }
    ],
@@ -7586,8 +7630,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "광주 경안2지구 도시개발사업의 원래 공급계약 금액은 **362,307,038,000원**(3,623억 원)입니다. \n\n(근거: [공급계약 해지] 대우건설 – 단일판매ㆍ공급계약 해지 — 광주 경안2지구 도시개발사업, 2024-11-15, 20241115800529)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — amount: 답변 362,307,038,000원 vs 재계산 404,372,455,132)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"대우건설\" period=ym:202411 top_k=5 q=\"대우건설 2024 11 15 공시한 광주 경안 지구 도시개발사업 계약 해지 가리키 원래 얼마인\" n=3 top_score=70.323 ids=exchange_20241115800529,exchange_20241106800473,exchange_20241114802520 | hop=0 verdict=sufficient evidence=3 | generate tokens=827+76 | 근거 표기 누락 — critic 호출 | critic supported=True reason=제시된 답변에는 공급계약의 해지금액이 정확히 기재되어 있으며, 해당 정보는 제공된 근거에서 확인할 수 있습니다. | verify calc_checked=amount complete_checked=- ok=False kinds=calculation | budget steps=1 hops=0 llm=2 tokens=1550"
+   "answer": "광주 경안2지구 도시개발사업의 원래 공급계약 금액은 **362,307,038,000원**(3,623억 원)입니다. \n(근거: [공급계약 해지] 대우건설 – 단일판매ㆍ공급계약 해지 — 광주 경안2지구 도시개발사업, 2024-11-15, 20241115800529)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — amount: 답변 362,307,038,000원 vs 재계산 404,372,455,132)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"대우건설\" period=ym:202411 top_k=5 q=\"대우건설 2024 11 15 공시한 광주 경안 지구 도시개발사업 계약 해지 가리키 원래 얼마인\" n=3 top_score=69.798 ids=exchange_20241115800529,exchange_20241106800473,exchange_20241114802520 | hop=0 verdict=sufficient evidence=3 | generate tokens=821+76 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 광주 경안2지구 도시개발 사업의 공급계약 금액과 관련된 정보가 정확하게 포함되어 있으며, 해당 정보는 제공된 근거에서 확인할 수 있습니다. | verify calc_checked=amount complete_checked=- ok=False kinds=calculation | budget steps=1 hops=0 llm=2 tokens=1543"
   },
   {
    "question_id": "Q-067",
@@ -7696,16 +7740,16 @@
    "n_hops": 2,
    "n_steps": 3,
    "n_llm_calls": 1,
-   "prompt_tokens": 3088,
-   "completion_tokens": 165,
-   "judge_tokens": 3171,
+   "prompt_tokens": 3420,
+   "completion_tokens": 247,
+   "judge_tokens": 3585,
    "latency_s": 0.04,
    "calls": [
     {
      "tag": "answer",
-     "prompt_tokens": 3088,
-     "completion_tokens": 165,
-     "latency_s": 4.345,
+     "prompt_tokens": 3420,
+     "completion_tokens": 247,
+     "latency_s": 6.181,
      "finish": "stop"
     }
    ],
@@ -7734,8 +7778,8 @@
     "asks_value": false,
     "blocking": false
    },
-   "answer": "한전기술이 2025년 3월 21일에 제출한 제50기 사업보고서는 2025년 8월 14일에 정정되었습니다. 정정된 내용은 '**XI. 그 밖에 투자자 보호를 위하여 필요한 사항 1. 공시내용 진행 및 변경사항**' 부분으로, 원래 내용에 '**향후 계획**' 부분이 추가되었습니다.\n\n정정 사유는 '1. 공시내용 진행 및 변경사항에 향후계획 추가'로 명시되어 있습니다. 즉, 기존 공시 내용에 향후 계획을 추가로 기재하여 보다 완전한 정보를 제공하기 위함이었습니다.\n\n(근거: [사업보고서 2025] 한전기술 – 정 정 신 고 (보고), 20250814, 접수번호 20250814001076)",
-   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"한전기술\" filters=- path=\"정 정 신 고 (보고)\" top_k=8 q=\"한전기술 2025 21 제출한 50 사업보고서 같은 14 정정됐다 정정됐는지\" n=0 top_score=- ids=- | hop=1 strat=toc_corp tool=search_chunks group=periodic corp=\"한전기술\" filters=- path=\"정 정 신 고 (보고)\" top_k=10 q=\"한전기술 2025 21 제출한 50 사업보고서 같은 14 정정됐다 정정됐는지\" n=2 top_score=52.707 ids=periodic_20250814001076,periodic_20260326001003 | hop=2 strat=doc_narrow tool=search_chunks group=periodic corp=\"한전기술\" filters=base_year=2025,doc_subtype=annual path=\"-\" top_k=8 q=\"한전기술 제출 사업보고서 같은 정정됐다 정정됐는지\" n=8 top_score=44.856 ids=periodic_20260326001003,periodic_20260326001003,periodic_20260323000234,periodic_20260326001003,periodic_20260323000234,periodic_20260323000234,periodic_20260326001003,periodic_20260323000234 | hop=4 verdict=sufficient evidence=4 | generate tokens=3088+165 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=3 hops=2 llm=1 tokens=3253"
+   "answer": "한전기술이 2025년 3월 21일에 제출한 제50기 사업보고서는 2025년 8월 14일에 정정되었습니다. 정정된 내용은 '**XI. 그 밖에 투자자 보호를 위하여 필요한 사항 1. 공시내용 진행 및 변경사항**' 부분으로, 구체적으로는 다음과 같습니다:\n\n- **정정 사유**: 1. 공시내용 진행 및 변경사항에 향후계획을 추가하기 위함\n- **변경 내용**: 기존 내용에 '향후 계획' 부분이 추가되어, 회사는 향후 판매 공급, 대금 수령 등과 관련하여 추가 수주와 기성금 수금 등에 노력할 것을 밝혔습니다. 또한, 상기 계약 내역과 관련하여 변동사항이 생길 경우에는 공시 규정에 따라 \"단일판매·공급계약체결\" 정정공시를 하겠다고 명시했습니다.\n\n따라서 이번 정정은 투자자들에게 보다 명확한 향후 계획을 알리고, 필요 시 추가적인 정보 제공을 약속함으로써 투자자를 보호하려는 목적이 있었습니다. (근거: [사업보고서 2025] 한전기술 – 정 정 신 고 (보고), 접수번호 20250814001076, 공시일 20250814)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"한전기술\" filters=- path=\"정 정 신 고 (보고)\" top_k=8 q=\"한전기술 2025 21 제출한 50 사업보고서 같은 14 정정됐다 정정됐는지\" n=0 top_score=- ids=- | hop=1 strat=toc_corp tool=search_chunks group=periodic corp=\"한전기술\" filters=- path=\"정 정 신 고 (보고)\" top_k=10 q=\"한전기술 2025 21 제출한 50 사업보고서 같은 14 정정됐다 정정됐는지\" n=2 top_score=52.707 ids=periodic_20250814001076,periodic_20260326001003 | hop=2 strat=doc_narrow tool=search_chunks group=periodic corp=\"한전기술\" filters=doc_subtype=annual path=\"-\" top_k=8 q=\"한전기술 제출 사업보고서 같은 정정됐다 정정됐는지\" n=8 top_score=44.856 ids=periodic_20260326001003,periodic_20250814001076,periodic_20240320001238,periodic_20260326001003,periodic_20260323000234,periodic_20250814001076,periodic_20240320001238,periodic_20260326001003 | hop=4 verdict=sufficient evidence=4 | generate tokens=3420+247 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=3 hops=2 llm=1 tokens=3667"
   },
   {
    "question_id": "Q-069",
@@ -7771,7 +7815,7 @@
    "prompt_tokens": 1200,
    "completion_tokens": 147,
    "judge_tokens": 0,
-   "latency_s": 3.935,
+   "latency_s": 0.007,
    "calls": [
     {
      "tag": "answer",
@@ -7821,7 +7865,7 @@
     "blocking": false
    },
    "answer": "효성중공업이 2023년 11월 9일에 공시한 내용에 따르면, 노르웨이 송전청(Statnett SF) 대상 420kV 변압기 등 공급계약의 최초 공시 당시 계약금액은 **101,836,451,885원**(1,018억원)입니다. \n(근거: 단일판매ㆍ공급계약체결, 2023-11-09, 20231109800432)",
-   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"효성중공업\" period=ym:202311 top_k=5 q=\"효성중공업 2023 11 공시한 노르웨 송전청 Statnett SF 대상 420 kV 변압기 최초 당시 얼마인\" n=2 top_score=73.585 ids=exchange_20231109800432,exchange_20231103800460 | hop=0 verdict=sufficient evidence=2 | generate tokens=710+98 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 근거에 있는 정보가 정확하게 반영되어 있으며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1347"
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"효성중공업\" period=ym:202311 top_k=5 q=\"효성중공업 2023 11 공시한 노르웨 송전청 Statnett SF 대상 420 kV 변압기 최초 당시 얼마인\" n=2 top_score=72.906 ids=exchange_20231109800432,exchange_20231103800460 | hop=0 verdict=sufficient evidence=2 | generate tokens=710+98 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 근거에 있는 정보가 정확하게 반영되어 있으며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1347"
   },
   {
    "question_id": "Q-070",

@@ -4,16 +4,16 @@
  "grounded": false,
  "no_fabrication": false,
  "correct": false,
- "reason": "제공된 근거에는 정정에 대한 정보가 포함되어 있지 않으며, 답변에서는 존재하지 않는 정정을 언급하고 있습니다.",
+ "reason": "제공된 모범답안의 핵심 요소인 정정 과정에서의 계약 금액 변화를 모두 포함하지 않았습니다.",
  "calls": [
   {
    "tag": "judge_open",
-   "prompt_tokens": 1398,
-   "completion_tokens": 48,
-   "latency_s": 1.496,
+   "prompt_tokens": 1378,
+   "completion_tokens": 43,
+   "latency_s": 1.429,
    "finish": "stop"
   }
  ],
- "prompt_tokens": 1398,
- "completion_tokens": 48
+ "prompt_tokens": 1378,
+ "completion_tokens": 43
 }

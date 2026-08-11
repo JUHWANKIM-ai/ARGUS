@@ -4,7 +4,7 @@
   "question_id": "Q-073",
   "question": "현대오토에버가 2025년 7월에 공시한 hCloud 서비스 제공 계약의 계약기간은 몇 년인가?",
   "retrieved_context": "## [공급계약 체결] 현대오토에버 – 단일판매ㆍ공급계약체결 — hCloud 서비스 제공 계약\n- 공시일: 2025-07-31 (접수번호 20250731800497)\n- 섹터: 자동차·모빌리티\n- 계약금액: 125,514,000,000원\n- 매출액 대비: 3.4%\n- 계약상대: 현대자동차 주식회사 및 기아 주식회사\n- 기간: 2025-07-01 ~ 2030-06-30\n- 확정일: 2025-07-31",
-  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대오토에버\" period=ym:202507 top_k=5 q=\"현대오토에버 2025 월에 공시한 hCloud 서비스 제공 계약 년인\" n=1 top_score=62.520 ids=exchange_20250731800497 | hop=0 verdict=sufficient evidence=1 | generate tokens=560+61 | 근거 표기 누락 — critic 호출 | critic supported=True reason=제공된 답변에는 계약기간이 '5년'으로 명시되어 있으며 이는 근거에서 제시된 '기간: 2025-07-01 ~ 2030-06-30'과 일치합니다. | budget steps=1 hops=0 llm=2 tokens=1014",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대오토에버\" period=ym:202507 top_k=5 q=\"현대오토에버 2025 월에 공시한 hCloud 서비스 제공 계약 년인\" n=1 top_score=61.944 ids=exchange_20250731800497 | hop=0 verdict=sufficient evidence=1 | generate tokens=560+61 | 근거 표기 누락 — critic 호출 | critic supported=True reason=제공된 답변에는 계약기간이 '5년'으로 명시되어 있으며 이는 근거에서 제시된 '기간: 2025-07-01 ~ 2030-06-30'과 일치합니다. | budget steps=1 hops=0 llm=2 tokens=1014",
   "answer": "현대오토에버가 2025년 7월에 공시한 hCloud 서비스 제공 계약의 계약기간은 총 **5년**입니다. \n\n(근거: 단일판매ㆍ공급계약체결, 2025-07-31, 20250731800497)"
  },
  "calls": [
@@ -27,5 +27,5 @@
  "completion_tokens": 128,
  "llm_calls": 2,
  "latency_s": 0.005,
- "ts": "2026-08-10T21:26:11"
+ "ts": "2026-08-11T12:57:12"
 }

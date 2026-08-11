@@ -3,29 +3,29 @@
  "response": {
   "question_id": "Q-066",
   "question": "대우건설이 2024년 11월 15일 공시한 광주 경안2지구 도시개발사업 계약 해지가 가리키는 원래 공급계약의 계약금액은 얼마인가?",
-  "retrieved_context": "## [기재정정] [공급계약 체결] 대우건설 – 단일판매ㆍ공급계약체결 — 학익3구역 주택재개발정비사업\n- 공시일: 2024-11-06 (접수번호 20241106800473)\n- 섹터: 건설\n- 계약금액: 404,372,455,132원\n- 매출액 대비: 404372455132.0%\n- 계약상대: 학익3구역 주택재개발정비사업조합\n- 확정일: 2022-07-13\n\n## [기재정정] [공급계약 체결] 대우건설 – 단일판매ㆍ공급계약체결 — 군포 벌터마벨 B-1블록 공동주택 신축사업\n- 공시일: 2024-11-14 (접수번호 20241114802520)\n- 섹터: 건설\n- 계약금액: 351,474,400,000원\n- 매출액 대비: 351474400000.0%\n- 계약상대: 주식회사 서해종합건설\n- 기간: 2024-09-06 ~ 2024-09-06\n- 확정일: 2023-10-19\n\n## [공급계약 해지] 대우건설 – 단일판매ㆍ공급계약 해지 — 광주 경안2지구 도시개발사업\n- 공시일: 2024-11-15 (접수번호 20241115800529)\n- 섹터: 건설\n- 해지금액: 362,307,038,000원\n- 매출액 대비: 3.11%\n- 계약상대: 경안리버시티개발 주식회사\n- 확정일: 2024-11-14",
-  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=meta tool=filter_docs corp=\"대우건설\" period=ym:202411 group=exchange n=3 top_score=- ids=exchange_20241106800473,exchange_20241114802520,exchange_20241115800529 | hop=0 verdict=sufficient evidence=3 | generate tokens=806+70 | 근거 표기 누락 — critic 호출 | critic supported=True reason=제시된 답변은 제공된 근거 자료에서 직접적으로 확인할 수 있는 정보이며, 이를 통해 정확한 금액을 알 수 있습니다. | budget steps=0 hops=0 llm=2 tokens=1497",
+  "retrieved_context": "## [기재정정] [공급계약 체결] 대우건설 – 단일판매ㆍ공급계약체결 — 학익3구역 주택재개발정비사업\n- 공시일: 2024-11-06 (접수번호 20241106800473)\n- 섹터: 건설\n- 계약금액: 404,372,455,132원\n- 매출액 대비: 4.66%\n- 계약상대: 학익3구역 주택재개발정비사업조합\n- 확정일: 2022-07-13\n\n## [기재정정] [공급계약 체결] 대우건설 – 단일판매ㆍ공급계약체결 — 군포 벌터마벨 B-1블록 공동주택 신축사업\n- 공시일: 2024-11-14 (접수번호 20241114802520)\n- 섹터: 건설\n- 계약금액: 351,474,400,000원\n- 매출액 대비: 3.37%\n- 계약상대: 주식회사 서해종합건설\n- 기간: 2024-09-06 ~ 2028-05-31\n- 확정일: 2023-10-19\n\n## [공급계약 해지] 대우건설 – 단일판매ㆍ공급계약 해지 — 광주 경안2지구 도시개발사업\n- 공시일: 2024-11-15 (접수번호 20241115800529)\n- 섹터: 건설\n- 해지금액: 362,307,038,000원\n- 매출액 대비: 3.11%\n- 계약상대: 경안리버시티개발 주식회사\n- 확정일: 2024-11-14",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=meta tool=filter_docs corp=\"대우건설\" period=ym:202411 group=exchange n=3 top_score=- ids=exchange_20241106800473,exchange_20241114802520,exchange_20241115800529 | hop=0 verdict=sufficient evidence=3 | generate tokens=800+70 | 근거 표기 누락 — critic 호출 | critic supported=True reason=제시된 답변은 제공된 근거 자료에서 직접적으로 확인할 수 있는 정보이며, 이를 통해 정확한 금액을 알 수 있습니다. | budget steps=0 hops=0 llm=2 tokens=1485",
   "answer": "광주 경안2지구 도시개발사업의 원래 공급계약 금액은 **362,307,038,000원**입니다. \n\n(근거: [공급계약 해지] 대우건설 – 단일판매ㆍ공급계약 해지 — 광주 경안2지구 도시개발사업, 2024-11-15, 20241115800529)"
  },
  "calls": [
   {
    "tag": "answer",
-   "prompt_tokens": 806,
+   "prompt_tokens": 800,
    "completion_tokens": 70,
-   "latency_s": 1.871,
+   "latency_s": 1.817,
    "finish": "stop"
   },
   {
    "tag": "critic",
-   "prompt_tokens": 569,
+   "prompt_tokens": 563,
    "completion_tokens": 52,
-   "latency_s": 1.466,
+   "latency_s": 1.487,
    "finish": "stop"
   }
  ],
- "prompt_tokens": 1375,
+ "prompt_tokens": 1363,
  "completion_tokens": 122,
  "llm_calls": 2,
- "latency_s": 3.339,
- "ts": "2026-08-10T21:35:43"
+ "latency_s": 3.306,
+ "ts": "2026-08-11T12:49:00"
 }

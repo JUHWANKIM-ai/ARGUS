@@ -19,6 +19,6 @@
  "prompt_tokens": 2857,
  "completion_tokens": 255,
  "llm_calls": 1,
- "latency_s": 6.25,
- "ts": "2026-08-10T21:30:45"
+ "latency_s": 0.002,
+ "ts": "2026-08-11T12:47:39"
 }

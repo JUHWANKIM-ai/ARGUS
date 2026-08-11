@@ -4,16 +4,16 @@
  "grounded": false,
  "no_fabrication": false,
  "correct": false,
- "reason": "제출답변은 모범답안의 핵심 요소를 누락했습니다. 반기·분기보고서에는 해당 항목이 아예 없다는 점을 명시해야 합니다.",
+ "reason": "제출답변은 모범답안의 요소들을 제대로 반영하지 못했으며, 반기·분기보고서와 사업보고서의 차이점을 명확히 설명하지 않았습니다.",
  "calls": [
   {
    "tag": "judge_open",
-   "prompt_tokens": 1312,
-   "completion_tokens": 56,
-   "latency_s": 1.752,
+   "prompt_tokens": 3623,
+   "completion_tokens": 57,
+   "latency_s": 2.084,
    "finish": "stop"
   }
  ],
- "prompt_tokens": 1312,
- "completion_tokens": 56
+ "prompt_tokens": 3623,
+ "completion_tokens": 57
 }

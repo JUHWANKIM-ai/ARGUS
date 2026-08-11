@@ -4,28 +4,28 @@
   "question_id": "Q-035",
   "question": "LG에너지솔루션이 2024년 10월에 공시한 Ford Motor Company 와의 전기차 배터리 공급계약은 이후 어떻게 처리되었는지 정정·해지 이력을 함께 설명해줘.",
   "retrieved_context": "## [공급계약 체결] LG에너지솔루션 – 단일판매ㆍ공급계약체결 — 전기차 배터리 공급계약\n- 정정체인: 1/2 (원공시 · 대체됨)\n- 공시일: 2024-10-15 (접수번호 20241015800258)\n- 섹터: 2차전지\n- 계약상대: Ford Motor Company\n- 기간: 2027-01-01 ~ 2032-12-31 (5년 11개월)\n- 확정일: 2024-10-14\n- 공시유보: 경영상 비밀유지\n\n## [기재정정] [공급계약 체결] LG에너지솔루션 – 단일판매ㆍ공급계약체결 — 전기차 배터리 공급계약\n- 정정체인: 2/2 (최신본)\n- 공시일: 2025-12-17 (접수번호 20251217800853)\n- 섹터: 2차전지\n- 계약금액: 9,603,075,000,000원 (96,031억원)\n- 매출액 대비: 28.5%\n- 계약상대: Ford Motor Company\n- 기간: 2027-01-01 ~ 2032-12-31 (5년 11개월)\n- 확정일: 2024-10-14\n\n## [공급계약 해지] LG에너지솔루션 – 단일판매ㆍ공급계약 해지 — 전기차 배터리 공급계약\n- 정정체인: 후속 공시 (※관련공시로 이어짐)\n- 공시일: 2025-12-17 (접수번호 20251217800800)\n- 섹터: 2차전지\n- 해지금액: 9,603,075,000,000원 (96,031억원)\n- 매출액 대비: 28.5%\n- 계약상대: Ford Motor Company\n- 기간: 2027-01-01 ~ 2032-12-31 (5년 11개월)\n- 확정일: 2025-12-17\n\n## [공급계약 체결] LG에너지솔루션 – 단일판매ㆍ공급계약체결 — 전기차 배터리 공급계약\n- 공시일: 2024-10-15 (접수번호 20241015800261)\n- 섹터: 2차전지\n- 계약상대: Ford Motor Company\n- 기간: 2026-10-01 ~ 2030-12-31 (4년 2개월)\n- 확정일: 2024-10-14\n- 공시유보: 경영상 비밀유지\n\n## [공급계약 체결] LG에너지솔루션 – 단일판매ㆍ공급계약체결 — 전기차 배터리 공급계약\n- 공시일: 2024-10-08 (접수번호 20241008800163)\n- 섹터: 2차전지\n- 계약상대: Mercedes-Benz 계열사\n- 기간: 2028-01-01 ~ 2038-12-31 (10년 11개월)\n- 확정일: 2024-10-07\n- 공시유보: 경영상 비밀유지",
-  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG에너지솔루션\" period=ym:202410 top_k=5 q=\"LG 에너지솔루션 2024 10 월에 공시한 Ford Motor Company 와의 전기차 배터리 이후 어떻게 처리되었는지 정정 해지 이력 함께\" n=3 top_score=70.376 ids=exchange_20241015800261,exchange_20241015800258,exchange_20241008800163 | hop=5 strat=chain tool=get_history corp=\"LG에너지솔루션\" rcept=20241015800258 latest=20251217800853 chain_length=2 n=2 top_score=- ids=exchange_20251217800853,exchange_20251217800800 | hop=0 verdict=sufficient evidence=5 | generate tokens=1115+329 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 주요 정보가 근거에서 확인되며, 각 단계별 공시 내용과 일자가 명확히 제시되어 있습니다. | verify calc_checked=amount,share complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=2616",
-  "answer": "LG에너지솔루션이 2024년 10월에 공시한 Ford Motor Company와의 전기차 배터리 공급계약의 정정 및 해지 이력은 다음과 같습니다.\n\n1. **원공시**: 2024년 10월 15일에 최초 공시된 내용은 계약 기간이 2027년 1월 1일부터 2032년 12월 31일까지이며, 금액 정보는 포함되지 않았습니다.(근거: 단일판매ㆍ공급계약 체결, 2024-10-15, 20241015800258)\n\n2. **정정 1단계**: 같은 날 추가된 정정공시는 계약 금액을 9,603,075,000,000원으로 명시하며 매출액 대비 비율을 28.5%라고 밝혔습니다.(근거: 수정된 단일판매ㆍ공급계약 체결, 2025-12-17, 20251217800853)\n\n3. **해지 공시**: 그러나 2025년 12월 17일, 동일한 계약 건에 대해 해지 공시가 발표되었습니다. 이는 앞서 체결된 계약을 철회한다는 의미로, 해지 금액 역시 동일하게 9,603,075,000,000원이었습니다.(근거: 단일판매ㆍ공급계약 해지, 2025-12-17, 20251217800800)\n\n따라서, 2024년 10월의 Ford Motor Company와 맺었던 전기차 배터리 공급계약은 2025년 12월에 해지되었으며, 이로 인해 해당 계약은 더 이상 유효하지 않게 되었습니다.\n\n(근거: 위 공시들 전체 참조)"
+  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG에너지솔루션\" period=ym:202410 top_k=5 q=\"LG 에너지솔루션 2024 10 월에 공시한 Ford Motor Company 와의 전기차 배터리 이후 어떻게 처리되었는지 정정 해지 이력 함께\" n=3 top_score=69.757 ids=exchange_20241015800261,exchange_20241015800258,exchange_20241008800163 | hop=5 strat=chain tool=get_history corp=\"LG에너지솔루션\" rcept=20241015800258 latest=20251217800853 chain_length=2 n=2 top_score=- ids=exchange_20251217800853,exchange_20251217800800 | hop=0 verdict=sufficient evidence=5 | generate tokens=1244+336 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 주요 정보는 제공된 근거에서 확인할 수 있으며, 접수번호 등의 구체적인 정보도 포함되어 있습니다. | verify calc_checked=amount,period,share complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=2758",
+  "answer": "LG에너지솔루션이 2024년 10월에 공시한 Ford Motor Company와의 전기차 배터리 공급계약의 정정 및 해지 이력은 다음과 같습니다.\n\n1. **원공시**: 2024년 10월 15일에 최초 공시된 내용은 계약기간 2027년 1월 1일부터 2032년 12월 31일까지 총 5년 11개월 동안의 계약을 나타냈습니다. 그러나 이 공시는 이후에 수정되었습니다.\n   \n2. **수정공시**: 2025년 12월 17일, 계약금액이 9,603,075,000,000원으로 명시되며, 매출액 대비 비율은 28.5%로 제시되었습니다. 또한, 계약기간이 동일하게 유지되면서 계약의 세부사항이 보다 명확히 되었습니다.\n\n3. **해지공시**: 동일한 날짜인 2025년 12월 17일에 해지 공시가 올라왔습니다. 이는 앞서 체결되었던 Ford Motor Company와의 전기차 배터리 공급계약이 해지됨을 의미하며, 해지금액은 이전 계약과 동일한 9,603,075,000,000원이었습니다.\n\n따라서, 2024년 10월의 Ford Motor Company와 맺었던 전기차 배터리 공급계약은 2025년 12월에 해지되었으며, 해당 과정에서 계약 금액 등 일부 정보가 추가적으로 명확화되었습니다.\n\n(근거: [단일판매ㆍ공급계약 체결], [기재정정][단일판매ㆍ공급계약 체결], [공급계약 해지] 각 보고서, 기준연월 2024-10~2025-12)"
  },
  "calls": [
   {
    "tag": "answer",
-   "prompt_tokens": 1115,
-   "completion_tokens": 329,
-   "latency_s": 7.544,
+   "prompt_tokens": 1244,
+   "completion_tokens": 336,
+   "latency_s": 8.767,
    "finish": "stop"
   },
   {
    "tag": "critic",
-   "prompt_tokens": 1126,
-   "completion_tokens": 46,
-   "latency_s": 1.481,
+   "prompt_tokens": 1133,
+   "completion_tokens": 45,
+   "latency_s": 1.352,
    "finish": "stop"
   }
  ],
- "prompt_tokens": 2241,
- "completion_tokens": 375,
+ "prompt_tokens": 2377,
+ "completion_tokens": 381,
  "llm_calls": 2,
- "latency_s": 0.008,
- "ts": "2026-08-10T20:59:24"
+ "latency_s": 0.009,
+ "ts": "2026-08-11T12:37:17"
 }

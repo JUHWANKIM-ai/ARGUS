@@ -4,7 +4,7 @@
   "question_id": "Q-086",
   "question": "두산로보틱스 2025년 반기보고서(제11기 반기) 기준 로봇 부문 매출과 기타 부문 매출의 합계는 백만원 단위로 얼마인가?",
   "retrieved_context": "## [투자판단 관련 주요경영사항] 두산로보틱스 – 투자판단 관련 주요경영사항\n- 공시일: 2025-02-05 (접수번호 20250205800058)\n- 섹터: 로봇\n- 확정일: 2025-02-05",
-  "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"두산로보틱스\" period=year:2025 top_k=5 q=\"두산로보틱스 2025 반기보고서 11 반기 기준 로봇 부문 매출 기타 합계 백만원 단위 얼마인\" n=1 top_score=43.244 ids=exchange_20250205800058 | hop=0 verdict=insufficient evidence=1 reason=few:1<2,missing_field:금액 | generate tokens=522+166 | 근거 표기 누락 — critic 호출 | critic supported=False reason=답변이 공시의 내용을 구체적으로 다루지 않고 일반적인 정보 제공 방식을 안내하고 있음. | budget steps=1 hops=0 llm=2 tokens=1099",
+  "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"두산로보틱스\" period=year:2025 top_k=5 q=\"두산로보틱스 2025 반기보고서 11 반기 기준 로봇 부문 매출 기타 합계 백만원 단위 얼마인\" n=1 top_score=42.968 ids=exchange_20250205800058 | hop=0 verdict=insufficient evidence=1 reason=few:1<2,missing_field:금액 | generate tokens=522+166 | 근거 표기 누락 — critic 호출 | critic supported=False reason=답변이 공시의 내용을 구체적으로 다루지 않고 일반적인 정보 제공 방식을 안내하고 있음. | budget steps=1 hops=0 llm=2 tokens=1099",
   "answer": "제공된 공시에서는 두산로보틱스의 2025년도 반기 보고서와 관련된 구체적인 재무 데이터를 찾을 수 없습니다. 따라서 질문에 대한 정확한 답변을 드릴 수 없습니다.\n\n해당 정보를 찾기 위해서는 다음과 같은 방법을 시도할 수 있습니다:\n\n1. 금융감독원 전자공시시스템(DART)에서 '두산로보틱스'의 '반기보고서'(제11기 반기)를 검색하여 직접 확인하는 방법\n2. 두산로보틱스의 공식 홈페이지나 IR 자료를 통해 공개된 재무 보고서를 참고하는 방법\n\n위 방법을 통해 원하는 정보를 얻으실 수 있길 바랍니다.\n\n공시에서 확인되지 않습니다. (근거: 투자판단 관련 주요 경영 사항, 2025-02-05, 20250205800058)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 답변이 공시의 내용을 구체적으로 다루지 않고 일반적인 정보 제공 방식을 안내하고 있음.)"
  },
  "calls": [
@@ -26,6 +26,6 @@
  "prompt_tokens": 891,
  "completion_tokens": 208,
  "llm_calls": 2,
- "latency_s": 5.093,
- "ts": "2026-08-10T21:26:39"
+ "latency_s": 0.007,
+ "ts": "2026-08-11T12:57:31"
 }
