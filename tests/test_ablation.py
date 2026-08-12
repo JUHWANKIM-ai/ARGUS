@@ -147,6 +147,25 @@ def test_followup_flag_is_actually_wired_into_the_chain_hop():
         assert args.get("include_followups") is expected, (arm, args)
 
 
+def test_get_history_really_accepts_the_flag_without_stubbing():
+    """🔴 **위 테스트는 `execute` 를 스텁하므로 인자명 오타를 못 잡는다.**
+
+    `tools.execute` 는 `fn(**args)` 이고 `TypeError` 를 `{"error": "인자 오류: …"}` 로
+    삼킨다. `_expand_chain` 은 그 오류를 `skip=tool_error` 로 적고 **그냥 넘어간다** —
+    즉 인자명이 틀리면 체인 hop 이 조용히 아무것도 안 하고 **Δ 가 0 으로 보고된다.**
+    이 모듈이 막으려는 바로 그 실패다. 그래서 진짜 경로를 한 번 탄다 (LLM 0회 · I/O 만).
+    """
+    from argus.agent import tools
+
+    seed = "20241015800258"          # 실측: chain 2 · followups 1 (v3 프로브에서 확인)
+    on = tools.execute("get_history", {"rcept_no": seed, "include_followups": True})
+    off = tools.execute("get_history", {"rcept_no": seed, "include_followups": False})
+
+    assert "error" not in on and "error" not in off, (on.get("error"), off.get("error"))
+    assert len(on["followups"]) > len(off["followups"]) == 0
+    assert on["chain_length"] == off["chain_length"], "체인은 플래그와 무관해야 한다"
+
+
 def test_every_loo_arm_has_a_label_for_the_report():
     """보고서가 '무엇을 뺐는가' 칸을 이 사전에서 읽는다. 빠지면 표가 비어 나간다.
 
