@@ -1862,24 +1862,42 @@ def render_gate(root: Path, budget_cap: float) -> str:
                  f'{total_spend - (held["spent_won"] or 0):,.1f}원 + heldout '
                  f'{held["spent_won"] or 0:,.1f}원(§14). 앞엣것이 Ablation v2 측정 비용이고, '
                  "뒤엣것은 **최종 1회** 몫이라 회계가 다르다.\n")
-        # 🔴 `summary.json` 과 이 표가 맞는지 **여기서 검산한다.** 예전에는 "그 파일은
-        #    heldout 이전 값이다" 를 문장으로 박아 뒀는데, 재집계로 그 파일이 갱신되면
-        #    그 문장이 조용히 거짓이 된다. 문장을 값에서 만든다.
-        meta_spend = meta.get("spent_won")
-        if meta_spend is None:
-            o.append('🔴 `summary.json` 에 `spent_won` 이 없다 — **총지출은 이 표의 '
-                     f'{total_spend:,.1f}원**(arm 별 `run.json` 합)이 권위값이다.\n')
-        elif abs(float(meta_spend) - total_spend) < 0.05:
-            o.append(f'✅ **검산 일치** — `summary.json` 의 `spent_won` '
-                     f'{float(meta_spend):,.1f}원 = 이 표의 총액 {total_spend:,.1f}원 '
-                     "(둘 다 arm·코호트별 `run.json` 합이고 heldout 을 포함한다).\n")
+    # 🔴 `summary.json` 과 이 표가 맞는지 **여기서 검산한다.** 예전에는 "그 파일은
+    #    heldout 이전 값이다" 를 문장으로 박아 뒀는데, 재집계로 그 파일이 갱신되면
+    #    그 문장이 조용히 거짓이 된다. 문장을 값에서 만든다.
+    # 🔴 **R2F — 이 검산이 `if held_report:` 안에 있었다.** heldout 이 없는 세대(v3)에서는
+    #    한 번도 발화하지 않았고, 그래서 `v3/summary.json` 의 `spent_won 553.2` 가
+    #    실제 재귀 합 **605.1**(= `vc/L3` 51.9 를 뺀 값)과 갈린 채로 커밋됐다. 두 산출물이
+    #    **같은 출처 라벨**("arm·코호트별 run.json 합")을 달고 다른 수를 실었다.
+    #    검산은 조건 밖에 있어야 검산이다.
+    meta_spend = meta.get("spent_won")
+    if meta_spend is None:
+        o.append('🔴 `summary.json` 에 `spent_won` 이 없다 — **총지출은 이 표의 '
+                 f'{total_spend:,.1f}원**(arm 별 `run.json` 합)이 권위값이다.\n')
+    elif abs(float(meta_spend) - total_spend) < 0.05:
+        o.append(f'✅ **검산 일치** — `summary.json` 의 `spent_won` '
+                 f'{float(meta_spend):,.1f}원 = 이 표의 총액 {total_spend:,.1f}원 '
+                 "(둘 다 arm·코호트별 `run.json` 합이다).\n")
+    else:
+        gap = total_spend - float(meta_spend)
+        hint = ""
+        if held_report:
+            hint = ("그 파일이 heldout 이전 시점의 산출물이면 그 차이가 heldout 몫"
+                    f'({held["spent_won"] or 0:,.1f}원)과 같아야 한다. ')
         else:
-            o.append(f'🔴 **`summary.json` 의 `spent_won`({float(meta_spend):,.1f})과 이 표의 '
-                     f'총액({total_spend:,.1f})이 다르다** — 차이 '
-                     f'{total_spend - float(meta_spend):+,.1f}원. 그 파일이 heldout 이전 '
-                     "시점의 산출물이면 그 차이가 heldout 몫"
-                     f'({held["spent_won"] or 0:,.1f}원)과 같아야 한다. **총지출은 이 표의 '
-                     f'{total_spend:,.1f}원**이 권위값이다 (`run.json` 합).\n')
+            newer = sorted((v, k) for k, v in spend["per_arm"].items()
+                           if abs(v - gap) < 0.05)
+            hint = ("두 값의 출처 라벨이 같으므로 한쪽이 낡았다는 뜻이다 — "
+                    "`summary.json` 은 **재집계 시점**에 얼어붙고 이 표는 **렌더 시점**에 "
+                    "다시 센다. 즉 재집계 뒤에 유료로 돌린 arm 이 있다"
+                    + (f' (차이가 `{newer[0][1]}` 의 결제액과 정확히 같다). '
+                       if newer else ". ")
+                    + "🔴 **처방은 `--arm` 없이 코호트만 주는 재집계**(LLM 0회)다. ")
+        o.append(f'🔴 **`summary.json` 의 `spent_won`({float(meta_spend):,.1f})과 이 표의 '
+                 f'총액({total_spend:,.1f})이 다르다** — 차이 {gap:+,.1f}원. '
+                 + hint
+                 + f'**총지출은 이 표의 {total_spend:,.1f}원**이 권위값이다 '
+                   "(`run.json` 합).\n")
     o.append(f'\n상한 {budget_cap:,.0f}원 대비 **{total_spend / budget_cap * 100:.1f}%** '
              f'사용 (80% 정지선 {budget_cap * 0.8:,.0f}원 · 상한 출처 {budget_source}). '
              f'**캐시 전체가 {arm_sum - total_spend:,.0f}원을 막았다** — 요청 캐시만이 '
