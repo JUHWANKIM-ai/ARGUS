@@ -1525,7 +1525,8 @@ A8 의 full 그리드 성적은 이 시점의 정본 **62/72** 이고 58 로 인
 
 `test_the_default_arm_never_walks_the_oracle_path` 와
 `test_judge_repeat_one_changes_nothing_about_the_old_path` 가 그 성질을 스위트에 고정한다.
-전량 **841 passed / 0 failed** (R1 시점. 🔴 R2 후 정본은 **940 passed** — §변경 이력 v9).
+전량 **841 passed / 0 failed** (R1 시점. 🔴 정본은 **946 passed** — R2D 940 → R2E 946 ·
+§변경 이력 v9·v10).
 
 ---
 
