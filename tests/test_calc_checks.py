@@ -7,13 +7,19 @@
 여기서 고정하는 것은 두 가지다.
   ① 겨냥 — Q-044(등식)·Q-018(원값↔환산값)을 실제 저장 응답 원문으로 잡는다
   ② 회귀 — 저장 응답 전수 재채점에서 **정답 문항 거짓 경보가 몇 건인지**를 박는다
+
+🔴 v4 `R1-1` 이 셋째 축을 붙였다 — **`A20`(재계산값 치환)**. 검사가 정답을 정확히
+재계산해 놓고 파이프라인이 각주만 붙이던 것(탐지 100% · 교정 0%)을 arm 으로 만든다.
 """
 import json
 import pathlib
+import types
+from dataclasses import replace
 
 import pytest
 
-from argus.agent import critic
+from argus import ablation
+from argus.agent import critic, pipeline
 from scripts import error_analysis as ea
 
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -424,3 +430,228 @@ def test_the_gate_blind_spot_is_measured_on_the_current_generation():
     #    +3 은 그 문턱이 아니라고 판단했다.
     assert (with_amount, gated) == (152, 67), (
         f"게이트 실측이 움직였다: amount 보유 {with_amount} · 게이트 차단 {gated}")
+
+
+# --- ⑤ A20 — 검사가 낸 유일한 재계산값으로 답변을 치환한다 ----------------------
+# 🔴 **이 절이 재는 것은 '교정' 이다.** `verify_calculation` 은 v1 부터 정답을 정확히
+# 재계산해 왔다 — Q-097 의 `per_unit` 재계산값 207,684,631,210 은 골든과 **바이트까지
+# 같다.** 그런데 파이프라인은 그것을 각주로만 붙이고 버렸고, 채점기는 그 각주를 일부러
+# 잘라내고 채점한다(`error_analysis.strip_verify_tail`). 즉 **탐지 100% · 교정 0%** 였다.
+#
+# 🔴 우리 착상이 아니라 **CoT 논문 부록 B 의 처방**이다 — *"모델이 스스로 쓴 등식마다
+# 사후 계산기를 돌리고, 문자열 매칭으로 결과를 전파한다."*
+
+#: 실측 Q-097 의 구조를 그대로 옮긴 최소 픽스처. 답변이 **같은 값을 두 표기로** 쓴다는
+#: 것이 이 문항의 핵심이다 — 하나만 갈아 끼우면 나머지가 남아 답변이 스스로 모순된다.
+Q097_RECORD = {"amount": 2_492_215_574_520, "amount_type": "투자금액"}
+Q097_ANSWER = ("- 총 투자금액: 2,492,215,574,520원\n"
+               "- 선박 척수: 12척\n"
+               "- 1척 당 평균 투자금액 = 207,848,465,710원\n"
+               "따라서 1척당 평균 투자금액은 약 2,078억 원입니다.")
+
+
+def test_aggregate_reports_a_unique_recomputed_value():
+    """🔴 재계산값이 reason 문자열에만 있으면 치환에 쓸 수 없다."""
+    report = {"ok": False, "checked": ["per_unit"], "hard_kinds": [],
+              "reason": "척당 금액 207,684,631,210 과 다르다",
+              "recomputed": {"per_unit": 207684631210.0}}
+    agg = critic.aggregate_calculation([report])
+    assert agg["recomputed"] == {"per_unit": 207684631210.0}
+
+
+def test_aggregate_withholds_recomputed_when_records_disagree():
+    """🔴 정정 체인은 원공시와 정정본 금액이 다른 것이 정상이다 (227,500 vs 114,800).
+    값이 갈리면 치환하지 않는다."""
+    a = {"ok": False, "checked": ["amount"], "hard_kinds": [], "reason": "x",
+         "recomputed": {"amount": 227500.0}}
+    b = {"ok": False, "checked": ["amount"], "hard_kinds": [], "reason": "y",
+         "recomputed": {"amount": 114800.0}}
+    assert critic.aggregate_calculation([a, b])["recomputed"] is None
+
+
+def test_verify_calculation_exports_the_value_it_already_recomputed():
+    """실측 Q-097. `reason` 문장에 박혀 있던 값을 **구조화된 필드로** 함께 낸다."""
+    out = critic.verify_calculation(Q097_ANSWER, Q097_RECORD)
+    assert out["recomputed"] == {"per_unit": 207_684_631_210.0}
+    # 🔴 `reason` 의 형식은 한 글자도 바뀌지 않는다 — `scripts/error_analysis.py` 와
+    #    게이트 문서가 그것을 읽는다.
+    assert out["reason"] == "per_unit: 답변 2,078억 vs 재계산 207,684,631,210"
+
+
+def test_recomputed_omits_period_because_its_expected_value_is_text():
+    """`period` 의 기대값은 `"8년 5개월"` 이다 — 수치가 아니라 갈아 끼울 수 없다."""
+    out = critic.verify_calculation(
+        "계약기간은 9년 5개월입니다.",
+        {"period_start": "2025-07-24", "period_end": "2033-12-31"})
+    assert out["failed_kinds"] == ["period"] and out["recomputed"] == {}
+
+
+def test_recomputed_omits_restatement_because_the_wrong_side_is_unknown():
+    """🔴 실측 Q-018 은 괄호가 옳고 원값이 틀렸는데 `Q-110` 은 그 반대다.
+
+    어느 쪽이 틀린지 검사가 모르므로 치환 자리를 못 박는다. 계획서도 `Q-018` 을 `A15`
+    로 돌렸다 — *"재계산이 중간값이라 A20 로는 안 됨"*.
+    """
+    out = critic.verify_answer_arithmetic(
+        "- 최종 정정 금액: 1,843,200,000,000원 (1조 8,422억원)")
+    assert out["failed_kinds"] == ["restatement"] and out["recomputed"] == {}
+
+
+def test_recomputed_carries_the_equation_total():
+    """실측 Q-044. 레코드가 0건인 문항이라 이 축이 유일한 재계산 경로다."""
+    out = critic.verify_answer_arithmetic(
+        r"$$1,699,923 + 665,945 = 1,365,868 \text{억원}$$")
+    assert out["recomputed"] == {"equation": 2_365_868.0}
+
+
+def test_substitution_rewrites_every_notation_of_the_same_value():
+    """🔴 실측 Q-097 은 같은 값을 `207,848,465,710원` 과 `약 2,078억 원` 으로 **두 번** 쓴다.
+
+    보고된 후보(`2,078억`) 하나만 갈아 끼우면 정확한 자리가 틀린 채로 남아 답변이
+    스스로 모순된다. 그리고 채점은 원 단위 13자리를 본다 — 그 자리를 못 고치면 Δ 가 0 이다.
+    """
+    report = critic.verify_calculation(Q097_ANSWER, Q097_RECORD)
+    fixed, done = critic.substitute_recomputed(
+        Q097_ANSWER, [report], critic.aggregate_calculation([report])["recomputed"])
+    assert "207,684,631,210원" in fixed          # 골든과 바이트까지 같다
+    assert "207,848,465,710" not in fixed
+    assert "약 2,077억 원" in fixed              # 표기의 배율을 유지한다
+    assert len(done) == 2, done
+    # 총액은 기대값의 12배다 — 치환 창(`SUBSTITUTE_LOG_TOLERANCE`) 밖이라 안 건드린다.
+    assert "2,492,215,574,520원" in fixed
+
+
+def test_substitution_is_withheld_when_the_value_is_not_unique():
+    """유일성 판정이 `None` 이면 한 글자도 바꾸지 않는다."""
+    report = critic.verify_calculation(Q097_ANSWER, Q097_RECORD)
+    assert critic.substitute_recomputed(Q097_ANSWER, [report], None) == (Q097_ANSWER, [])
+
+
+def test_substitution_never_matches_a_longer_number_that_contains_the_target():
+    """🔴 `1,365,868` 이 `21,365,868` 의 부분문자열로 걸리면 답변이 망가진다."""
+    text = "합계는 21,365,868 이고 소계는 1,699,923 + 665,945 = 1,365,868 이다."
+    report = critic.verify_answer_arithmetic(text)
+    fixed, done = critic.substitute_recomputed(text, [report], report["recomputed"])
+    assert "21,365,868" in fixed and "= 2,365,868 " in fixed and len(done) == 1
+
+
+def test_substitution_leaves_a_compound_notation_alone():
+    """`4조 9,671억원` 은 어느 자리를 바꿀지 정해지지 않는다 — 건드리지 않는다."""
+    assert critic._rendered("4조 9,671억원", 5_047_859_524_850.0) is None
+    assert critic._rendered("2,078억", 207_684_631_210.0) == "2,077억"
+
+
+# --- ⑥ arm 플래그와 파이프라인 배선 --------------------------------------------
+
+A20_ARM = replace(ablation.A8, name="A20", substitute_verified=True)
+
+
+def test_the_substitution_flag_is_off_by_default_and_depends_on_the_verifier():
+    """🔴 기본값을 바꾸지 않는 것이 이 arm 의 전부다 — 현 동작은 명시적 설계다."""
+    assert "substitute_verified" in ablation.FLAG_NAMES
+    assert ablation.A8.substitute_verified is False
+    assert ablation.FLAG_DEPENDENCIES["verifier"] == ("substitute_verified",)
+    with pytest.raises(ValueError, match="substitute_verified"):
+        replace(ablation.A0, name="bad", substitute_verified=True)
+
+
+def _verify_stored(snapshot, qid, arm):
+    """저장 응답을 `pipeline._verify` 에 그대로 태운다. LLM 0회 · 네트워크 0회."""
+    loaded = _snapshot(snapshot)
+    if loaded is None:
+        pytest.skip(f"{snapshot} 산출물이 없다")
+    responses, rows = loaded
+    resp = responses[qid]
+    body = ea.strip_verify_tail(resp["answer"])
+    r = types.SimpleNamespace(companies=rows.get(qid, {}).get("route_corps") or [])
+    trace: list[str] = []
+    with ablation.use(arm):
+        return body, pipeline._verify(resp["question"], body,
+                                      resp["retrieved_context"], r, trace), trace
+
+
+def test_the_arithmetic_check_is_not_wired_in_until_the_flag_is_on(monkeypatch):
+    """🔴 배선만으로 각주가 늘어나면 그 자체가 답변 변화이고 `A20` 의 Δ 와 섞인다.
+
+    실측(v3 세대 664 답변 전수)에서 배선만으로 **19건**의 각주 문자열이 달라졌다 —
+    그래서 계획서 Step 0b 의 지시대로 배선도 플래그 뒤에 두었다. 여기서는 그것을
+    호출 여부로 못 박는다.
+    """
+    calls = []
+    monkeypatch.setattr(pipeline, "verify_answer_arithmetic",
+                        lambda answer: calls.append(answer) or {
+                            "ok": True, "checked": [], "hard_kinds": [], "reason": "",
+                            "mismatches": [], "recomputed": {}})
+    _verify_stored("v3/A8(88)", "Q-097", ablation.A8)
+    assert calls == [], "플래그가 꺼져 있는데 산술 검사가 불렸다"
+    _verify_stored("v3/A8(88)", "Q-097", A20_ARM)
+    assert len(calls) == 1
+
+
+def test_the_flag_off_path_only_footnotes_the_q097_defect():
+    """종전 동작 — 정답을 정확히 재계산해 놓고 **각주만** 붙인다 (교정 0%)."""
+    body, out, trace = _verify_stored("v3/A8(88)", "Q-097", ablation.A8)
+    assert ea.strip_verify_tail(out) == body, "플래그가 꺼져 있는데 본문이 바뀌었다"
+    assert "재계산 207,684,631,210" in out
+    assert not any("substituted" in t for t in trace)
+
+
+def test_the_flag_on_path_corrects_the_q097_answer_body():
+    """🔴 `A20` 의 겨냥 하나. 치환 후 **본문**에 골든이 바이트까지 들어온다."""
+    body, out, trace = _verify_stored("v3/A8(88)", "Q-097", A20_ARM)
+    fixed = ea.strip_verify_tail(out)
+    assert fixed != body
+    assert "207,684,631,210원" in fixed and "207,848,465,710" not in fixed
+    assert any("substituted" in t for t in trace)
+    # 채점기가 각주를 떼고 채점해도 정답이 된다 — 종전에는 각주가 유일한 통로였다.
+    assert "정정했습니다" in out
+
+
+def test_the_flag_on_path_corrects_the_q044_sum():
+    """🔴 `A20` 의 겨냥 둘. 레코드가 0건이라 **배선 없이는 발화조차 없다.**"""
+    body, out, trace = _verify_stored("v3/A8(88)", "Q-044", A20_ARM)
+    fixed = ea.strip_verify_tail(out)
+    assert "2,365,868" in fixed and "1,365,868" not in fixed
+    assert any("substituted=equation" in t for t in trace)
+    # 플래그를 끄면 각주조차 안 붙는다 (v3 의 실제 동작).
+    off_body, off_out, _ = _verify_stored("v3/A8(88)", "Q-044", ablation.A8)
+    assert off_out == off_body
+
+
+def test_substitution_is_withheld_on_the_valuechain_sum_questions():
+    """🔴 **유일성 조건이 실제로 막는 자리를 붙든다.** 밸류체인 합산 문항은 답변이 여러
+    레코드의 금액을 더하는데, 레코드별 `amount` 재계산값이 서로 다르다. 무조건 치환하면
+    정당한 합계를 **한 레코드의 금액으로** 갈아엎는다 (실측 Q-107 은 3건 합산이 맞고
+    덧셈만 틀렸다).
+    """
+    for qid in ("Q-107", "Q-109", "Q-110", "Q-115"):
+        body, out, trace = _verify_stored("v3/vc/A8(12)", qid, A20_ARM)
+        assert ea.strip_verify_tail(out) == body, f"{qid} 본문이 바뀌었다"
+        assert not any("substituted" in t for t in trace), qid
+
+
+def test_no_correct_answer_is_rewritten_on_the_current_generation():
+    """🔴 **정답 문항의 본문은 한 글자도 바뀌면 안 된다.** 오답을 놓치는 것보다 나쁘다.
+
+    현 세대 전체 88 × 6 arm 전수. 실측 결과는 0건이고, 여기서 그 0 을 박는다.
+    """
+    assert CURRENT_GENERATION_FULL, "현 세대 전체 88 스냅샷이 표에서 사라졌다"
+    checked = 0
+    for snapshot in CURRENT_GENERATION_FULL:
+        loaded = _snapshot(snapshot)
+        if loaded is None:
+            continue                      # 🔴 루프 안에서 skip 하면 나머지 arm 이 안 돈다
+        responses, rows = loaded
+        for qid, resp in sorted(responses.items()):
+            if not rows.get(qid, {}).get("correct"):
+                continue
+            body = ea.strip_verify_tail(resp["answer"])
+            r = types.SimpleNamespace(
+                companies=rows.get(qid, {}).get("route_corps") or [])
+            with ablation.use(A20_ARM):
+                out = pipeline._verify(resp["question"], body,
+                                       resp["retrieved_context"], r, [])
+            assert ea.strip_verify_tail(out) == body, f"{snapshot} {qid} 본문이 바뀌었다"
+            checked += 1
+    if not checked:
+        pytest.skip("현 세대 전체 88 산출물이 없다")

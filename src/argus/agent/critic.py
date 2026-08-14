@@ -143,6 +143,17 @@ def _scale_exponent(claimed: float, expected: float) -> int | None:
     return exponent
 
 
+#: 🔴 **A20 — 치환할 자리를 고르는 창.** 기대값과 로그10 거리가 이 안이면 "답변이 이 수치를
+#: 말하려 한 자리" 로 본다 (배율 ±12%). 하나만 바꾸면 안 되기 때문에 있는 상수다 — 실측
+#: Q-097 의 답변은 같은 값을 **두 표기로** 쓴다(`207,848,465,710원` 과 `약 2,078억 원`).
+#: `_compare` 는 그중 기대값에 가장 가까운 하나만 불일치로 보고하므로, 보고된 literal 만
+#: 갈아 끼우면 나머지 표기가 남아 **답변이 스스로 모순된다.**
+#:
+#: 창 밖은 건드리지 않는다. 같은 답변의 총액 `2,492,215,574,520원` 은 기대값의 12배
+#: (로그10 거리 1.08)이고, 다른 계약의 금액은 자릿수부터 다르다.
+SUBSTITUTE_LOG_TOLERANCE = 0.05
+
+
 def _to_float(text) -> float | None:
     if isinstance(text, (int, float)):
         return float(text)
@@ -264,6 +275,24 @@ def _says_amount(answer: str, label) -> bool:
     return _squash(label) in _squash(answer)
 
 
+def _targets(expected: float, claims: list[tuple[float, float, str]]) -> list[str]:
+    """기대값과 **같은 자릿수**인데 값이 다른 후보의 원문. A20 이 갈아 끼울 자리다.
+
+    불일치 보고(`reason`)는 후보 하나만 고르지만, 치환은 답변에 남은 같은 값의 **다른
+    표기까지** 함께 바꿔야 한다 (`SUBSTITUTE_LOG_TOLERANCE` 주석 — 실측 Q-097).
+    """
+    out = []
+    for value, tol, literal in claims:
+        if abs(value - expected) <= tol + 1e-9:
+            continue                          # 맞는 후보다 — 건드리지 않는다
+        if not value or not expected or (value > 0) != (expected > 0):
+            continue
+        if abs(math.log10(abs(value) / abs(expected))) > SUBSTITUTE_LOG_TOLERANCE:
+            continue                          # 다른 수치다 (총액·다른 계약)
+        out.append(literal)
+    return list(dict.fromkeys(out))
+
+
 def _revenue(fields: dict) -> float | None:
     """비중의 분모. 명시 키가 없으면 원 표(raw_rows)의 '최근매출액' 을 쓴다."""
     explicit = _pick(fields, "revenue", "whole", "share_whole", "ratio_denominator")
@@ -319,7 +348,7 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
                     mismatches.append({
                         "kind": kind, "claimed": literal, "claimed_value": value,
                         "expected": expected, "tolerance": tol, "detail": detail,
-                        "scale": exponent, "hard": True})
+                        "scale": exponent, "hard": True, "targets": [literal]})
 
         if any(abs(value - expected) <= tol + 1e-9 for value, tol, _ in claims):
             return
@@ -327,7 +356,8 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
             return                       # 같은 값을 자릿수 오류로 이미 보고했다
         value, tol, literal = min(claims, key=lambda c: abs(c[0] - expected))
         mismatches.append({"kind": kind, "claimed": literal, "claimed_value": value,
-                           "expected": expected, "tolerance": tol, "detail": detail})
+                           "expected": expected, "tolerance": tol, "detail": detail,
+                           "targets": _targets(expected, claims)})
 
     # ① 계약기간 — LLM 이 가장 자주 틀리는 영역
     start, end = fields.get("period_start"), fields.get("period_end")
@@ -345,7 +375,8 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
                     "kind": "period", "claimed": f"{y}년 {mo}개월",
                     "claimed_value": y * 12 + mo, "expected": expected_text,
                     "expected_value": parts[0] * 12 + parts[1], "tolerance": 0,
-                    "detail": f"{start} ~ {end}"})
+                    # 기대값이 `"8년 5개월"` 이라 수치 치환의 대상이 아니다 (A20 제외).
+                    "detail": f"{start} ~ {end}", "targets": []})
 
     # ② 금액 — 자릿수 실수를 잡는다. 단, 답변이 **이 레코드의 금액을 말했을 때만**
     #    (`_says_amount`). 근거 한 건에는 조달금액 밑에 시설자금·타법인증권취득자금이
@@ -430,7 +461,35 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
         "hard_kinds": hard,
         "failure_stage": FAILURE_STAGE if mismatches else None,
         "reason": "; ".join(_mismatch_reason(m) for m in mismatches),
+        # 🔴 A20 — 재계산값을 **구조화된 필드로** 함께 낸다. 종전에는 `_show(expected)` 로
+        # `reason` 문장에만 박혀 있어서 치환에 쓸 수가 없었다 (탐지 100% · 교정 0%).
+        # `reason` 의 형식은 한 글자도 바꾸지 않는다 — `scripts/error_analysis.py` 와
+        # 게이트 문서가 그것을 읽는다.
+        "recomputed": _recomputed(mismatches),
     }
+
+
+def _recomputed(mismatches: Sequence[dict]) -> dict[str, float]:
+    """**치환에 쓸 수 있는** 재계산값만 검사 종류별로 모은다. 조건이 둘이다.
+
+    ① 기대값이 수치다 — `period` 의 기대값은 `"8년 5개월"` 이라 갈아 끼울 수가 없다.
+    ② 답변에서 **바꿀 자리**(`targets`)를 못 박았다 — `restatement` 는 원값과 괄호
+       환산값 중 **어느 쪽이 틀린지 검사가 모른다.** 실측 Q-018 은 괄호가 옳고 원값이
+       13자리에서 한 자리 틀렸지만, 그 판정은 이 검사의 재료 밖이다 (계획서도 Q-018 을
+       `A15` 로 돌렸다 — *"재계산이 중간값이라 A20 로는 안 됨"*).
+
+    같은 종류에 값이 갈리면 그 종류를 뺀다. `aggregate_calculation` 이 레코드 사이에서
+    같은 판정을 한 번 더 하고, 이유도 같다 — 어느 쪽으로 치환해도 근거가 없다.
+    """
+    values: dict[str, set[float]] = {}
+    for mismatch in mismatches:
+        expected = mismatch.get("expected")
+        if isinstance(expected, bool) or not isinstance(expected, (int, float)):
+            continue
+        if not mismatch.get("targets"):
+            continue
+        values.setdefault(mismatch["kind"], set()).add(float(expected))
+    return {kind: value.pop() for kind, value in values.items() if len(value) == 1}
 
 
 def _mismatch_reason(mismatch: dict) -> str:
@@ -459,6 +518,9 @@ def aggregate_calculation(reports: Sequence[dict]) -> dict:
     실측 Q-065 가 정확히 그 구멍으로 나갔다 — Dukovany 금액을 10배로 틀렸는데 같은
     답변의 신한울 금액이 정확해서 `explained=True` 가 되고 판정이 통과했다. 체인 관용은
     '같은 값의 다른 시점' 을 위한 것이고, 자릿수 오류는 시점 문제가 아니다.
+
+    🔴 **A20 — `recomputed` 를 함께 낸다.** 검사 종류를 키로 하는 재계산값이고,
+    **유일하지 않으면 `None`** 이다 (`unique_recomputed`).
     """
     rows = list(reports or ())
     checked = sorted({k for rep in rows for k in rep.get("checked") or ()})
@@ -478,7 +540,28 @@ def aggregate_calculation(reports: Sequence[dict]) -> dict:
         "failed": bool(hard) or (bool(checked) and not explained),
         "failure_stage": FAILURE_STAGE if (hard or (checked and not explained)) else None,
         "reasons": reasons[:3],
+        "recomputed": unique_recomputed(rows),
     }
+
+
+def unique_recomputed(reports: Sequence[dict]) -> dict[str, float] | None:
+    """레코드들이 낸 재계산값이 **유일한가.** 갈리면 `None` — 치환하지 않는다.
+
+    🔴 값이 갈리면 치환하지 않는다. `explained` 관용과 같은 이유다 — 정정 체인은
+    원공시와 정정본 금액이 다른 것이 정상이고(227,500 vs 114,800), 어느 쪽으로
+    치환해도 정당한 통과가 깨진다
+    (`tests/test_error_analysis.py::test_calc_passes_when_any_golden_record_explains_the_answer`).
+
+    🔴 `aggregate_calculation` 과 `pipeline._verify` 가 **같은 함수를 쓴다.** 유일성
+    규칙이 두 곳에 있으면 갈린다 — 이 저장소가 열 번 겪은 실패 양식이다. 파이프라인은
+    레코드 판정에 답변 산술 판정(`verify_answer_arithmetic`)을 더한 합집합으로 부른다.
+    """
+    values: dict[str, set[float]] = {}
+    for rep in reports or ():
+        for kind, value in (rep.get("recomputed") or {}).items():
+            values.setdefault(kind, set()).add(value)
+    return ({k: v.pop() for k, v in values.items() if len(v) == 1}
+            if values and all(len(v) == 1 for v in values.values()) else None)
 
 
 def _show(expected) -> str:
@@ -579,7 +662,12 @@ def _equation_mismatches(text: str) -> list[dict]:
         if abs(total - claimed) > tolerance + 1e-9:
             out.append({"kind": "equation", "claimed": " ".join(m.group(0).split()),
                         "claimed_value": claimed, "expected": total,
-                        "tolerance": tolerance, "detail": "답변이 쓴 등식", "hard": True})
+                        "tolerance": tolerance, "detail": "답변이 쓴 등식", "hard": True,
+                        # 🔴 A20 의 치환 자리는 **우변만**이다. `claimed` 는 공백을
+                        # 접은 등식 전문이라 답변의 부분문자열이 아니다 (실측 Q-044 는
+                        # `$$…\\text{억원}$$` 안에 있다). 좌변 항들은 답변이 근거에서
+                        # 옮겨 적은 값이고, 틀린 것은 그것들의 합이다.
+                        "targets": [m.group(3)]})
     return out
 
 
@@ -601,7 +689,10 @@ def _restatement_mismatches(text: str) -> list[dict]:
                         "claimed": f"{first[4]} ({second[4]})",
                         "claimed_value": first[2], "expected": second[2],
                         "tolerance": tolerance, "detail": "원값과 괄호 환산값이 다르다",
-                        "hard": True})
+                        # 🔴 **치환 자리가 없다.** 원값과 괄호 환산값 중 어느 쪽이 틀린지
+                        # 이 검사는 모른다 — 실측 Q-018 은 괄호가 옳고 원값이 틀렸는데,
+                        # `Q-110` 은 원값이 옳고 괄호가 10배 틀렸다. 방향이 반대다.
+                        "hard": True, "targets": []})
     return out
 
 
@@ -634,7 +725,79 @@ def verify_answer_arithmetic(answer: str) -> dict:
         "hard_kinds": failed,
         "failure_stage": FAILURE_STAGE if mismatches else None,
         "reason": "; ".join(_mismatch_reason(m) for m in mismatches),
+        # 🔴 A20 — `verify_calculation` 과 **같은 규격**이다. `equation` 만 실린다
+        # (`restatement` 는 치환 자리를 못 박는다 — `_recomputed` 참조).
+        "recomputed": _recomputed(mismatches),
     }
+
+
+def substitute_recomputed(answer: str, reports: Sequence[dict],
+                          recomputed: dict[str, float] | None) -> tuple[str, list[str]]:
+    """검사가 낸 재계산값으로 답변의 그 수치를 바꾼다. `(새 답변, 바꾼 자리)`. LLM 0회.
+
+    🔴 **이것이 A20 의 전부다.** 검사는 이미 정답을 정확히 재계산해 놓고 있었고
+    (실측 Q-097 의 `per_unit` 재계산값 207,684,631,210 은 골든과 **바이트까지 일치**),
+    파이프라인이 그것을 각주로만 붙이고 버렸다 — **탐지 100% · 교정 0%.**
+
+    🔴 **우리 착상이 아니라 CoT 논문 부록 B 의 처방이다** — *"모델이 스스로 쓴 등식마다
+    사후 계산기를 돌리고, **문자열 매칭으로 결과를 전파**한다."* 마지막 절이 이 함수다.
+
+    안전장치가 셋이다.
+      ① `recomputed` 가 `None` 이면 아무것도 안 한다 (`unique_recomputed` 의 유일성 판정).
+      ② 표기가 복합이면(`4조 9,671억원`) 건드리지 않는다 — 어느 자리를 바꿀지 정해지지
+         않는다. 값이 둘 이상 실린 표기는 그것으로 가른다.
+      ③ 치환은 **숫자 경계**에서만 한다 — `1,365,868` 이 `21,365,868` 의 부분문자열로
+         걸리면 답변이 망가진다.
+
+    🔴 **알려진 한계 — 한 번만 돈다.** 한 답변에서 종류가 둘 이상 발화하면(실측
+    `vc/ORACLE` Q-115: `amount` + `equation`) `amount` 치환이 등식의 좌변 항을 바꿔
+    놓아 등식의 재계산 총계가 낡는다. 되풀이해서 수렴시키지 않는다 — 그러면 이 arm 이
+    재는 것이 '치환' 이 아니라 '반복 교정' 이 되고 통제 변수가 하나 더 늘어난다.
+    실측 664 답변에서 이 겹침은 1건이고 그 문항은 치환 전후 모두 오답이다.
+    """
+    if not recomputed:
+        return answer, []
+    out, done = answer or "", []
+    for rep in reports or ():
+        for mismatch in rep.get("mismatches") or ():
+            expected = recomputed.get(mismatch.get("kind"))
+            if expected is None:
+                continue
+            for target in mismatch.get("targets") or ():
+                rendered = _rendered(target, expected)
+                if rendered is None or rendered == target:
+                    continue
+                pattern = re.compile(rf"(?<![\d.,]){re.escape(target)}(?![\d,]*\d)")
+                swapped, hits = pattern.subn(rendered, out)
+                if not hits:
+                    continue
+                out = swapped
+                done.append(f"{mismatch['kind']}: {target} -> {rendered}")
+    return out, done
+
+
+def _rendered(target: str, expected: float) -> str | None:
+    """`target` 의 **표기 그대로** 값만 갈아 끼운다. 못 하면 `None` (건드리지 않는다).
+
+    `2,078억` → `2,077억` 처럼 답변이 쓴 배율·소수 자리를 유지한다. 재계산값을 원 단위로
+    들이밀면 답변의 문장이 깨진다.
+
+    🔴 **배율은 `target` 자신의 표지에서 읽는다.** 불일치 레코드의 `claimed_value` 로
+    나누면 안 된다 — `targets` 에는 `claimed` 아닌 표기도 들어 있어서(실측 Q-097 은
+    `2,078억` 이 보고되고 `207,848,465,710원` 이 함께 치환 대상이 된다) 배율이 1 이
+    아니라 0.99977 로 잡히고 **재계산값이 미묘하게 어긋난 값으로 찍힌다.**
+    """
+    numbers = _BARE_RE.findall(target or "")
+    if len(numbers) != 1:
+        return None                        # 복합 표기 — 어느 자리를 바꿀지 정해지지 않는다
+    if _to_float(numbers[0]) is None:
+        return None
+    money = _MONEY_RE.fullmatch((target or "").strip())
+    scale = _SCALE[money.group(2)] if money else 1.0
+    decimals = len(numbers[0].split(".")[1]) if "." in numbers[0] else 0
+    value = round(expected / scale, decimals)
+    text = f"{value:,.{decimals}f}" if decimals else compute.fmt_num(value)
+    return target.replace(numbers[0], text, 1)
 
 
 # --- G. 완전성 검증 (LLM 0회) ------------------------------------------------

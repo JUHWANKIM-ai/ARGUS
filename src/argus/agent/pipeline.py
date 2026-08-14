@@ -7,7 +7,9 @@ from collections.abc import Sequence
 from argus import ablation
 from argus.agent import tools
 from argus.agent.budget import Budget, BudgetExceeded
-from argus.agent.critic import (aggregate_calculation, judge, quick_check, verify_calculation,
+from argus.agent.critic import (aggregate_calculation, judge, quick_check,
+                                substitute_recomputed, unique_recomputed,
+                                verify_answer_arithmetic, verify_calculation,
                                 verify_completeness)
 from argus.agent.prompts import build_answer_messages
 from argus.agent.query import (SPLIT_TOP_K, STRATEGIES, path_hints, plan_hops,
@@ -1901,6 +1903,15 @@ def answer_question(question_id: str, question: str) -> dict:
 # **답을 갈아엎지 않는다.** 결함을 찾아도 재생성하지 않고 경고만 붙인다 — 재생성은
 # 호출을 하나 더 쓰는 별개의 조작이고, 이 arm 이 재는 것은 '판정' 의 기여다
 # (SWE-Lancer 부록 C: 판단 44.9% > 생성 26.2%).
+#
+# 🔴 **그 설계의 대가를 v4 R0 가 실측했다 — 탐지 100% · 교정 0%.** `Q-097` 의 `per_unit`
+# 재계산값 207,684,631,210 은 골든과 바이트까지 같은데 각주로만 붙고 버려졌다. 채점기는
+# 그 각주를 일부러 잘라내고 채점한다(`error_analysis.strip_verify_tail`) — 즉 **우리는
+# 정답을 계산해 놓고 버리고 있었다.**
+#
+# 🔴 그래서 기본값을 바꾸지 않고 **arm 으로 만들었다** (`ablation.Arm.substitute_verified`
+# = `A20`). 위 설계에는 근거가 있으니 갈아엎지 말고 켰다 껐다 잰다. 플래그가 꺼져 있으면
+# 이 함수의 동작은 v3 세대 664 답변 전수에서 **바이트 동일**이다.
 
 _EVIDENCE_RCEPT = re.compile(r"접수번호\s*(\d{14})")
 
@@ -1916,8 +1927,13 @@ def _evidence_records(evidence: str) -> list[dict]:
 
 
 def _verify(question: str, answer: str, evidence: str, r, trace: list[str]) -> str:
-    """A6. 결함이 있으면 답변에 경고를 붙이고 trace 에 판정을 남긴다."""
-    if not ablation.current().verifier:
+    """A6. 결함이 있으면 답변에 경고를 붙이고 trace 에 판정을 남긴다.
+
+    🔴 `substitute_verified`(A20)가 켜져 있으면 경고를 붙이는 대신 **검사가 낸 유일한
+    재계산값으로 답변의 그 수치를 치환**한다. 꺼져 있으면 종전 동작 그대로다.
+    """
+    arm = ablation.current()
+    if not arm.verifier:
         return answer
 
     # 레코드가 여러 건이면 **하나라도 설명되면 통과**다. 체인 안에서 원공시와 정정본의
@@ -1932,6 +1948,26 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str]) -> s
     agg = aggregate_calculation(reports)
     checked, calc_failed = agg["checked"], agg["failed"]
 
+    # 🔴 A20 — `verify_answer_arithmetic` 를 라이브 경로에 배선한다. **플래그 뒤에 둔다.**
+    # 이 검사는 근거를 한 줄도 안 읽고 답변이 스스로 쓴 등식·재기술쌍만 본다. 그래서
+    # 정형 레코드가 0건인 문항(실측 Q-044·Q-047)에서도 서고, 그런 문항이 위 `reports` 로는
+    # 통째로 안 보인다 — v3 까지 이 함수는 `scripts/error_analysis.py` 만 썼다.
+    #
+    # 🔴 **`reports` 에 합치지 않는다.** `aggregate_calculation` 의 `explained` 는
+    # "레코드 하나라도 설명하면 통과" 인데, 이 검사는 레코드가 아니라 답변당 하나다.
+    # 안에 넣으면 등식이 맞는 답변이 근거 대조 실패까지 덮어 **체인 관용이 뒤집힌다**
+    # (`critic.verify_answer_arithmetic` 머리말 ②). 판정만 OR 로 합친다.
+    #
+    # 🔴 무조건 배선하면 플래그를 **끈** 상태에서도 각주가 늘어난다 — v3 세대 664 답변
+    # 전수 대조로 확인했다(Step 0b). 그 자체가 답변 변화이고 `A20` 의 Δ 와 섞이므로
+    # 배선도 플래그 뒤에 둔다.
+    arith_reports: list[dict] = []
+    if arm.substitute_verified:
+        arith = verify_answer_arithmetic(answer)
+        arith_reports = [arith]
+        checked = sorted({*checked, *arith["checked"]})
+        calc_failed = calc_failed or not arith["ok"]
+
     complete = verify_completeness(question, answer, evidence, companies=r.companies)
 
     kinds = sorted({*(["calculation"] if calc_failed else []), *complete["failed_kinds"]})
@@ -1941,12 +1977,28 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str]) -> s
     if not kinds:
         return answer
 
+    # 🔴 A20 — 각주 대신 치환한다. 유일성 판정은 `critic.unique_recomputed` 한 곳에만 있고
+    # (`aggregate_calculation` 도 같은 함수를 쓴다) 여기서는 **레코드 판정 + 답변 산술
+    # 판정의 합집합**으로 부른다. 값이 갈리면 `None` 이 오고 치환은 일어나지 않는다.
+    substituted: list[str] = []
+    if arm.substitute_verified and calc_failed:
+        answer, substituted = substitute_recomputed(
+            answer, reports + arith_reports, unique_recomputed(reports + arith_reports))
+        if substituted:
+            trace.append(f'verify substituted={"; ".join(substituted)}')
+
     # 사유도 `aggregate_calculation` 이 정한 순서를 쓴다 — 자릿수 오류가 앞에 온다.
     # 손으로 첫 사유를 뽑으면 무해한 이웃이 먼저 실려 경고가 약해진다.
     reasons = agg["reasons"][:1] if calc_failed else []
+    if not reasons and arith_reports and arith_reports[0]["reason"]:
+        reasons = [arith_reports[0]["reason"]]      # 레코드가 0건인 문항 (실측 Q-044)
     if complete["reason"]:
         reasons.append(complete["reason"])
-    return answer + f'\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — {"; ".join(reasons)})'
+    # 🔴 치환했으면 그렇게 적는다. 고쳐 놓고 "결함이 발견되었습니다" 라고만 쓰면 각주가
+    # 본문과 어긋난다. 접두사 `(주의:` 는 유지한다 — `strip_verify_tail` 이 그것을 읽는다.
+    head = ("자동 검증에서 결함이 발견되어 재계산값으로 정정했습니다" if substituted
+            else "자동 검증에서 결함이 발견되었습니다")
+    return answer + f'\n\n(주의: {head} — {"; ".join(reasons)})'
 
 
 def _respond(question_id: str, question: str, evidence: str, trace: list[str],
