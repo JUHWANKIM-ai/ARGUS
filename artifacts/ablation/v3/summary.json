@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-08-14T17:43:55",
+  "generated": "2026-08-14T18:06:29",
   "cohort": "full",
   "n_cases": 88,
   "question_ids": [
@@ -93,8 +93,8 @@
    "Q-069",
    "Q-070"
   ],
-  "budget_won": 400.0,
-  "stop_won": 320.0,
+  "budget_won": 800.0,
+  "stop_won": 640.0,
   "price_won_per_1k": 7.02,
   "index_snapshot": {
    "artifacts/exchange_bm25.json": "e43eceee9d54d8d8:1044414",
@@ -129,7 +129,8 @@
   "cache_bypassed": 0,
   "fresh_prompt_tokens": 0,
   "fresh_completion_tokens": 0,
-  "cache_stats_are_this_process": true,
+  "cache_stats_are_this_process": false,
+  "cache_stats_carried_from": "2026-08-14T17:43:55",
   "this_run": {
    "L3": {
     "arm": "L3",
@@ -1195,7 +1196,8 @@
      }
     ]
    }
-  }
+  },
+  "rescored_at": "2026-08-14T18:06:29"
  },
  "summary": {
   "arms": {
@@ -1285,8 +1287,9 @@
      "hit": 126,
      "denominator_raw": 133,
      "unreachable": 0,
+     "unreachable_missed": 0,
      "denominator_adjusted": 133,
-     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분을 뺀 것이고 **정답률과는 무관하다**."
+     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
     }
    },
    "L1": {
@@ -1378,8 +1381,9 @@
      "hit": 108,
      "denominator_raw": 133,
      "unreachable": 0,
+     "unreachable_missed": 0,
      "denominator_adjusted": 133,
-     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분을 뺀 것이고 **정답률과는 무관하다**."
+     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
     }
    },
    "L2": {
@@ -1477,8 +1481,9 @@
      "hit": 126,
      "denominator_raw": 133,
      "unreachable": 0,
+     "unreachable_missed": 0,
      "denominator_adjusted": 133,
-     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분을 뺀 것이고 **정답률과는 무관하다**."
+     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
     }
    },
    "L3": {
@@ -1567,8 +1572,9 @@
      "hit": 126,
      "denominator_raw": 133,
      "unreachable": 0,
+     "unreachable_missed": 0,
      "denominator_adjusted": 133,
-     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분을 뺀 것이고 **정답률과는 무관하다**."
+     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
     }
    },
    "L4": {
@@ -1660,8 +1666,9 @@
      "hit": 124,
      "denominator_raw": 133,
      "unreachable": 0,
+     "unreachable_missed": 0,
      "denominator_adjusted": 133,
-     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분을 뺀 것이고 **정답률과는 무관하다**."
+     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
     }
    },
    "ORACLE": {
@@ -1753,8 +1760,9 @@
      "hit": 133,
      "denominator_raw": 133,
      "unreachable": 0,
+     "unreachable_missed": 0,
      "denominator_adjusted": 133,
-     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분을 뺀 것이고 **정답률과는 무관하다**."
+     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
     }
    }
   },

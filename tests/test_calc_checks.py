@@ -160,6 +160,15 @@ ARITHMETIC_SNAPSHOTS = {
                   "artifacts/ablation/v2/vc/A8/report.json", {"Q-109", "Q-115"}),
     "v3/A8(88)": ("artifacts/ablation/v3/A8/responses",
                   "artifacts/ablation/v3/A8/report.json", {"Q-018", "Q-044"}),
+    # 🔴 R2E 신설 — `L1`·`L2`·`L3` 이 현 세대에 처음 측정됐다. 전수 집계를 이 표에
+    #    넣지 않으면 "현 세대 전 arm" 이라는 말이 세 arm 을 빠뜨린 채로 굳는다.
+    #    `L1` 만 `Q-018` 이 빠진다 — 정정체인 hop 을 끄면 그 답변이 아예 달라진다.
+    "v3/L1(88)": ("artifacts/ablation/v3/L1/responses",
+                  "artifacts/ablation/v3/L1/report.json", {"Q-044"}),
+    "v3/L2(88)": ("artifacts/ablation/v3/L2/responses",
+                  "artifacts/ablation/v3/L2/report.json", {"Q-018", "Q-044"}),
+    "v3/L3(88)": ("artifacts/ablation/v3/L3/responses",
+                  "artifacts/ablation/v3/L3/report.json", {"Q-018", "Q-044"}),
     "v3/L4(88)": ("artifacts/ablation/v3/L4/responses",
                   "artifacts/ablation/v3/L4/report.json", {"Q-018", "Q-044"}),
     "v3/ORACLE(88)": ("artifacts/ablation/v3/ORACLE/responses",
@@ -184,6 +193,35 @@ ARITHMETIC_SNAPSHOTS = {
 #: `Q-034` 와 같은 종류이고 같은 방향이다 — 두 건 다 **개방형 judge** 가 놓쳤다.
 #: 🔴 이제 이 목록은 둘이다. R2B 가 적어 둔 규칙대로 **다음은 검사가 아니라 채점을
 #: 봐야 한다** — 개방형 판정기가 수치 일관성을 아예 안 보고 있을 가능성이 있다.
+#:
+#: 🔴 **2026-08-14 (R2E) — 현 세대 전 arm 전수로 셌다. 세대를 갈라 읽어야 한다.**
+#: 분모: 전체 88 × 6 arm(`A8`·`L1`·`L2`·`L3`·`L4`·`ORACLE`) + 밸류체인 12 × 2 arm
+#: (`vc/A8`·`vc/ORACLE`) = **552 답변**.
+#:
+#:     현 세대(v3) 전체 88     0건   🔴 그리드·회귀·정보한계 성적은 이 결함에 안 물렸다
+#:     현 세대(v3) 밸류체인 12  1건   `Q-110` — `vc/A8` 에서만
+#:     옛 세대(42문항)         1건   `Q-034` — `phase_h(42)`·`A6(42)`. v3 에는 없다
+#:
+#: 즉 이 상수의 두 원소는 **다른 세대의 것**이고, 현 세대에서 성적을 부풀리고 있는
+#: 것은 `Q-110` 하나다. `vc/ORACLE` 의 `Q-110` 은 R2E 재측정에서 **오답으로 갈렸다**
+#: (골든 6/6 을 전부 주입해도 틀렸다) — 그래서 오라클 쪽은 부풀지 않는다.
+#:
+#: 🔴 **두 건의 성질이 다르다. 섞어 읽으면 안 된다.**
+#:  · `Q-034` — 합계 자체가 틀렸다(817,100 vs 817,900). 채점 축이 재는 것이 틀렸으므로
+#:    **"오답인데 정답으로 채점됐다"** 가 맞다.
+#:  · `Q-110` — 질문은 *"상장사는 어디이며 각각 어떤 역할"* 이고 `answer_key_points`
+#:    여섯 개는 **전부 충족한다.** 틀린 것은 모델이 덤으로 붙인 한전기술 합계의 괄호
+#:    환산(`590,947,351,842원 (591억원)` — 실제 5,909억원)이다. 즉 **채점 축 위에서는
+#:    정답이고, 채점 축이 보지 않는 자리에서 10배가 틀렸다.** 채점기의 세 축
+#:    (`covers_key_points`·`grounded`·`no_fabrication`)에 수치 자기일관성이 없다.
+#:    🔴 그래도 성적은 부풀려져 있다 — 공시 QA 로서 "정답" 이라고 부른 답변 안에 10배
+#:    틀린 금액이 들어 있고, 그것을 읽는 사람은 잘못된 값을 얻는다.
+#:    **밸류체인 12 의 `A8` 7/12 는 이 기준을 넣으면 6/12 다** (−8.3%p).
+#:
+#: 🔴 **이번 라운드에서 고치지 않았다.** 채점기를 바꾸면 전 세대 성적의 정의가 바뀌어
+#: R2D·R2E 재측정과의 비교가 깨진다. 다음 라운드로 넘긴다 —
+#: 처방 후보는 `critic.judge_open` 에 `verify_answer_arithmetic` 을 **하드 게이트가
+#: 아니라 넷째 축**으로 붙이는 것이고, 붙이는 순간 전 세대 재채점이 필요하다.
 JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG = {"Q-034", "Q-110"}
 
 
@@ -225,11 +263,15 @@ def test_arithmetic_firing_on_the_stored_responses(snapshot):
 
 
 def test_the_current_generation_has_no_false_alarm_at_all():
-    """🔴 현 세대(v3 그리드 88 × 3 arm = 264 답변)에는 예외조차 없다.
+    """🔴 현 세대(v3 전체 88 × 6 arm = 528 답변)에는 예외조차 없다.
 
     옛 세대의 예외 하나(Q-034)가 면죄부로 굳지 않게, 현 세대는 따로 0 을 박는다.
+    🔴 R2E 에서 `L1`·`L2`·`L3` 가 측정되면서 264 → 528 답변으로 늘었다. 밸류체인 12 는
+    여기 없다 — 그쪽에는 `Q-110` 이라는 실재하는 예외가 있고, 그 예외는
+    `JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG` 이 명시로 들고 있다.
     """
-    for snapshot in ("v3/A8(88)", "v3/L4(88)", "v3/ORACLE(88)"):
+    for snapshot in ("v3/A8(88)", "v3/L1(88)", "v3/L2(88)", "v3/L3(88)",
+                     "v3/L4(88)", "v3/ORACLE(88)"):
         loaded = _snapshot(snapshot)
         if loaded is None:
             pytest.skip(f"{snapshot} 산출물이 없다")

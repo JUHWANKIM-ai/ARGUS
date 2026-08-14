@@ -470,9 +470,34 @@ def evidence_hit(case: dict, retrieved_context: str) -> dict:
 
 #: 근거 절단 상한. `argus.agent.pipeline.MAX_EVIDENCE` 와 같은 값이어야 한다 —
 #: 관문 G3(열거로 도달 가능한가)이 이 수를 분기점으로 쓴다.
+#:
+#: 🔴 **감도 곡선 (R2E 실측 · LLM 0회 · 분모 100문항 = 전체 88 + 밸류체인 12)**
+#: 이 수는 **자유 문턱이 아니라 `MAX_EVIDENCE` 에 못박힌 값**이지만, 그래도 흔들어 봤다.
+#:
+#:     max_evidence  ≤4   6   8  10  12  16  20  30  50
+#:     표시 건수       6   5   3   3   3   3   3   3   0
+#:                            └────── 안정 고원 (8~30) ──────┘  ↑채택
+#:
+#: 채택값 10 은 **폭 23의 안정 고원 한가운데**다. 8 아래로 내리면 표시가 늘고(= 성적이
+#: 좋아 보이는 방향) 47(= `Q-114` 후보군 크기) 위로 올리면 0 이 된다. 아래로 내려
+#: 늘어나는 것은 `Q-106`(레인 8건 시계열) 2건 + `Q-110`(레인 6건) 1건이고, 둘 다
+#: **열거만으로 전건이 근거 칸에 담기는** 문항이라 표시하면 부당하다.
 REACH_MAX_EVIDENCE = 10
 #: 후보군 안에서 이 비율 이상의 문서에 나오는 낱말은 **변별력이 없다**고 본다.
 #: 서식 공통어(`단일판매`·`계약금액`)가 전 문서에 있어 이걸 안 걸면 아무것도 안 걸러진다.
+#:
+#: 🔴 **감도 곡선 (R2E 실측) — 이 문턱은 표시에 아무 영향이 없다.**
+#:
+#:     ratio        0.10 0.20 0.30 0.40 0.50 0.60 0.70 0.80 0.90 1.00
+#:     표시 건수       3    3    3    3    3    3    3    3    3    3
+#:                                    ↑채택
+#:
+#: R2D §8-② 가 *"3건이 이 문턱에 민감한지 재지 않았다"* 고 남긴 빚을 갚은 결과다 —
+#: **전 구간 3건으로 불변**이다. 기전: 판정을 가르는 낱말(`평택`·`기흥`·`반도체`)이
+#: 후보군 47건 중 4건에만 있어(8.5%) 어떤 비율에서도 `disc` 에 남고, 골든 본문에는
+#: 어느 것도 없다. 문턱이 흔드는 것은 변별력 없는 공통어의 포함 여부뿐이고 그것은
+#: 판정을 바꾸지 않는다. **민감한 축은 이 둘이 아니라 후보군 정의였다**
+#: (`_reach_pool` 독스트링 참조 — 거기서 순환을 끊는 이유를 실측으로 적었다).
 REACH_COMMON_RATIO = 0.5
 
 _REACH_PARTICLES = (
@@ -541,7 +566,27 @@ def _reach_pool(record: dict, question: str, records: dict) -> tuple[list[dict],
     """골든이 **선택돼야 하는 후보군**. 같은 기업 · 같은 서식.
 
     질문이 계약상대를 이름으로 지목하면 그것으로 좁힌다 — 파이프라인의 발주처 레인이
-    실제로 그렇게 좁히므로, 좁히지 않으면 후보군이 실제보다 커져 **표시가 후해진다**.
+    실제로 그렇게 좁히기 때문이다.
+
+    🔴 **좁히는 이유를 R2D 가 거꾸로 적었다. R2E 가 감도 곡선으로 정정한다.**
+    R2D 는 *"좁히지 않으면 후보군이 커져 표시가 후해진다"* 고 적었는데, 실측은
+    **반대**다 — 좁히지 않으면 표시가 3건에서 **0건으로 줄어든다.** 기전은 이렇다.
+
+        좁힘  (pool 47 · 전원이 계약상대=삼성전자)  `삼성전자` 는 공통어 → disc 에서 탈락
+        안좁힘(pool 102 · 계약상대가 섞임)        `삼성전자` 가 disc 로 승격
+                                                 → 골든의 `계약상대: 삼성전자(주)` 칸에
+                                                   맞아 **관문 G4 가 전건을 탈락시킨다**
+
+    즉 좁히지 않으면 **레인을 정의하는 그 낱말이 '골든을 가리키는 어휘' 로 계산된다.**
+    47건 전부가 그 낱말을 가지므로 레인 안에서는 변별력이 정확히 0 이고, 후보군을
+    다른 계약상대로 희석했을 때만 변별력이 있는 것처럼 보인다 — **순환**이다.
+    좁히는 것은 표시를 후하게 만드는 장치가 아니라 그 순환을 끊는 장치다.
+
+    ⚠️ 반대쪽 변형(**서식을 무시하고 기업만**)은 표시를 3 → 6건으로 **늘린다**
+    (`Q-117` 3건 추가). 그쪽은 채택하지 않았다 — `_enumerate_events` 가 *"한 기업의
+    한 서식"* 으로 묶으므로 서식 필터는 파이프라인이 실제로 거는 것이고, `Q-117` 의
+    미회수 3건은 어휘가 없어서가 아니라 **'발주처 그룹당 1건' 규칙**에 막힌 것이라
+    (R2A ③) 도달 불가가 아니다.
     """
     lane = [v for v in records.values()
             if v.get("corp_name") == record.get("corp_name")
@@ -625,17 +670,35 @@ def unreachable_golden_candidates(cases: list[dict], records: dict,
 
 
 def golden_recall_denominators(rows: list[dict]) -> dict:
-    """🔴 골든 회수율의 **원 분모와 조정 분모를 함께** 낸다. 조정값만 내지 않는다."""
+    """🔴 골든 회수율의 **원 분모와 조정 분모를 함께** 낸다. 조정값만 내지 않는다.
+
+    🔴 **분모에서 빼는 것은 이 arm 이 실제로 회수하지 **못한** 표시분뿐이다.**
+    `UNREACHABLE_GOLDEN` 은 비-오라클 arm 의 회수 합집합으로 판정한 동결 상수이므로,
+    골든을 주입하는 `ORACLE` 은 표시된 골든을 **전건 회수한다**. 표시 건수를 그대로
+    빼면 분자가 분모를 넘어(`46/43` = 107%) 회수율이 100% 를 초과한다 — R2E 의
+    `ORACLE` 재측정에서 실제로 그 값이 산출물에 찍혔다.
+
+    표시분 중 회수된 것은 **도달 가능이 증명된 것**이라 애초에 분모에서 뺄 근거가
+    없다(관문 G2 와 같은 논리다). 그래서 `denominator_adjusted >= hit` 이 항등적으로
+    성립한다. 표시 건수 자체는 `unreachable` 로 그대로 보고하므로 감사는 유지된다.
+    """
     total = sum(len(r.get("golden") or []) for r in rows)
     hit = sum(len(r.get("golden_in_evidence") or []) for r in rows)
     unreachable = sum(len(r.get("golden_unreachable") or []) for r in rows)
+    #: 표시됐고 **이 arm 이 회수하지 못한** 것. 분모에서 빼는 것은 이쪽뿐이다.
+    unreachable_missed = sum(
+        1 for r in rows for g in (r.get("golden_unreachable") or [])
+        if g not in (r.get("golden_in_evidence") or []))
     return {
         "hit": hit,
         "denominator_raw": total,
         "unreachable": unreachable,
-        "denominator_adjusted": total - unreachable,
+        "unreachable_missed": unreachable_missed,
+        "denominator_adjusted": total - unreachable_missed,
         "note": ("`denominator_raw` 가 정본이다. `denominator_adjusted` 는 "
-                 "`UNREACHABLE_GOLDEN` 표시분을 뺀 것이고 **정답률과는 무관하다**."),
+                 "`UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 "
+                 "값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 "
+                 "것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."),
     }
 
 
@@ -906,7 +969,33 @@ def with_retry(fn, *args, **kwargs):
 
 
 def run_case(case: dict, force: bool = False) -> tuple[dict, bool]:
-    """한 문항을 관통시키고 디스크에 남긴다. 캐시가 있으면 **호출하지 않는다**."""
+    """한 문항을 관통시키고 디스크에 남긴다. 캐시가 있으면 **호출하지 않는다**.
+
+    🔴 **캐시 키에 내용 해시가 없다 — 재측정이 조용히 무효 연산이 된다.**
+    키는 `question_id` 하나뿐이다(`RESPONSE_DIR/<qid>.json`). 색인·프롬프트·arm 구성이
+    무엇으로 바뀌었든 파일이 있으면 저장 응답을 그대로 재생하고, 그러면 성적이 안
+    움직이는 것이 *"수정이 효과가 없었다"* 로 읽힌다. `run_judge` ·
+    `embed.VectorStore.ensure`(키가 `doc_id` 뿐)가 **같은 결함**이다.
+
+    실측으로 두 번 밟았다.
+      · R2D — `A8` 을 재빌드 후 재측정했는데 **캐시 적중 0 / 미적중 0** 이 나왔다.
+        적중도 미적중도 0 은 파이프라인이 한 번도 안 돌았다는 뜻이다.
+      · R2E — `ORACLE` 에서 **그대로 재현**했다. `--force` 를 붙이니 61 → 64/72 로
+        움직였다. 즉 R2D 시점의 `ORACLE 61/72` 는 **낡은 값이 재생된 것**이었다.
+
+    🔴 **재측정 규율: 내용이 바뀌었으면 `--force` 를 붙인다.** 우회가 아니다 —
+    `--force` 는 이 파일 캐시만 뚫고 **요청 캐시(프롬프트 해시)는 살아 있어서**
+    프롬프트가 한 글자도 안 바뀐 문항은 0원이다. 실측 비용 성질:
+
+        ORACLE full 88   적중 162 / 미적중 9   →   4문항만 결제   160.0원
+        L1     full 88   적중 160 / 미적중 8   →   5문항만 결제    69.9원
+        L3     full 88   적중 167 / 미적중 0   →   0문항 결제       0.0원
+
+    `--force` 없이 돌려 **적중 0 / 미적중 0** 이 나오면 그것이 무효 연산 신호다.
+    근본 처방은 키에 `(색인 스냅샷 해시, arm 구성, 프롬프트 해시)` 를 더하는 것이고
+    **이번 라운드에서는 하지 않았다** — 키를 바꾸면 저장된 29개 산출물이 전부 미적중이
+    되어 재구매가 붙고, 그러면 이번 재측정과의 비교가 깨진다. 다음 라운드로 넘긴다.
+    """
     RESPONSE_DIR.mkdir(parents=True, exist_ok=True)
     path = RESPONSE_DIR / f'{case["question_id"]}.json'
     if path.exists() and not force:
@@ -947,6 +1036,18 @@ def run_judge(case: dict, response: dict, force: bool = False,
     `None` 이면 종전과 글자 하나 다르지 않게 `JUDGE_DIR/<qid>.json` 을 쓴다. 회차별
     결과를 이 파일에 덮으면 다른 도구가 읽는 산출물 형식이 깨지므로, 반복 경로는
     **자기 폴더**(`judge_repeat/round_K/`)를 넘겨 받아 쓴다.
+
+    🔴 **`run_case` 와 같은 캐시 결함이다** — 키가 `question_id` 하나이고 답변 내용
+    해시가 없다. 답변이 바뀌어도 저장된 판정이 재생된다. 재측정 규율과 실측 근거는
+    `run_case` 독스트링에 한 곳으로 모아 적었다. **내용이 바뀌었으면 `--force`.**
+
+    🔴 그리고 이 판정기에는 **두 번째 결함**이 있다 — 수치 자기일관성을 안 본다.
+    `covers_key_points`·`grounded`·`no_fabrication` 셋뿐이라, 답변 안에서 원값과
+    괄호 환산값이 10배 어긋나도 통과시킨다. 현 세대 전수 집계는 **1건**
+    (`Q-110` · 밸류체인 12)이고 `tests/test_calc_checks.py` 의
+    `JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG` 이 그것을 명시로 들고 있다.
+    **이번 라운드에서 고치지 않았다** — 채점기를 바꾸면 전 세대 성적의 정의가 바뀌어
+    이번 재측정과의 비교가 깨진다. 다음 라운드 후보다.
     """
     path = Path(path) if path else JUDGE_DIR / f'{case["question_id"]}.json'
     path.parent.mkdir(parents=True, exist_ok=True)

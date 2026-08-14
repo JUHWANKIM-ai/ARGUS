@@ -1156,6 +1156,32 @@ def test_a_second_paid_run_keeps_the_earlier_amount_visible(fake_root, monkeypat
     assert saved["spent_won_previous"] == 1901.0            # 앞의 값이 안 사라진다
 
 
+def test_a_rescore_does_not_wipe_the_inherited_slot(fake_root, monkeypatch):
+    """🔴 **네 번째 서식지 (R2E).** 재집계가 `spent_won` 은 지키면서
+    `spent_won_previous` 를 조용히 버렸다.
+
+    실측 피해: `v3/A8` 이 R2D 보고서 §0 표에 `15.5 / 370.3` 으로 적혀 있는데 커밋된
+    산출물은 `15.5 / None` 이다 — 그 사이에 재집계가 한 번 돌았고 370.3원은 이제 그
+    표에만 남아 있다. R2E 시점에 같은 위험에 노출돼 있던 것은 `v3/ORACLE` 의
+    1,530.4원이고, `--arm ORACLE --offline` 한 번으로 사라질 수 있었다.
+    """
+    from scripts import ablation as runner
+
+    out = fake_root / "artifacts" / "ablation" / "v3"
+    monkeypatch.setattr(runner, "OUT_DIR", out)
+    (out / "ORACLE").mkdir(parents=True)
+    (out / "ORACLE" / "run.json").write_text(
+        json.dumps({"spent_won": 160.0, "spent_won_previous": 1530.4}),
+        encoding="utf-8")
+
+    # 재집계 — LLM 0회라 `spent_won` 이 0 이다.
+    runner._write_run("ORACLE", {"arm": "ORACLE", "spent_won": 0.0, "runs": []})
+
+    saved = json.loads((out / "ORACLE" / "run.json").read_text(encoding="utf-8"))
+    assert saved["spent_won"] == 160.0                      # ①~③ 의 가드
+    assert saved["spent_won_previous"] == 1530.4, "승계 슬롯이 재집계에 지워졌다"
+
+
 def test_the_run_rows_record_whether_the_question_was_replayed(monkeypatch):
     """🔴 **I-5.** 행에 `cached` 가 없으면 산출물만 보고 "재생인가 측정인가" 를 알 수
     없다. `spent_won 0.0` 인 arm(전량 재생)이 §2 곡선에서 신규 측정과 같은 격으로 선다."""

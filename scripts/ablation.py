@@ -572,7 +572,16 @@ def _write_run(folder: str, live: dict) -> dict:
       ② `run_heldout` — T9 가 673.8원을 지키는 가드를 넣었다.
       ③ **사다리 루프** — 가드가 없었다. `--arms A0` 재집계 한 번으로 1,901.0 → 0.0,
          총지출 5,066.6 → 3,165.6원이 됐다.
+      ④ 🔴 **승계 슬롯 자체** (R2E) — ①~③ 은 `spent_won` 만 지켰고
+         `spent_won_previous` 는 재집계에서 **안 옮겼다.** `v3/A8` 의 370.3원이 그렇게
+         사라졌다(R2D 보고서 §0 에는 `15.5 / 370.3` 인데 커밋된 산출물은 `15.5 / None`).
+         아래 `carried` 가 그 구멍이다.
     그래서 **가드를 함수 하나로 합쳤다.** 서식지가 둘이면 세 번째가 생긴다.
+
+    ⚠️ 🔴 **그래도 승계 슬롯은 하나다.** 같은 arm 을 **유료로 두 번** 돌리면 두 번째가
+    첫 번째를 `spent_won_previous` 로 밀고, 세 번째는 첫 번째를 **잃는다.** 그래서
+    재측정은 **탐침 없이 한 번에** 돌리는 것이 원장에 유리하다 (R2D §8-⑥ 이 그 거래를
+    후회한다). R2E 는 `ORACLE` 을 정확히 한 번만 유료로 돌렸다.
 
     두 번째 유료 실행도 앞의 값을 지우지 않는다 — 새 값을 권위값으로 쓰되 앞의 값을
     `spent_won_previous` 로 남긴다. 지운 돈은 복구되지 않지만 지워진 사실은 남는다.
@@ -581,6 +590,17 @@ def _write_run(folder: str, live: dict) -> dict:
     previous = (json.loads(run_path.read_text(encoding="utf-8"))
                 if run_path.exists() else {})
     before = previous.get("spent_won")
+    # 🔴 **네 번째 서식지 — 재집계가 승계 슬롯을 지운다 (R2E 가 실측으로 찾았다).**
+    # 아래 재집계 가지는 `spent_won` 은 지켰지만 `spent_won_previous` 를 **안 옮겼다**.
+    # `live` 는 새 사전이라 그 키가 없고, 그대로 쓰면 승계분이 조용히 사라진다.
+    # 실제로 그렇게 사라졌다: `v3/A8` 은 R2D 보고서 §0 표에 `15.5 / 370.3` 으로 적혀
+    # 있는데 커밋된 산출물은 `15.5 / None` 이다 — 그 사이에 재집계가 한 번 돌았다.
+    # 370.3원은 이제 R2D 보고서의 표에만 남아 있다.
+    # 지금 위험한 것은 `v3/ORACLE`(1,530.4) · `v3/vc/ORACLE`(216.7) · `v3/L4`(7.6) 셋이고,
+    # `--arm ORACLE --offline` 한 번으로 1,530.4원이 원장에서 없어질 수 있었다.
+    carried = previous.get("spent_won_previous")
+    if carried and not live.get("spent_won_previous"):
+        live["spent_won_previous"] = carried
     if before:
         if not live.get("spent_won"):
             live["spent_won_rescore"] = live.get("spent_won", 0.0)

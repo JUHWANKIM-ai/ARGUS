@@ -16,7 +16,11 @@ from scripts import error_analysis as ea
 
 V3 = Path(ea.ROOT) / "artifacts" / "ablation" / "v3"
 #: 오라클은 골든을 주입하므로 '도달 가능의 증거' 에서 뺀다.
-NON_ORACLE_ARMS = ("A8", "L4", "vc/A8")
+#: 🔴 R2E 에서 `L1`·`L2`·`L3` 이 측정됐으므로 증거에 **더한다.** 증거가 늘면 관문 G2 가
+#: 더 많이 걸러 표시는 **줄어들 수만 있다** — 실측 결과는 3건 불변이었다(감도 곡선 ⑤).
+#: 반대로 증거를 줄이면 표시가 늘어난다(`vc/A8` 하나만 쓰면 4건 — `Q-064` 가 붙는다).
+#: 그래서 이 목록은 **가능한 만큼 넓어야** 하고, 좁히는 방향의 수정은 성적을 부풀린다.
+NON_ORACLE_ARMS = ("A8", "L1", "L2", "L3", "L4", "vc/A8")
 
 
 def _retrieved() -> dict[str, set]:
@@ -85,6 +89,37 @@ def test_both_denominators_are_reported_side_by_side():
     assert got["denominator_raw"] == 3
     assert got["unreachable"] == 1
     assert got["denominator_adjusted"] == 2
+
+
+def test_a_marked_golden_that_this_arm_did_retrieve_is_not_taken_off_its_denominator():
+    """🔴 회수율이 100% 를 넘지 않는다 — 오라클에서 `46/43` 이 찍혔던 결함.
+
+    표시는 비-오라클 arm 의 회수 합집합으로 판정한 동결 상수라, 골든을 주입하는
+    `ORACLE` 은 표시된 골든까지 전건 회수한다. 표시 건수를 그대로 빼면 분자가 분모를
+    넘는다. 회수된 표시분은 **도달 가능이 증명된 것**이라 뺄 근거가 없다.
+    """
+    rows = [{"golden": ["A", "B", "C"], "golden_in_evidence": ["A", "B", "C"],
+             "golden_unreachable": ["C"]}]
+    got = ea.golden_recall_denominators(rows)
+    assert got["hit"] == 3
+    assert got["denominator_raw"] == 3
+    assert got["unreachable"] == 1, "표시 건수 자체는 그대로 보고해야 감사가 된다"
+    assert got["unreachable_missed"] == 0
+    assert got["denominator_adjusted"] == 3, "회수한 표시분을 분모에서 빼면 100% 를 넘는다"
+
+
+@needs_artifacts
+def test_no_stored_arm_reports_a_recall_above_one_hundred_percent():
+    """산출물 전수로 같은 불변을 건다 — 단위 테스트만으로는 렌더 경로를 못 잠근다."""
+    for rel in ("A8", "L1", "L2", "L3", "L4", "ORACLE", "vc/A8", "vc/ORACLE"):
+        path = V3 / rel / "report.json"
+        if not path.exists():
+            continue
+        rows = json.loads(path.read_text(encoding="utf-8"))["rows"]
+        got = ea.golden_recall_denominators(rows)
+        assert got["hit"] <= got["denominator_adjusted"], (
+            f'{rel} 회수율이 100% 를 넘는다: '
+            f'{got["hit"]}/{got["denominator_adjusted"]}')
 
 
 def test_periodic_section_goldens_are_left_in_the_denominator():
