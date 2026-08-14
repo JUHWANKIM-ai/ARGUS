@@ -1182,6 +1182,79 @@ def test_a_rescore_does_not_wipe_the_inherited_slot(fake_root, monkeypatch):
     assert saved["spent_won_previous"] == 1530.4, "승계 슬롯이 재집계에 지워졌다"
 
 
+def test_a_paid_subcohort_run_flags_the_parent_summary_as_stale(fake_root):
+    """🔴 **여덟 번째 결함의 기전 — 만들어지는 자리에서 잡는다.**
+
+    R2F 는 증상을 고쳤다(`render_gate` 의 지출 검산이 `if held_report:` 안에 있어
+    heldout 없는 v3 에서 한 번도 안 돌았다). 그런데 검산이 잡아야 했던 **사건**은
+    렌더가 아니라 실행에서 생긴다 — 하위 코호트를 `--out …/vc` 로 유료 실행하면 그
+    폴더의 `summary.json` 만 갱신되고, **부모의 `spent_won` 은 재귀 합인데 손대지
+    않는다.** v3 에서 `vc/L3` 51.9원이 정확히 그렇게 갈렸고 게이트를 렌더할 때까지
+    아무도 몰랐다.
+
+    분모 라벨은 이 테스트의 관심이 아니다 — 재는 것은 **금액의 짝**이다.
+    """
+    from scripts import ablation as runner
+
+    v3 = fake_root / "artifacts" / "ablation" / "v3"
+    (v3 / "A8").mkdir(parents=True)
+    (v3 / "A8" / "run.json").write_text(json.dumps({"spent_won": 553.2}),
+                                        encoding="utf-8")
+    # 부모 요약은 그 시점의 재귀 합(553.2)으로 얼어붙어 있다.
+    (v3 / "summary.json").write_text(
+        json.dumps({"meta": {"spent_won": 553.2}, "summary": {}}), encoding="utf-8")
+
+    vc = v3 / "vc"
+    (vc / "L3").mkdir(parents=True)
+    (vc / "summary.json").write_text(
+        json.dumps({"meta": {"spent_won": 0.0}, "summary": {}}), encoding="utf-8")
+
+    # 아직은 짝이 맞다 — 하위 코호트가 결제하기 전이다.
+    assert runner.stale_parent_summaries(vc) == []
+
+    # `vc/L3` 를 유료로 돌렸다. 부모의 재귀 합이 605.1 로 올랐는데 파일은 553.2 다.
+    (vc / "L3" / "run.json").write_text(json.dumps({"spent_won": 51.9}),
+                                        encoding="utf-8")
+    stale = runner.stale_parent_summaries(vc)
+    assert len(stale) == 1, f"부모의 낡음을 못 봤다: {stale}"
+    assert stale[0]["stored_won"] == 553.2
+    assert stale[0]["actual_won"] == 605.1
+    assert stale[0]["gap_won"] == 51.9
+    assert "재집계" in stale[0]["prescription"]
+
+    # 🔴 재집계로 부모를 다시 쓰면 경고가 사라진다 — 경고가 처방과 짝이 맞는지 본다.
+    (v3 / "summary.json").write_text(
+        json.dumps({"meta": {"spent_won": 605.1}, "summary": {}}), encoding="utf-8")
+    assert runner.stale_parent_summaries(vc) == []
+
+
+def test_the_v1_root_summary_is_never_compared_as_a_parent(fake_root):
+    """🔴 v1 자리에서 멈춘다 — 안 멈추면 이 검사가 **모든 실행에서** 거짓 경보를 낸다.
+
+    `artifacts/ablation/summary.json` 의 `spent_won` 은 **v1 만**의 값인데 그 폴더를
+    재귀로 세면 `v2`·`v3` 가 통째로 더해진다(`assert_not_v1_root` ①: 3,144.7 →
+    8,211.3원). 그 자리는 낡은 것이 아니라 애초에 재귀 합이 아닌 파일이다.
+    """
+    from scripts import ablation as runner
+
+    v1 = fake_root / "artifacts" / "ablation"
+    (v1 / "A6").mkdir(parents=True)
+    (v1 / "A6" / "run.json").write_text(json.dumps({"spent_won": 3144.7}),
+                                        encoding="utf-8")
+    (v1 / "summary.json").write_text(
+        json.dumps({"meta": {"spent_won": 3144.7}, "summary": {}}), encoding="utf-8")
+
+    v3 = v1 / "v3"
+    (v3 / "A8").mkdir(parents=True)
+    (v3 / "A8" / "run.json").write_text(json.dumps({"spent_won": 5066.6}),
+                                        encoding="utf-8")
+
+    # v1 을 재귀로 세면 8,211.3 이라 "낡았다" 로 보이지만 그것은 다른 회계다.
+    assert runner.spend_from_runs(v1, recursive=True)["won"] == 8211.3
+    assert runner.stale_parent_summaries(v3) == [], "v1 자리를 부모로 대조했다"
+    assert runner.stale_parent_summaries(v3 / "vc") == []
+
+
 def test_the_run_rows_record_whether_the_question_was_replayed(monkeypatch):
     """🔴 **I-5.** 행에 `cached` 가 없으면 산출물만 보고 "재생인가 측정인가" 를 알 수
     없다. `spent_won 0.0` 인 arm(전량 재생)이 §2 곡선에서 신규 측정과 같은 격으로 선다."""

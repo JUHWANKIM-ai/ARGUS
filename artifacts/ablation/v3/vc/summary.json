@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-08-14T18:13:41",
+  "generated": "2026-08-14T20:01:29",
   "cohort": "valuechain",
   "n_cases": 12,
   "question_ids": [
@@ -42,13 +42,14 @@
    "L3": 51.9,
    "ORACLE": 10.8
   },
-  "this_process_spent_won": 51.9,
+  "this_process_spent_won": 0.0,
   "cache_hits": 23,
   "cache_misses": 6,
   "cache_bypassed": 0,
   "fresh_prompt_tokens": 6781,
   "fresh_completion_tokens": 610,
-  "cache_stats_are_this_process": true,
+  "cache_stats_are_this_process": false,
+  "cache_stats_carried_from": "2026-08-14T18:13:41",
   "this_run": {
    "L3": {
     "arm": "L3",
@@ -202,7 +203,8 @@
      }
     ]
    }
-  }
+  },
+  "rescored_at": "2026-08-14T20:01:29"
  },
  "summary": {
   "arms": {
@@ -276,7 +278,9 @@
      "unreachable_missed": 3,
      "denominator_adjusted": 43,
      "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
-    }
+    },
+    "diagnostic": false,
+    "diagnostic_note": null
    },
    "L3": {
     "correct": 0,
@@ -356,7 +360,9 @@
      "unreachable_missed": 3,
      "denominator_adjusted": 43,
      "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
-    }
+    },
+    "diagnostic": false,
+    "diagnostic_note": null
    },
    "ORACLE": {
     "correct": 0,
@@ -428,7 +434,9 @@
      "unreachable_missed": 0,
      "denominator_adjusted": 46,
      "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
-    }
+    },
+    "diagnostic": true,
+    "diagnostic_note": "🔴 진단 전용 — 평가 시점에 없는 골든 근거를 주입한 값이다. 제출 성적이 아니고 **상한도 아니다**(주입은 근거를 더하는 것이 아니라 골든만으로 교체하므로 근거가 줄고, 실측에서 A8 보다 낮다). `Δ` 를 '검색이 못 가져온 몫' 으로 읽지 않는다."
    }
   },
   "axes": {

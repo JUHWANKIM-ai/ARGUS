@@ -1670,6 +1670,73 @@ def spend_from_runs(root: Path, recursive: bool = False) -> dict:
                      "어떤 규칙으로도 여기 안 잡힌다 — 이 수는 하한이다.")}
 
 
+def stale_parent_summaries(out_dir: Path) -> list[dict]:
+    """🔴 **상위 코호트 `summary.json` 이 이 실행으로 낡았는가.** LLM 0회 · 읽기만.
+
+    여덟 번째 결함의 **진짜 기전**이다. R2F 는 증상(`render_gate` 의 지출 검산이
+    `if held_report:` 안에 있어 v3 에서 한 번도 안 돌았다)을 고쳤지만, 그 검산이 잡아야
+    했던 **사건이 만들어지는 자리**는 여기다.
+
+        v3/vc/L3 를 `--out artifacts/ablation/v3/vc` 로 유료 실행한다
+          -> v3/vc/summary.json 은 갱신된다 (그 폴더가 `--out` 이다)
+          -> 🔴 v3/summary.json 은 **손대지 않는다** — 그런데 그 파일의 `spent_won` 은
+             `spend_from_runs(recursive=True)` 라서 하위 폴더를 **포함하는** 수다
+          -> 부모의 총액이 51.9원 작은 채로 굳는다. 아무도 모른다.
+
+    즉 갈림은 "재집계 시점에 얼어붙는 것" 이 아니라 **하위 코호트를 돌릴 때마다 부모가
+    조용히 낡는 것**이고, 그것은 `--out` 을 하위 폴더로 주는 모든 실행에서 재발한다.
+    게이트를 렌더할 때까지 기다릴 이유가 없다 — 만들어지는 자리에서 센다.
+
+    🔴 **경고를 print 로만 내지 않는다.** R2F 가 `diagnostic` 을 `summary.json` 에 넣은
+    것과 같은 이유다 — 렌더된 문서에만 있는 경고는 그 파일을 직접 읽는 도구를 아무것도
+    막지 못한다. 호출부가 이 반환값을 `summary.json` 의 `stale_parents` 에 싣는다.
+
+    🔴 **v1 자리에서 멈춘다.** `artifacts/ablation/summary.json` 은 v1 의 산출물이고 그
+    `spent_won` 은 **v1 만**의 값인데, 그 폴더를 재귀로 세면 `v2`·`v3` 가 통째로 더해져
+    3,144.7 → 8,211.3원이 된다(`assert_not_v1_root` ①). 즉 그 자리는 "낡은" 것이 아니라
+    **애초에 재귀 합이 아닌** 파일이므로 대조 대상이 아니다. 여기서 안 멈추면 이 검사가
+    모든 실행에서 거짓 경보를 낸다.
+
+    반환: 낡은 부모마다 `{path, stored_won, actual_won, gap_won, prescription}`.
+    부모에 `summary.json` 이 없으면(독립 실행) 빈 목록이다.
+    """
+    v1_root = (ROOT / "artifacts" / "ablation").resolve()
+    out: list[dict] = []
+    for parent in out_dir.resolve().parents:
+        if parent == v1_root or v1_root not in parent.parents:
+            break                       # v1 자리와 그 밖은 대조 대상이 아니다
+        path = parent / "summary.json"
+        if not path.exists():
+            continue
+        stored = (json.loads(path.read_text(encoding="utf-8")).get("meta") or {}).get("spent_won")
+        actual = spend_from_runs(parent, recursive=True)["won"]
+        if stored is None or abs(float(stored) - actual) < 0.05:
+            continue
+        rel = path.relative_to(ROOT).as_posix() if path.is_relative_to(ROOT) else str(path)
+        out.append({
+            "path": rel,
+            "stored_won": round(float(stored), 1),
+            "actual_won": actual,
+            "gap_won": round(actual - float(stored), 1),
+            "prescription": (
+                f'`--arm` 없이 코호트만 주는 재집계`(--offline)`로 {rel} 를 다시 쓴다 '
+                "(LLM 0회 · 0원). 그 파일의 `spent_won` 은 하위 폴더를 포함하는 재귀 합이라 "
+                "하위 코호트를 유료로 돌리면 반드시 낡는다."),
+        })
+    return out
+
+
+def report_stale_parents(out_dir: Path) -> list[dict]:
+    """`stale_parent_summaries` 를 돌리고 콘솔에도 찍는다. 반환값은 산출물에 싣는다."""
+    stale = stale_parent_summaries(out_dir)
+    for row in stale:
+        print(f'\n🔴 **상위 코호트 요약이 낡았다** — {row["path"]} 의 '
+              f'`spent_won` {row["stored_won"]:,.1f}원인데 그 폴더의 재귀 합은 '
+              f'{row["actual_won"]:,.1f}원이다 (차이 {row["gap_won"]:+,.1f}원).'
+              f'\n   처방: {row["prescription"]}')
+    return stale
+
+
 def version_dirs() -> list[Path]:
     """v1 폴더 **안에** 들어앉은 판 폴더들 (`artifacts/ablation/v2` 등)."""
     v1 = ROOT / "artifacts" / "ablation"
@@ -2946,6 +3013,12 @@ def main(argv: list[str] | None = None) -> None:
             "price_won_per_1k": ea.PRICE_WON_PER_1K,
             "index_snapshot": snapshot}
     meta.update(_spend_meta(OUT_DIR, cache, live))
+    # 🔴 여덟 번째 결함이 **만들어지는 자리**에서 센다 (`stale_parent_summaries` 독스트링).
+    #    하위 코호트를 `--out …/vc` 로 돌리면 부모의 재귀 합이 조용히 낡는다 — v3 에서
+    #    실제로 그렇게 51.9원(`vc/L3`)이 갈렸고, 게이트를 렌더할 때까지 아무도 몰랐다.
+    stale = report_stale_parents(OUT_DIR)
+    if stale:
+        meta["stale_parents"] = stale
     (OUT_DIR / "summary.json").write_text(
         json.dumps({"meta": meta, "summary": summary}, ensure_ascii=False, indent=1),
         encoding="utf-8")

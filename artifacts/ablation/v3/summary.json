@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-08-14T18:06:29",
+  "generated": "2026-08-14T20:01:20",
   "cohort": "full",
   "n_cases": 88,
   "question_ids": [
@@ -111,7 +111,7 @@
    "data/dart-disclosures/manifest.jsonl": "04750795e1a2d5c3:2419214",
    "data/dart-disclosures/universe.csv": "96560165c836b10e:10674"
   },
-  "spent_won": 553.2,
+  "spent_won": 605.1,
   "spent_won_source": "arm·코호트별 run.json 합 (하위 폴더 포함)",
   "spent_won_by_arm": {
    "A8": 15.5,
@@ -121,6 +121,7 @@
    "L4": 72.7,
    "ORACLE": 160.0,
    "vc/A8": 196.6,
+   "vc/L3": 51.9,
    "vc/ORACLE": 10.8
   },
   "this_process_spent_won": 0.0,
@@ -1197,7 +1198,7 @@
     ]
    }
   },
-  "rescored_at": "2026-08-14T18:06:29"
+  "rescored_at": "2026-08-14T20:01:20"
  },
  "summary": {
   "arms": {
@@ -1290,7 +1291,9 @@
      "unreachable_missed": 0,
      "denominator_adjusted": 133,
      "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
-    }
+    },
+    "diagnostic": false,
+    "diagnostic_note": null
    },
    "L1": {
     "correct": 59,
@@ -1384,7 +1387,9 @@
      "unreachable_missed": 0,
      "denominator_adjusted": 133,
      "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
-    }
+    },
+    "diagnostic": false,
+    "diagnostic_note": null
    },
    "L2": {
     "correct": 55,
@@ -1484,7 +1489,9 @@
      "unreachable_missed": 0,
      "denominator_adjusted": 133,
      "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
-    }
+    },
+    "diagnostic": false,
+    "diagnostic_note": null
    },
    "L3": {
     "correct": 66,
@@ -1575,7 +1582,9 @@
      "unreachable_missed": 0,
      "denominator_adjusted": 133,
      "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
-    }
+    },
+    "diagnostic": false,
+    "diagnostic_note": null
    },
    "L4": {
     "correct": 66,
@@ -1669,7 +1678,9 @@
      "unreachable_missed": 0,
      "denominator_adjusted": 133,
      "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
-    }
+    },
+    "diagnostic": false,
+    "diagnostic_note": null
    },
    "ORACLE": {
     "correct": 64,
@@ -1763,7 +1774,9 @@
      "unreachable_missed": 0,
      "denominator_adjusted": 133,
      "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
-    }
+    },
+    "diagnostic": true,
+    "diagnostic_note": "🔴 진단 전용 — 평가 시점에 없는 골든 근거를 주입한 값이다. 제출 성적이 아니고 **상한도 아니다**(주입은 근거를 더하는 것이 아니라 골든만으로 교체하므로 근거가 줄고, 실측에서 A8 보다 낮다). `Δ` 를 '검색이 못 가져온 몫' 으로 읽지 않는다."
    }
   },
   "axes": {
