@@ -462,8 +462,14 @@ def verify_answer_calc(case: dict, answer: str, records: dict[str, dict]) -> dic
     골든이 여러 건이면 **하나라도 설명되면 통과**다 (원공시 227,500 vs 정정본 114,800 처럼
     체인 안에서 정답이 갈린다). `skipped`(안 말함)와 `mismatches`(틀림)를 섞지 않는다 —
     섞으면 TOOL 귀속이 오염된다.
+
+    🔴 **레코드 대조만으로는 구조적으로 못 보는 실패가 있다.** 정기공시 문항은 골든
+    접수번호가 정형 레코드로 안 돌아와 `reports` 가 통째로 빈다 (실측 Q-044·Q-047:
+    근거 2건 → 레코드 0건). 그래서 답변의 **내적 일관성**(`verify_answer_arithmetic`)을
+    따로 태운다 — 근거를 안 읽으므로 레코드가 0건이어도 선다. 두 판정을 OR 로 합친다.
     """
-    from argus.agent.critic import aggregate_calculation, verify_calculation
+    from argus.agent.critic import (aggregate_calculation, verify_answer_arithmetic,
+                                    verify_calculation)
 
     reports = []
     for e in (case.get("evidence") or []):
@@ -480,12 +486,18 @@ def verify_answer_calc(case: dict, answer: str, records: dict[str, dict]) -> dic
     # 같은 답변의 신한울 금액이 정확해서 통과). 체인 관용(`explained` 의 OR)은 그대로 두고
     # `hard_kinds` 만 관용 밖으로 뺀다. 규칙이 두 곳에 있으면 갈리므로 정본은 critic 이다.
     agg = aggregate_calculation(reports)
-    return {"checked": agg["checked"],
-            "skipped": sorted({k for r in reports for k in r["skipped"]}),
+    self_check = verify_answer_arithmetic(answer or "")
+    reasons = ([self_check["reason"]] if self_check["reason"] else []) \
+        + list(agg.get("reasons", []))
+    return {"checked": sorted(set(agg["checked"]) | set(self_check["checked"])),
+            "skipped": sorted({k for r in reports for k in r["skipped"]}
+                              | set(self_check["skipped"])),
             "explained_by_some_record": agg["explained"],
-            "hard_kinds": agg["hard_kinds"],
-            "mismatch": agg["failed"],
-            "reasons": agg.get("reasons", [])[:3],
+            "hard_kinds": sorted(set(agg["hard_kinds"]) | set(self_check["hard_kinds"])),
+            # I-2 — 레이블 게이트가 금액 검사를 끈 레코드 수. 침묵과 구별한다.
+            "n_gated": agg["n_gated"],
+            "mismatch": agg["failed"] or not self_check["ok"],
+            "reasons": reasons[:3],
             "n_records": agg["n_records"]}
 
 
@@ -503,8 +515,14 @@ def attribute(case: dict, trace_facts: dict, correct: bool, limits: dict,
     또 이 모듈의 `verify_answer_calc` 는 골든이 여러 건일 때 "하나라도 설명되면 통과" 다
     (정정 체인에서 원공시·정정본 두 값이 다 정당하기 때문). 두 관용이 겹쳐서
     `mismatch=False` 는 **"계산이 맞다" 는 뜻이 아니다** — 계산 실패(A5)를 기계로 못 본다.
-    그래서 `TOOL` 버킷은 그리드에서 구조적으로 0건이 되고, 그 몫이 아래 단계로 흐른다.
+    그래서 `TOOL` 버킷은 그리드에서 오래 0건이었고, 그 몫이 아래 단계로 흘렀다.
     이 사실은 `arm_allocation_reconciliation()` 이 산출물에 표로 남긴다.
+
+    🔴 **그 구멍의 일부는 R2 에서 닫혔다.** `verify_answer_calc` 가 답변의 내적 일관성
+    (`critic.verify_answer_arithmetic`)을 함께 태운다 — 인라인 등식과 `원값 (환산값)`
+    짝은 **근거 레코드 없이도** 재계산되므로 위의 두 관용이 닿지 못한다. 저장 응답
+    재채점으로 Q-044(등식 −1,000,000)·Q-018(원값 13자리 중 한 자리)이 여기서 잡히고,
+    둘 다 종전에는 `GENERATION/INDEX_FIELD_MISSING` 으로 **오라벨**돼 있었다.
     """
     if correct:
         return {"stage": None, "why": "correct"}
@@ -859,6 +877,9 @@ def analyse(cases: list[dict], records: dict[str, dict]) -> list[dict]:
             "golden_evidence_all": hit["all"],
             "calc_checked": calc["checked"],
             "calc_skipped": calc["skipped"],
+            # I-2 — 레이블 게이트가 금액 검사를 끈 레코드 수. `skipped` 만으로는
+            # "답변이 안 말했다" 와 "검사를 껐다" 가 구별되지 않는다.
+            "calc_gated_records": calc.get("n_gated", 0),
             "calc_mismatch": calc["mismatch"],
             "calc_reasons": calc["reasons"],
             "data_limit": limits,

@@ -59,10 +59,12 @@ def quick_check(answer: str) -> dict:
 
 _PCT_RE = re.compile(r"(-?\d[\d,]*(?:\.\d+)?)\s*%")
 _DUR_RE = re.compile(r"(\d+)\s*년\s*(\d+)\s*개월")
+#: 배율 표지의 **단일 원천**. `_MONEY_RE` 와 `_unit_at` 이 같은 목록을 써야 한다 —
+#: 같은 목록이 두 곳에 있으면 한쪽만 고쳐진다(이 저장소가 이미 다섯 번 겪은 실패 양식).
 #: 🔴 **긴 표지가 앞에 와야 한다.** `만원` 이 `백만원` 앞에 있으면 `백|만원` 으로 갈려
 #: 배율이 1e4 로 잡히고 100배를 놓친다. 같은 이유로 `천억원`·`백억원` 이 `억원` 앞이다.
-_MONEY_RE = re.compile(
-    r"(-?\d[\d,]*(?:\.\d+)?)\s*(조원|천억원|백억원|억원|백만원|만원|천원|조|억|원)")
+_SCALE_ALT = "조원|천억원|백억원|억원|백만원|만원|천원|조|억|원"
+_MONEY_RE = re.compile(rf"(-?\d[\d,]*(?:\.\d+)?)\s*({_SCALE_ALT})")
 _BARE_RE = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
 _NUMERIC_CELL = re.compile(r"^-?[\d,]+(?:\.\d+)?$")
 _TOTAL_KW = re.compile(r"합계|합산|총계|총액|총합")
@@ -178,25 +180,35 @@ _COMPOUND_MONEY_RE = re.compile(
     r"(-?\d[\d,]*)\s*조\s*(\d[\d,]*)\s*억\s*원?")
 
 
-def _money_claims(answer: str) -> list[tuple[float, float, str]]:
-    out = []
+def _money_spans(answer: str) -> list[tuple[int, int, float, float, str]]:
+    """금액 표기를 **위치까지** 붙여 돌려준다 — `(시작, 끝, 값, 허용오차, 원문)`.
+
+    `_money_claims` 가 값만 쓰던 것을 위치가 필요한 검사(`_restatement_mismatches`)와
+    함께 쓰려고 갈랐다. 파싱 규칙은 한 곳에만 둔다.
+    """
+    out: list[tuple[int, int, float, float, str]] = []
     seen: list[tuple[int, int]] = []
-    for m in _COMPOUND_MONEY_RE.finditer(answer):
+    for m in _COMPOUND_MONEY_RE.finditer(answer or ""):
         jo, eok = _to_float(m.group(1)), _to_float(m.group(2))
         if jo is None or eok is None:
             continue
         value = jo * 1e12 + eok * 1e8
-        out.append((value, _half_ulp(m.group(2), 1e8), m.group(0)))
+        out.append((m.start(), m.end(), value, _half_ulp(m.group(2), 1e8), m.group(0)))
         seen.append(m.span())
-    for m in _MONEY_RE.finditer(answer):
+    for m in _MONEY_RE.finditer(answer or ""):
         # 복합 표기 안의 조각(`4조`·`9,290억원`)을 두 번 세지 않는다.
         if any(s <= m.start() and m.end() <= e for s, e in seen):
             continue
         value = _to_float(m.group(1))
         if value is not None:
             scale = _SCALE[m.group(2)]
-            out.append((value * scale, _half_ulp(m.group(1), scale), m.group(0)))
-    return out
+            out.append((m.start(), m.end(), value * scale,
+                        _half_ulp(m.group(1), scale), m.group(0)))
+    return sorted(out)
+
+
+def _money_claims(answer: str) -> list[tuple[float, float, str]]:
+    return [(value, tol, literal) for _, _, value, tol, literal in _money_spans(answer)]
 
 
 def _bare_claims(answer: str) -> list[tuple[float, float, str]]:
@@ -285,6 +297,7 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
     fields = _fields(evidence)
     checked: list[str] = []
     skipped: list[str] = []
+    gated: list[str] = []
     mismatches: list[dict] = []
 
     def _compare(kind: str, expected: float, claims: list[tuple[float, float, str]],
@@ -343,7 +356,12 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
             _compare("amount", amount, _money_claims(text), "근거 레코드 amount",
                      scale_guard=True)
         else:
+            # 🔴 I-2. **게이트가 닫힌 것을 `skipped` 만으로 적으면 침묵과 구별되지 않는다.**
+            # "답변이 그 수치를 말하지 않았다"(정상)와 "레이블이 안 맞아 검사를 껐다"
+            # (판단을 포기했다)는 서로 다른 사건이다. 뒤엣것은 세어야 한다 — 실측
+            # v3/A8 에서 amount 를 가진 레코드 149건 중 **64건**이 이 자리에서 꺼진다.
             skipped.append("amount")
+            gated.append("amount")
 
     # ②b 단위당 값 — **답변이 스스로 한 나눗셈**을 다시 한다.
     #    실측 Q-097: 투자금액 2,492,215,574,520원 / 12척 = 207,684,631,210원인데
@@ -406,6 +424,7 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
         "llm_calls": 0,
         "checked": checked,
         "skipped": skipped,
+        "gated": gated,
         "mismatches": mismatches,
         "failed_kinds": failed,
         "hard_kinds": hard,
@@ -452,6 +471,8 @@ def aggregate_calculation(reports: Sequence[dict]) -> dict:
         "llm_calls": 0,
         "n_records": len(rows),
         "checked": checked,
+        # I-2 — 게이트가 검사를 끈 레코드 수. **0 이 아니면 그만큼 못 본 것이다.**
+        "n_gated": sum(1 for rep in rows if rep.get("gated")),
         "explained": explained,
         "hard_kinds": hard,
         "failed": bool(hard) or (bool(checked) and not explained),
@@ -465,6 +486,146 @@ def _show(expected) -> str:
     if isinstance(expected, (int, float)) and not isinstance(expected, bool):
         return compute.fmt_num(round(float(expected), 1))
     return str(expected)
+
+
+# --- G. 답변의 내적 일관성 (LLM 0회) ------------------------------------------
+# `verify_calculation` 은 **근거 레코드 대조**다. 그래서 레코드가 없으면 아무것도 못 본다 —
+# 정기공시 문항은 `tools._record_of` 가 정형 레코드를 돌려주지 않는다. 실측 Q-044·Q-047 은
+# 근거 접수번호가 2건인데 **레코드가 0건**이라 계산 검증이 통째로 서지 못했다.
+#
+# 여기서 보는 축은 다르다. **답변이 스스로 쓴 두 표기가 서로 어긋나는가.** 근거를 한 줄도
+# 읽지 않으므로 레코드가 0건이어도 선다. LLM 0회다.
+#
+#   equation     인라인 등식      `1,699,923 + 665,945 = 1,365,868`     (실측 Q-044)
+#   restatement  원값↔환산값 짝   `1,843,200,000,000원 (1조 8,422억원)` (실측 Q-018)
+#
+# 🔴 **`restatement` 는 규칙 8·9 가 만든 짝을 되받는 검사다.** W1 이 조 단위 콤마 밀림
+# (10^k)을 막으려고 원값과 조·억 환산값을 **함께 쓰게** 했고, 그 순간 두 표기가 어긋날 수
+# 있는 자리가 새로 생겼다. Q-018 이 정확히 그것이다 — `1조 8,422억원` 은 근거와 바이트까지
+# 같고 **원 단위 13자리에서 한 자리만** 틀렸다(10^0). `_compare` 는 후보 중 하나만 맞으면
+# 통과시키므로 **맞는 쪽이 틀린 쪽을 가려 준다.** 답변 안에서 둘을 직접 맞대야 보인다.
+#
+# 🔴 겨냥과 회귀 위험을 함께 적는다 (저장 응답 614건 재채점 · LLM 0회 · 지출 0원).
+#
+#   equation     현 세대 264 답변에서 등식 20개 · 불일치 3개(전부 Q-044 의 같은 등식)
+#                옛 세대까지 614 답변 52개 등식 중 불일치 12개, 그중 정답 문항은
+#                phase_h·A6 의 Q-034 뿐이다 — 그 답변의 합계는 **실제로 틀렸고**
+#                (817,100 vs 817,900) 서술형 판정기가 통과시킨 것이다
+#   restatement  614 답변에서 재기술쌍 87개 · 불일치 5개 · **정답 문항 0건**
+#
+# 허용 오차는 **표기 단위 1칸**이다(반이 아니다). 모델은 반올림도 절사도 하므로
+# `2,590,850,129,043원 (2조 5,908억원)`(=25,908.50억을 절사) 같은 정당한 표기가 반칸
+# 창에서는 거짓 경보가 됐다 — 실측 Q-065(정답)가 그 한 건이었다.
+
+#: 등식은 **덧셈·뺄셈 사슬만** 본다. `×`·`÷` 가 섞이면 좌→우 계산이 연산 우선순위를
+#: 틀리게 하고, 실측 614 답변의 등식 52개에 ×·÷ 사슬은 한 건도 없다. 사슬이 끊기면
+#: 정규식이 아예 매치하지 않으므로 **조용히 안 보는 쪽**으로 실패한다.
+_EQ_NUM = r"-?\d[\d,]*(?:\.\d+)?"
+_EQ_OP = r"[+\-−]"
+_EQUATION_RE = re.compile(rf"({_EQ_NUM})((?:\s*{_EQ_OP}\s*{_EQ_NUM})+)\s*=\s*({_EQ_NUM})")
+_EQ_TERM = re.compile(rf"({_EQ_OP})\s*({_EQ_NUM})")
+
+#: 수 바로 뒤에 붙은 배율 표지. `_MONEY_RE` 와 **같은 목록**을 쓴다.
+_UNIT_AT = re.compile(rf"\s*({_SCALE_ALT})")
+
+#: 재기술 짝의 경계. `**276,900,000,000원**(2,769억원)` 처럼 굵게 표기가 끼어든다.
+_RESTATE_OPEN = re.compile(r"^[\s*_]*\($")
+_RESTATE_CLOSE = re.compile(r"^[\s*_]*\)")
+
+#: 답변의 내적 일관성 검사 종류. `verify_calculation` 과 같은 이유로 `TOOL` 에 귀속한다 —
+#: 옮겨 적기와 덧셈은 생성이 아니라 **계산 Tool 이 대신했어야 할 일**이다.
+ARITHMETIC_KINDS = ("equation", "restatement")
+
+
+def _unit_at(text: str, pos: int) -> str:
+    match = _UNIT_AT.match(text, pos)
+    return match.group(1) if match else ""
+
+
+def _equation_mismatches(text: str) -> list[dict]:
+    """답변이 스스로 쓴 `a ± b ± c = d` 를 다시 계산한다."""
+    out: list[dict] = []
+    for m in _EQUATION_RE.finditer(text):
+        total = _to_float(m.group(1))
+        claimed = _to_float(m.group(3))
+        if total is None or claimed is None:
+            continue
+        units = {_unit_at(text, m.end(1)), _unit_at(text, m.end(3))}
+        tolerance = 2 * (_half_ulp(m.group(1)) + _half_ulp(m.group(3)))
+        broken = False
+        for term in _EQ_TERM.finditer(m.group(2)):
+            value = _to_float(term.group(2))
+            if value is None:
+                broken = True
+                break
+            total = total + value if term.group(1) == "+" else total - value
+            tolerance += 2 * _half_ulp(term.group(2))
+            units.add(_unit_at(text, m.start(2) + term.end(2)))
+        if broken:
+            continue
+        # 단위가 섞인 등식(`72,200 + … = 817,100백만원` 은 같은 단위지만
+        # `100억 + 50억 = 15,000,000,000원` 은 환산이다)은 좌·우변이 달라도 정당하다.
+        if len({u for u in units if u}) > 1:
+            continue
+        if abs(total - claimed) > tolerance + 1e-9:
+            out.append({"kind": "equation", "claimed": " ".join(m.group(0).split()),
+                        "claimed_value": claimed, "expected": total,
+                        "tolerance": tolerance, "detail": "답변이 쓴 등식", "hard": True})
+    return out
+
+
+def _restatement_pairs(text: str) -> list[tuple]:
+    """`X원 (Y억원)` 꼴로 붙어 있는 금액 짝. **전제가 몇 번 섰는지**를 따로 센다."""
+    spans = _money_spans(text)
+    return [(a, b) for a, b in zip(spans, spans[1:])
+            if _RESTATE_OPEN.match(text[a[1]:b[0]])
+            and _RESTATE_CLOSE.match(text[b[1]:b[1] + 4])]
+
+
+def _restatement_mismatches(text: str) -> list[dict]:
+    """짝지어진 두 표기가 같은 금액인가. 규칙 8·9 가 만든 짝을 되받는다."""
+    out: list[dict] = []
+    for first, second in _restatement_pairs(text):
+        tolerance = 2 * (first[3] + second[3])
+        if abs(first[2] - second[2]) > tolerance + 1e-9:
+            out.append({"kind": "restatement",
+                        "claimed": f"{first[4]} ({second[4]})",
+                        "claimed_value": first[2], "expected": second[2],
+                        "tolerance": tolerance, "detail": "원값과 괄호 환산값이 다르다",
+                        "hard": True})
+    return out
+
+
+def verify_answer_arithmetic(answer: str) -> dict:
+    """답변의 **내적 일관성**을 재계산한다. 근거를 읽지 않는다. LLM 0회.
+
+    `verify_calculation`·`verify_completeness` 와 같은 반환 규격이다. 전제가 안 서면
+    (등식도 재기술 짝도 없으면) `skipped` 다 — 검사 대상이 없는 것과 결함을 섞으면
+    Phase H 의 귀속이 오염된다.
+
+    🔴 **`verify_calculation` 안에 넣지 않았다.** 그쪽은 근거 레코드마다 한 번 도는데
+    이 검사는 답변당 한 번이고 레코드에 의존하지 않는다. 안에 넣으면 ① 레코드가 0건인
+    문항(Q-044·Q-047)에서 아예 안 돌고, ② `aggregate_calculation` 의 `explained`
+    (레코드 하나라도 설명하면 통과)가 이 검사 때문에 뒤집혀 **체인 관용이 망가진다.**
+    """
+    text = answer or ""
+    mismatches = _equation_mismatches(text) + _restatement_mismatches(text)
+    premises = {"equation": bool(_EQUATION_RE.search(text)),
+                "restatement": bool(_restatement_pairs(text))}
+    checked = [k for k in ARITHMETIC_KINDS if premises[k]]
+    skipped = [k for k in ARITHMETIC_KINDS if not premises[k]]
+    failed = sorted({m["kind"] for m in mismatches})
+    return {
+        "ok": not mismatches,
+        "llm_calls": 0,
+        "checked": checked,
+        "skipped": skipped,
+        "mismatches": mismatches,
+        "failed_kinds": failed,
+        "hard_kinds": failed,
+        "failure_stage": FAILURE_STAGE if mismatches else None,
+        "reason": "; ".join(_mismatch_reason(m) for m in mismatches),
+    }
 
 
 # --- G. 완전성 검증 (LLM 0회) ------------------------------------------------
