@@ -184,6 +184,33 @@ R1 은 이 arm 의 계약을 아래 두 줄로 적었다. **둘 다 그대로 �
 로 읽힌다 — 이 저장소가 최악으로 보는 **조용한 Δ** 다. 그래서 `oracle_golden_for()` 는
 빈 값을 돌려주지 않고 `OracleGoldenMissing` 을 던진다.
 
+## 🔴 `A8-lean` — 생성 프롬프트에서 **규칙 8·9 를 뺀다** (v3 신설 · 사다리 밖 곁가지)
+
+`A8` 과 **플래그 하나만** 다르다. 그 하나가 `prompts.MONEY_UNIT_RULE`(규칙 8·9)을
+시스템 프롬프트에서 뗀다. **`LADDER` 에도 `LOO_REMOVED` 에도 넣지 않는다** — `A2`/`A2F`/
+`ORACLE` 과 같은 곁가지이고, 같은 자리(`A8`)에서 프롬프트만 갈아 끼우는 변형이다.
+
+근거는 KDD '26 `paper/idea/QA.pdf` Figure 2 의 주의 배분이다 —
+`system 36.9% · output 34.5% · **근거 14.0%** · question 10.8%`. **시스템 프롬프트가
+근거보다 2.6배** 무겁다. HCX 는 attention 을 못 보지만 **대리 실험은 된다** — 규칙을 줄이고
+정답률을 재는 것이다. 실측 겨냥은 `Q-018` 이고 기전은 R2+ 가 현 세대에서 재현했다
+(`.superpowers/sdd/2026-08-12-ablation-v3/R2plus-decision.md` §4):
+
+    split_trillion_eok(Q-018 근거) -> 변환 2건  =>  규칙 8·9 가 붙는다 (system 735 -> 959자)
+    답변 어휘  "최초 공시 금액" / "최종 정정 금액"      ->  `계약금액` 이 없다
+    critic._says_amount("계약금액") = False   =>  amount 검사가 꺼진다 (gated 2레코드)
+    근거에 정답값 1,842,200,000,000 이 **있고** 답변은 1,843,200,000,000 을 썼다
+
+🔴 **뺀 것은 규칙 문안뿐이고 `split_trillion_eok` 는 그대로 둔다.** 괄호를 조·억으로
+가르는 것은 근거 성형(`calc_values` 축)이고 규칙 8·9 는 그 위에 얹은 프롬프트 보강이다.
+둘을 함께 떼면 단일 변수 조작이 아니게 되고, `Q-065`(콤마 한 자리 밀림 → 답이 10배)를
+지키던 **1차 방어선까지** 사라진다.
+
+🔴 **인질을 세어 두고 세운다.** 규칙 8·9 가 붙는 문항은 전체 88 중 **16**(밸류체인 12 중
+**10**)이고, 그중 **현재 정답이 12건**(밸류체인 5건)이다. 겨냥은 1건(`Q-018`)이므로 이
+arm 은 **잃을 것이 얻을 것보다 12배 많은** 조작이다 — 성적이 떨어지면 그것이 기각이고,
+되돌릴 순서는 `tests/test_prompt_rules.py` 의 `MONEY_RULE_EXPOSED_WHILE_CORRECT` 가 든다.
+
 ## 근거 성형은 **생성 직전에만** 한다
 
 `schema_fields` · `calc_values` 는 프롬프트에 실릴 근거 문자열에만 건다. 검색·충분성
@@ -221,7 +248,14 @@ META_UNREACHABLE_FLAGS = ("hop_ladder", "chain_hop", "split_query", "counterpart
 #: 검사도 이 사전을 읽어 **부모와 함께 움직인 자식은 예외로 허용**한다.
 #:
 #: 산문으로만 적어 두면 검사가 그것을 못 읽는다 — 그래서 데이터로 둔다.
-FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {"chain_hop": ("followup_hop",)}
+#: 🔴 `calc_values -> lean_rules` 는 **실측으로 확인한 의존**이다. `shape_evidence` 가
+#: `calc_values=False` 에서 `- 계약금액: …원 (49,290억원)` 의 괄호를 떼므로
+#: `prompts.split_trillion_eok` 이 변환할 자리가 사라지고, 그러면 규칙 8·9 가 **애초에
+#: 붙지 않아** 그것을 빼는 조작이 아무것도 바꾸지 못한다. 저장 응답 전수로 셌다 —
+#: `calc_values=False` 로 성형한 뒤 변환이 남는 문항은 전체 88 · 밸류체인 12 · ORACLE 88
+#: **모두 0건**이다.
+FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {"chain_hop": ("followup_hop",),
+                                                 "calc_values": ("lean_rules",)}
 
 #: 🔴 `golden_oracle=True` 에서 **읽히지 않는** 축. 검색 차선을 통째로 골든 주입으로
 #: 갈아치우므로 이 플래그들을 건드려도 근거가 한 글자도 안 바뀐다 —
@@ -262,6 +296,16 @@ class Arm:
     #: G1 격리(`dense`)와 같은 역할을 한다 — 스위치를 안 건드린 운영 경로는 골든을
     #: **한 번도 열지 않는다** (러너가 주입하지 않으면 매핑 자체가 없다).
     golden_oracle: bool = False
+    #: 🔴 **`A8-lean` 전용 · 이 모듈에서 유일하게 극성이 뒤집힌 플래그다.** 다른 플래그는
+    #: `True = 그 구성요소를 켠다` 인데 이것은 `True = 규칙을 뺀다` 다. 이름의 `lean` 이
+    #: 그 사실이다 — `money_unit_rule` 처럼 구성요소로 이름 붙이면 사다리 A0~A4 가
+    #: `calc_values=False` 라서 기본값을 함께 뒤집어야 하고, 그러면 이미 공표된
+    #: `Δ(A4→A5)` 의 플래그 표가 두 칸 움직여 v1·v2 산출물의 설명이 낡는다.
+    #: 참이면 `prompts.build_answer_messages` 가 `MONEY_UNIT_RULE`(규칙 8·9)을 붙이지
+    #: 않는다. 기본값 False 가 **규칙 전량 = 종전 동작**이고, 스위치를 안 건드린 운영
+    #: 경로의 프롬프트는 한 바이트도 다르지 않다.
+    #: 🔴 `calc_values=False` 와는 함께 켤 수 없다 (`FLAG_DEPENDENCIES` — Δ 가 조용히 0).
+    lean_rules: bool = False
 
     def __post_init__(self) -> None:
         if self.retrieval not in RETRIEVAL_MODES:
@@ -345,12 +389,23 @@ A2F = replace(A8, name="A2F", dense=True)           # 제출 구성 위: A8 + de
 #: 🔴 제출 구성이 아니고 상한도 아니다 — 그리드 72 에서 A8 66 · ORACLE 64 다.
 ORACLE = replace(A8, name="ORACLE", golden_oracle=True)
 
+# --- A8-lean — 프롬프트 규칙 다이어트 (사다리 밖 곁가지 · v3 신설) ----------------
+#: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 규칙 8·9(`prompts.MONEY_UNIT_RULE`)를
+#: 시스템 프롬프트에서 뗀다. 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** (머리말 참조):
+#: 사다리의 칸이 아니라 같은 자리에서 프롬프트만 갈아 끼운 변형이다. 겨냥 1건(`Q-018`) ·
+#: 인질 12건(전체 88 · 밸류체인 5/12)이고, 그 비대칭이 이 arm 의 판정 조건이다.
+A8_LEAN = replace(A8, name="A8-lean", lean_rules=True)
+
 #: 실행 순서는 **A8 부터 역순**이다 (§I-4b) — 가장 비싼 구성을 먼저 확보해야
 #: 중간에 예산이 끊겨도 최신 성능을 안다. A2 계열은 사다리를 다 확보한 뒤 맨 끝이다 —
 #: G1 불허로 A2 를 버려도 앞의 여덟 칸이 그대로 남아야 한다.
 #: 🔴 `ORACLE` 은 맨 끝이다 — 진단용이라 사다리·LOO 를 다 확보한 뒤에 붙는다.
+#: 🔴 `A8-lean` 은 **사다리·LOO 뒤, `A2` 계열 앞**이다. 앞의 열두 칸은 이미 측정돼 요청
+#: 캐시로 0원에 재생되고, `A8-lean` 은 **채택 후보**라 G1 미확정인 dense arm(`A2`·`A2F`)과
+#: 진단 arm(`ORACLE`)보다 먼저 확보해야 한다. `--run` 이 정지선에 걸리면 이 순서가 곧
+#: 무엇을 잃는지의 순서다.
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
-             "A2F", "A2", "ORACLE")
+             "A8-lean", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
 LADDER = ("A0", "A1", "A1b", "A4", "A5", "A6", "A7", "A8")
@@ -377,7 +432,17 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, A2, A2F,
-                         ORACLE)}
+                         ORACLE, A8_LEAN)}
+
+#: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
+#: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은
+#: **돈을 쓰고도 산출물 문서에 한 글자도 안 나온다.** 그 사고는 이미 한 번 실물로 났다
+#: (`ORACLE` 1,747원을 쓰고 `gate_I.md` 어디에도 없었다 · `render_gate` 주석). 더 나쁜
+#: 것은 비용 검산이다 — 실지출은 `run.json` 재귀 합이라 그 돈이 들어가는데 arm 비용
+#: 합계에는 안 들어가서 "캐시가 막은 금액" 이 그만큼 작게 찍힌다.
+SIDE_ARMS: tuple[str, ...] = tuple(
+    a for a in RUN_ORDER
+    if a not in LADDER and a not in LOO_REMOVED and a not in DIAGNOSTIC_ARMS)
 
 #: 모든 스위치 이름. 새 플래그를 넣으면 여기 자동으로 잡힌다 — 목록을 손으로 적어 두면
 #: 빠뜨린 플래그가 LOO 의 '단일 변수 조작' 검사를 조용히 통과한다.

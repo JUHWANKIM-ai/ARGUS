@@ -101,6 +101,21 @@ def split_trillion_eok(evidence: str) -> tuple[str, int]:
 #: 조 단위 금액이 근거에 실렸을 때만 붙는 규칙. 붙지 않으면 `SYSTEM_ANSWER` 그대로다.
 #: 괄호를 갈라 놓아도 모델이 **원값에서 스스로 다시 환산**하면 같은 실수를 할 수 있다.
 #: 규칙 8·9 가 그 경로를 막는다 — 계산은 원 단위로, 억원은 괄호 값을 그대로.
+#:
+#: 🔴 **`A8-lean`(`ablation.lean_rules`)이 떼는 것이 정확히 이 문자열이다.**
+#: 이 규칙이 지키던 것과 그 방어선이 어디까지 남는지:
+#:
+#:   지키던 것 ①  `Q-065` 콤마 한 자리 밀림(`49,290억` -> `492,909억` · 답이 10배).
+#:                🔴 **1차 방어선은 규칙이 아니라 `split_trillion_eok` 이고 그것은 남는다** —
+#:                괄호가 `(4조 9,290억원)` 이라 옮겨 적을 숫자가 4자리이고 밀 자리가 없다.
+#:                규칙 8·9 는 "원값에서 스스로 다시 환산" 경로를 막는 2차 방어선이다.
+#:   지키던 것 ②  `차이·합계는 원 단위 원값으로` — 조·억 단위로 계산하고 되돌리는 과정에서
+#:                단위를 잃는 경로를 막는다. 🔴 이쪽은 규칙밖에 없다. 뺐을 때 무너지면
+#:                `number_won` 문항의 `calc_mismatch`(`equation`·`restatement`)로 나타난다.
+#:
+#: 🔴 **인질 12건** — 규칙이 붙는 문항은 전체 88 중 16(밸류체인 12 중 10)이고 그중 현재
+#: 정답이 12건(밸류체인 5)이다. 겨냥은 `Q-018` 1건이다. 되돌릴 순서는
+#: `tests/test_prompt_rules.py::MONEY_RULE_EXPOSED_WHILE_CORRECT` 가 든다.
 MONEY_UNIT_RULE = """
 8. 금액은 `4,928,968,079,043원 (4조 9,290억원)` 처럼 **원 단위 원값**과 **조·억 환산값**이
    함께 실립니다. 두 표기는 같은 금액입니다.
@@ -207,7 +222,8 @@ SYSTEM_CRITIC = """당신은 공시 분석 답변의 근거를 검증하는 심�
 {"supported": true/false, "has_citation": true/false, "hallucination": true/false, "reason": "한 문장"}"""
 
 
-def build_answer_messages(question: str, evidence: str, use_cot: bool = False) -> list[dict]:
+def build_answer_messages(question: str, evidence: str, use_cot: bool = False,
+                          lean_rules: bool = False) -> list[dict]:
     """근거·질문이 요구할 때만 조건부 규칙을 붙인다.
 
     **아무 조건도 안 서면 프롬프트는 종전과 한 바이트도 다르지 않다.** 재측정 범위를
@@ -219,10 +235,19 @@ def build_answer_messages(question: str, evidence: str, use_cot: bool = False) -
     | `MONEY_UNIT_RULE` (8·9) | 조 단위 `억원` 괄호를 갈랐다 | Q-065 콤마 밀림 |
     | `UNIT_COMPARE_RULE` | 원 계열 단위 2종 + 비교형 질문 | Q-047 |
     | `CONSOLIDATED_RULE` | 연결·별도 표 공존 + 그 축을 지목한 질문 | Q-098 |
+
+    🔴 `lean_rules` 는 **`A8-lean` arm 의 스위치**다 (`ablation.Arm.lean_rules`). 참이면
+    `MONEY_UNIT_RULE` 을 붙이지 않고, 그러면 조건부 번호가 다시 `8` 부터 시작한다.
+    **기본값 False 가 규칙 전량 = 종전 동작**이고, 스위치를 읽는 것은 파이프라인이다
+    (`golden_oracle`·`shape_evidence` 와 같은 규약 — 이 모듈은 `ablation` 을 모른다).
+    🔴 `split_trillion_eok` 은 이 플래그와 **무관하게** 그대로 돈다 — 괄호 가르기는
+    근거 성형(`calc_values` 축)이고 규칙 8·9 는 그 위의 프롬프트 보강이다. 함께 떼면
+    단일 변수 조작이 아니게 되고 `Q-065` 의 1차 방어선까지 사라진다.
     """
     body, converted = split_trillion_eok(evidence)
-    rules = _BASE_RULES + (MONEY_UNIT_RULE if converted else "")
-    number = 10 if converted else 8          # 8·9 는 MONEY_UNIT_RULE 이 쓴다
+    money_rule = bool(converted) and not lean_rules
+    rules = _BASE_RULES + (MONEY_UNIT_RULE if money_rule else "")
+    number = 10 if money_rule else 8         # 8·9 는 MONEY_UNIT_RULE 이 쓴다
     for rule, needed in ((UNIT_COMPARE_RULE, needs_unit_rule(question, body)),
                          (CONSOLIDATED_RULE, needs_consolidated_rule(question, body))):
         if needed:

@@ -2158,3 +2158,147 @@ def test_the_summary_says_the_spend_came_from_a_deliberate_bypass(tmp_path):
     meta = runner._spend_meta(tmp_path, FakeCache(), live={"arm": "A8"})
     assert meta["cache_misses"] == 0 and meta["cache_bypassed"] == 90
     assert meta["this_process_spent_won"] == 1266.0
+
+
+# --- ② A8-lean — 프롬프트 규칙 다이어트 (R2+ 판정으로 세운 곁가지) ----------------
+# 🔴 이 절이 지키는 성질 넷.
+#   ① 플래그 기본값이 **종전 동작**(규칙 전량)이다 — 운영 경로가 안 바뀐다
+#   ② `A8` 과 **그 플래그 하나만** 다르다 — Δ 가 규칙 8·9 에만 귀속된다
+#   ③ 규칙 1~4(채점 직결)가 **두 경로에서 모두** 살아 있다
+#   ④ `calc_values` 없이 켤 수 없다 — 그 조합은 Δ 가 조용히 0 이다 (실측 확인)
+
+def test_the_lean_rules_flag_is_off_by_default():
+    """🔴 기본값이 곧 운영 경로다. 참이면 제출 구성이 규칙 8·9 없이 답한다."""
+    assert ablation.Arm("X").lean_rules is False
+    assert ablation.A8.lean_rules is False
+    assert ablation.current().lean_rules is False
+    assert ablation.enabled("lean_rules") is False    # 오타는 KeyError 다
+    assert "lean_rules" in FLAGS                      # `FLAG_NAMES` 가 자동으로 잡는다
+
+
+def test_a8_lean_differs_from_a8_by_exactly_the_lean_rules_flag():
+    """단일 변수 조작. 하나라도 더 바뀌면 Δ 가 '규칙 8·9' 의 것이 아니다."""
+    a8, lean = ablation.flags("A8"), ablation.flags("A8-lean")
+    assert {k for k in lean if lean[k] != a8[k]} == {"lean_rules"}
+    assert lean["lean_rules"] is True
+
+
+def test_a8_lean_is_a_side_branch_not_a_rung_and_not_a_loo():
+    """🔴 사다리에 넣으면 누적 곡선의 Δ(직전) 이 **두 arm 의 차이가 아닌 것**을 가리킨다.
+    LOO 표에 넣으면 '뺀 것' 칸이 검색 구성요소와 프롬프트 규칙을 섞는다 —
+    `A2`/`A2F`/`ORACLE` 과 같은 곁가지다."""
+    assert "A8-lean" not in ablation.LADDER
+    assert "A8-lean" not in ablation.LOO_REMOVED
+    assert "A8-lean" in ablation.ARMS and "A8-lean" in ablation.RUN_ORDER
+    # 🔴 사다리·LOO 를 다 확보한 뒤, dense·진단 arm 보다 먼저다 (채택 후보이므로).
+    order = list(ablation.RUN_ORDER)
+    assert order.index("A8-lean") > order.index("A0")
+    assert order.index("A8-lean") < order.index("A2F") < order.index("ORACLE")
+
+
+def test_side_arms_are_derived_not_hand_written():
+    """🔴 곁가지 목록을 손으로 적으면 새 arm 이 러너의 요약·게이트에서 조용히 빠진다 —
+    돈을 쓰고도 산출물 문서에 한 글자도 안 남는다 (`ORACLE` 1,747원이 그랬다)."""
+    assert set(ablation.SIDE_ARMS) == {a for a in ablation.ARMS
+                                       if a not in ablation.LADDER
+                                       and a not in ablation.LOO_REMOVED
+                                       and a not in ablation.DIAGNOSTIC_ARMS}
+    assert "A8-lean" in ablation.SIDE_ARMS
+    # 진단 arm 과 겹치면 게이트가 같은 행을 두 번 찍는다.
+    assert not set(ablation.SIDE_ARMS) & set(ablation.DIAGNOSTIC_ARMS)
+
+
+def test_lean_rules_cannot_be_turned_on_without_calc_values():
+    """🔴 `calc_values=False` 는 `- 계약금액: …원 (49,290억원)` 의 괄호를 떼므로
+    `split_trillion_eok` 이 변환할 자리가 없다 — 규칙 8·9 가 **애초에 안 붙고** 그것을
+    빼는 조작은 Δ 가 조용히 0 이다. 저장 응답 전수로 확인한 의존이다."""
+    assert ablation.FLAG_DEPENDENCIES["calc_values"] == ("lean_rules",)
+    with pytest.raises(ValueError, match="lean_rules"):
+        replace(ablation.A8, name="A8-broken", calc_values=False, lean_rules=True)
+    # 사다리의 `calc_values=False` arm 들은 기본값이라 그대로 성립한다.
+    for name in ("A0", "A1", "A1b", "A4"):
+        assert ablation.ARMS[name].lean_rules is False
+
+
+def test_shaping_for_a_calc_values_off_arm_leaves_no_trillion_bracket(tmp_path):
+    """위 의존의 **근거를 실측으로** 고정한다. 저장 응답의 근거를 `calc_values=False` 로
+    성형하면 조 단위 `억원` 괄호가 한 건도 남지 않아야 한다 — 남으면 그 문항에서는
+    `lean_rules` 가 실효를 갖고, 그때는 의존 선언이 과잉 제동이 된다."""
+    from argus.agent import prompts
+
+    root = _Path(__file__).resolve().parents[1] / "artifacts/ablation/v3/A8/responses"
+    if not root.is_dir():
+        pytest.skip(f"{root} 이 없다 (gitignore 산출물)")
+    stripped = replace(ablation.A8, name="probe", calc_values=False)
+    left = []
+    for path in sorted(root.glob("Q-*.json")):
+        response = json.loads(path.read_text(encoding="utf-8"))["response"]
+        shaped = ablation.shape_evidence(response["retrieved_context"] or "", stripped)
+        if prompts.split_trillion_eok(shaped)[1]:
+            left.append(response["question_id"])
+    assert left == [], f"괄호가 남는 문항이 있다 — 의존 선언을 재고하라: {left}"
+
+
+#: 🔴 실측 `Q-018` — 이 arm 의 유일한 겨냥. 근거에 조 단위 금액이 둘 실려
+#: `split_trillion_eok` 가 2회 발화하고, 그래서 규칙 8·9 가 붙는다.
+LEAN_Q = "HD현대중공업이 2023년 7월에 공시한 FPU 1기 공급계약은 정정공시로 계약금액이 얼마나 증가했는가?"
+
+#: 규칙 8·9 의 지문. 둘 중 하나라도 프롬프트에 남으면 규칙이 안 빠진 것이다.
+MONEY_RULE_MARKS = ("원 단위 원값", "차이·합계·평균·비교는")
+
+
+def _capture_answer_prompts(monkeypatch, arm: str, question: str) -> tuple[str, str]:
+    """🔴 **스텁 없이 진짜 경로를 탄다.** `answer_question` 을 그대로 돌려 라우터·검색·
+    근거 성형·프롬프트 조립을 전부 실행하고, 생성 호출의 **메시지만** 가로챈다.
+
+    `build_answer_messages(...)` 는 `chat(...)` 의 인자로 **먼저 평가**되므로, 인자명을
+    한 글자 틀리면 여기서 `TypeError` 가 난다 — `prompts` 를 직접 부르는 검사는 그
+    오타를 못 잡는다 (`tools.execute` 가 `TypeError` 를 `{"error": …}` 로 삼켜 우리가
+    이미 한 번 겪은 실패 양식이다).
+    """
+    from argus.clova import ChatResult
+
+    seen: list[list[dict]] = []
+
+    def _capture(messages, *args, **kwargs):
+        if kwargs.get("tag") == "answer":
+            seen.append(messages)
+        # 근거 표기를 담은 답을 돌려줘 critic 호출 가지로 안 들어가게 한다.
+        return ChatResult(text="증가액은 275,900,000,000원입니다.\n\n"
+                               "(근거: [기재정정] [공급계약 체결] HD현대중공업, "
+                               "2024-12-23, 접수번호 20241223800052, 주요내용)",
+                          prompt_tokens=1, completion_tokens=1, latency_s=0.0,
+                          finish="stop", tag=kwargs.get("tag", ""))
+
+    monkeypatch.setattr(pipeline, "chat", _capture)
+    with ablation.use(arm):
+        pipeline.answer_question("Q-018", question)
+    assert len(seen) == 1, f"생성 호출이 {len(seen)}회다 — 프롬프트를 가를 수 없다"
+    return seen[0][0]["content"], seen[0][1]["content"]
+
+
+def test_a8_lean_removes_only_the_money_rule_from_the_real_pipeline(monkeypatch):
+    """🔴 진짜 경로 대조. **system 만 갈리고 user(근거)는 바이트 동일**해야 한다 —
+    근거가 함께 움직이면 Δ 가 규칙의 것이 아니다."""
+    if not (_Path(__file__).resolve().parents[1]
+            / "artifacts/exchange_bm25.json").exists():
+        pytest.skip("검색 인덱스 산출물이 없다 (gitignore)")
+
+    full_system, full_user = _capture_answer_prompts(monkeypatch, "A8", LEAN_Q)
+    lean_system, lean_user = _capture_answer_prompts(monkeypatch, "A8-lean", LEAN_Q)
+
+    # ① 규칙 8·9 가 A8 에는 붙고 A8-lean 에는 안 붙는다.
+    for mark in MONEY_RULE_MARKS:
+        assert mark in full_system, f"A8 에서 규칙 8·9 가 사라졌다 — 겨냥이 없어진다: {mark}"
+        assert mark not in lean_system, f"A8-lean 이 규칙 8·9 를 못 뗐다: {mark}"
+    # ② 🔴 근거는 한 바이트도 다르지 않다 (`split_trillion_eok` 은 그대로 돈다).
+    assert lean_user == full_user
+    assert "조 " in full_user and "억원)" in full_user, "괄호 가르기가 안 돌았다"
+    # ③ 규칙 1~4 는 두 경로에 모두 있고 순서도 같다 (채점 직결).
+    from tests.test_prompt_rules import SCORED_RULE_TEXTS
+    for system in (full_system, lean_system):
+        at = [system.index(t) for t in SCORED_RULE_TEXTS]   # 없으면 ValueError
+        assert at == sorted(at), f"채점 규칙 넷의 순서가 바뀌었다: {at}"
+    # ④ 뺀 것은 규칙 8·9 뿐이다 — 길이 차가 정확히 그 문자열이다.
+    from argus.agent import prompts
+    assert len(full_system) - len(lean_system) == len(prompts.MONEY_UNIT_RULE)

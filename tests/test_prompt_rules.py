@@ -254,3 +254,133 @@ def test_the_hostage_is_a_subset_of_the_exposed_and_correct_set():
     resp_dir, labels, unit_ids, conso_ids = RULE_EXPOSURE["그리드 88"]
     assert EXPOSED_HOSTAGE_ONLY <= (unit_ids | conso_ids), (
         f"인질이 어느 규칙에도 노출돼 있지 않다: {sorted(EXPOSED_HOSTAGE_ONLY)}")
+
+
+# --- ⑥ `A8-lean` — 규칙 8·9 를 빼는 arm 이 무엇을 걸고 있는가 --------------------
+# 🔴 이 절이 지키는 성질 셋.
+#   ① `lean_rules=True` 는 **규칙 8·9 만** 뗀다 (조건부 두 규칙과 번호 규율은 그대로)
+#   ② 규칙 1~4 는 **두 경로에서 모두** 살아 있다
+#   ③ 🔴 **인질을 저장 응답 전수로 센다** — 이 arm 은 겨냥 1건에 인질 12건이다.
+#      성적이 떨어지면 되돌릴 순서를 이 상수가 든다.
+
+#: 규칙 8·9 가 붙는 문항. `split_trillion_eok` 이 발화하는 문항과 정의상 같다.
+#: (응답 디렉터리, 라벨 보고서, 노출 문항, **그중 현재 정답**).
+MONEY_RULE_EXPOSURE = {
+    "전체 88": ("artifacts/ablation/v3/A8/responses",
+                "artifacts/ablation/v3/A8/report.json",
+                {"Q-007", "Q-014", "Q-018", "Q-022", "Q-023", "Q-025", "Q-030",
+                 "Q-031", "Q-033", "Q-035", "Q-061", "Q-062", "Q-065", "Q-083",
+                 "Q-087", "Q-097"},
+                {"Q-007", "Q-014", "Q-022", "Q-025", "Q-030", "Q-031", "Q-033",
+                 "Q-035", "Q-061", "Q-062", "Q-065", "Q-083"}),
+    "밸류체인 12": ("artifacts/ablation/v3/vc/A8/responses",
+                    "artifacts/ablation/v3/vc/A8/report.json",
+                    {"Q-107", "Q-108", "Q-109", "Q-110", "Q-111", "Q-112",
+                     "Q-113", "Q-114", "Q-115", "Q-117"},
+                    {"Q-108", "Q-110", "Q-111", "Q-112", "Q-114"}),
+}
+
+#: 🔴 이 arm 의 **유일한 겨냥** (R2+ §4 · 기전까지 재확인됐다). 규칙 8·9 가 답변 어휘를
+#: `계약금액` → `공시 금액` 으로 바꿔 `critic._says_amount` 게이트가 닫혔고, 그래서 13자리
+#: 전사 오류를 `amount` 검사가 못 잡았다. 정답값은 근거에 **있다**.
+MONEY_RULE_TARGET = "Q-018"
+
+#: 🔴 규칙이 **지키고 있던** 문항. `MONEY_UNIT_RULE` 은 이 문항의 콤마 밀림(답이 10배)을
+#: 막으려고 생겼다. 되돌릴 순서의 첫 칸이다.
+MONEY_RULE_GUARDS = "Q-065"
+
+
+@pytest.mark.parametrize("cohort", sorted(MONEY_RULE_EXPOSURE))
+def test_the_money_rule_hostages_match_the_stored_responses(cohort):
+    """🔴 **겨냥 1건 대 인질 12건.** 이 비대칭이 `A8-lean` 판정의 전부다 — 상수가 낡으면
+    되돌릴 순서가 엉뚱한 문항에서 시작한다."""
+    resp_dir, labels, exposed_ids, correct_ids = MONEY_RULE_EXPOSURE[cohort]
+    resp_dir, labels = _ROOT / resp_dir, _ROOT / labels
+    if not (resp_dir.is_dir() and labels.exists()):
+        pytest.skip(f"{cohort} 산출물이 없다")
+    rows = {r["question_id"]: r
+            for r in json.loads(labels.read_text(encoding="utf-8"))["rows"]}
+
+    exposed, correct = set(), set()
+    for path in sorted(resp_dir.glob("Q-*.json")):
+        resp = json.loads(path.read_text(encoding="utf-8"))["response"]
+        if not prompts.split_trillion_eok(resp["retrieved_context"] or "")[1]:
+            continue
+        exposed.add(resp["question_id"])
+        if rows.get(resp["question_id"], {}).get("correct"):
+            correct.add(resp["question_id"])
+
+    assert exposed == exposed_ids, f"{cohort} 규칙 8·9 노출이 달라졌다: {sorted(exposed)}"
+    assert correct == correct_ids, (
+        f"{cohort} 노출·정답 집합이 달라졌다 — 인질 수가 바뀌었다: {sorted(correct)}")
+    assert correct <= exposed
+
+
+def test_the_target_and_the_guarded_question_are_both_exposed():
+    """겨냥도 인질도 **노출 집합 안**이어야 한다. 상수만 남고 노출이 사라지면 판정 서술이
+    근거를 잃는다."""
+    exposed = MONEY_RULE_EXPOSURE["전체 88"][2]
+    correct = MONEY_RULE_EXPOSURE["전체 88"][3]
+    assert MONEY_RULE_TARGET in exposed and MONEY_RULE_TARGET not in correct
+    assert MONEY_RULE_GUARDS in exposed and MONEY_RULE_GUARDS in correct
+
+
+@pytest.mark.parametrize("use_cot", [False, True])
+def test_lean_rules_removes_exactly_the_money_rule(use_cot):
+    """조 단위 괄호가 있어도 `lean_rules=True` 면 프롬프트가 **기본 규칙 그대로**다."""
+    base = prompts.SYSTEM_ANSWER_COT if use_cot else prompts.SYSTEM_ANSWER
+    full = prompts.build_answer_messages("q", Q065_EVIDENCE, use_cot=use_cot)
+    lean = prompts.build_answer_messages("q", Q065_EVIDENCE, use_cot=use_cot,
+                                         lean_rules=True)
+    assert full[0]["content"] != base                      # A8 은 규칙 8·9 가 붙는다
+    assert lean[0]["content"] == base                      # A8-lean 은 안 붙는다
+    # 🔴 근거는 그대로 갈라진다 — 괄호 가르기는 `calc_values` 축이고 규칙이 아니다.
+    assert lean[1]["content"] == full[1]["content"]
+    assert "(4조 9,290억원)" in lean[1]["content"]
+
+
+def test_lean_rules_does_nothing_when_the_money_rule_would_not_attach():
+    """🔴 조건이 안 서면 두 arm 의 프롬프트가 **한 바이트도** 다르지 않다 — 재측정
+    범위가 노출 문항으로 묶이는 근거다 (전체 88 중 72문항이 여기 해당한다)."""
+    for question, evidence in [("q", "e"), (Q047_QUESTION, Q047_EVIDENCE),
+                               (Q098_QUESTION, Q098_EVIDENCE),
+                               ("계약금액은 얼마인가?", "- 계약금액: 575,000,000,000원")]:
+        full = prompts.build_answer_messages(question, evidence)
+        lean = prompts.build_answer_messages(question, evidence, lean_rules=True)
+        assert full == lean, question
+
+
+@pytest.mark.parametrize("question,evidence", [
+    ("q", Q065_EVIDENCE),
+    (Q047_QUESTION, Q047_EVIDENCE + "\n" + Q065_EVIDENCE),
+    (Q098_QUESTION + " 어느 쪽이 더 큰가?", Q098_EVIDENCE + "\n" + Q065_EVIDENCE),
+])
+def test_rule_numbers_still_run_from_one_without_a_gap_under_lean_rules(question, evidence):
+    """🔴 8·9 를 뗀 자리에서 조건부 규칙 번호가 **8 부터** 다시 시작해야 한다.
+    `10.` 이 남으면 규칙이 잘린 것처럼 읽힌다 — 번호는 붙일 때 매긴다."""
+    system = prompts.build_answer_messages(question, evidence,
+                                           lean_rules=True)[0]["content"]
+    numbers = [int(n) for n in _NUMBERED.findall(system)]
+    assert numbers == list(range(1, len(numbers) + 1)), f"규칙 번호가 어긋났다: {numbers}"
+
+
+def test_the_scored_rules_survive_the_lean_arm():
+    """🔴 규칙 1~4 는 채점 항목에 직결된다 (근거만 사용 · 거절 문구 · 인용 형식 ·
+    정정본 명시). `A8-lean` 이 그중 하나라도 건드리면 다른 지표가 무너진다."""
+    for question, evidence in [("q", Q065_EVIDENCE), (Q047_QUESTION, Q047_EVIDENCE),
+                               (Q098_QUESTION, Q098_EVIDENCE)]:
+        system = prompts.build_answer_messages(question, evidence,
+                                               lean_rules=True)[0]["content"]
+        at = []
+        for text in SCORED_RULE_TEXTS:
+            assert text in system, text
+            at.append(system.index(text))
+        assert at == sorted(at), f"채점 규칙 넷의 순서가 바뀌었다: {at}"
+        numbers = [int(n) for n in _NUMBERED.findall(system)]
+        assert numbers[:4] == [1, 2, 3, 4], numbers
+    # 🔴 규칙 5(시점 지정 · `restatement` 축)와 6·7(안전)도 살아 있다 — 이 arm 이 뗀 것은
+    #    8·9 하나뿐이고, 나머지를 뺀 것으로 오독되면 안 된다.
+    system = prompts.build_answer_messages("q", Q065_EVIDENCE,
+                                           lean_rules=True)[0]["content"]
+    assert "어느 시점의 값을 쓸지는" in system
+    assert "미래 예측이나 투자 의견" in system and "개인정보" in system

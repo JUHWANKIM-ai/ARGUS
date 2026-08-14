@@ -1855,7 +1855,11 @@ def answer_question(question_id: str, question: str) -> dict:
         return _respond(question_id, question, "", trace, UNANSWERABLE, budget)
 
     try:
-        result = chat(build_answer_messages(clean, evidence, r.use_cot),
+        # 🔴 `A8-lean` 은 여기서 갈린다. `enabled()` 로 읽는 이유는 오타가 조용히
+        #    False 가 되지 않게 하기 위해서다 — 없는 플래그 이름은 `KeyError` 다.
+        #    기본값(False)에서는 아래 두 줄이 종전과 글자 하나 다르지 않다.
+        result = chat(build_answer_messages(clean, evidence, r.use_cot,
+                                           lean_rules=ablation.enabled("lean_rules")),
                       max_tokens=800 if r.use_cot else 300,
                       temperature=0.0, tag="answer")
         budget.spend_llm(result.prompt_tokens, result.completion_tokens)

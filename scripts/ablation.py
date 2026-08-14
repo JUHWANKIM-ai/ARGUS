@@ -1413,6 +1413,9 @@ def _delta(a: dict | None, b: dict | None) -> float | None:
 def render_summary(summary: dict, meta: dict) -> str:
     ladder = [a for a in ablation.LADDER if a in summary["arms"]]
     loo = [a for a in ablation.LOO_REMOVED if a in summary["arms"]]
+    # 🔴 곁가지(`A8-lean`·`A2`·`A2F`)는 사다리도 LOO 도 진단도 아니다 —
+    #    `ablation.SIDE_ARMS` 를 안 읽으면 §1·§2 두 표에 안 찍히고 산출물에서 사라진다.
+    side = [a for a in ablation.SIDE_ARMS if a in summary["arms"]]
     base_name = ladder[-1] if ladder else ""
     out = [f'# Phase I — Ablation ({meta.get("cohort") or "dev"} '
            f'{meta.get("n_cases", 0)}문항)\n',
@@ -1495,6 +1498,25 @@ def render_summary(summary: dict, meta: dict) -> str:
                        f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
                        f'| {_pp(base["rate"], row["rate"])} |')
 
+    # 🔴 곁가지 arm — 사다리도 LOO 도 아니지만 **성적이다** (진단 arm 과 다르다).
+    #    `A8-lean` 은 `A8` 과 플래그 하나만 다른 변형이므로 Δ 는 `A8` 대비로만 읽는다.
+    if side:
+        base = summary["arms"].get("A8")
+        out.append("\n## 2a. 곁가지 arm — `A8` 의 변형 (사다리 밖 · **성적이다**)\n")
+        out.append("| arm | A8 과 다른 플래그 | 정답 / 채점 | 정답률 | Δ(A8 대비) | 골든 전건적중 |")
+        out.append("|---|---|---|---|---|---|")
+        for arm in side:
+            row = summary["arms"][arm]
+            moved = [f for f in ablation.FLAG_NAMES
+                     if row["flags"].get(f) != getattr(ablation.A8, f)] or ["—"]
+            out.append(f'| {arm} | `{"`·`".join(moved)}` '
+                       f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
+                       f'| {_pp(base["rate"] if base else None, row["rate"])} '
+                       f'| {row["golden_evidence_all"]}/{row["n_grid"]} |')
+        out.append("\n> 🔴 **누적 곡선(§1)에 넣지 않는다.** 곁가지는 사다리의 칸이 아니라 "
+                   "같은 자리에서 한 축만 갈아 끼운 변형이라, 곡선에 끼우면 Δ(직전) 이 "
+                   "**두 arm 의 차이가 아닌 것**을 가리킨다.\n")
+
     # 🔴 진단 arm 은 사다리에도 LOO 에도 없으므로 위 두 표에 **안 찍힌다.** 자리를 안 주면
     #    경고만 뜨고 잰 값은 산출물 어디에도 안 남아, 다음 사람이 report.json 을 직접
     #    열어야 한다. 여기 한 칸을 주되 **경고를 표 안에 같이 적는다.**
@@ -1546,7 +1568,7 @@ def render_summary(summary: dict, meta: dict) -> str:
     if tracks:
         out.append("| arm | " + " | ".join(tracks) + " |")
         out.append("|---|" + "---|" * len(tracks))
-        for arm in ladder + loo:
+        for arm in ladder + loo + side:
             cells = []
             for track in tracks:
                 cell = summary["arms"][arm]["tracks"].get(track)
@@ -1556,7 +1578,7 @@ def render_summary(summary: dict, meta: dict) -> str:
     out.append("\n## 5. 실패 단계 분포 (**그리드 기준**)\n")
     out.append("| arm | " + " | ".join(ea.ALL_LABELS) + " |")
     out.append("|---|" + "---|" * len(ea.ALL_LABELS))
-    for arm in ladder + loo:
+    for arm in ladder + loo + side:
         hist = summary["arms"][arm]["failures"]
         out.append(f"| {arm} | " + " | ".join(str(hist.get(s, 0)) for s in ea.ALL_LABELS) + " |")
     return "\n".join(out) + "\n"
@@ -1816,6 +1838,12 @@ def render_gate(root: Path, budget_cap: float) -> str:
     #    이다: 실지출(재귀 합)에는 그 돈이 들어가는데 arm 비용 합계에는 안 들어가서
     #    차액이 그만큼 작게 찍힌다. **비용 표에는 넣고, 성적 표(누적 곡선·LOO)에는 안 넣는다.**
     diag = [a for a in ablation.DIAGNOSTIC_ARMS if a in reports]
+    # 🔴 곁가지 arm(`A8-lean`·`A2`·`A2F`)은 사다리도 LOO 도 진단도 아니라서 위 세 목록에
+    #    안 잡힌다. 목록을 손으로 적지 않고 `ablation.SIDE_ARMS` 를 읽는다 — 새 곁가지가
+    #    생길 때 여기에 이름을 적는 것을 잊으면 **돈을 쓰고도 이 문서에 안 나온다**
+    #    (`ORACLE` 1,747원이 그렇게 없었다) 그리고 §1 의 "캐시가 막은 금액" 이 그만큼
+    #    작게 찍힌다 (실지출은 `run.json` 재귀 합이라 그 돈이 들어간다).
+    side = [a for a in ablation.SIDE_ARMS if a in reports]
     full = ladder[-1] if ladder else ""
     summary = summarise(reports)
     arms = summary["arms"]
@@ -1825,7 +1853,7 @@ def render_gate(root: Path, budget_cap: float) -> str:
             if meta_path.exists() else {})
     budget_cap, budget_source, budget_note = resolve_budget_cap(meta, budget_cap)
     vc = {a: _load_report(root / "vc", a)
-          for a in ("A8", "L3", "A7") + ablation.DIAGNOSTIC_ARMS}
+          for a in ("A8", "L3", "A7") + ablation.SIDE_ARMS + ablation.DIAGNOSTIC_ARMS}
     vc = {k: v for k, v in vc.items() if v}
     vc_diag = [a for a in ablation.DIAGNOSTIC_ARMS if a in vc]
 
@@ -1862,7 +1890,7 @@ def render_gate(root: Path, budget_cap: float) -> str:
     flags = [f for f in ablation.FLAG_NAMES if f != "dense"]
     o.append("| arm | " + " | ".join(f"`{f}`" for f in flags) + " |")
     o.append("|---|" + "---|" * len(flags))
-    for arm in ladder + loo + diag:
+    for arm in ladder + loo + side + diag:
         cells = []
         for f in flags:
             value = arms[arm]["flags"].get(f)
@@ -1888,7 +1916,7 @@ def render_gate(root: Path, budget_cap: float) -> str:
     o.append("| arm | LLM 호출 | prompt | completion | judge | 총 토큰 | arm 비용(원) | 신규 지출(원) |")
     o.append("|---|---|---|---|---|---|---|---|")
     arm_sum = 0.0
-    for arm in ladder + loo + diag:
+    for arm in ladder + loo + side + diag:
         t = reports[arm]["totals"]
         arm_sum += t["cost_won"]
         fresh = spend["per_arm"].get(arm)
@@ -1986,7 +2014,7 @@ def render_gate(root: Path, budget_cap: float) -> str:
     #    예산 중단된 arm 은 **더 작은 분모로** 표에 실린다 — 그러면 그 arm 의 정답률이
     #    다른 arm 과 다른 잣대가 되고, 표만 보면 그 사실이 안 보인다.
     partial = []
-    for arm in ladder + loo + diag:
+    for arm in ladder + loo + side + diag:
         rep = reports[arm]
         run_path = root / arm / "run.json"
         run = (json.loads(run_path.read_text(encoding="utf-8"))
@@ -2105,7 +2133,7 @@ def render_gate(root: Path, budget_cap: float) -> str:
               if any(t in arms[a]["tracks"] for a in arms)]
     o.append("| arm | " + " | ".join(tracks) + " | 정보한계 거절정답 | 환각 |")
     o.append("|---|" + "---|" * (len(tracks) + 2))
-    for arm in ladder + loo:
+    for arm in ladder + loo + side:
         cells = []
         for track in tracks:
             cell = arms[arm]["tracks"].get(track)
@@ -2238,7 +2266,7 @@ def render_gate(root: Path, budget_cap: float) -> str:
     o.append("\n## 7. 실패 단계 · 근본 원인 분포 (**그리드 기준**)\n")
     o.append("| arm | " + " | ".join(ea.ALL_LABELS) + " |")
     o.append("|---|" + "---|" * len(ea.ALL_LABELS))
-    for arm in ladder + loo:
+    for arm in ladder + loo + side:
         hist = arms[arm]["failures"]
         o.append(f"| {arm} | " + " | ".join(str(hist.get(s, 0))
                                            for s in ea.ALL_LABELS) + " |")
