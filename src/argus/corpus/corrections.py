@@ -361,10 +361,9 @@ def attach_related(records: list[dict], chains: dict[str, list[str]]) -> list[di
     새로 발화한다. `pipeline` 이 못박아 둔 제동 셋의 전제("과잉 탐색이 진짜 위험이다")를
     무료로 재측정할 방법이 없다. 겨냥한 관계만 붙인다.
 
-    ⚠️ `terminates` 는 아직 **소비자가 없다.** 인덱스에 값을 실어 두는 것까지가 이 파일의
-    몫이고, 런타임에서 쓰려면 `tools.chain_probe`/`get_history` 가 이 필드를 읽고
-    `pipeline._chain_seeds` 의 제동 ②(`씨앗은 is_latest=False 만`)가 '순방향 링크가 있는
-    최신본' 을 받아 줘야 한다. 해지 공시는 전건 `is_latest=True` 라 지금 제동에 걸린다.
+    ✅ **소비자가 붙었다 (v3 R2 ④).** `tools.chain_probe`/`get_history` 가 이 필드를
+    읽고 `pipeline._chain_seeds` 가 제동 ② 에 좁은 예외를 낸다. 아래 경고가 요구한
+    절차를 **먼저 밟았고, 그 절차가 실제로 안을 하나 기각시켰다.**
 
     🔴 **그 확장을 '좁으니 안전하다' 고 넘기지 마라. 제동 ② 가 막던 것과 같은 문서다.**
     제동 ② 는 최신본을 씨앗으로 받으면 Q-008·Q-031·Q-033·Q-034(전부 현재 정답)에 근거가
@@ -375,6 +374,14 @@ def attach_related(records: list[dict], chains: dict[str, list[str]]) -> list[di
     즉 이 확장은 Q-066·Q-111 을 겨냥하면서 나머지 넷을 위험에 놓는다. 붙이기 전에
     **7문항의 근거 조립 diff 를 LLM 0회로** 뜨고, 넷의 `retrieved_context` 가 바이트
     단위로 같은지부터 확인해라.
+
+    ✅ **밟은 결과 (2026-08-14 · LLM 0회 · 100문항 · 골든 179)**: `terminates` 를
+    **무조건** 씨앗으로 받으면 넷의 `retrieved_context` 가 **넷 다 바뀐다** — 특히
+    Q-031(해지 금액을 묻는다) +1,127자 · Q-034(해지 금액 합계를 묻는다) +1,186자로,
+    위 경고의 **거울상**이다(이번엔 해지 금액 문항에 원계약 금액이 붙는다). 그래서
+    질문 조건을 함께 걸어(`_chain_seeds._TERMINATION_ORIGIN_HINT`) 바뀌는 문항을
+    2건(Q-066·Q-033)으로 줄였고 셋은 **바이트 동일**로 남겼다. 골든은 두 안이 같다.
+    판정표 전문은 `pipeline._chain_seeds` 독스트링에 있다.
     """
     superseded: set[str] = set()
     member_chain: dict[str, list[str]] = {}
