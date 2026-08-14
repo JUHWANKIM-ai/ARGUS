@@ -108,6 +108,81 @@ MONEY_UNIT_RULE = """
    조·억으로 옮겨 적을 때는 괄호 안 표기를 **그대로** 쓰고, 콤마 자리를 다시 찍거나
    원값에서 새로 환산하지 마십시오."""
 
+# --- 조건부 규칙 두 개 (Phase 2 ②·③) ------------------------------------------
+# 🔴 **KDD '26 `paper/idea/QA.pdf` 의 attention 배분을 앞에 두고 읽어야 한다** —
+# system 36.9% · output 34.5% · **근거 14.0%** · question 10.8%. 시스템 프롬프트가 근거보다
+# 2.6배 무겁다. 규칙을 늘리면 그 비율이 더 나빠진다. 그래서 두 규칙 다 **근거와 질문이 그
+# 규칙을 실제로 필요로 할 때만** 붙는다 — `MONEY_UNIT_RULE` 이 이미 쓰던 설계다.
+#
+# 노출 문항을 LLM 0회로 세어 두고 붙였다 (v3 저장 응답, 분모는 그리드 88 · 밸류체인 12).
+#
+#   단위 규칙     원 계열 단위 2종 이상 + 질문이 비교형 → 그리드 **2문항**(Q-047·Q-105)
+#                 **둘 다 현재 오답**이다. 정답 문항 노출 0
+#                 (질문 조건을 빼면 9문항으로 늘고 그중 5문항이 현재 정답이다 — 그래서 뺀다)
+#   연결/별도     연결·별도 표가 함께 실림 + 질문이 그 축을 지목 → 그리드 **2문항**
+#                 (Q-098 오답 · Q-100 **정답**). 🔴 정답 1문항이 노출된다 — 성적이 떨어지면
+#                 이분탐색에서 이 규칙을 먼저 되돌려라
+#   밸류체인 12   두 규칙 다 노출 0문항
+#
+# 🔴 **번호는 붙일 때 매긴다.** `MONEY_UNIT_RULE`(8·9)은 조건이 달라 함께 붙을 수도 따로
+# 붙을 수도 있다. 고정 번호를 박으면 그것이 빠졌을 때 `7` 다음이 `10` 이 되어 규칙이 잘린
+# 것처럼 읽힌다. `tests/test_prompt_rules.py` 가 어떤 조합에서도 번호가 `1..N` 로 이어짐을
+# 지킨다 — 겹치는 것도 비는 것도 결함이다.
+
+#: `(단위 : 억원)` 선언에서 배율 표지만. 표마다 단위가 다른 것이 정기공시의 기본값이다.
+_UNIT_DECL = re.compile(r"\(\s*단위\s*[:：]\s*([^)]{1,12}?)\s*\)")
+
+#: 원 계열만 본다. `%`·`건`·`명`·`백만 달러` 는 이 규칙이 말하는 축이 아니다.
+WON_UNITS = ("조원", "억원", "백만원", "만원", "천원", "원")
+
+#: 질문이 **수의 크기를 맞대는가**. 이 조건이 노출을 9문항에서 2문항으로 줄인다.
+_COMPARE_ASK = re.compile(r"보다\s*(큰|많|작|적|높|낮)|어느\s*(쪽|회사|기업|것)|"
+                          r"더\s*(큰|많|작|적|높|낮)|비교")
+
+#: 근거 블록 제목 중 재무제표 계열.
+_FIN_HEAD = re.compile(r"^##\s+(.*(?:재무상태표|재무제표|요약재무정보|포괄손익|손익계산서).*)$",
+                       re.M)
+_CONSOLIDATED_ASK = re.compile(r"연결|별도")
+
+#: 실측 Q-047. `97,146,675백만원`(97.1조) 과 `33,636,059억원`(3,363.6조)을 자릿수만 보고
+#: 비교해 결론이 뒤집혔다. **단위만 정규화해도 답이 뒤집힌다** — 전사 오류(10.08배)가
+#: 남아 있어도 3,363.6조 > 97.1조 라 골든("아니오")에 닿는다.
+UNIT_COMPARE_RULE = """
+{n}. 표마다 **단위 표기가 다릅니다** (`(단위 : 억원)` · `(단위 : 백만원)`). 서로 다른 표의
+    수를 비교하거나 더하기 전에 **원 단위로 환산**하십시오. 자릿수만 보고 크기를 판단하지
+    마십시오 — `1,000,000백만원` 은 1조원이고 `50,000억원` 은 5조원이라 뒤가 더 큽니다."""
+
+#: 실측 Q-098. 질문이 '요약연결재무정보 기준' 을 못박았는데 **별도** 재무상태표에서 읽어
+#: 302,133 을 냈다(골든 143,764). 연산은 정확했다 — 표를 잘못 골랐을 뿐이다.
+CONSOLIDATED_RULE = """
+{n}. 근거에 **연결** 재무제표와 **별도** 재무제표가 함께 실려 있고 같은 항목이 서로 다른
+    값으로 나옵니다. 질문이 지목한 기준의 표에서 값을 읽으십시오. 표 제목에 `연결` 이
+    없으면 별도 재무제표입니다."""
+
+
+def won_unit_declarations(evidence: str) -> set[str]:
+    """근거가 선언한 **원 계열** 단위. `(단위 : 백만원, %)` 처럼 뒤에 덧붙는 축은 자른다."""
+    out = set()
+    for declared in _UNIT_DECL.findall(evidence or ""):
+        token = declared.split(",")[0].split("/")[0].strip()
+        if token in WON_UNITS:
+            out.add(token)
+    return out
+
+
+def needs_unit_rule(question: str, evidence: str) -> bool:
+    """서로 다른 단위의 수를 맞대야 하는 질문인가."""
+    return (len(won_unit_declarations(evidence)) >= 2
+            and bool(_COMPARE_ASK.search(question or "")))
+
+
+def needs_consolidated_rule(question: str, evidence: str) -> bool:
+    """연결·별도 표가 **함께** 왔고 질문이 그 축을 지목했는가."""
+    heads = _FIN_HEAD.findall(evidence or "")
+    return (any("연결" in h for h in heads) and any("연결" not in h for h in heads)
+            and bool(_CONSOLIDATED_ASK.search(question or "")))
+
+
 #: open 문항 판정기 (02-golden-set B-5). closed 는 정규화 EM 이라 LLM 0회지만
 #: 서술형은 판정기가 없으면 채점 자체가 불가능하다. 합산 점수를 만들지 않으려고
 #: 3항목을 각각 0/1 로 받는다 — 어느 쪽이 나쁜지 사라지면 Phase H 가 무의미하다.
@@ -133,14 +208,26 @@ SYSTEM_CRITIC = """당신은 공시 분석 답변의 근거를 검증하는 심�
 
 
 def build_answer_messages(question: str, evidence: str, use_cot: bool = False) -> list[dict]:
-    """조 단위 금액이 실렸을 때만 괄호를 갈라 쓰고 규칙 8·9 를 붙인다.
+    """근거·질문이 요구할 때만 조건부 규칙을 붙인다.
 
-    **조 단위 금액이 없으면 프롬프트는 종전과 한 바이트도 다르지 않다.** 재측정 범위를
-    그 문항들로 묶기 위한 설계다 — A4·A1b 처럼 `ablation` 이 괄호를 떼는 arm 은
+    **아무 조건도 안 서면 프롬프트는 종전과 한 바이트도 다르지 않다.** 재측정 범위를
+    해당 문항으로 묶기 위한 설계다 — A4·A1b 처럼 `ablation` 이 괄호를 떼는 arm 은
     변환할 대상이 아예 없으므로 프롬프트가 그대로다.
+
+    | 규칙 | 조건 | 겨냥 |
+    |---|---|---|
+    | `MONEY_UNIT_RULE` (8·9) | 조 단위 `억원` 괄호를 갈랐다 | Q-065 콤마 밀림 |
+    | `UNIT_COMPARE_RULE` | 원 계열 단위 2종 + 비교형 질문 | Q-047 |
+    | `CONSOLIDATED_RULE` | 연결·별도 표 공존 + 그 축을 지목한 질문 | Q-098 |
     """
     body, converted = split_trillion_eok(evidence)
     rules = _BASE_RULES + (MONEY_UNIT_RULE if converted else "")
+    number = 10 if converted else 8          # 8·9 는 MONEY_UNIT_RULE 이 쓴다
+    for rule, needed in ((UNIT_COMPARE_RULE, needs_unit_rule(question, body)),
+                         (CONSOLIDATED_RULE, needs_consolidated_rule(question, body))):
+        if needed:
+            rules += rule.format(n=number)
+            number += 1
     system = rules + (_COT if use_cot else _DIRECT)
     user = f"[공시 근거]\n{body}\n\n[질문]\n{question}"
     return [{"role": "system", "content": system},
