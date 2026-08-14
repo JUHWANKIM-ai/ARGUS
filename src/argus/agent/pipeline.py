@@ -433,6 +433,13 @@ def _chain_note(entry: dict, index: int, total: int, as_of: str = "") -> str:
     if entry.get("kind") == "followup":
         # 후속 공시는 정정이 아니다. 체인 번호를 붙이면 '정정 n번째' 로 읽힌다.
         return "- 정정체인: 후속 공시 (※관련공시로 이어짐)"
+    if entry.get("kind") == "terminated":
+        # 🔴 방향이 반대다 — 이건 **앞에 있던 원계약**이지 뒤에 온 공시가 아니다.
+        # 라벨을 `followup` 과 같이 쓰면 모델이 원계약 금액 자리에 해지 금액을 답한다
+        # (Q-066 의 v2 A8 오답 362,307,038,000 vs 골든 351,882,914,000).
+        # `대체됨`·`최신본` 을 **쓰지 않는다** — `critic._STALE_NOTE`/`_LATEST_NOTE` 가
+        # 그 두 낱말로 체인 위치를 읽으므로 해지 관계가 정정 관계로 오독된다.
+        return "- 정정체인: 해지 대상 원계약 (이 계약을 해지한 공시가 ※관련공시로 지목)"
     mark = _as_of_note(entry, as_of)
     if entry.get("is_latest"):
         return f"- 정정체인: {index}/{total} (최신본{mark})"
@@ -450,32 +457,82 @@ def _annotate(markdown: str, note: str) -> str:
     return f"{head}\n{note}\n{rest}"
 
 
-def _chain_seeds(picked: list[dict]) -> list[dict]:
-    """체인을 밟을 씨앗. 제동 ①② — 상위 후보 안의 **대체본**만.
+#: 질문이 **해지가 가리키는 원계약**을 묻고 있는가. 제동 ②' 의 어휘 축.
+#: 이 목록만으로는 아무것도 안 열린다 — `terminates` 를 가진 문서(코퍼스 전체 **11건**)가
+#: 상위 후보에 있어야 비로소 걸린다. 그래서 넉넉히 적어도 과잉 발화가 안 생긴다.
+_TERMINATION_ORIGIN_HINT = ("원래", "원계약", "원공시", "최초", "가리키는")
+
+
+def _chain_seeds(picked: list[dict], question: str = "") -> list[dict]:
+    """체인을 밟을 씨앗. 제동 ①② — 상위 후보 안의 **대체본**, 그리고 조건부로 **해지 공시**.
 
     `tools.chain_probe` 는 도구 호출이 아니라 레코드 조회라 스텝을 쓰지 않는다.
     이게 없으면 링크가 없는 문서에도 `get_history` 를 걸어 스텝만 태운다.
+
+    ## 🔴 v3 R2 ④ — 제동 ② 에 **좁은 예외 하나**를 낸다
+
+    제동 ② 는 *"씨앗은 대체본(`is_latest=False`)만"* 이고 실측으로 정해졌다 — 최신본을
+    씨앗으로 받으면 `Q-008`·`Q-031`·`Q-033`·`Q-034`(전부 현재 정답)에 근거가 붙는다.
+    **해지 공시는 전건 `is_latest=True`** 라 이 제동에 걸리고, 그래서 회귀 `Q-066` 은
+    해지에서 출발하는데 런타임 대체 경로가 **없었다**(W4 진단).
+
+    `corrections.attach_related` 독스트링이 확장 전에 밟으라고 못박은 절차(7문항 근거
+    조립 diff · LLM 0회 · `1d008f0`)를 **먼저 밟았다.** 세 안을 갈라 쟀다
+    (분모: dev 78 + 회귀 10 + 밸류체인 12 = 100문항 · 골든 179):
+
+    | 안 | 골든 | 근거 바뀐 문항 | 보호 4문항 중 바뀜 | 잃은 골든 |
+    |---|---|---|---|---|
+    | ⓐ `terminates` 보유면 무조건 | 160→**161** | 6 | **4** | 0 |
+    | ⓒ ⓐ + 질문이 원계약을 물을 때만 | 160→**161** | **2** | **1** | 0 |
+    | ⓑ `_followup_index` 키까지 (= 계획서 `A9`) | 160→**161** | 7 | **4** | 0 |
+
+    🔴 **셋의 골든이 같다.** `A9` 의 일반형(ⓑ)이 `terminates` 하나보다 더 회수하는 것이
+    **0건**이다 — `_followup_index` 씨앗이 늘리는 것은 `Q-035` 의 근거 18자뿐이다.
+    그러면서 근거를 바꾸는 문항은 가장 많다. **얻는 것 없이 희석만 늘린다.**
+
+    ⓐ 와 ⓒ 도 골든이 같은데 **바꾸는 범위가 3배 다르다.** ⓐ 는 `Q-031`(해지 금액을
+    묻는다)에 원계약 3건 +1,127자, `Q-034`(해지 금액 합계를 묻는다)에 +1,186자를 얹는다.
+    `corrections.attach_related` 가 경고한 사고(*"원계약 금액을 근거에 명시하면 오답을
+    굳힌다"*)의 **거울상**이다 — 이번엔 해지 금액을 묻는 문항에 원계약 금액이 붙는다.
+    `ORACLE` 이 이미 실측한 것도 같은 방향이다: 오라클이 고친 4건 중 **3건이 근거
+    희석 제거**였지 못 가져온 근거가 아니었다.
+
+    **그래서 ⓒ 를 채택한다.** 예외를 여는 조건이 둘이다 — 문서 쪽으로 `terminates` 가
+    있을 것(코퍼스 전체 11건), 질문 쪽으로 **원계약을 묻고 있을 것**. 남는 변화는
+    `Q-066`(1/2 → 2/2, 겨냥)과 `Q-033`(1/1 유지, +324자)뿐이고, `Q-033` 은 질문 자체가
+    *"원래 계약기간"* 을 요구하므로 붙는 블록이 그 질문에 응답하는 문서다.
+
+    ⓐ·ⓑ 를 기각한 것이 이 라운드의 결과다 — **기각도 결과다.** `L4` 가 실측한
+    *"`REFERS_TO` 1,267엣지의 발화 기회가 100문항에서 1건"* 은 그대로 남고, 그 원인인
+    씨앗 조건도 그대로 남는다. **그 막음에 값이 있다**는 것이 이번 측정의 뜻이다.
     """
+    asks_origin = any(h in (question or "") for h in _TERMINATION_ORIGIN_HINT)
     seeds = []
     for item in picked[:CHAIN_SEED_WINDOW]:
         probe = tools.chain_probe(item.get("doc_id"))
-        if not probe or probe["is_latest"] or not probe["links"]:
+        if not probe or not probe["links"]:
             continue
+        if probe["is_latest"] and not (asks_origin and probe.get("terminates")):
+            continue                      # 제동 ② — 예외는 위 두 조건이 함께일 때만
         seeds.append({**probe, "corp": item.get("corp")})
     return seeds
 
 
 def _expand_chain(picked: list[dict], seen: set, budget: Budget,
-                  trace: list[str], take, as_of: str = "") -> tuple[list[str], set]:
+                  trace: list[str], take, as_of: str = "",
+                  question: str = "") -> tuple[list[str], set]:
     """정정·후속 공시 체인을 근거에 넣는다. LLM 0회.
 
     돌려주는 값은 (닫지 못한 링크, 체인에 속한 doc_id). 앞엣것은 충분성 판정이
     '집합 미완결' 로 읽고, 뒤엣것은 근거 절단에서 체인을 먼저 살리는 데 쓴다.
+
+    `question` 은 **씨앗 조건에만** 쓴다 (`_chain_seeds` 제동 ②'). 비어 있으면 종전
+    조건 그대로다 — 해지 예외가 안 열린다.
     """
     gap: list[str] = []
     chain_ids: set = set()
     added = 0
-    for seed in _chain_seeds(picked):
+    for seed in _chain_seeds(picked, question):
         missing = [r for r in seed["links"] if not any(r in d for d in seen)]
         if not missing:
             # 체인이 이미 다 와 있다. 스텝을 쓰지 않되 절단에서는 함께 살린다.
@@ -499,7 +556,10 @@ def _expand_chain(picked: list[dict], seen: set, budget: Budget,
                          f'건너뜀({out["error"]})')
             gap += missing
             continue
-        entries = list(out.get("chain") or []) + list(out.get("followups") or [])
+        # `chain` 다음에 `followups`(뒤에 온 사안) · `terminated`(이 공시가 해지한
+        # 원계약). 셋 다 `kind` 로 갈려 있고 `_chain_note` 가 각자 다른 줄을 찍는다.
+        entries = (list(out.get("chain") or []) + list(out.get("followups") or [])
+                   + list(out.get("terminated") or []))
         total = len(out.get("chain") or [])
         taken: list[str] = []
         for position, entry in enumerate(entries, start=1):
@@ -1535,7 +1595,7 @@ def _gather_evidence(r, question: str = "",
         if arm.chain_hop and not chain_done and picked and not out_of_steps:
             chain_done = True
             chain_gap, chain_ids = _expand_chain(picked, seen, budget, trace, _take,
-                                                 _as_of_ym(question))
+                                                 _as_of_ym(question), question)
 
         ok, reasons = _sufficiency(r, picked, required, chain_gap)
         trace.append(_log_verdict(plan.hop, ok, len(picked), reasons))

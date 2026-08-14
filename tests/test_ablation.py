@@ -139,7 +139,9 @@ def test_followup_flag_is_actually_wired_into_the_chain_hop():
         seen_args.clear()
         with ablation.use(arm), pytest.MonkeyPatch.context() as mp:
             mp.setattr(pipeline.tools, "execute", _capture)
-            mp.setattr(pipeline, "_chain_seeds", lambda picked: [seed])
+            # v3 R2 ④ 로 `_chain_seeds` 가 질문을 받는다 (제동 ②' — 해지 예외).
+            # 이 스텁은 씨앗을 고정하는 것이 목적이라 인자만 맞춘다.
+            mp.setattr(pipeline, "_chain_seeds", lambda picked, question="": [seed])
             pipeline._expand_chain([], set(), Budget(), [], "")
 
         assert seen_args, f"{arm}: get_history 가 호출되지 않았다"

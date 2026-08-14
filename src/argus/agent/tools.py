@@ -124,18 +124,34 @@ def chain_probe(doc_id: str) -> dict:
     `is_latest` 는 **체인 위치**로 정해진 값이다 (`corpus/corrections.attach_related`).
     금액 크기로 정하면 안 된다 — 값이 줄어드는 체인이 실재한다
     (한화오션 517,856,145,079 -> 275,063,868,984).
+
+    🔴 **엣지 세 종류를 갈라서 함께 돌려준다** (v3 R2 ④). `links` 는 종전대로 셋의
+    합집합이고, `followups`·`terminates` 는 씨앗 조건이 **어느 엣지 때문에** 열렸는지
+    호출부가 알아야 해서 따로 싣는다 (`pipeline._chain_seeds` 제동 ②).
+
+        related     정정 체인 550엣지          양방향 (`member_chain`)
+        followups   ※관련공시 **역방향**       이 문서를 **뒤에서** 가리킨 공시들
+        terminates  해지 -> 원계약 **순방향**   `corpus/corrections._termination_links`
+
+    방향이 왜 둘 다 필요한가 — `_followup_index` 는 역방향 전용이라 **해지 공시에서
+    출발하면 빈다.** 실측: `chain_probe(해지)` links=[] · `chain_probe(원계약)`
+    links=[해지]. 회귀 `Q-066` 은 해지에서 출발하는 문항이라 역방향만으로는 런타임
+    대체 경로가 **없다** (W4 진단). `terminates` 가 그 방향을 채운다.
     """
     record = _record_of(doc_id)
     if record is None:
         return {}
     rcept_no = record["rcept_no"]
     links = [r for r in (record.get("related") or []) if r != rcept_no]
-    for follow in _followup_index().get(rcept_no, ()):
-        if follow not in links:
-            links.append(follow)
+    followups = tuple(_followup_index().get(rcept_no, ()))
+    terminates = tuple(r for r in (record.get("terminates") or ()) if r != rcept_no)
+    for other in followups + terminates:
+        if other not in links:
+            links.append(other)
     return {"rcept_no": rcept_no, "corp_name": record.get("corp_name", ""),
             "is_latest": bool(record.get("is_latest", True)),
-            "links": tuple(links)}
+            "links": tuple(links),
+            "followups": followups, "terminates": terminates}
 
 
 @lru_cache(maxsize=1)
@@ -414,6 +430,14 @@ def get_history(rcept_no: str, include_followups: bool = True) -> dict:
     관련공시 11건. 정정본과 섞으면 '정정된 유효 계약' 과 '해지된 계약' 이 구분되지
     않으므로 `kind` 로 갈라 둔다.
 
+    `terminated` 는 그 **반대 방향**이다 — 이 공시가 해지한 **원계약**(+그 정정 체인).
+    `followups` 가 역방향뿐이라 해지에서 출발하면 빈다는 것이 회귀 `Q-066` 의 기전이고,
+    이 칸이 그 방향을 채운다. **`followups` 와 절대 합치지 않는다**: 시간 방향이
+    반대라 합치면 원계약이 '후속 공시' 로 찍히고, 그러면 모델이 원계약 금액 자리에
+    해지 금액을 답한다 (Q-066 의 v2 A8 오답이 정확히 그 값이다).
+    두 칸 다 `include_followups`(= `followup_hop` arm) 로 함께 가린다 — 출처가 같은
+    `※ 관련공시` 셀이라 `L4` 의 정의가 갈라지면 안 된다.
+
     `markdown` 을 함께 실어 돌려준다. 체인을 찾아 놓고 근거 블록을 다시 조회해야 하면
     스텝이 두 배가 된다.
     """
@@ -446,8 +470,30 @@ def get_history(rcept_no: str, include_followups: bool = True) -> dict:
                                           bool(record.get("is_latest", True))))
         followups.sort(key=lambda e: (e["rcept_dt"], e["rcept_no"]))
 
+    # 🔴 순방향 — 이 공시가 **해지한** 원계약(+그 원계약의 정정 체인). v3 R2 ④.
+    # `followups` 와 **kind 를 갈라 둔다**: 저쪽은 '뒤에 온 다른 사안' 이고 이쪽은
+    # '앞에 있던 원계약' 이라 시간 방향이 반대다. 섞으면 `_chain_note` 가 원계약을
+    # '후속 공시' 로 찍어 모델이 해지금액을 원계약 금액으로 답한다 — Q-066 의 v2 오답이
+    # 정확히 그 값이다(원계약 351,882,914,000 대신 해지금액 362,307,038,000).
+    #
+    # 🔴 **`include_followups` 로 함께 가린다.** `terminates` 도 출처가 `※ 관련공시`
+    # 셀이므로(`corrections._termination_links` 가 `_reference_cells` 를 읽는다) 같은
+    # `REFERS_TO` 엣지 가족이다. 따로 열어 두면 `L4`(= `followup_hop=False`)가
+    # "관련공시 기여를 다 뺀 구성" 이 아니게 되어 이미 낸 −1.4%p 의 정의가 바뀐다.
+    terminated = []
+    if include_followups:
+        known = {e["rcept_no"] for e in chain} | {e["rcept_no"] for e in followups}
+        for target in (origin.get("terminates") or ()):
+            record = by_rcept.get(target)
+            if record is None or record["rcept_no"] in known:
+                continue
+            terminated.append(_chain_entry(record, "terminated",
+                                           bool(record.get("is_latest", True))))
+            known.add(record["rcept_no"])
+        terminated.sort(key=lambda e: (e["rcept_dt"], e["rcept_no"]))
+
     return {"rcept_no": rcept_no, "chain_length": len(chain), "latest": latest,
-            "chain": chain, "followups": followups}
+            "chain": chain, "followups": followups, "terminated": terminated}
 
 
 @lru_cache(maxsize=1)
