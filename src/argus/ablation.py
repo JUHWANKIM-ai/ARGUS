@@ -254,8 +254,12 @@ META_UNREACHABLE_FLAGS = ("hop_ladder", "chain_hop", "split_query", "counterpart
 #: 붙지 않아** 그것을 빼는 조작이 아무것도 바꾸지 못한다. 저장 응답 전수로 셌다 —
 #: `calc_values=False` 로 성형한 뒤 변환이 남는 문항은 전체 88 · 밸류체인 12 · ORACLE 88
 #: **모두 0건**이다.
+#: 🔴 `verifier -> substitute_verified` 는 **구조적 의존**이다. `pipeline._verify` 가
+#: `if not ablation.current().verifier: return answer` 로 첫 줄에서 나가므로 검증 단계가
+#: 꺼진 arm 에서 치환 플래그를 켜면 코드가 도달하지 않는다.
 FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {"chain_hop": ("followup_hop",),
-                                                 "calc_values": ("lean_rules",)}
+                                                 "calc_values": ("lean_rules",),
+                                                 "verifier": ("substitute_verified",)}
 
 #: 🔴 `golden_oracle=True` 에서 **읽히지 않는** 축. 검색 차선을 통째로 골든 주입으로
 #: 갈아치우므로 이 플래그들을 건드려도 근거가 한 글자도 안 바뀐다 —
@@ -306,6 +310,24 @@ class Arm:
     #: 경로의 프롬프트는 한 바이트도 다르지 않다.
     #: 🔴 `calc_values=False` 와는 함께 켤 수 없다 (`FLAG_DEPENDENCIES` — Δ 가 조용히 0).
     lean_rules: bool = False
+    #: 🔴 **`A20` 전용.** 참이면 `pipeline._verify` 가 ① `critic.verify_answer_arithmetic`
+    #: 를 라이브 경로에 배선하고 ② 검사가 낸 **유일한** 재계산값으로 답변의 그 수치를
+    #: 치환한다. 기본값 `False` 가 종전 동작이다 — 결함을 찾아도 각주만 붙인다.
+    #:
+    #: 🔴 **기본값을 바꾸지 않는 것이 중요하다.** 현 동작은 버그가 아니라 명시적 설계고
+    #: 근거가 있다 (`pipeline.py` A6 머리말 · SWE-Lancer 부록 C: 판단 44.9% > 생성 26.2%).
+    #: 그러니 갈아엎지 말고 **arm 으로 만들어 켰다 껐다 잰다.**
+    #:
+    #: 🔴 배선을 이 플래그 뒤에 둔 것은 **실측 때문이다.** 무조건 배선하면 플래그를 끈
+    #: 상태에서도 v3 세대 답변에 각주가 새로 붙는다(전수 대조 실측) — 그 자체가 답변
+    #: 변화이고 `A20` 의 Δ 와 섞인다. 계획서 `R1-1` Step 0b 가 그 경우 "배선도 플래그
+    #: 뒤에 두라" 고 지시했다.
+    #:
+    #: 🔴 `verifier=False` 와는 함께 켤 수 없다 (`FLAG_DEPENDENCIES` — 검증 단계가 아예
+    #: 서지 않으므로 Δ 가 조용히 0 이 된다). `META_UNREACHABLE_FLAGS` ·
+    #: `ORACLE_UNREACHABLE_FLAGS` 에는 **넣지 않는다** — `_verify` 는 `_gather_evidence`
+    #: 뒤에 있고 골든 주입 위에서도 그대로 돈다.
+    substitute_verified: bool = False
 
     def __post_init__(self) -> None:
         if self.retrieval not in RETRIEVAL_MODES:
