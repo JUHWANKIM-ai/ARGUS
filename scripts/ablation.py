@@ -1063,6 +1063,21 @@ def render_summary(summary: dict, meta: dict) -> str:
                    f'| {row["llm_calls"]} | {row["tokens"]:,} | {row["arm_cost_won"]:,.1f} |')
         previous = row["rate"]
 
+    # 🔴 사다리 arm 없이 LOO 만 돌린 실행 (`--arm L4` 등). 계획서가 "arm 하나씩 돌려라" 라고
+    #    지시하므로 **정상 경로**다. 위 표가 비면 실행이 통째로 안 보이므로 무엇이 돌았는지
+    #    적는다 — 1057행 주석과 같은 이유다.
+    if not ladder:
+        present = sorted(summary["arms"])
+        out.append(f'| — | — | — | — | — | — | — | — |')
+        out.append(f'\n> 🔴 **이 실행에는 사다리 arm 이 없다** (`{", ".join(present)}`). '
+                   "누적 곡선은 사다리 arm 을 함께 돌려야 나온다 — "
+                   "`--report` 로 세대 전체를 다시 렌더하면 채워진다.\n")
+        for arm in present:
+            row = summary["arms"][arm]
+            out.append(f'| **{arm}** | {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
+                       f'| — | {row["golden_evidence_all"]}/{row["n_grid"]} '
+                       f'| {row["llm_calls"]} | {row["tokens"]:,} | {row["arm_cost_won"]:,.1f} |')
+
     if loo and base_name:
         base = summary["arms"][base_name]
         out.append(f"\n## 2. Leave-one-out — 완성 구성({base_name})에서의 필수성\n")
@@ -1077,6 +1092,13 @@ def render_summary(summary: dict, meta: dict) -> str:
                        f'| {_pp(base["rate"], row["rate"])} |')
 
     out.append("\n## 3. 축별 Δ 분해\n")
+    # 🔴 `ladder[0]`·`base_name` 을 무방비로 쓰면 LOO 단독 실행에서 IndexError 로 죽는다 —
+    #    응답과 judge 는 디스크에 다 남았는데 요약만 안 나오는, 가장 헷갈리는 실패다.
+    #    실측으로 겪었다 (2026-08-12 · `--arm L4` 단독 실행).
+    if not ladder:
+        out.append("사다리 arm 이 없어 축별 Δ 를 낼 수 없다. "
+                   "`--report` 로 세대 전체를 렌더하면 나온다.\n")
+        return "\n".join(out) + "\n"
     for axis, table in summary["axes"].items():
         out.append(f'\n### {AXIS_LABELS[axis]}\n')
         out.append("| 값 | " + " | ".join(ladder) + f' | Δ {ladder[0]}→{base_name} |')
