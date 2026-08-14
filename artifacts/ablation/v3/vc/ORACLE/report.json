@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-14T12:34:25",
+ "generated": "2026-08-14T16:18:51",
  "split": "dev",
  "cohort": "valuechain",
  "n_cases": 12,
@@ -263,7 +263,8 @@
     "data_limit": 0,
     "stages": {
      "ROUTING": 1,
-     "GENERATION": 5
+     "TOOL": 1,
+     "GENERATION": 4
     }
    }
   },
@@ -275,7 +276,8 @@
    "data_limit": 0,
    "stages": {
     "ROUTING": 1,
-    "GENERATION": 5
+    "TOOL": 1,
+    "GENERATION": 4
    }
   }
  },
@@ -298,18 +300,21 @@
  },
  "difficulty_audit": [],
  "failure_histogram": {
-  "GENERATION": 5,
+  "GENERATION": 4,
+  "TOOL": 1,
   "ROUTING": 1
  },
  "failure_histogram_grid": {},
  "by_track_failures": {
   "valuechain": {
-   "GENERATION": 5,
+   "GENERATION": 4,
+   "TOOL": 1,
    "ROUTING": 1
   }
  },
  "root_cause_histogram": {
-  "GENERATION/INDEX_FIELD_MISSING": 4,
+  "GENERATION/INDEX_FIELD_MISSING": 3,
+  "TOOL/TOOL": 1,
   "GENERATION/REASONING": 1,
   "ROUTING/ROUTING": 1
  },
@@ -322,7 +327,7 @@
    {
     "arm": "A1b",
     "auto_grid": 0,
-    "auto_all_tracks": 4,
+    "auto_all_tracks": 3,
     "manual_all_tracks": 1
    },
    {
@@ -334,7 +339,7 @@
    {
     "arm": "A5",
     "auto_grid": 0,
-    "auto_all_tracks": 0,
+    "auto_all_tracks": 1,
     "manual_all_tracks": 3
    },
    {
@@ -369,8 +374,8 @@
    {
     "question_id": "Q-109",
     "track": "valuechain",
-    "bucket": "GENERATION/INDEX_FIELD_MISSING",
-    "auto_arm": "A1b",
+    "bucket": "TOOL/TOOL",
+    "auto_arm": "A5",
     "manual_arm": "—",
     "agree": false,
     "critic_passed_wrong_answer": true
@@ -433,8 +438,8 @@
    {
     "question_id": "Q-109",
     "track": "valuechain",
-    "bucket": "GENERATION/INDEX_FIELD_MISSING",
-    "auto_arm": "A1b",
+    "bucket": "TOOL/TOOL",
+    "auto_arm": "A5",
     "manual_arm": "—",
     "agree": false,
     "critic_passed_wrong_answer": true
@@ -488,7 +493,8 @@
    "data_limit": 0,
    "stages": {
     "ROUTING": 1,
-    "GENERATION": 5
+    "TOOL": 1,
+    "GENERATION": 4
    }
   }
  },
@@ -571,13 +577,17 @@
     "20251224800396"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "equation",
+    "restatement"
    ],
    "calc_skipped": [
     "period",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [
     "amount: 답변 711,106,288,572원 vs 재계산 1,250,850,298,678",
@@ -675,12 +685,16 @@
     "20251224800396"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
     "amount",
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 4,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -710,9 +724,9 @@
    "correct": false,
    "scored_by": "em:number_won",
    "judge": null,
-   "first_failure": "GENERATION",
-   "root_cause": "INDEX_FIELD_MISSING",
-   "failure_why": "골든 근거가 프롬프트에 실렸는데 답이 틀렸다 (critic 이 supported=True 로 통과시켰다)",
+   "first_failure": "TOOL",
+   "root_cause": "TOOL",
+   "failure_why": "equation: 답변 1,091,844,082,700 + 1,715,754,987,100 = 2,807,598,070,800 vs 재계산 2,807,599,069,800; restatement: 답변 2,807,598,070,800원 (2조 7,075억원) vs 재계산 2,707,500,000,000",
    "critic_supported": true,
    "critic_passed_wrong_answer": true,
    "gold_value_in_evidence": false,
@@ -762,15 +776,21 @@
     "20231211800339"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "equation",
+    "restatement"
    ],
    "calc_skipped": [
     "period",
     "share"
    ],
-   "calc_mismatch": false,
-   "calc_reasons": [],
+   "calc_gated_records": 0,
+   "calc_mismatch": true,
+   "calc_reasons": [
+    "equation: 답변 1,091,844,082,700 + 1,715,754,987,100 = 2,807,598,070,800 vs 재계산 2,807,599,069,800; restatement: 답변 2,807,598,070,800원 (2조 7,075억원) vs 재계산 2,707,500,000,000"
+   ],
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -875,12 +895,16 @@
     "20231211800339"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
     "amount",
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 6,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -937,11 +961,15 @@
    "golden_in_candidates": [],
    "golden_in_evidence": [],
    "golden_evidence_all": false,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
     "amount",
+    "equation",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 3,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1028,11 +1056,15 @@
     "20240415800078"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
     "amount",
+    "equation",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 2,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1115,13 +1147,17 @@
     "20250924800262"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
+    "equation",
     "period",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1220,12 +1256,20 @@
     "20250924800260"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [
+    "20231206800224",
+    "20240627800468",
+    "20250924800260"
+   ],
    "calc_checked": [],
    "calc_skipped": [
     "amount",
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 5,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1315,13 +1359,17 @@
     "20241203800532"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
+    "equation",
     "period",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [
     "amount: 답변 106,796,802,000원 vs 재계산 105,400,000,000"
@@ -1410,13 +1458,17 @@
     "20230727800471"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [
     "amount: 답변 583,874,002,800원 vs 재계산 77,979,342,100",
@@ -1525,12 +1577,16 @@
     "20251212801320"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
     "amount",
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 7,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1612,13 +1668,17 @@
     "20241227800803"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {

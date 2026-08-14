@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-14T12:38:54",
+ "generated": "2026-08-14T16:18:52",
  "split": "dev",
  "cohort": "full",
  "n_cases": 88,
@@ -833,13 +833,17 @@
     "20230131800162"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -916,13 +920,17 @@
     "20230131800162"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "period"
    ],
    "calc_skipped": [
     "amount",
+    "equation",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1003,13 +1011,17 @@
     "20260203800709"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1090,13 +1102,17 @@
     "20250225800764"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
+    "equation",
     "period",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [
     "amount: 답변 64,400,000,000원 vs 재계산 58,300,000,000"
@@ -1180,13 +1196,17 @@
     "20240424800596"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1268,11 +1288,15 @@
     "20240603800359"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
     "amount",
+    "equation",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1347,11 +1371,16 @@
     "20250522000332"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount",
     "period"
    ],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1437,8 +1466,13 @@
     "20260305001006"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1523,10 +1557,14 @@
     "20241030000098"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
-    "amount"
+    "amount",
+    "equation",
+    "restatement"
    ],
+   "calc_gated_records": 2,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1600,13 +1638,17 @@
     "20240529800105"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1683,8 +1725,13 @@
     "20250918000358"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1767,13 +1814,17 @@
     "20241223800052"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1852,8 +1903,13 @@
     "20250514001078"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -1938,10 +1994,14 @@
     "20250314000027"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
-    "amount"
+    "amount",
+    "equation",
+    "restatement"
    ],
+   "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -2039,13 +2099,17 @@
     "20251204800395"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
+    "equation",
     "period",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [
     "amount: 답변 212,600,000,000원 vs 재계산 443,500,000,000",
@@ -2139,13 +2203,17 @@
     "20250102800164"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
+    "equation",
     "period",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -2222,12 +2290,16 @@
     "20250728800035"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
     "amount",
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -2304,12 +2376,16 @@
     "20230131800162"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
     "amount",
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -2386,8 +2462,13 @@
     "20240108000164"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -2470,10 +2551,14 @@
     "20241113000148"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
-    "amount"
+    "amount",
+    "equation",
+    "restatement"
    ],
+   "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -2557,13 +2642,17 @@
     "20251217800800"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
+    "equation",
     "period",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -2645,13 +2734,17 @@
     "20241128800504"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount",
-    "period"
+    "period",
+    "restatement"
    ],
    "calc_skipped": [
+    "equation",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -2741,13 +2834,17 @@
     "20250402800874"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "equation"
    ],
    "calc_skipped": [
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -2837,12 +2934,17 @@
     "20251217800800"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount",
     "period",
+    "restatement",
     "share"
    ],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -2896,8 +2998,13 @@
    "golden_in_candidates": [],
    "golden_in_evidence": [],
    "golden_evidence_all": false,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -2947,8 +3054,13 @@
    "golden_in_candidates": [],
    "golden_in_evidence": [],
    "golden_evidence_all": false,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3000,8 +3112,13 @@
    "golden_in_candidates": [],
    "golden_in_evidence": [],
    "golden_evidence_all": false,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3053,8 +3170,13 @@
    "golden_in_candidates": [],
    "golden_in_evidence": [],
    "golden_evidence_all": false,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3106,8 +3228,13 @@
    "golden_in_candidates": [],
    "golden_in_evidence": [],
    "golden_evidence_all": false,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3159,8 +3286,13 @@
    "golden_in_candidates": [],
    "golden_in_evidence": [],
    "golden_evidence_all": false,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3230,8 +3362,13 @@
     "20260312000217"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3301,8 +3438,13 @@
     "20240312000736"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3377,8 +3519,13 @@
     "20260310002820"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3464,8 +3611,14 @@
     "20260310002820"
    ],
    "golden_evidence_all": true,
-   "calc_checked": [],
-   "calc_skipped": [],
+   "golden_unreachable": [],
+   "calc_checked": [
+    "equation"
+   ],
+   "calc_skipped": [
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3547,8 +3700,13 @@
     "20260310002820"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3622,8 +3780,13 @@
     "20230518000337"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3703,8 +3866,13 @@
     "20260320001246"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3779,8 +3947,13 @@
     "20260312000217"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3850,8 +4023,14 @@
     "20260320001246"
    ],
    "golden_evidence_all": true,
-   "calc_checked": [],
-   "calc_skipped": [],
+   "golden_unreachable": [],
+   "calc_checked": [
+    "equation"
+   ],
+   "calc_skipped": [
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -3932,8 +4111,13 @@
     "20240328001188"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -4008,8 +4192,13 @@
     "20260515002181"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -4088,8 +4277,13 @@
     "20240514001580"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -4166,13 +4360,17 @@
     "20250429800933"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
+    "equation",
     "period",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -4249,12 +4447,16 @@
     "20240712000097"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
-    "period"
+    "equation",
+    "period",
+    "restatement"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -4331,13 +4533,17 @@
     "20250731800497"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "period"
    ],
    "calc_skipped": [
     "amount",
+    "equation",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -4414,8 +4620,14 @@
     "20250814004388"
    ],
    "golden_evidence_all": true,
-   "calc_checked": [],
-   "calc_skipped": [],
+   "golden_unreachable": [],
+   "calc_checked": [
+    "equation"
+   ],
+   "calc_skipped": [
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -4496,13 +4708,17 @@
     "20260327903037"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [
     "amount: 답변 285억 vs 재계산 27,850,000,000"
@@ -4578,8 +4794,13 @@
     "20240312000909"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -4661,13 +4882,17 @@
     "20240207801456"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -4749,8 +4974,13 @@
     "20241007000135"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -4834,12 +5064,17 @@
     "20240607800056"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount",
     "period",
     "share"
    ],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -4914,8 +5149,13 @@
     "20250814003583"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -5005,13 +5245,17 @@
     "20241213801356"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -5097,8 +5341,13 @@
     "20240826000294"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -5172,13 +5421,17 @@
     "20241231800107"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
+    "equation",
     "period",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -5259,8 +5512,13 @@
     "20250702000233"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -5344,13 +5602,17 @@
     "20251127800903"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
+    "equation",
     "period",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -5427,8 +5689,13 @@
     "20250814004413"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -5502,10 +5769,14 @@
     "20241114800538"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
-    "amount"
+    "amount",
+    "equation",
+    "restatement"
    ],
+   "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -5588,8 +5859,13 @@
     "20251017000151"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -5668,13 +5944,17 @@
     "20251230800219"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -5761,12 +6041,16 @@
     "20230209000394"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
-    "period"
+    "equation",
+    "period",
+    "restatement"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -5845,12 +6129,16 @@
     "20230127800757"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
+    "equation",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -5925,8 +6213,13 @@
     "20260316000985"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -6005,10 +6298,15 @@
     "20260306801011"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -6087,8 +6385,13 @@
     "20250328002285"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -6165,12 +6468,16 @@
     "20240228800335"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
     "amount",
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -6240,8 +6547,13 @@
     "20260102000302"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -6320,14 +6632,18 @@
     "20231026800363"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount",
     "per_unit"
    ],
    "calc_skipped": [
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": true,
    "calc_reasons": [
     "per_unit: 답변 2,078억 vs 재계산 207,684,631,210"
@@ -6406,8 +6722,13 @@
     "20250814001526"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -6481,10 +6802,15 @@
     "20260130800888"
    ],
    "golden_evidence_all": true,
-   "calc_checked": [],
-   "calc_skipped": [
-    "amount"
+   "golden_unreachable": [],
+   "calc_checked": [
+    "restatement"
    ],
+   "calc_skipped": [
+    "amount",
+    "equation"
+   ],
+   "calc_gated_records": 2,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -6565,8 +6891,13 @@
     "20260515002689"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -6648,8 +6979,13 @@
     "20250325800001"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -6726,12 +7062,16 @@
     "20250512000665"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
-    "period"
+    "equation",
+    "period",
+    "restatement"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -6813,10 +7153,15 @@
     "20230823000334"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -6891,8 +7236,13 @@
     "20260310003071"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -6982,8 +7332,13 @@
     "20250321001834"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -7077,8 +7432,13 @@
     "20260227007254"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -7168,10 +7528,15 @@
     "20250519000120"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [
     "amount: 답변 1,654,940,000,000원 vs 재계산 1,728,230,200,000"
@@ -7250,10 +7615,15 @@
     "20260326000538"
    ],
    "golden_evidence_all": true,
-   "calc_checked": [],
-   "calc_skipped": [
-    "amount"
+   "golden_unreachable": [],
+   "calc_checked": [
+    "restatement"
    ],
+   "calc_skipped": [
+    "amount",
+    "equation"
+   ],
+   "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -7328,11 +7698,15 @@
     "20251120000565"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
    "calc_skipped": [
     "amount",
-    "period"
+    "equation",
+    "period",
+    "restatement"
    ],
+   "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -7402,8 +7776,13 @@
     "20250211000533"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -7486,13 +7865,17 @@
     "20230329801108"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
     "amount"
    ],
    "calc_skipped": [
+    "equation",
     "period",
+    "restatement",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -7573,13 +7956,17 @@
     "20230228801277"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
     "amount",
+    "equation",
     "share"
    ],
+   "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -7649,8 +8036,13 @@
     "20250318000897"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -7729,8 +8121,13 @@
     "20250321000310"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {
@@ -7811,13 +8208,17 @@
     "20260226801263"
    ],
    "golden_evidence_all": true,
+   "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
+    "equation",
     "period",
     "share"
    ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [
     "amount: 답변 101,836,451,885원 vs 재계산 372,324,339,860"
@@ -7871,8 +8272,13 @@
    "golden_in_candidates": [],
    "golden_in_evidence": [],
    "golden_evidence_all": false,
+   "golden_unreachable": [],
    "calc_checked": [],
-   "calc_skipped": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
    "data_limit": {

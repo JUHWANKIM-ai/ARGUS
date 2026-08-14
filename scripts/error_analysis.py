@@ -456,6 +456,189 @@ def evidence_hit(case: dict, retrieved_context: str) -> dict:
             "any": bool(present), "all": bool(golden) and len(present) == len(golden)}
 
 
+# --- '도달 불가' 골든 (회수율 **분모에만** 표시) --------------------------------
+# 🔴 **정답률 분모는 건드리지 않는다.** 이 표시는 `골든 근거 회수율`의 분모 하나에만
+# 적용된다. 정답률은 `_rate` 가 내고 그 함수는 이 상수를 읽지 않는다.
+#
+# 🔴 **이것은 우리 성적을 좋아 보이게 만드는 방향의 변경이다.** 그래서 셋을 강제한다.
+#   ① 판정은 **기계적**이다 (`unreachable_golden_candidates` 의 관문 다섯). 눈대중이 아니다.
+#   ② 산출물은 **원 분모와 조정 분모를 나란히** 찍는다. 조정값만 남기지 않는다.
+#   ③ 상수는 프리즈하고, 테스트가 기준을 **다시 돌려** 이 상수와 일치하는지 확인한다.
+#      기준이나 코퍼스가 바뀌면 테스트가 먼저 깨진다.
+#
+# `evalset/` 은 **한 글자도 고치지 않았다.** 표시는 채점·집계 쪽에만 있다.
+
+#: 근거 절단 상한. `argus.agent.pipeline.MAX_EVIDENCE` 와 같은 값이어야 한다 —
+#: 관문 G3(열거로 도달 가능한가)이 이 수를 분기점으로 쓴다.
+REACH_MAX_EVIDENCE = 10
+#: 후보군 안에서 이 비율 이상의 문서에 나오는 낱말은 **변별력이 없다**고 본다.
+#: 서식 공통어(`단일판매`·`계약금액`)가 전 문서에 있어 이걸 안 걸면 아무것도 안 걸러진다.
+REACH_COMMON_RATIO = 0.5
+
+_REACH_PARTICLES = (
+    "에서의", "으로서", "에게서", "이라는", "에서는", "으로는", "이며", "는가", "인가",
+    "에서", "으로", "에게", "부터", "까지", "라는", "과의", "와의", "들의", "들은",
+    "들이", "을", "를", "은", "는", "이", "가", "의", "에", "와", "과", "도", "만",
+    "로", "라", "며")
+#: 질문 어디에나 나오는 기능어·서식어. 남기면 모든 골든이 '어휘 연결 있음' 이 된다.
+_REACH_STOP = frozenset({
+    "어디", "어떤", "어떻게", "무엇", "얼마", "언제", "누구", "각각", "모두", "그리고",
+    "또한", "있는", "하는", "되는", "이다", "무슨", "때", "것", "곳", "회사", "상장사",
+    "공시", "계약", "금액", "기간", "체결", "공급", "판매", "단일", "대비", "매출액",
+    "섹터", "확정", "접수번호", "공시일", "관련", "주요", "경영", "사항", "내용",
+    "기준", "대상", "여부", "이상", "이하", "가장", "다른", "같은", "보고서", "보고한",
+    "설명", "무엇인가", "알려줘", "해줘", "이후", "각"})
+
+#: 🔴 **동결된 판정 결과.** `unreachable_golden_candidates()` 가 기계적으로 낸 것이고
+#: `tests/test_reachability.py` 가 매 실행마다 다시 돌려 이 상수와 대조한다.
+#: 값은 `{question_id: (rcept_no, ...)}` 이고 **문항ID + rcept_no 단위**다.
+#:
+#: 현재 표시 **3건** — 전부 `Q-114` 의 삼성E&A 골든이다. 사유는 문항별로 아래에 적는다.
+#:  · `Q-114` 는 *"평택·기흥 반도체 공장"* 을 묻는데, 삼성E&A 의 삼성전자 계약 **47건**
+#:    중 이 3건의 본문에는 `평택`·`기흥`·`반도체`·`공장`·`공정` 이 **하나도 없다**
+#:    (제목이 `[P3 PJT] 그린동`·`[P5] 복합동`·`P4 Ph4(상동)` 같은 프로젝트 코드다).
+#:    반대로 같은 후보군의 **비-골든 4건**이 `평택`·`기흥` 을 본문에 갖는다
+#:    (`20230517800369` 평택 · `20230919800044`·`20240123800494`·`20241205800251` 기흥).
+#:    즉 질문 어휘를 쓰는 어떤 정렬도 **틀린 쪽을 위로 올린다.** 라벨러가 프로젝트 코드
+#:    P3/P4/P5 를 평택으로 아는 사람의 지식으로 고른 것이고, 그 지식은 코퍼스에 없다.
+#:
+#: 🔴 **표시하지 않은 것 둘을 명시한다** (R2A 의 `O-7` 이 지목했으나 기준을 통과하지 못했다):
+#:  · `Q-110` — 미회수 골든은 `20240329800342`(두산퓨얼셀) 하나이고, 계약상대(한국수력
+#:    원자력)로 좁힌 후보군이 **6건**이라 `REACH_MAX_EVIDENCE=10` 이하다. **열거만으로
+#:    전건이 근거에 담기므로 도달 가능**하다 (관문 G3 탈락). O-7 의 주장은 이 문항에서
+#:    성립하지 않는다.
+#:  · `Q-114` 의 삼성중공업 골든 `20260316801067` — 후보군(19건)의 **비-골든에도**
+#:    질문 어휘가 없다. 어휘가 틀린 쪽을 가리키는 것이 아니라 양쪽에 다 없으므로
+#:    '적극적 오유도' 가 아니다 (관문 G5 탈락).
+UNREACHABLE_GOLDEN: dict[str, tuple[str, ...]] = {
+    "Q-114": ("20231206800224", "20240627800468", "20250924800260"),
+}
+
+
+def _reach_stems(text: str) -> set[str]:
+    """질문에서 뽑은 내용어. 조사를 떼고 2자 이상만 남긴다.
+
+    🔴 **부분문자열로 맞춘다** — 형태소 분석기가 없고, 어절 토크나이저는
+    `평택·기흥` 을 `평택기흥` 한 낱말로 묶어 **어디에도 안 맞는 유령 토큰**을 만든다
+    (실측: 그 토크나이저로는 `Q-114` 가 판정되지 않았다). 부분문자열은 조사·구분자
+    처리를 통째로 우회한다.
+    """
+    out: set[str] = set()
+    for chunk in re.split(r"[^0-9A-Za-z가-힣]+", text or ""):
+        if not chunk:
+            continue
+        cands = [chunk] + [chunk[: -len(p)] for p in _REACH_PARTICLES
+                           if chunk.endswith(p) and len(chunk) - len(p) >= 2]
+        out.update(c for c in cands if len(c) >= 2 and c not in _REACH_STOP)
+    return out
+
+
+def _reach_key(text: str) -> str:
+    return re.sub(r"[^0-9A-Za-z가-힣]", "", str(text or ""))
+
+
+def _reach_pool(record: dict, question: str, records: dict) -> tuple[list[dict], str]:
+    """골든이 **선택돼야 하는 후보군**. 같은 기업 · 같은 서식.
+
+    질문이 계약상대를 이름으로 지목하면 그것으로 좁힌다 — 파이프라인의 발주처 레인이
+    실제로 그렇게 좁히므로, 좁히지 않으면 후보군이 실제보다 커져 **표시가 후해진다**.
+    """
+    lane = [v for v in records.values()
+            if v.get("corp_name") == record.get("corp_name")
+            and v.get("doc_subtype") == record.get("doc_subtype")]
+    cp = _reach_key(record.get("counterparty"))[:4]
+    if len(cp) >= 3 and cp in _reach_key(question):
+        narrowed = [v for v in lane
+                    if cp in _reach_key(str(v.get("counterparty", ""))
+                                        + v.get("markdown", ""))]
+        if narrowed:
+            return narrowed, cp
+    return lane, ""
+
+
+def unreachable_golden_candidates(cases: list[dict], records: dict,
+                                  retrieved: dict[str, set]) -> list[dict]:
+    """🔴 **'도달 불가' 판정 — 기계적 관문 다섯.** LLM 0회. 눈대중이 없다.
+
+    골든 `g`(문항 `q`)를 표시한다 ⟺ 아래를 **모두** 만족한다.
+
+    | 관문 | 조건 | 왜 |
+    |---|---|---|
+    | **G1** | `g` 가 정형 레코드다 | 정기공시 골든은 근거 단위가 문서가 아니라 **섹션**이라 이 기준이 정의되지 않는다. 판정하지 않고 **분모에 그대로 남긴다** |
+    | **G2** | `g` 가 이 세대 비-오라클 arm 어디에서도 회수되지 **않았다** | 🔴 **회수는 도달 가능성의 증명이다.** 한 번이라도 실제로 회수된 골든은 절대 표시하지 않는다. 오라클은 골든을 주입하므로 증거에서 뺀다 |
+    | **G3** | `g` 의 후보군이 `REACH_MAX_EVIDENCE` 보다 크다 | 후보군이 10 이하면 **열거만으로 전건이 근거에 담긴다.** 어휘 연결이 없어도 도달 가능하므로 표시하면 안 된다 — `Q-106`(레인 8건 시계열)이 이 관문에서 떨어진다 |
+    | **G4** | 질문 내용어 중 **하나도** `g` 본문에 없다 | 후보군 절반 이상에 나오는 낱말은 변별력이 없어 먼저 뺀다 |
+    | **G5** | 그 내용어 중 하나가 같은 후보군의 **비-골든**에는 있다 | 질문 어휘가 **틀린 쪽을 적극적으로 가리켜야** 한다. 양쪽에 다 없으면 오유도가 아니다 |
+
+    `retrieved` 는 `{question_id: {rcept_no, ...}}` 이고 **arm 하나가 아니라 여러 arm 의
+    합집합**을 받아야 한다. 한 arm 의 회수만 보면 회수가 적은 arm 이 분모까지 작아져
+    **성적이 나쁠수록 회수율이 좋아지는** 순환이 생긴다.
+
+    돌려주는 것은 관문별 탈락 사유까지 담은 전건 목록이다 — 표시된 것만 주면 감사가 안 된다.
+    """
+    out = []
+    for case in cases:
+        qid = case["question_id"]
+        got = retrieved.get(qid) or set()
+        stems = _reach_stems(case["question"])
+        golden_all = [e["rcept_no"] for e in (case.get("evidence") or [])]
+        for rcept_no in golden_all:
+            record = next((v for k, v in records.items() if rcept_no in k), None)
+            row = {"question_id": qid, "rcept_no": rcept_no, "marked": False}
+            if record is None:
+                out.append({**row, "gate": "G1", "why": "정형 레코드가 아니다(정기공시 섹션)"})
+                continue
+            if rcept_no in got:
+                out.append({**row, "gate": "G2", "why": "실제로 회수됐다 — 도달 가능이 증명됐다"})
+                continue
+            pool, cp = _reach_pool(record, case["question"], records)
+            row.update(corp_name=record.get("corp_name"), pool=len(pool),
+                       counterparty_filter=cp)
+            if len(pool) <= REACH_MAX_EVIDENCE:
+                out.append({**row, "gate": "G3",
+                            "why": f"후보군 {len(pool)}건 ≤ {REACH_MAX_EVIDENCE} — 열거로 도달 가능"})
+                continue
+            n = max(1, len(pool))
+            disc = {s for s in stems
+                    if sum(1 for p in pool if s in p.get("markdown", "")) / n
+                    < REACH_COMMON_RATIO}
+            here = sorted(s for s in disc if s in record.get("markdown", ""))
+            if here:
+                out.append({**row, "gate": "G4",
+                            "why": f"골든 본문에 질문 어휘가 있다: {here}"})
+                continue
+            misleads = []
+            for p in pool:
+                if any(x in str(p.get("doc_id", "")) for x in golden_all):
+                    continue
+                hit = sorted(s for s in disc if s in p.get("markdown", ""))
+                if hit:
+                    misleads.append({"doc_id": p.get("doc_id"), "stems": hit})
+            if not misleads:
+                out.append({**row, "gate": "G5",
+                            "why": "비-골든에도 질문 어휘가 없다 — 적극적 오유도가 아니다"})
+                continue
+            out.append({**row, "marked": True, "gate": "표시",
+                        "why": "질문 어휘가 골든에 없고 비-골든을 가리킨다",
+                        "misleads": misleads})
+    return out
+
+
+def golden_recall_denominators(rows: list[dict]) -> dict:
+    """🔴 골든 회수율의 **원 분모와 조정 분모를 함께** 낸다. 조정값만 내지 않는다."""
+    total = sum(len(r.get("golden") or []) for r in rows)
+    hit = sum(len(r.get("golden_in_evidence") or []) for r in rows)
+    unreachable = sum(len(r.get("golden_unreachable") or []) for r in rows)
+    return {
+        "hit": hit,
+        "denominator_raw": total,
+        "unreachable": unreachable,
+        "denominator_adjusted": total - unreachable,
+        "note": ("`denominator_raw` 가 정본이다. `denominator_adjusted` 는 "
+                 "`UNREACHABLE_GOLDEN` 표시분을 뺀 것이고 **정답률과는 무관하다**."),
+    }
+
+
 def verify_answer_calc(case: dict, answer: str, records: dict[str, dict]) -> dict:
     """골든 레코드 원값으로 답변 수치를 재계산 대조한다. LLM 0회.
 
@@ -875,6 +1058,10 @@ def analyse(cases: list[dict], records: dict[str, dict]) -> list[dict]:
             "golden_in_candidates": positions["in_candidates"],
             "golden_in_evidence": hit["present"],
             "golden_evidence_all": hit["all"],
+            # 🔴 회수율 **분모에만** 붙는 표시다. 정답률(`correct`)은 이 값을 안 읽는다.
+            "golden_unreachable": [g for g in positions["golden"]
+                                   if g in UNREACHABLE_GOLDEN.get(
+                                       case["question_id"], ())],
             "calc_checked": calc["checked"],
             "calc_skipped": calc["skipped"],
             # I-2 — 레이블 게이트가 금액 검사를 끈 레코드 수. `skipped` 만으로는
@@ -1097,10 +1284,29 @@ ARM_BY_ROOT_CAUSE = {
 #:
 #: **`tests/test_error_analysis.py` 가 이 표와 최신 세대 산출물의 오답 집합이 일치하는지
 #: 단언한다** — 다시 낡으면 테스트가 먼저 깨진다.
+#:
+#: 🔴 **2026-08-14 갱신 (R2D 재측정) — 오답이 11 → 6 으로 줄었다.** 색인 재빌드 + R2 의
+#: 코드 수정 셋을 실제로 재측정하니 **다섯 문항이 정답이 됐다.** 겨냥이 맞은 것이므로
+#: 상수에서 뺀다 (표에 남기면 `gate_I §5·§9` 가 **이미 정답인 문항을 겨냥으로 렌더**한다 —
+#: 08-12 에 고친 것과 똑같은 낡음이다).
+#:
+#: * 뺀 것 다섯 — 전부 **겨냥한 arm 이 실제로 맞혔다**:
+#:   `Q-047`(A5 단위 규칙 · `77d50a4`) · `Q-098`(A4 연결/별도 규칙 · `77d50a4`) ·
+#:   `Q-105`(A5 단위 규칙 · 부수 이득) · `Q-101`(A1b 자유텍스트 · `9c4fbcf` + 재빌드) ·
+#:   `Q-066`(A4 `terminates` 순방향 엣지 · `6d6de5d`).
+#: * 남은 여섯의 성격이 바뀌었다 — **프롬프트·검색으로 딸 것이 거의 안 남았다.**
+#:   `Q-044`·`Q-018` 은 `verify_answer_arithmetic` 이 잡지만 답변 생성이 안 고쳐졌고,
+#:   `Q-087` 은 `schema_matched=True` 정정 표 렌더링이 필요하다(다음 라운드 · R2C §3-①),
+#:   `Q-023`·`Q-097` 은 미진단, `Q-093` 은 여전히 겨냥 금지다.
+#:
+#: 🔴 `Q-018` 의 A6 배분은 **재검토 대상이다.** R2B §0 이 실측으로 뒤집었다 —
+#: 뿌리는 `_says_amount` 게이트가 아니라 **답변 안의 전사 오류**이고, 게이트를 완전히
+#: 열어도 안 잡힌다. 자동 분류기는 이제 `TOOL/TOOL`(= A5)을 지목한다. 배분을 안 바꾼
+#: 이유는 이 라운드가 그 판정을 재측정으로 확인하지 않았기 때문이고, 불일치는
+#: `arm_allocation_reconciliation()` 이 표로 남긴다.
 TARGETED_BY_MANUAL_REVIEW = (
-    ("A4", ("Q-023", "Q-066", "Q-098", "Q-105"), "루프·추론"),
-    ("A5", ("Q-044", "Q-047", "Q-097"), "계산·단위 정규화"),
-    ("A1b", ("Q-101",), "인덱스 필드"),
+    ("A4", ("Q-023",), "루프·추론"),
+    ("A5", ("Q-044", "Q-097"), "계산·단위 정규화"),
     ("A6", ("Q-018", "Q-087"), "Verifier · 금액 게이트"),
     ("—", ("Q-093",), "고치면 거짓값이 되살아난다 — 겨냥하지 않는다"),
 )

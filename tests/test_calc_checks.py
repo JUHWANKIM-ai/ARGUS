@@ -164,15 +164,27 @@ ARITHMETIC_SNAPSHOTS = {
                   "artifacts/ablation/v3/L4/report.json", {"Q-018", "Q-044"}),
     "v3/ORACLE(88)": ("artifacts/ablation/v3/ORACLE/responses",
                       "artifacts/ablation/v3/ORACLE/report.json", set()),
+    # 🔴 R2D 재측정으로 `Q-110` 이 추가됐다 — 새 답변이 `590,947,351,842원 (591억원)`
+    #    이라는 10배 어긋난 재기술쌍을 만들었고 judge 는 통과시켰다
+    #    (`JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG` 참조).
     "v3/vc/A8(12)": ("artifacts/ablation/v3/vc/A8/responses",
-                     "artifacts/ablation/v3/vc/A8/report.json", {"Q-109", "Q-115"}),
+                     "artifacts/ablation/v3/vc/A8/report.json",
+                     {"Q-109", "Q-110", "Q-115"}),
     "v3/vc/OR(12)": ("artifacts/ablation/v3/vc/ORACLE/responses",
                      "artifacts/ablation/v3/vc/ORACLE/report.json", {"Q-109"}),
 }
 
 #: 검사가 옳은데 판정기가 통과시킨 문항. **묵인이 아니라 명시다** — 목록이 늘면
 #: 그때는 검사가 아니라 채점을 봐야 한다.
-JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG = {"Q-034"}
+#:
+#: 🔴 **2026-08-14 (R2D 재측정) — 목록이 늘었다. 그 경고가 발화한 것이다.**
+#: `Q-110`(밸류체인 · judge 가 정답 처리)의 답변이
+#: `590,947,351,842원 (591억원)` 을 썼다. 590,947,351,842원은 **5,909억원**이므로
+#: 괄호 환산이 **10배 틀렸다**. `restatement` 검사가 옳고 채점이 통과시킨 것이다.
+#: `Q-034` 와 같은 종류이고 같은 방향이다 — 두 건 다 **개방형 judge** 가 놓쳤다.
+#: 🔴 이제 이 목록은 둘이다. R2B 가 적어 둔 규칙대로 **다음은 검사가 아니라 채점을
+#: 봐야 한다** — 개방형 판정기가 수치 일관성을 아예 안 보고 있을 가능성이 있다.
+JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG = {"Q-034", "Q-110"}
 
 
 def _snapshot(name):
@@ -300,5 +312,10 @@ def test_the_gate_blind_spot_is_measured_on_the_current_generation():
             with_amount += 1
             if critic.verify_calculation(resp["answer"], record)["gated"]:
                 gated += 1
-    assert (with_amount, gated) == (149, 64), (
+    # 🔴 **2026-08-14 (R2D) — 149/64 → 152/67.** 색인 재빌드로 근거가 바뀌면서
+    #    amount 를 가진 근거 레코드가 3건 늘고 그 3건이 전부 게이트에 걸렸다.
+    #    비율은 42.95% → 44.08% 로 사실상 그대로다 — 게이트의 성질이 바뀐 것이 아니라
+    #    분모가 커진 것이다. R2B §7-⑥ 이 "이 수가 크게 뛰면 다시 재야 한다" 고 적었고,
+    #    +3 은 그 문턱이 아니라고 판단했다.
+    assert (with_amount, gated) == (152, 67), (
         f"게이트 실측이 움직였다: amount 보유 {with_amount} · 게이트 차단 {gated}")

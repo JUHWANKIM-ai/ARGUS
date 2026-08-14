@@ -107,8 +107,8 @@ hop=0 검색 → 씨앗 판정(스텝 0) → get_history(스텝 1) → 충분성
 
 | 단계 | 비용 | 하는 일 |
 |---|---|---|
-| `tools.chain_probe(doc_id)` | **0 스텝** | 레코드 한 건 조회 — `is_latest` 와 링크 목록. `section_paths()` 와 같은 취급 |
-| `get_history(rcept_no)` | 1 스텝 | 정정 체인 + 후속 공시. `markdown` 을 함께 실어 돌려주므로 근거 재조회가 없다 |
+| `tools.chain_probe(doc_id)` | **0 스텝** | 레코드 한 건 조회 — `is_latest` 와 링크 목록. `section_paths()` 와 같은 취급. 🔴 엣지를 **세 갈래로 갈라** 돌려준다 (`related` · `followups` 역방향 · `terminates` 순방향). `links` 는 종전대로 합집합 |
+| `get_history(rcept_no)` | 1 스텝 | 정정 체인 + 후속 공시 + 🔴 `terminated`(해지 대상 원계약). `markdown` 을 함께 실어 돌려주므로 근거 재조회가 없다. `terminated` 는 `followups` 와 **절대 합치지 않는다** — 시간 방향이 반대라 합치면 원계약이 '후속 공시' 로 찍힌다(`Q-066` v2 오답의 기전). 대신 `include_followups` 로 **함께 가린다**(둘 다 `※ 관련공시` 가족이라, 따로 열면 `L4` 가 재는 것의 정의가 바뀐다) |
 
 **연결 단서가 둘이다.** 정정은 `related`(정정 체인), 후속 해지는 `※ 관련공시` **역방향**이다.
 실측: 해지 공시 20건 중 `related` 로 이어진 것은 **0건**, `※ 관련공시` 로 원계약을 명시한 것은
@@ -179,6 +179,16 @@ ids = [d for h in parse_hops(resp["think_trace"]) for d in h["ids"]]
 RETRIEVAL  — 골든 rcept_no 가 ids 어디에도 없음
 RANKING    — ids 에는 있으나 상위 3위 밖
 ```
+
+`strat` 값: `narrow` · `global` · `toc_narrow` · `toc_corp` · `chain` ·
+**`enumerate`** 🆕. 마지막 것은 `pipeline._enumerate_events` 다 — 한 기업의 한 서식을
+**계약상대(canonical)별로 묶어 그룹이 큰 순서로 각 그룹의 최신본**을 한 건씩 담는다
+(스텝 1 · LLM 0회 · 검색 0회). 기존 `not picked` 폴백과 **배타**(`elif`)로 둔다:
+같은 hop 번호라 배타여야 `parse_hops` 가 두 종류를 한 레코드로 섞어 읽지 않는다.
+발화 제동이 다섯이다 — ① exchange 문서군 ② 기업이 정확히 하나 ③ **그 기업이 발주처가
+아닐 것** ④ 갈래를 묻는 표지(`갈래`·`나뉘`·`나뉜`·`유형`) ⑤ 검색이 이미 뭔가 찾았을 것.
+실측 발화는 100문항 중 **1건(`Q-117`)** 이다(표지만으로는 11문항이 걸리는데 ①②③ 이
+10건을 거른다).
 
 `reason` 코드: `no_candidate` · `few:n<need` · `low_score:s<임계` · `missing_field:필드` ·
 `missing_corp:기업` · **`chain_open:접수번호`**.

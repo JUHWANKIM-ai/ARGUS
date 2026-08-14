@@ -1,6 +1,6 @@
 # Phase H — 3축 교차집계 (dev)
 
-생성 2026-08-14 12:34 · 자동 생성물 (`scripts/error_analysis.py`)
+생성 2026-08-14 16:18 · 자동 생성물 (`scripts/error_analysis.py`)
 
 셀 표기 = `정답/채점대상` + 실패단계. **채점 대상에서 DATA_LIMIT 은 뺐다.**
 
@@ -47,7 +47,8 @@
 | 단계 | 건수 | 비고 |
 |---|---|---|
 | ROUTING | 1 |  |
-| GENERATION | 5 |  |
+| TOOL | 1 |  |
+| GENERATION | 4 |  |
 
 ## 근본 원인 — 6단계만으로는 arm 이 안 갈린다 (**그리드만**)
 
@@ -60,7 +61,7 @@
 | 단계 / 원인 | 건수 | 문항 | track |
 |---|---|---|---|
 | GENERATION/INDEX_FIELD_MISSING | 1 | Q-107 | valuechain |
-| GENERATION/INDEX_FIELD_MISSING | 1 | Q-109 | valuechain |
+| TOOL/TOOL | 1 | Q-109 | valuechain |
 | GENERATION/REASONING | 1 | Q-110 | valuechain |
 | ROUTING/ROUTING | 1 | Q-111 | valuechain |
 | GENERATION/INDEX_FIELD_MISSING | 1 | Q-113 | valuechain |
@@ -74,9 +75,9 @@
 
 | arm | 자동(그리드) | 자동(전 트랙) | **수동 정본(전 트랙)** |
 |---|---|---|---|
-| A1b | 0 | 4 | **1** |
+| A1b | 0 | 3 | **1** |
 | A4 | 0 | 1 | **4** |
-| A5 | 0 | 0 | **3** |
+| A5 | 0 | 1 | **3** |
 | A6 | 0 | 0 | **2** |
 | — | 0 | 0 | **1** |
 | 미분류 | 0 | 1 | **0** |
@@ -86,7 +87,7 @@
 | 문항 | track | 자동 버킷 | 자동 arm | **수동 정본 arm** |
 |---|---|---|---|---|
 | Q-107 | valuechain | `GENERATION/INDEX_FIELD_MISSING` | A1b | **—** |
-| Q-109 | valuechain | `GENERATION/INDEX_FIELD_MISSING` | A1b | **—** |
+| Q-109 | valuechain | `TOOL/TOOL` | A5 | **—** |
 | Q-110 | valuechain | `GENERATION/REASONING` | A4 | **—** |
 | Q-111 | valuechain | `ROUTING/ROUTING` | 미분류 | **—** |
 | Q-113 | valuechain | `GENERATION/INDEX_FIELD_MISSING` | A1b | **—** |

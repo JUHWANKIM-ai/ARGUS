@@ -1,19 +1,19 @@
 {
  "question_id": "Q-105",
- "covers_key_points": false,
- "grounded": false,
- "no_fabrication": false,
- "correct": false,
- "reason": "제출답변은 모범답안의 요소들을 제대로 반영하지 못했으며, 반기·분기보고서와 사업보고서의 차이점을 명확히 설명하지 않았습니다.",
+ "covers_key_points": true,
+ "grounded": true,
+ "no_fabrication": true,
+ "correct": true,
+ "reason": "",
  "calls": [
   {
    "tag": "judge_open",
-   "prompt_tokens": 3623,
-   "completion_tokens": 57,
-   "latency_s": 2.084,
+   "prompt_tokens": 3595,
+   "completion_tokens": 20,
+   "latency_s": 1.246,
    "finish": "stop"
   }
  ],
- "prompt_tokens": 3623,
- "completion_tokens": 57
+ "prompt_tokens": 3595,
+ "completion_tokens": 20
 }

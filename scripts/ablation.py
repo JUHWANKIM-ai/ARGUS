@@ -1352,6 +1352,11 @@ def summarise(reports: dict[str, dict]) -> dict:
             "golden_evidence_hit": sum(len(r["golden_in_evidence"])
                                        for r in ea.grid_rows(report["rows"])),
             "golden_total": sum(len(r["golden"]) for r in ea.grid_rows(report["rows"])),
+            # 🔴 '도달 불가' 표시 — **회수율 분모에만** 쓴다. 정답률과 무관하다.
+            #    원 분모(`golden_total`)를 지우지 않고 **나란히** 둔다.
+            "golden_unreachable": sum(len(r.get("golden_unreachable") or [])
+                                      for r in ea.grid_rows(report["rows"])),
+            "golden_recall": ea.golden_recall_denominators(report["rows"]),
         }
         for axis, values in AXES.items():
             for value in values:
@@ -1392,6 +1397,26 @@ def render_summary(summary: dict, meta: dict) -> str:
                    "정보(골든 근거)를 쓰므로 제출 구성이 될 수 없고, 그 정답률을 "
                    "성적으로 인용하면 자기 성적표를 부풀리는 것이 된다. 읽는 법은 "
                    "§2b 의 Δ 하나뿐이다.\n")
+
+    # 🔴 골든 근거 회수는 **코호트 전 행**으로 센다. §1 의 표는 그리드 기준이라
+    #    밸류체인 코호트에서 분모가 0 이 되고, 그러면 그 코호트의 유일한 성공 축
+    #    (골든 회수 28→34/46)이 산출물에서 통째로 사라진다.
+    recalls = {a: (summary["arms"][a].get("golden_recall") or {})
+               for a in summary["arms"]}
+    if any(r.get("denominator_raw") for r in recalls.values()):
+        out.append("\n## 0. 골든 근거 회수 — **코호트 전 행 기준**\n")
+        out.append("| arm | 회수 / 원 분모 | 도달 불가 표시 | 회수 / 조정 분모 |")
+        out.append("|---|---|---|---|")
+        for arm, r in recalls.items():
+            if not r.get("denominator_raw"):
+                continue
+            out.append(f'| {arm} | {r["hit"]}/{r["denominator_raw"]} '
+                       f'| {r["unreachable"]} '
+                       f'| {r["hit"]}/{r["denominator_adjusted"]} |')
+        out.append("\n> 🔴 **원 분모가 정본이다.** '도달 불가' 는 질문 어휘로 골든에 "
+                   "닿을 수 없다고 기계적 기준(`error_analysis.unreachable_golden_"
+                   "candidates`)이 판정한 건수이고, **정답률 분모와는 무관하다.** "
+                   "조정 분모만 떼어 인용하면 감사 불가능한 상태로 성적이 올라간다.\n")
 
     out.append("\n## 1. 누적 곡선 — 정답률과 Δ (**그리드 기준**)\n")
     out.append("| arm | 정답 / 채점 | 정답률 | Δ(직전) | 골든 전건적중 | LLM 호출 | 토큰 | arm 비용(원) |")
@@ -1541,6 +1566,20 @@ def _pp(before, after) -> str:
 def _pp_of(value) -> str:
     """이미 %p 단위인 값. `None` 을 `0.0` 으로 찍지 않는다 — 낙폭 0 과 미측정은 다르다."""
     return "—" if value is None else f"{value:+.1f}%p"
+
+
+def _recall(row: dict) -> str:
+    """골든 근거 회수 — 🔴 **원 분모와 조정 분모를 나란히** 찍는다.
+
+    `ea.UNREACHABLE_GOLDEN` 이 표시한 골든이 이 arm 의 분모에 있으면 `34/46 (도달불가
+    3 제외 34/43)` 처럼 **둘 다** 낸다. 조정값만 남기면 다음 사람이 그것을 원값으로
+    인용하고, 그 순간 이 표시는 감사 불가능한 상태로 성적을 올린다.
+    """
+    hit, raw = row["golden_evidence_hit"], row["golden_total"]
+    n = row.get("golden_unreachable") or 0
+    if not n:
+        return f"{hit}/{raw}"
+    return f"{hit}/{raw} (도달불가 {n} 제외 {hit}/{raw - n})"
 
 
 def _frac(cell: dict | None) -> str:
@@ -1856,7 +1895,7 @@ def render_gate(root: Path, budget_cap: float) -> str:
             eff = f'{(row["rate"] - prev_rate) * 100 / (cost - prev_cost):+.3f}%p/원'
         o.append(f'| **{arm}** | {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
                  f'| {_pp(prev_rate, row["rate"])} '
-                 f'| {row["golden_evidence_hit"]}/{row["golden_total"]} '
+                 f'| {_recall(row)} '
                  f'| {row["golden_evidence_all"]}/{row["n_grid"]} | {cost:,.0f} | {eff} |')
         prev_rate, prev_cost = row["rate"], cost
 
@@ -1959,13 +1998,13 @@ def render_gate(root: Path, budget_cap: float) -> str:
         o.append("|---|---|---|---|---|---|")
         o.append(f'| **{full}** | — | {base["correct"]}/{base["n_scored"]} '
                  f'| {_pct(base["rate"])} | — '
-                 f'| {base["golden_evidence_hit"]}/{base["golden_total"]} |')
+                 f'| {_recall(base)} |')
         for arm in loo:
             row = arms[arm]
             o.append(f'| {arm} | {ablation.LOO_REMOVED[arm]} '
                      f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
                      f'| {_pp(base["rate"], row["rate"])} '
-                     f'| {row["golden_evidence_hit"]}/{row["golden_total"]} |')
+                     f'| {_recall(row)} |')
         o.append("\n### LOO 축별 분해\n")
         for axis, values in AXES.items():
             o.append(f'\n**{AXIS_LABELS[axis]}**\n')
@@ -1993,7 +2032,7 @@ def render_gate(root: Path, budget_cap: float) -> str:
             o.append(f'| {arm} | 검색을 골든으로 고정한 **생성 능력** '
                      f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
                      f'| {_pp(base["rate"], row["rate"])} '
-                     f'| {row["golden_evidence_hit"]}/{row["golden_total"]} '
+                     f'| {_recall(row)} '
                      f'| {row["golden_evidence_all"]}/{row["n_grid"]} |')
         o.append("\n> 🔴 평가 시점에 골든 근거가 없다. 이 줄의 정답률은 **제출 성적이 "
                  "아니라 진단값**이다. 읽는 법은 둘뿐이다 — `Δ` 는 **검색이 아직 못 "
@@ -2154,11 +2193,17 @@ def render_gate(root: Path, budget_cap: float) -> str:
                      f'{" ".join(rec["critic_passed_wrong_answer"])} — 이 문항들의 arm 은 '
                      "자동 분류기가 지목할 수 없다 (그 판정 자체가 입력이다).\n")
 
+    # 🔴 우선순위 줄은 **상수에서 세어 쓴다.** 하드코딩해 두었다가 R2D 재측정에서
+    #    겨냥이 11 → 6 으로 줄자 낡은 순서(A4 5 → A5 4 → A1b 2 → A6 1)가 그대로 렌더됐다.
+    order = " → ".join(
+        f"{arm} {len(qs)}" for arm, qs, _ in
+        sorted(ea.TARGETED_BY_MANUAL_REVIEW, key=lambda r: -len(r[1]))
+        if arm != "—")
     o.append("\n**읽는 법**: 어느 arm 도 자기 겨냥 문항을 하나도 못 건졌다 — 그것이 "
              "겨냥 문항의 정의이므로 동어반복이다. 읽을 값은 `사다리 Δ`(그 arm 이 실제로 "
              "번 것)와, 겨냥 문항이 **여전히 틀리고 있다**는 사실이다. 후자는 "
              "'그 arm 을 더 밀어야 한다' 는 뜻이고, 우선순위는 겨냥 건수 순서 그대로다 "
-             "(A4 5 → A5 4 → A1b 2 → A6 1).\n")
+             f"({order}).\n")
 
     # --- 9b. 겨냥 문항을 LOO 짝과 대조한다 — 여기서 처방이 뒤집힌다 ---
     o.append("\n### 9b. 🔴 겨냥 문항을 **그 arm 을 끈 구성**과 대조한다\n")

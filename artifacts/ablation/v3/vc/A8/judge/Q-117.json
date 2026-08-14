@@ -4,16 +4,16 @@
  "grounded": false,
  "no_fabrication": false,
  "correct": false,
- "reason": "제시된 답변에는 모범답안의 핵심인 '두 갈래 발주 구조'에 대한 언급이 없습니다. 대신 엉뚱하게 발전 자회사와 공공부문으로 나누어 설명하고 있어 질문에 부합하지 않습니다.",
+ "reason": "제시된 답변은 모범답안의 핵심인 '두 갈래 발주 구조'와 '2단 발주 구조'를 누락하고 있습니다.",
  "calls": [
   {
    "tag": "judge_open",
-   "prompt_tokens": 1236,
-   "completion_tokens": 67,
-   "latency_s": 1.884,
+   "prompt_tokens": 1949,
+   "completion_tokens": 54,
+   "latency_s": 1.635,
    "finish": "stop"
   }
  ],
- "prompt_tokens": 1236,
- "completion_tokens": 67
+ "prompt_tokens": 1949,
+ "completion_tokens": 54
 }

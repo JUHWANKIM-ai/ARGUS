@@ -1,0 +1,113 @@
+"""'도달 불가' 표시가 **눈대중이 아니라 기준의 산물**임을 잠근다. LLM 0회.
+
+🔴 이 표시는 **우리 성적을 좋아 보이게 만드는 방향**의 변경이다. 그래서 상수를 믿지
+않고 기준을 매 실행마다 다시 돌려 대조한다. 기준·코퍼스·회수 결과 중 하나라도
+바뀌면 여기가 먼저 깨진다 — 그때 고칠 것은 테스트가 아니라 **상수와 보고서**다.
+"""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from scripts import ablation as ab
+from scripts import error_analysis as ea
+
+V3 = Path(ea.ROOT) / "artifacts" / "ablation" / "v3"
+#: 오라클은 골든을 주입하므로 '도달 가능의 증거' 에서 뺀다.
+NON_ORACLE_ARMS = ("A8", "L4", "vc/A8")
+
+
+def _retrieved() -> dict[str, set]:
+    out: dict[str, set] = {}
+    for rel in NON_ORACLE_ARMS:
+        path = V3 / rel / "report.json"
+        if not path.exists():
+            continue
+        for row in json.loads(path.read_text(encoding="utf-8"))["rows"]:
+            out.setdefault(row["question_id"], set()).update(
+                row.get("golden_in_evidence") or [])
+    return out
+
+
+def _cases():
+    return ab.load_cases("full", "") + ab.load_cases("valuechain", "")
+
+
+needs_artifacts = pytest.mark.skipif(
+    not (V3 / "A8" / "report.json").exists(),
+    reason="v3 산출물이 없으면 회수 증거를 못 읽는다")
+
+
+@needs_artifacts
+def test_the_frozen_marking_is_exactly_what_the_criterion_produces():
+    """상수 `UNREACHABLE_GOLDEN` == 기준을 다시 돌린 결과."""
+    rows = ea.unreachable_golden_candidates(_cases(), ea._load_records(), _retrieved())
+    derived: dict[str, tuple] = {}
+    for row in rows:
+        if row["marked"]:
+            derived.setdefault(row["question_id"], []).append(row["rcept_no"])
+    derived = {k: tuple(v) for k, v in derived.items()}
+    assert derived == ea.UNREACHABLE_GOLDEN, (
+        "기준을 다시 돌린 결과가 동결 상수와 다르다. 상수와 R2D 보고서를 고쳐라 — "
+        f"기준={derived} 상수={ea.UNREACHABLE_GOLDEN}")
+
+
+@needs_artifacts
+def test_a_golden_that_was_actually_retrieved_is_never_marked():
+    """🔴 회수는 도달 가능성의 증명이다 — 회수된 골든을 표시하면 분모 조작이 된다."""
+    retrieved = _retrieved()
+    for qid, marked in ea.UNREACHABLE_GOLDEN.items():
+        for rcept_no in marked:
+            assert rcept_no not in retrieved.get(qid, set()), (
+                f"{qid} {rcept_no} 는 실제로 회수됐는데 '도달 불가' 로 표시돼 있다")
+
+
+def test_the_marking_never_touches_the_accuracy_denominator():
+    """정답률 분모(`_rate`)는 이 표시를 읽지 않는다."""
+    rows = [
+        {"first_failure": None, "correct": True,
+         "golden": ["A"], "golden_in_evidence": [], "golden_unreachable": ["A"]},
+        {"first_failure": None, "correct": False,
+         "golden": ["B"], "golden_in_evidence": [], "golden_unreachable": []},
+    ]
+    assert ea._rate(rows)["n_scored"] == 2
+    assert ea._rate(rows)["correct"] == 1
+
+
+def test_both_denominators_are_reported_side_by_side():
+    """조정값만 남기지 않는다 — 원 분모가 산출물에 함께 있어야 한다."""
+    rows = [{"golden": ["A", "B", "C"], "golden_in_evidence": ["A"],
+             "golden_unreachable": ["C"]}]
+    got = ea.golden_recall_denominators(rows)
+    assert got["hit"] == 1
+    assert got["denominator_raw"] == 3
+    assert got["unreachable"] == 1
+    assert got["denominator_adjusted"] == 2
+
+
+def test_periodic_section_goldens_are_left_in_the_denominator():
+    """정기공시 골든은 근거 단위가 섹션이라 판정하지 않고 분모에 남긴다 (관문 G1)."""
+    rows = ea.unreachable_golden_candidates(
+        [{"question_id": "Q-x", "question": "아무 질문",
+          "evidence": [{"rcept_no": "99999999999999"}]}], {}, {})
+    assert rows == [{"question_id": "Q-x", "rcept_no": "99999999999999",
+                     "marked": False, "gate": "G1",
+                     "why": "정형 레코드가 아니다(정기공시 섹션)"}]
+
+
+def test_a_small_pool_is_reachable_by_enumeration():
+    """관문 G3 — 후보군이 근거 상한 이하면 어휘 연결이 없어도 도달 가능하다."""
+    records = {f"exchange_2222222222222{i}": {
+        "doc_id": f"exchange_2222222222222{i}", "corp_name": "가가",
+        "doc_subtype": "나나", "counterparty": "다다",
+        "markdown": f"본문 {i}"} for i in range(3)}
+    records["exchange_11111111111111"] = {
+        "doc_id": "exchange_11111111111111", "corp_name": "가가",
+        "doc_subtype": "나나", "counterparty": "다다", "markdown": "본문 골든"}
+    rows = ea.unreachable_golden_candidates(
+        [{"question_id": "Q-y", "question": "전혀 겹치지 않는 낱말 라라마마",
+          "evidence": [{"rcept_no": "11111111111111"}]}], records, {})
+    assert rows[0]["gate"] == "G3"
+    assert rows[0]["marked"] is False
