@@ -69,6 +69,22 @@ def test_equation_ignores_chains_with_multiplication():
     assert out["ok"] is True
 
 
+def test_equation_reads_a_bold_wrapped_result():
+    """🔴 실측 Q-107(밸류체인 **오답**). `= **4,967,110,535,840원**` 이라 종전 `\\s*=\\s*` 는
+    등식을 **아예 매치하지 못했다** — 덧셈이 실제로 틀렸는데 `checked` 에 `equation` 이
+    없었고, 사슬이 끊긴 것(정당한 미검사)과 구별되지 않았다.
+
+    같은 파일의 `_RESTATE_OPEN` 이 이미 같은 이유로 `[\\s*_]*` 를 쓴다
+    (`test_restatement_reads_bold_markup_between_the_pair` 참조).
+    """
+    out = critic.verify_answer_arithmetic(
+        "- 1,250,850,298,678 + 2,081,254,239,072 + 1,715,754,987,100 = "
+        "**4,967,110,535,840원**")
+    assert out["ok"] is False and out["failed_kinds"] == ["equation"]
+    assert out["mismatches"][0]["expected"] == 5_047_859_524_850
+    assert out["mismatches"][0]["claimed_value"] == 4_967_110_535_840
+
+
 def test_equation_premise_is_counted_separately_from_firing():
     """전제(등식이 있었나)와 발화(틀렸나)를 섞으면 규칙이 낡는 것을 못 본다."""
     silent = critic.verify_answer_arithmetic("공시에서 확인되지 않습니다.")
@@ -186,16 +202,24 @@ ARITHMETIC_SNAPSHOTS = {
     #    답변이 금액·계산식을 **아예 쓰지 않아** `checked` 가 빈 목록이 됐다. 오답
     #    `Q-115` 는 여전히 오답인데 이제 검사가 볼 것이 없다. 부풀림 1 → 0 도 같은
     #    까닭이고, 그것을 성적 개선으로 읽으면 안 된다 (`A8lean-report.md` §4).
+    #    🔴 v4 R1-1 Step 0a — `Q-107` 이 추가됐다. 굵게 감싼 등식 결과를 보게 되면서
+    #    발화한 것이고 **답변은 바뀌지 않았다** (이미 오답).
     "v3/vc/A8-lean(12)": ("artifacts/ablation/v3/vc/A8-lean/responses",
-                          "artifacts/ablation/v3/vc/A8-lean/report.json", {"Q-109"}),
+                          "artifacts/ablation/v3/vc/A8-lean/report.json",
+                          {"Q-107", "Q-109"}),
     # 🔴 R2D 재측정으로 `Q-110` 이 추가됐다 — 새 답변이 `590,947,351,842원 (591억원)`
     #    이라는 10배 어긋난 재기술쌍을 만들었고 judge 는 통과시켰다
     #    (`JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG` 참조).
+    # 🔴 v4 R1-1 Step 0a — `Q-107` 이 추가됐다. `- 1,250,850,298,678 + 2,081,254,239,072
+    #    + 1,715,754,987,100 = **4,967,110,535,840원**` 의 좌변합은 5,047,859,524,850 이라
+    #    **덧셈이 실제로 틀렸다.** 종전 정규식이 굵게 감싼 결과를 못 봐서 놓쳤다.
     "v3/vc/A8(12)": ("artifacts/ablation/v3/vc/A8/responses",
                      "artifacts/ablation/v3/vc/A8/report.json",
-                     {"Q-109", "Q-110", "Q-115"}),
+                     {"Q-107", "Q-109", "Q-110", "Q-115"}),
+    #    🔴 v4 R1-1 Step 0a — `Q-115` 가 추가됐다 (같은 기전 · 이미 오답).
     "v3/vc/OR(12)": ("artifacts/ablation/v3/vc/ORACLE/responses",
-                     "artifacts/ablation/v3/vc/ORACLE/report.json", {"Q-109"}),
+                     "artifacts/ablation/v3/vc/ORACLE/report.json",
+                     {"Q-109", "Q-115"}),
 }
 
 #: 🔴 현 세대 · 전체 88 코호트의 스냅샷 — **위 표에서 파생한다.** 리터럴로 또 적으면
