@@ -1,0 +1,24 @@
+{
+ "question_id": "Q-099",
+ "response": {
+  "question_id": "Q-099",
+  "question": "NAVER가 2025년 9월에 공시한 왈라팝(WALLAPOP) 주식매매계약상 지위 양도 건은 이후 두 차례 정정됐다. 최종 확정된 매매대금 총액은 얼마인가?",
+  "retrieved_context": "## [투자판단 관련 주요경영사항] NAVER – 투자판단 관련 주요경영사항\n- 공시일: 2025-09-18 (접수번호 20250918800247)\n- 섹터: AI소프트웨어·플랫폼\n- 매매금액: 903,559,577,175원 (9,036억원)\n- 확정일: 2025-09-18\n\n## [기재정정] [투자판단 관련 주요경영사항] NAVER – 투자판단 관련 주요경영사항\n- 공시일: 2026-01-30 (접수번호 20260130800888)\n- 섹터: AI소프트웨어·플랫폼\n- 매매금액: 902,863,854,765원 (9,029억원)\n- 확정일: 2026-01-30",
+  "think_trace": "route=multi_compare difficulty=high cot=True sc=True | oracle=golden n_golden=2 🔴 진단 전용 — 검색을 골든으로 대체했다 (제출 구성이 될 수 없다) | hop=7 strat=oracle tool=golden_evidence corp=\"NAVER\" period=none n=2 top_score=- ids=exchange_20250918800247,exchange_20260130800888 | hop=7 verdict=sufficient evidence=2 | generate tokens=644+213 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=0 hops=0 llm=1 tokens=857",
+  "answer": "NAVER가 2025년 9월에 최초 공시한 왈라팝(WALLAPOP) 주식매매계약상 지위 양도와 관련하여 최종 확정된 매매대금은 다음과 같습니다.\n\n1. 최초 공시 금액: 903,559,577,175원 (9,036억원) (근거: [투자판단 관련 주요경영사항] NAVER – 투자판단 관련 주요경영사항, 2025-09-18, 접수번호 20250918800247)\n\n2. 첫 번째 정정 후 금액: 902,863,854,765원 (9,029억원) (근거: [기재정정] [투자판단 관련 주요경영사항] NAVER – 투자판단 관련 주요경영사항, 2026-01-30, 접수번호 20260130800888)\n\n따라서, 최종 확정된 매매대금의 총액은 **902,863,854,765원**(9,029억원)입니다. \n\n(근거: 위와 동일)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 644,
+   "completion_tokens": 213,
+   "latency_s": 5.184,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 644,
+ "completion_tokens": 213,
+ "llm_calls": 1,
+ "latency_s": 5.185,
+ "ts": "2026-08-14T11:42:46"
+}

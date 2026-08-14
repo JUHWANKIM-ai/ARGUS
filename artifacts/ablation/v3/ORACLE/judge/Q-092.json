@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-092",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출답변에는 모범답안의 요소가 누락되었으며, 잘못된 정보가 포함되어 있음.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 3431,
+   "completion_tokens": 43,
+   "latency_s": 12.236,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 3431,
+ "completion_tokens": 43
+}

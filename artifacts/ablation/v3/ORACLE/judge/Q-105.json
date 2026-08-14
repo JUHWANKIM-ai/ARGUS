@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-105",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출 답변은 세 가지 보고서에서 해당 항목의 내용이 다르다는 점을 간과하고 잘못된 정보를 제공하고 있습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 3605,
+   "completion_tokens": 46,
+   "latency_s": 1.72,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 3605,
+ "completion_tokens": 46
+}

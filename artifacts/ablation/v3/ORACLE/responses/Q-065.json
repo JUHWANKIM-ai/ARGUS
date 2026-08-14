@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-065",
+ "response": {
+  "question_id": "Q-065",
+  "question": "두산에너빌리티가 2025년 12월에 공시한 Dukovany 5&6 NSSS 계약의 계약금액은 2023년 3월에 공시한 신한울 원자력 발전소 3,4호기 원자로설비 공급계약의 계약금액보다 얼마나 큰가?",
+  "retrieved_context": "## [공급계약 체결] 두산에너빌리티 – 단일판매ㆍ공급계약체결 — Dukovany 5&6 NSSS Contract\n- 공시일: 2025-12-16 (접수번호 20251216801147)\n- 섹터: 원전\n- 계약금액: 4,928,968,079,043원 (49,290억원)\n- 매출액 대비: 30.36%\n- 계약상대: 한국수력원자력(주)\n- 기간: 2025-12-15 ~ 2038-04-18 (12년 4개월)\n- 확정일: 2025-12-15\n\n## [공급계약 체결] 두산에너빌리티 – 단일판매ㆍ공급계약체결 — 신한울 원자력 발전소 3,4호기 원자로설비 공급 계약\n- 공시일: 2023-03-29 (접수번호 20230329801108)\n- 섹터: 원전\n- 계약금액: 2,338,117,950,000원 (23,381억원)\n- 매출액 대비: 20.72%\n- 계약상대: 한국수력원자력(주)\n- 기간: 2023-03-29 ~ 2033-10-31 (10년 7개월)\n- 확정일: 2023-03-29",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | oracle=golden n_golden=2 🔴 진단 전용 — 검색을 골든으로 대체했다 (제출 구성이 될 수 없다) | hop=7 strat=oracle tool=golden_evidence corp=\"두산에너빌리티\" period=none n=2 top_score=- ids=exchange_20251216801147,exchange_20230329801108 | hop=7 verdict=sufficient evidence=2 | generate tokens=889+162 | 근거 표기 누락 — critic 호출 | critic supported=True reason=두 계약 금액 차이를 계산하여 비교하고 있으며, 각각의 계약 금액과 날짜도 정확하게 제시되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=0 hops=0 llm=2 tokens=1689",
+  "answer": "Dukovany 5&6 NSSS 계약의 계약금액은 신한울 원자력 발전소 3,4호기 원자로설비 공급 계약의 계약금액보다 **2,590,850,129,043원 큽니다**(4조 9,290억 원 - 2조 3,381억 원).\n\n- Dukovany 5&6 NSSS 계약의 계약금액: 4,928,968,079,043원\n- 신한울 원자력 발전소 3,4호기 원자로설비 공급 계약의 계약금액: 2,338,117,950,000원\n\n(근거: 각 공급계약 체결 보고서, 2025-12-16 및 2023-03-29 기준)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 889,
+   "completion_tokens": 162,
+   "latency_s": 3.775,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 592,
+   "completion_tokens": 46,
+   "latency_s": 1.524,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1481,
+ "completion_tokens": 208,
+ "llm_calls": 2,
+ "latency_s": 5.302,
+ "ts": "2026-08-14T11:44:08"
+}

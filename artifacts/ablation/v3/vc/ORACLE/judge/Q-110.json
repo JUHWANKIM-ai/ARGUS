@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-110",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출 답변에는 대우건설과 두산퓨얼셀이 누락되어 있으며, 우리기술의 역할 설명도 불충분합니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 1449,
+   "completion_tokens": 53,
+   "latency_s": 1.668,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1449,
+ "completion_tokens": 53
+}
