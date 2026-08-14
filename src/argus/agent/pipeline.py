@@ -585,19 +585,99 @@ def _partner_quota(n_partners: int) -> int:
     return max(1, min(width, MAX_EVIDENCE // 2 // width))
 
 
-def _partner_order(records: list[dict]) -> list[dict]:
-    """파트너 안에서의 순서. **최신본 먼저, 그 다음 도착 순서**다.
+def _lane_scores(question: str, records: list[dict]) -> list[float]:
+    """레인 **안에서만** 매기는 질문 적합도. LLM 0회 · 검색 0회 · 네트워크 0회.
 
-    도착 순서를 흔들지 않는 것은 제동 ⑦ 그대로다. 그 앞에 최신본만 올린다 —
-    대체된 공시로 파트너를 대표시키면 열거가 옛 값을 말한다 (`query_events` 가
-    `is_latest=True` 를 기본으로 두는 것과 같은 이유다).
+    모집단이 그 레인(같은 발주처 · 같은 파트너)뿐이라 IDF 가 레인 안에서 계산된다 —
+    그 레인 전원이 가진 토큰(`계약상대`·발주처 이름·서식명)은 IDF 가 0 에 수렴해
+    **순서를 못 바꾸고**, 일부에만 있는 토큰만 순서를 가른다. 길이 정규화도 BM25 가
+    이미 갖고 있다. 즉 우리가 손으로 고를 뻔한 두 가지(불용어·길이)를 모집단 정의가
+    대신 정한다.
 
+    🔴 **토크나이저는 `tokenize_words`(어절)다 — 색인의 `tokenize`(어절 + bigram)가
+    아니다.** 색인과 다른 것을 쓰는 것은 이 저장소가 경계하는 일이라 실측으로 정했다
+    (밸류체인 골든 46 기준, LLM 0회):
+
+        어절 중복       28/46 (불변)      어절 BM25       **29/46**
+        bigram 중복     27/46 (−1)        bigram BM25     28/46 (불변)
+        제목만 BM25     28/46 (불변)
+
+    bigram 이 지는 이유는 같은 서식 레코드끼리의 비교라서다 — `단일판매ㆍ공급계약체결`
+    한 낱말이 bigram 6개로 풀려 **전원 공통 토큰이 6배로 불어난다.** 부분일치를 살리려고
+    넣은 장치가 여기서는 신호를 희석한다. 색인(모집단 1,469건)과 레인(모집단 1~47건)은
+    모집단 크기가 두 자릿수 다르므로 같은 토크나이저가 최선이라는 보장이 없다.
+
+    빈 레인·빈 본문에서는 `BM25Okapi` 가 0으로 나눈다. 그 경우 전부 0점을 돌려주고
+    호출부가 종전 순서를 그대로 쓰게 한다 — 정렬이 죽어도 파이프라인은 산다.
+    """
+    corpus = [bm25_module.tokenize_words(r.get("markdown") or "") for r in records]
+    if len(corpus) < 2 or not any(corpus):
+        return [0.0] * len(records)
+    from rank_bm25 import BM25Okapi          # 색인이 이미 쓰는 의존이다
+    return list(BM25Okapi(corpus).get_scores(bm25_module.tokenize_words(question)))
+
+
+def _partner_order(records: list[dict], question: str = "") -> list[dict]:
+    """파트너 안에서의 순서. **최신본 먼저, 그 다음 질문 적합도, 그 다음 도착 순서**다.
+
+    최신본을 앞에 두는 것은 그대로다 — 대체된 공시로 파트너를 대표시키면 열거가 옛
+    값을 말한다 (`query_events` 가 `is_latest=True` 를 기본으로 두는 것과 같은 이유다).
     실측(밸류체인 9문항, 파트너당 1건): 도착 순서 9건 → 최신본 우선 11건.
     금액 내림차순(12건)·접수일 내림차순(13건)이 합계로는 높지만 둘 다 fan-in 문항
-    Q-110 에서 2/6 이다 — 합계가 높은 정렬이 **겨냥한 문항을 못 푼다**. 이 hop 의
-    목적은 총합이 아니라 열거이므로 Q-110 5/6 을 주는 쪽을 택했다.
+    Q-110 에서 2/6 이라 버렸다 — 이 hop 의 목적은 총합이 아니라 열거다.
+
+    🔴 **v3 R2 — 둘째 키를 질문 적합도로 바꿨다. 종전에는 이 함수가 질문을 안 봤다.**
+    같은 허브·같은 파트너면 어떤 질문이 와도 순서가 같았고, 그래서 밸류체인 미회수
+    18건 중 **8건**이 "허브 레인 절단"(`T5-a` (iii′))으로 잘렸다 — 골든이 레인
+    2·4·5·6·7·11·38번째에 있는데 `_partner_quota` 는 1~2 만 준다.
+
+    🔴 **상한을 올리는 것은 처방이 아니다.** `T5-a` §4 가 재현 시뮬레이션으로 쟀다 —
+    8건을 다 회수하려면 한 문항에 발주처 근거 **57블록**(현행 6칸의 9.5배)이 필요하고,
+    `MAX_COUNTERPARTY_EVIDENCE=6` 이 quota 보다 먼저 물려서 파트너 6인 노드는 quota 만
+    올려도 레인 2번째 이후가 **영원히 도달 불가**다. 같은 6칸으로 **더 맞는 것**을 담는다.
+
+    🔴 **리랭커가 아니다.** `A3`(CLOVA 리랭커)는 겨냥 0 으로 최종 기각됐다(`05 §E-4b`).
+    이것은 크레딧 0원 · LLM 0회 · 네트워크 0회의 정렬 로직 교체이고, 후보 집합도
+    상한도 그대로다 — 바뀌는 것은 **같은 칸에 무엇이 들어가는가** 뿐이다.
+
+    ## 🔴 겨냥 8건 중 실측 회수는 **1건**이다. 그 차이를 여기 적어 둔다
+
+    `T5-a` §4 는 *"레인 안에서 질문 적합도로 정렬하면 필요 depth 가 4·6·7·11 에서
+    1~2 로 내려온다"* 고 적었지만 그것은 **정렬이 완벽할 때의 상한**이고 반사실
+    추정이었다 (계획서 자신이 '확신하지 못하는 것 ③' 으로 표시). 밸류체인 12문항에서
+    `_gather_evidence` 를 직접 돌려 골든 46 회수를 셌다 (LLM 0회 · 0원):
+
+        현행 (도착순)                        28/46
+        질문 적합도 (채택)                    **29/46**   Q-107 +1
+        🔴 정렬 상한 (골든을 보고 정렬)         33/46      Q-107 +1 · Q-110 +1 · Q-114 +3
+        🔴 상한 + `is_latest` 키까지 해제       34/46      위 + Q-113 +1
+
+    **정렬로는 8건에 닿을 수 없다 — 상한이 5건이다.** 나머지 3건은 정렬 밖에서 막힌다:
+    `Q-107` 의 두 골든이 **같은 파트너 레인**에 있는데 quota=1 이고(둘 중 하나만 가능),
+    `Q-113` 의 골든은 `is_latest=False` 인 정정 전 원공시라 1순위 키가 뒤로 민다.
+
+    그리고 상한 5건 중 **4건은 질문 텍스트로 도달 불가능**하다. 실측 반례가 `Q-114` 다 —
+    질문이 *"평택·기흥"* 을 말하는데 **골든 3건의 본문에는 그 낱말이 없고**(`[P3 PJT]
+    그린동`·`[P5] 복합동`·`P4 Ph4(상동)`), 정작 `평택`·`기흥` 을 본문에 가진 것은
+    비-골든 3건(`평택 V2L`·`기흥 신규 연구라인`·`기흥 연구라인 신축`)이다. 어떤 텍스트
+    적합도 함수도 이 문항에서는 **틀린 쪽을 위로 올린다.** `Q-110` 은 반대 이유다 —
+    질문이 *"상장사는 어디이며 각각 어떤 역할"* 이라 두산퓨얼셀 6건을 가를 표현이 질문에
+    아예 없다. 골든 선택이 질문이 아니라 라벨러의 대표 1건 선정이었다.
+
+    **그래서 이 처방은 채택하되 겨냥을 8 → 1 로 정정해 적는다.** 남은 4건은 정렬이
+    아니라 **다중 허브 결속**(`Q-107`)·**정정 체인 hop**(`Q-113`)·**골든 정의**(`Q-114`
+    ·`Q-110`) 쪽 문제다.
+
+    `question` 이 비면 종전 동작 그대로다 (최신본 우선 + 도착순). 호출부가 질문을
+    안 넘기는 경로가 생겨도 조용히 성능이 바뀌지 않는다.
     """
-    return sorted(records, key=lambda r: not r.get("is_latest", True))
+    if not question:
+        return sorted(records, key=lambda r: not r.get("is_latest", True))
+    scores = _lane_scores(question, records)
+    return [record for _, record in
+            sorted(enumerate(records),
+                   key=lambda pair: (not pair[1].get("is_latest", True),
+                                     -scores[pair[0]], pair[0]))]
 
 
 def _counterparty_note(display: str, roster: str, n_partners: int) -> str:
@@ -630,12 +710,15 @@ def _counterparty_note(display: str, roster: str, n_partners: int) -> str:
     return f"- 발주처 관계: {display} 를 계약상대로 한 공시 상장사 {n_partners}곳 — {roster}"
 
 
-def _gather_counterparty(r, budget: Budget, trace: list[str], take) -> int:
+def _gather_counterparty(r, question: str, budget: Budget, trace: list[str], take) -> int:
     """발주처 그래프에서 파트너별 근거를 담는다. LLM 0회 · 스텝 1.
 
     `plan_hops` 사다리 **밖의 스텝 1개**다 (정정 체인 hop 과 같은 선례) — 재검색
     예산(hop 3)을 쓰지 않는다. 그래프 조회는 질의 재구성이 아니라 인접 노드 열거라서
     '넓히기' 사다리의 칸을 차지할 이유가 없다.
+
+    `question` 은 **레인 안 정렬에만** 쓴다 (`_partner_order`). 후보 집합도 파트너
+    목록도 질문과 무관하게 그래프가 정한다 — 질문이 바꾸는 것은 순서뿐이다.
     """
     try:
         budget.spend_step()
@@ -661,7 +744,8 @@ def _gather_counterparty(r, budget: Budget, trace: list[str], take) -> int:
     by_partner: dict[str, list[dict]] = {}
     for record in out.get("records") or []:
         by_partner.setdefault(record.get("corp_name"), []).append(record)
-    lanes = {corp: _partner_order(by_partner.get(corp, [])) for corp in partners}
+    lanes = {corp: _partner_order(by_partner.get(corp, []), question)
+             for corp in partners}
     # 회사명만. **건수를 붙이지 않는다** — 사유는 `_counterparty_note` 독스트링에 있다
     # (정정본 포함 전역 집계가 답변에 `"총 47건"` 으로 새어 나간 기록이 있다).
     roster = " · ".join(partners)
@@ -1358,7 +1442,7 @@ def _gather_evidence(r, question: str = "",
     # 움직인다 (제동 ④). 순서를 뒤로 미뤄도 담기는 레코드는 같다 — 그래프 조회라
     # 검색 상태에 의존하지 않는다.
     if getattr(r, "counterparty", None) and arm.counterparty_hop:
-        _gather_counterparty(r, budget, trace, _take_cp)
+        _gather_counterparty(r, question, budget, trace, _take_cp)
 
     # 근거 절단은 체인을 먼저 살린다. 한화오션 잠수함은 검색 5건 + 체인 6건 = 11건이라
     # 도착 순서대로 자르면 **체인의 마지막 정정본**(=정답)이 잘려 나간다.
