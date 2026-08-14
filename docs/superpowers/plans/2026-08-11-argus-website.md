@@ -10,6 +10,70 @@
 
 ---
 
+## §0. 🔴 현재 상태 재판정 (2026-08-14) — **범위를 MVP 로 좁혔다**
+
+```
+작성        2026-08-11        미완 108 / 완료 0        site/ 디렉터리 없음
+재검토      2026-08-14        제출 09-06 23:59 KST (D-23) · 평가 09-07~09-20
+편입        ablation v4 §R6   (계획 정본 = docs/superpowers/plans/2026-08-14-ablation-v4.md)
+```
+
+🔴 **이 계획은 세 세대 뒤의 수를 들고 있었다.** 작성 시점은 ablation **v2** 세대(2026-08-11)이고
+그 뒤 **v3 R1·R2D·R2E·R2F·R2G** 와 **v4 R0** 가 성적·지출·arm 판정을 전부 움직였다.
+본문에 복사돼 있던 표가 낡은 것이 아니라 **복사한 것 자체가 결함**이다 —
+이 저장소가 **열한 번 겪은 결함 양식**(같은 수를 두 곳에 적고 한쪽만 고친다)이다.
+그래서 값을 새 수로 갈아 덮지 않고 **정본을 가리키고 사본을 없앴다**(v3 `R3-b` 규율).
+
+### 🔴 정본 대장 — 값을 이 문서에 박지 않는다
+
+| 값 | 정본 | 사이트가 얻는 경로 |
+|---|---|---|
+| 성적(그리드·정보한계·회귀·전체·밸류체인·골든 근거) | `artifacts/ablation/v4/summary.json` → 없으면 `v3/summary.json` | **빌드가 읽는다** |
+| 문항별 채점·단계 귀속·근본 원인 | `artifacts/ablation/v4/A8/report.json` → 없으면 `v3/A8/report.json` | **빌드가 읽는다** |
+| 누적 지출 · Phase 별 게이트/크레딧 · 테스트 수 | [`docs/total_plan.md`](../../total_plan.md) §1 | **빌드가 마크다운을 파싱한다** (§Task 7·10) |
+| arm 판정(채택·기각) 대장 | [`docs/pipeline/09-ablation.md`](../../pipeline/09-ablation.md) `§I-5f ⑧` | 빌드가 읽지 않는다 — **링크만 낸다** |
+| 엔드포인트·공인 IP·배포 함정 | [`deploy/README.md`](../../../deploy/README.md) 첫 절 | 링크만 |
+| 주최측 공지 전사·영향 | [`docs/organizer-qa.md`](../../organizer-qa.md) | 링크만 |
+| 잔여 실패 문항 목록 | v4 계획서 `§12 현재 상태` + 위 report.json | 빌드가 report.json 에서 센다 |
+
+**규칙 세 줄.**
+1. 🔴 **숫자를 이 계획서·TSX·Python 상수에 적지 않는다.** 화면의 모든 수는 산출물 또는
+   정본 마크다운 파싱에서 온다. 어길 수 있는 유일한 곳은 **분모 라벨과 문턱값**이다
+   (예: "그리드 72", "게이트 D 문턱 0.85" — 이것들은 측정값이 아니라 정의다).
+2. 🔴 **정본 마크다운을 파싱한 값은 검산까지 파싱한다.** 지출은 표의 행 합과 `누적` 행을
+   둘 다 읽어 **일치하지 않으면 빌드를 깬다.** 사본이 아니라 **미러**여야 한다.
+3. 🔴 **세대 라벨을 값에 붙인다.** `summary.json` 의 `meta.generated` 와 `argusCommit` 을
+   모든 화면 하단에 렌더한다. 라벨 없는 수치가 낡아서 이 저장소가 이미 한 번 오판했다.
+
+### 🔴 세 세대를 지나며 정정된 서술 — **문장을 그대로 쓴다**
+
+| 종전 서술 (이 계획서에 있던 것) | 🔴 정정 |
+|---|---|
+| "엣지 밀도 12.4% → **GraphRAG 기각**" | **"기업—기업 엣지 정의 기각"**. GraphRAG 전제는 기각되지 않았다. 노드·엣지를 코퍼스에 맞게 재정의한 쪽은 **채택**됐고 성적의 대부분이 거기서 나온다 — `doc_subtype` 메타 축이 `A1→A1b` **+41.7%p** 로 **사다리 최대 전이**다 (`total_plan §7` · `03-graph-schema.md:68`) |
+| "A5 이후 Δ 가 0" | 꺾이는 지점은 **A4** 다. A4=A5=A6=A7=A8 (`total_plan §0`) |
+| "A3(리랭커)는 보류" | **최종 기각** — 겨냥 0 을 세 분모 전부에서 확인, 게이트 E 3/3 으로 닫혔다 |
+| "잔여 실패 13 · 11 · 12" | 세대마다 바뀐다. **빌드가 report.json 에서 센다** (v4 R0 시점 그리드 6건) |
+| "제출물 3종" | **4종** — 전처리 산출물이 추가됐다(주최측 #10). `Dockerfile` 은 **필수 아님**(#11) |
+| "heldout 15/18 을 헤드라인에 싣는다" | 🔴 **싣지 않는다.** 낙폭 게이트는 **은퇴**했고 그 원장은 옛 세대와 짝지어진 **동결 값**이다. 새 heldout 은 v4 `R4-1` 이 만든다 |
+
+### 🔴 실행 범위 — Task 1~10 은 **제출 후로 이월한다**
+
+```
+제출물 4종에 웹사이트는 없다          → 제출을 위험에 빠뜨릴 수 없다
+미완 108 / 완료 0 · D-23             → 코드 동결 08-25 까지 11일
+평가 서버 c2-g3a 2 vCPU / 4 GB       → 🔴 웹사이트를 그 서버에 올리지 않는다
+```
+
+- **`R6-MVP`(§R6)** — 이 문서 맨 아래 절. **정적 HTML 5쪽 · Node/npm 0 · 크레딧 0원 ·
+  LLM 0회.** 여기까지가 v4 `R6` 의 실행 범위다.
+- **Task 1~10 (Next.js 판)** — 🔴 **제출 후(09-21 이후) 또는 폐기.** 삭제하지 않는 이유는
+  설계와 실측 확인이 들어 있어서다. **실행하려면 §0 의 정본 대장을 먼저 적용해야 한다.**
+- 🔴 **호스팅은 `223.130.129.131` 이 아니다.** 그 서버는 평가 전용이고, 09-07~09-20 에
+  같은 2 vCPU 를 웹서버와 나누면 **단건 지연이 평가 기준일 수 있다**(주최측 #1 sequential ·
+  타임아웃 300초). MVP 산출물은 **정적 파일이므로 저장소·GitHub Pages·로컬로 낸다.**
+
+---
+
 ## Global Constraints
 
 프로젝트 전체에 걸리는 요구사항이다. **모든 Task 의 요구사항에 이 절이 암묵적으로 포함된다.**
@@ -20,10 +84,45 @@
 - **다크모드 비대상.** 레퍼런스가 라이트 전용이므로 동일하게 라이트 전용으로 간다. `prefers-color-scheme` 블록을 쓰지 않는다.
 - **UI 문구는 전부 한국어.** 지표 이름(`Recall@5`, `hit rate`, `rank IC`)과 arm 코드(`A0`~`A8`, `L1`~`L3`)는 영문·코드 그대로 둔다.
 - **버전 고정.** `next@^15.5.0` · `react@^19.0.0` · `react-dom@^19.0.0` · `typescript@^5.6.0` · `@types/node@^22` · `@types/react@^19` · `@types/react-dom@^19`. 레퍼런스의 `"latest"` 는 재현이 안 되므로 따르지 않는다. 레퍼런스가 겪은 Turbopack panic 은 Next 15 의 기본 webpack dev 서버로 회피한다.
-- **숫자를 TSX 에 하드코딩하지 않는다.** 화면에 보이는 모든 수치는 `site/public/data/*.json` 에서 온다. 이 규칙이 `docs/total_plan.md` §0 의 "값을 갈아 덮으면 이력이 사라진다" 와 짝이다.
+- 🔴 **숫자를 하드코딩하지 않는다 — TSX 도, Python 상수도.** 화면에 보이는 모든 수치는 `site/public/data/*.json` 에서 오고, 그 JSON 의 모든 수치는 **산출물(`artifacts/`) 또는 정본 마크다운 파싱**에서 온다. 이 규칙이 `docs/total_plan.md` §0 의 "값을 갈아 덮으면 이력이 사라진다" 와 짝이다.
+  - 🔴 **빌드 스크립트의 `X = 12846.7` 같은 리터럴이 이 계획서의 원래 결함이었다.** 문서에서 옮겨 적은 값은 **다음 라운드에 낡는다.** 옮겨 적는 대신 **정본 파일을 읽어라** (§0 정본 대장).
+  - 허용되는 리터럴은 **분모 라벨·문턱값·정의**뿐이다 (예: `"그리드 72"`, 게이트 D 문턱 `0.85`, 낙폭 임계 `−10%p`). 측정값은 하나도 허용되지 않는다.
+  - 🔴 **테스트도 값을 못박지 않는다.** `assert sum(...) == 11` 형태는 금지다 — **자기일관성**으로 쓴다(`sum(실패) == n_grid − correct`). 값 대조는 산출물 대 산출물로만 한다.
 - **모든 생성 JSON 은 `metadata` 블록을 갖는다.** 필수 키: `generated`(ISO8601) · `sourceFiles`(읽은 파일 경로 배열) · `argusCommit`(git rev-parse --short HEAD) · `note`(그 파일이 무엇인지 한 줄). 레퍼런스의 `site_*.json` 이 `metadata.sourceFiles` 로 출처를 들고 다니는 것과 같다.
-- 🔴 **heldout 유출 금지 (하드 게이트).** `evalset/heldout.jsonl` 18문항의 **질문 전문·정답·`golden` 접수번호·`golden_rank`** 는 생성 JSON 에 **한 글자도 넣지 않는다**. `artifacts/ablation/v2/heldout/` 는 커밋돼 있어서 읽기는 쉽지만 **빌드 스크립트가 그 경로를 읽지 않는다**. 근거: `docs/total_plan.md` §5-11 과 `artifacts/ablation/v2/heldout/README-DO-NOT-TUNE.md`. heldout 은 **집계 수치(15/18, 83.3%)로만** 등장한다. Task 2 의 테스트가 이것을 강제한다.
-- 🔴 **비밀정보 금지.** `.env` · `CLOVA_API_KEY` · 코퍼스 원문 파일을 `site/` 아래에 복사하지 않는다. 코퍼스(5.55GB)는 재배포 대상이 아니므로 근거는 **`retrieved_context` 에 이미 들어 있는 발췌만** 쓴다.
+## 🔴 보안 — 웹으로 나가면 되돌릴 수 없는 것 다섯
+
+**발행은 비가역이다.** 아래 다섯은 Task 2 의 테스트가 생성 JSON 전량을 훑어 강제하고,
+어느 하나라도 걸리면 **빌드가 깨진다**(경고가 아니라 `ValueError`).
+
+- 🔴 **① `.env` · `CLOVA_API_KEY` 를 `site/` 아래에 절대 복사하지 않는다.**
+  빌드 스크립트는 `settings()` 를 **import 하지 않고**, 환경변수를 **읽지 않는다** —
+  키가 메모리에 들어오지 않으면 JSON 으로 새어 나갈 경로 자체가 없다.
+  생성 JSON 을 `nv-`·`sk-`·`Bearer ` 접두와 40자 이상 base64/hex 토큰 패턴으로 훑는다.
+  🔴 **`deploy/README.md` 의 `scp .env` 절차를 사이트 문서에 옮겨 적지 않는다** — 절차서가 정본이다.
+- 🔴 **② 코퍼스 원문(5.55GB)은 재배포 대상이 아니다.** 주최측 제공물이고 우리 것이 아니다.
+  근거 표시는 **산출물의 `retrieved_context` 에 이미 들어 있는 발췌만** 쓰고,
+  발췌 길이 상한(문서당 1,200자)을 빌드에서 자른다. `data/` 아래를 읽는 코드를 두지 않는다.
+- 🔴 **③ `evalset/heldout.jsonl` 과 `artifacts/ablation/*/heldout*/` 은 읽지 않는다.**
+  18문항은 **최종 구성 1회용이고 2회 다 썼다.** 질문 전문·정답·`golden` 접수번호·`golden_rank`
+  가 **한 글자도** 생성 JSON 에 들어가지 않는다. 근거: `docs/total_plan.md` §0·§5 ·
+  `artifacts/ablation/v2/heldout/README-DO-NOT-TUNE.md`.
+  🔴 **집계 수치(`15/18`)조차 싣지 않는다** — 낙폭 게이트는 **은퇴**했고 그 원장은 옛 세대와
+  짝지어진 **동결 값**이다. 싣으면 새 heldout(v4 `R4-1`)이 나오는 순간 낡는다. **링크만 낸다.**
+- 🔴 **④ `evalset/questions.jsonl`(+`regression`·`valuechain`)의 질문 전문과 정답을 싣지 않는다.**
+  🔴 **이것이 2026-08-14 재검토에서 새로 막은 항목이다** — 종전 계획은 `/`(예시 문항 6개) ·
+  `/search`(100문항 전문) · `/answers`(질문+답변)에서 **질문 전문을 그대로 발행**하게 되어 있었다.
+  이유 셋: ① 정답은 **우리가 만든 라벨**이고 `total_plan §5` 가 **채점 결함 셋**을 명시한다
+  (`Q-110` 10× 환산이 judge 를 통과했다 — 즉 우리 라벨에 부풀림이 있다), ② 문항·정답은
+  **검색·랭킹 튜닝이 가능한 형태의 라벨**이고 heldout 폴더에 그 경고가 이미 박혀 있다,
+  ③ 새 heldout(`R4-1`)을 만들 때 dev 문항이 공개돼 있으면 셀 설계가 오염된다.
+  **싣는 것**: `question_id` · 축 메타(`difficulty`·`doc_group`·`task_type`·`answer_mode`·
+  `track`·`answerable`) · 채점 결과(`correct`·`first_failure`) — **질문 문자열이 아닌 것들.**
+- 🔴 **⑤ `golden`·`golden_rank`·`answer`·`think_trace` 를 문항 단위로 싣지 않는다.**
+  `artifacts/ablation/*/A8/report.json` 의 `rows` 는 **44필드**이고 그 안에 `golden`(접수번호)·
+  `golden_rank`·`answer`·`think_trace` 가 있다. 🔴 **v2 의 `error_analysis_v2.json` 에서
+  v3/v4 의 `report.json` 으로 원천을 옮기면 노출면이 커진다** — 빌드는 **화이트리스트 방식**으로
+  필드를 고른다(블랙리스트 금지. 다음 세대에 새 필드가 붙으면 블랙리스트는 조용히 샌다).
+  `answer` 는 질문을 되풀어 쓰므로 ④ 의 우회로다 — **답변 전문도 싣지 않는다.**
 - **`artifacts/` 는 gitignore 대상이다.** 따라서 빌드 스크립트의 출력물 `site/public/data/*.json` 은 **커밋한다** (레퍼런스도 그렇게 한다). 산출물이 없는 클론에서도 사이트가 빌드돼야 한다.
 - **검증 방식.** 사이트 코드는 `npx tsc --noEmit` + `npm run build`(프리렌더가 타입·런타임 오류를 잡는다)로 검증한다. **Jest·Vitest 를 도입하지 않는다** — 레퍼런스에 테스트가 없고, 로직은 전부 Python 쪽에 있어 `pytest` 가 이미 덮는다.
 - **커밋 메시지는 한국어 + conventional prefix.** 기존 이력과 같은 형식(`feat:` `fix:` `docs:` `measure:`).
@@ -44,7 +143,7 @@
 | `site/app/layout.tsx` | `<html lang="ko">` + `Header` + metadata |
 | `site/app/page.tsx` | 홈 — 히어로 + 질의 검색 |
 | `site/app/answers/page.tsx` | **질의응답 트레이스** (근거 → 추론 → 답변). 이 사이트의 주력 화면 |
-| `site/app/search/page.tsx` | 상세 검색 — 106문항 탐색 |
+| `site/app/search/page.tsx` | 상세 검색 — 평가셋 문항 **메타** 탐색 (🔴 문항 수를 여기 적지 않는다. 빌드가 센다. 🔴 질문 전문 금지 — 보안 ④) |
 | `site/app/ablation/page.tsx` | 기여도 사다리 A0→A8 + LOO + 비용 원장 |
 | `site/app/errors/page.tsx` | 실패 해부 — 6단계 귀속 × 3축 |
 | `site/app/corrections/page.tsx` | 정정 체인 |
@@ -76,20 +175,62 @@
 
 ## 데이터 원천 — 어느 파일이 어느 화면을 먹이나
 
-빌드 스크립트가 읽는 파일은 아래 8개뿐이다. 전부 실측으로 존재를 확인했다.
+🔴 **원천이 세대를 탄다. 경로를 문서에 박지 않고 `resolve_generation()` 이 고른다.**
+v2 → v3 → v4 로 세대가 올라갈 때마다 이 표를 손으로 고치면 그것이 열두 번째 하드코딩이다.
+
+```python
+# scripts/build_site_data.py — 세대 해석은 한 곳에서만 한다
+GENERATIONS = ("v4", "v3", "v2")   # 🔴 앞에서부터 존재하는 첫 세대를 쓴다
+
+def resolve_generation() -> str:
+    for gen in GENERATIONS:
+        if (REPO / "artifacts" / "ablation" / gen / "summary.json").exists():
+            return gen
+    raise FileNotFoundError("ablation 산출물이 없다 — 사이트 데이터를 만들 수 없다")
+```
 
 | 원천 | 무엇이 들어 있나 | 먹이는 화면 |
 |---|---|---|
-| `artifacts/ablation/v2/summary.json` | `meta` + `summary.arms`(11구성) · `summary.axes`(difficulty/answer_mode/task_type) · `summary.cells` | `/ablation` |
-| `artifacts/ablation/v2/A8/responses/Q-*.json` | `response` 5키(질문·retrieved_context·think_trace·answer) + `calls` + 토큰 | `/answers` |
-| `artifacts/eval/error_analysis_v2.json` | `rows`(88문항 × 41필드) + `crosstab` + `by_doc_group_grid` + `root_cause_histogram_grid` | `/errors` · `/search` |
-| `artifacts/eval/recall_v2.json` | 코호트별 Recall@5, 난이도·문서군 분해, 게이트 D 판정 | `/data` · 홈 |
+| `artifacts/ablation/{gen}/summary.json` | `meta`(`generated`·`n_cases`·`price_won_per_1k`·`index_snapshot`) + `summary.arms` · `summary.axes` · `summary.cells` | `/ablation` · 홈 |
+| `artifacts/ablation/{gen}/A8/report.json` | `rows`(88문항 × **44필드**) + `failure_histogram_grid` + `root_cause_histogram_grid` + `by_doc_group_grid` + `totals` | `/errors` · `/search` |
+| `artifacts/ablation/{gen}/vc/A8/report.json` | 밸류체인 12문항 | `/counterparty` |
+| `docs/total_plan.md` **§1** | 🔴 **누적 지출 표 + `누적` 행 + Phase 별 게이트/크레딧 + 게이트 총계 + 테스트 수** — 사이트가 파싱한다 | `/ablation`(원장) · `/pipeline` · `/data` |
+| `artifacts/eval/recall_v2.json` | 코호트별 Recall@5, 난이도·문서군 분해, 게이트 D 판정 | `/data` |
 | `artifacts/eda/doc_profile.json` | `corpus_bytes`(문서군별 MB·비중) + `meta.sampling` | `/data` |
-| `artifacts/eda/relation_profile.json` | `correction_chains`(문서군별 체인 길이 분포·최장 체인 19본) + `corp_to_corp_edge_density` | `/corrections` |
-| `artifacts/counterparty_graph.json` | `nodes`(145) · `pairs`(44) · `stats` | `/counterparty` |
-| `evalset/{questions,regression,valuechain}.jsonl` | 문항 메타(난이도·task_type·answer_mode·answerable) | `/search` |
+| `artifacts/eda/relation_profile.json` | `correction_chains`(문서군별 체인 길이 분포) + `corp_to_corp_edge_density` | `/corrections` |
+| `artifacts/counterparty_graph.json` | `nodes` · `pairs` · `stats` | `/counterparty` |
+| `evalset/{questions,regression,valuechain}.jsonl` | 🔴 **축 메타만** (`difficulty`·`task_type`·`answer_mode`·`answerable`). **`question` 필드는 읽고 버린다** — 보안 ④ | `/search` |
 
-🔴 **읽지 않는 것: `artifacts/ablation/v2/heldout/` 전체.** 커밋돼 있어도 읽지 않는다 (Global Constraints).
+🔴 **`artifacts/eval/error_analysis_v2.json` 을 성적·단계 귀속의 원천으로 쓰지 않는다.**
+`total_plan §5` 가 그 이유를 박아 뒀다 — 그 파일은 재생성되지 않았고 **옛 라벨(`VERIFY` 3)을
+들고 있다.** 현 정본은 `artifacts/ablation/{gen}/A8/report.json` 이다. (다만 `recall_v2.json` 은
+게이트 D 의 정본이라 그대로 쓴다 — 이름의 `v2` 는 ablation 세대와 무관하다.)
+
+🔴 **읽지 않는 것 (하드 게이트 · 보안 ②③):**
+`evalset/heldout.jsonl` · `artifacts/ablation/*/heldout*/` · `data/` 아래 코퍼스 원문 전체.
+`artifacts/ablation/v2/heldout/` 는 커밋돼 있어서 읽기는 쉽지만 **경로 조각이 소스에 나타나면
+테스트가 깨진다.**
+
+🔴 **`report.json > rows` 는 화이트리스트로만 뽑는다.** 그 44필드에는 `golden` ·
+`golden_rank` · `answer` · `think_trace` 가 들어 있다 (보안 ⑤).
+
+```python
+ROW_FIELDS_ALLOWED = (
+    "question_id", "task_type", "answer_mode", "difficulty", "doc_group", "track",
+    "answerable", "answer_form", "correct", "scored_by", "first_failure",
+    "root_cause", "failure_why", "critic_supported", "critic_passed_wrong_answer",
+    "has_citation", "route", "route_group", "n_hops", "n_steps", "n_llm_calls",
+    "data_limit", "calc_checked", "calc_mismatch",
+)
+# 🔴 여기에 없는 필드는 존재조차 사이트로 나가지 않는다. 블랙리스트를 쓰지 않는 이유는
+#    다음 세대에 새 필드가 붙으면 블랙리스트가 조용히 새기 때문이다.
+#
+# 🔴 `corp_name`·`sector` 는 **일부러 뺐다.** 질문 전문은 아니지만 문항 100건에 대해
+#    `(문서군, 난이도, 기업명)` 을 함께 내면 **평가셋을 부분 복원할 수 있다**. Task 6
+#    (이월분)이 이 둘을 쓰려면 그 판단을 다시 하고 여기 사유를 적어라 — 지금은 없는 쪽이 정본이다.
+# 🔴 `failure_why` 는 사람이 쓴 자유 서술이라 골든 값이 인용돼 있을 수 있다.
+#    싣기 전에 `숫자 6자리 이상` 패턴을 마스킹한다 (Task 8 이 그 함수를 만든다).
+```
 
 ---
 
@@ -786,7 +927,12 @@ git commit -m "feat: ARGUS 사이트 스캐폴드 — 디자인 토큰·레이�
   - `scripts/build_site_data.py` 의 공개 함수:
     - `REPO: Path` — 저장소 루트
     - `OUT_DIR: Path` — `REPO / "site" / "public" / "data"`
-    - `FORBIDDEN_PATHS: tuple[str, ...]` — 읽으면 안 되는 경로 조각
+    - `FORBIDDEN_PATHS: tuple[str, ...]` — 읽으면 안 되는 경로 조각 (`"heldout"` · `"data/"`)
+    - `GENERATIONS: tuple[str, ...]` · `resolve_generation() -> str` · `resolve_ladder_generation() -> str`
+    - `ROW_FIELDS_ALLOWED: tuple[str, ...]` — 🔴 `report.json > rows` 화이트리스트 (보안 ⑤)
+    - `SSOT_MD: str` · `parse_ssot() -> dict` — 🔴 **정본 마크다운 파서.** 지출·게이트·테스트·Phase
+    - `count_tool_specs() -> int` — `ast` 로 `tools.py` 를 센다 (**import 금지**)
+    - `_mask_amounts(text: str) -> str` — 자유 서술의 6자리 이상 숫자 마스킹 (보안 ⑤)
     - `argus_commit() -> str`
     - `metadata(note: str, source_files: list[str]) -> dict` — `{"generated","argusCommit","sourceFiles","note"}`
     - `read_json(rel: str) -> dict` — `artifacts/`·`evalset/` 상대경로 읽기. `FORBIDDEN_PATHS` 에 걸리면 `ValueError`
@@ -808,6 +954,7 @@ git commit -m "feat: ARGUS 사이트 스캐폴드 — 디자인 토큰·레이�
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -834,9 +981,19 @@ def test_read_json_refuses_heldout_paths():
     for rel in [
         "artifacts/ablation/v2/heldout/heldout_run.json",
         "artifacts/ablation/v2/heldout/A8_heldout_run/report.json",
+        "artifacts/ablation/v3/heldout/report.json",   # 🔴 세대가 올라도 막혀야 한다
+        "artifacts/ablation/v4/heldout/report.json",
         "evalset/heldout.jsonl",
+        "evalset/heldout_v2.jsonl",                    # 🔴 v4 R4-1 이 만들 새 heldout
     ]:
         with pytest.raises(ValueError, match="heldout"):
+            bsd.read_json(rel)
+
+
+def test_read_json_refuses_corpus_paths():
+    """🔴 보안 ② — 코퍼스 원문(5.55GB)은 재배포 대상이 아니다."""
+    for rel in ["data/exchange/x.xml", "data/periodic/y.html"]:
+        with pytest.raises(ValueError, match="data/"):
             bsd.read_json(rel)
 
 
@@ -848,16 +1005,24 @@ def test_write_site_json_requires_metadata(tmp_path, monkeypatch):
     assert json.loads(path.read_text(encoding="utf-8"))["a"] == 1
 
 
-def test_build_meta_carries_gate_numbers():
+def test_build_meta_mirrors_the_artifact():
+    """🔴 값을 못박지 않는다 — 산출물과 같은지만 본다.
+
+    종전 판은 `correct == 61` 을 단언했다. 그 수는 v3 R2D 에서 66 이 됐고, 그때
+    이 테스트는 '사이트가 낡았다' 가 아니라 '테스트가 낡았다' 로 깨졌을 것이다.
+    """
     payload = bsd.build_meta()
     assert "metadata" in payload
     head = payload["headline"]
     assert head["submissionArm"] == "A8"
-    assert head["devGrid"]["correct"] == 61
-    assert head["devGrid"]["n"] == 72
-    assert head["heldout"]["n"] == 18
-    # heldout 은 집계 수치로만 등장한다
-    assert "questions" not in head["heldout"]
+    gen = bsd.resolve_generation()
+    a8 = bsd.read_json(f"artifacts/ablation/{gen}/summary.json")["summary"]["arms"]["A8"]
+    assert head["devGrid"]["correct"] == a8["correct"]
+    assert head["devGrid"]["n"] == a8["n_scored"] == 72   # 분모 라벨은 정의라 박아도 된다
+    # 🔴 heldout 은 집계 수치조차 없다 (보안 ③ · 낙폭 게이트 은퇴)
+    assert "heldout" not in head
+    # 🔴 지출·테스트 수·게이트 수는 정본 마크다운에서 파싱된 값이어야 한다
+    assert head["spentWon"] == bsd.parse_ssot()["spent_won"]
 
 
 def _generated_json_files() -> list[Path]:
@@ -900,9 +1065,19 @@ def test_no_golden_rank_keys_in_generated_json():
         assert "golden_rank" not in blob, f"{path.name} 에 golden_rank 가 실렸다"
 
 
-def test_build_script_never_references_heldout_artifacts():
+def test_build_script_never_reads_heldout_or_corpus():
+    """🔴 소스에 읽기 호출이 아예 없어야 한다 — 세대에 무관하게.
+
+    종전 판은 `"v2/heldout" not in src` 였다. 세대가 v3·v4 로 올라가면 그 문자열은
+    비켜 가고 게이트가 조용히 무력해진다. 이제는 **읽기 함수의 인자**를 본다.
+    """
     src = (ROOT / "scripts" / "build_site_data.py").read_text(encoding="utf-8")
-    assert "v2/heldout" not in src.replace("FORBIDDEN", ""), "빌드 스크립트가 heldout 산출물 경로를 읽는다"
+    calls = re.findall(r"read_json(?:l)?\(\s*f?[\"']([^\"']+)", src)
+    for arg in calls:
+        assert "heldout" not in arg, f"빌드가 heldout 경로를 읽는다: {arg}"
+        assert not arg.startswith("data/"), f"빌드가 코퍼스 원문을 읽는다: {arg}"
+    # 🔴 그리고 argus 패키지를 import 하지 않는다 (보안 ① — settings() 가 .env 를 읽는다)
+    assert not re.search(r"^\s*(from|import)\s+argus", src, re.M), "빌드가 argus 를 import 한다"
 
 
 def test_no_api_key_in_generated_json():
@@ -913,6 +1088,40 @@ def test_no_api_key_in_generated_json():
         blob = path.read_text(encoding="utf-8")
         assert "CLOVA_API_KEY" not in blob
         assert "nv-" not in blob, f"{path.name} 에 API 키 형태의 문자열이 있다"
+        assert "Bearer " not in blob
+        # 🔴 40자 이상 영숫자 덩어리 = 키 형태. 순수 숫자(접수번호 14자리 등)는 뺀다.
+        #    오탐이 나면 **패턴을 좁히고 사유를 적어라** — 테스트를 지우지 마라.
+        suspects = [s for s in re.findall(r"[A-Za-z0-9+/=]{40,}", blob) if not s.isdigit()]
+        assert not suspects, f"{path.name} 에 키 형태 문자열이 있다: {suspects[0][:12]}…"
+
+
+def test_no_evalset_question_text_in_generated_json():
+    """🔴 보안 ④ — 어느 생성 JSON 에도 평가셋 질문 전문이 없어야 한다."""
+    files = _generated_json_files()
+    if not files:
+        pytest.skip("아직 생성물이 없음")
+    questions = [
+        item["question"]
+        for rel in ("evalset/questions.jsonl", "evalset/regression.jsonl", "evalset/valuechain.jsonl")
+        for item in bsd.read_jsonl(rel)
+    ]
+    for path in files:
+        blob = path.read_text(encoding="utf-8")
+        for q in questions:
+            assert q not in blob and q[:20] not in blob, f"{path.name} 에 질문 전문이 실렸다"
+
+
+def test_no_public_ip_in_generated_json():
+    """🔴 공인 IP 를 발행하지 않는다. IP 는 `deploy/README.md` 에서 읽어 대조한다."""
+    files = _generated_json_files()
+    if not files:
+        pytest.skip("아직 생성물이 없음")
+    deploy = (ROOT / "deploy" / "README.md").read_text(encoding="utf-8")
+    ips = set(re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", deploy)) - {"0.0.0.0"}
+    for path in files:
+        blob = path.read_text(encoding="utf-8")
+        for ip in ips:
+            assert ip not in blob, f"{path.name} 에 평가 엔드포인트 IP 가 실렸다: {ip}"
 ```
 
 - [ ] **Step 2: 테스트가 실패하는 것을 확인**
@@ -930,23 +1139,46 @@ LLM 호출 0회. 사이트는 계산하지 않고 이 파일이 만든 JSON 만 
     python scripts/build_site_data.py            # 전부 생성
     python scripts/build_site_data.py --only meta
 
-🔴 heldout 금지. evalset/heldout.jsonl 과 artifacts/ablation/v2/heldout/ 은
-read_json 이 거부한다. 근거는 docs/total_plan.md §5-11 — 18문항은 재측정이
-불가능하고, 질문 전문·golden 접수번호가 검색 튜닝 라벨로 쓰일 수 있다.
+🔴 읽지 않는 것 (read_json 이 ValueError 로 거부한다):
+  · evalset/heldout.jsonl 과 heldout 산출물 폴더 전체 — 18문항은 최종 구성 1회용이고
+    두 번 다 썼다. 질문 전문·golden 접수번호가 검색 튜닝 라벨로 쓰일 수 있다
+  · data/ 아래 코퍼스 원문 — 주최측 제공물이고 재배포 대상이 아니다
+🔴 argus 패키지를 import 하지 않는다 — argus.config.settings 가 .env 를 읽는다.
+   src 를 봐야 할 때는 ast 로 소스만 읽는다 (count_tool_specs).
+🔴 수치를 이 파일에 적지 않는다 — 성적은 artifacts/, 지출·게이트·테스트 수는
+   docs/total_plan.md §1 파싱(parse_ssot)에서 온다. 옮겨 적은 값은 다음 라운드에 낡는다.
+근거: docs/total_plan.md §0·§5 · 계획서 §0 정본 대장.
 """
 from __future__ import annotations
 
 import argparse
+import ast
 import json
+import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
+
+# 🔴 argus 패키지를 import 하지 않는다 — argus.config.settings 가 .env 를 읽는다 (보안 ①).
+#    src 를 봐야 할 때는 ast 로 소스만 읽는다 (count_tool_specs).
 
 REPO = Path(__file__).resolve().parents[1]
 OUT_DIR = REPO / "site" / "public" / "data"
 
 # 읽으면 ValueError. 경로 조각 단위 검사다.
-FORBIDDEN_PATHS = ("heldout",)
+# 🔴 "heldout" — evalset/heldout.jsonl · artifacts/ablation/*/heldout*/ 를 한 번에 막는다 (보안 ③)
+# 🔴 "data/"   — 코퍼스 원문 5.55GB. 재배포 대상이 아니다 (보안 ②)
+FORBIDDEN_PATHS = ("heldout", "data/")
+
+GENERATIONS = ("v4", "v3", "v2")   # 🔴 앞에서부터 존재하는 첫 세대를 쓴다
+
+
+def resolve_generation() -> str:
+    """ablation 세대를 산출물의 존재로 결정한다 — 경로를 코드에 박지 않는다."""
+    for gen in GENERATIONS:
+        if (REPO / "artifacts" / "ablation" / gen / "summary.json").exists():
+            return gen
+    raise FileNotFoundError("ablation 산출물이 없다 — 사이트 데이터를 만들 수 없다")
 
 
 def argus_commit() -> str:
@@ -1011,22 +1243,142 @@ def write_site_json(name: str, payload: dict) -> Path:
     return path
 
 
+SSOT_MD = "docs/total_plan.md"   # 🔴 성적·지출·게이트·테스트 수의 정본
+
+
+def count_tool_specs() -> int:
+    """도구 종수를 `src/argus/agent/tools.py` 에서 센다.
+
+    🔴 **import 하지 않는다.** `tools.py` 는 `argus.config.settings` 를 import 하고
+    그것이 `.env` 를 읽는다 — 보안 ① 이 금지하는 경로다. 그래서 `ast` 로 소스만 읽는다
+    (`TOOL_SPECS = _RETRIEVAL_SPECS + _CALC_SPECS` 이므로 두 리스트의 원소를 센다).
+    """
+    tree = ast.parse((REPO / "src/argus/agent/tools.py").read_text(encoding="utf-8"))
+    sizes = {
+        node.targets[0].id: len(node.value.elts)
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id in {"_RETRIEVAL_SPECS", "_CALC_SPECS"}
+        and isinstance(node.value, ast.List)
+    }
+    if set(sizes) != {"_RETRIEVAL_SPECS", "_CALC_SPECS"}:
+        raise ValueError("tools.py 의 스펙 리스트 이름이 바뀌었다 — 세는 방법을 고쳐라")
+    return sum(sizes.values())
+
+
+def parse_ssot() -> dict:
+    """🔴 `docs/total_plan.md` §1 을 파싱한다 — 값을 옮겨 적지 않기 위해서다.
+
+    이 함수가 이 파일에 리터럴 수치를 두지 않는 유일한 이유다. 종전 판은
+    `spentWon = 12846.7` · `tests = 728` · `gates = 68/71` 을 상수로 들고 있었고,
+    세 값 모두 다음 라운드에 낡았다 (19,730.5원 · 972 · 71/71).
+
+    반환:
+      spent_won          누적 지출 표의 `누적` 행
+      spent_ledger       그 표의 행 목록 [{item, tokens, cost_won, source}]
+      credit_won         100000 (규정. CONVENTION.md — 측정값이 아니다)
+      tests              "테스트 972 passed" 의 수
+      gates              {"closed": n, "total": m} — "게이트 총계 71 / 71"
+      phases             Phase 표 [{no, doc, phase, status, gate, credit}]
+    """
+    text = (REPO / SSOT_MD).read_text(encoding="utf-8")
+
+    # ── 누적 지출 표: `| # | 항목 | 토큰 | 비용 | 출처 |` 아래의 행들
+    ledger, total_won = [], None
+    for row in re.findall(r"^\|(.+)\|\s*$", text, re.M):
+        cells = [c.strip() for c in row.split("|")]
+        if len(cells) != 5:
+            continue
+        idx, item, tokens, cost, source = cells
+        won = re.search(r"([\d,]+\.\d)원", cost)
+        if not won:
+            continue
+        value = float(won.group(1).replace(",", ""))
+        if "누적" in item or "누적" in idx:
+            total_won = value
+        elif idx.strip("* ").isdigit():
+            ledger.append({
+                "item": re.sub(r"[*`🔴🆕]", "", item).strip(),
+                "tokens": int(tokens.replace(",", "")) if tokens.replace(",", "").isdigit() else None,
+                "costWon": value,
+                "source": re.sub(r"[*`]", "", source).strip(),
+            })
+
+    if total_won is None:
+        raise ValueError(f"{SSOT_MD} §1 의 `누적` 행을 못 찾았다 — 표 서식이 바뀌었다")
+
+    # 🔴 검산까지 파싱한다. 사본이 아니라 미러여야 한다.
+    ledger_sum = round(sum(r["costWon"] for r in ledger), 1)
+    if abs(ledger_sum - total_won) > 0.05:
+        raise ValueError(
+            f"{SSOT_MD} 원장 행 합 {ledger_sum} ≠ `누적` {total_won} — "
+            "문서 안에서 두 수가 갈렸다. 사이트를 만들기 전에 문서를 고쳐라"
+        )
+
+    tests = re.search(r"테스트\s*\*{0,2}([\d,]+)\s*passed", text)
+    gates = re.search(r"게이트\s*총계\s*\*{0,2}\s*(\d+)\s*/\s*(\d+)", text)
+    if not (tests and gates):
+        raise ValueError(f"{SSOT_MD} §1 의 테스트 수·게이트 총계를 못 찾았다")
+
+    def plain(cell: str) -> str:
+        return re.sub(r"[*`]", "", re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", cell)).strip()
+
+    phases = []
+    for row in re.findall(r"^\|\s*(\d{2})\s*\|(.+)\|\s*$", text, re.M):
+        cells = [c.strip() for c in row[1].split("|")]
+        if len(cells) < 5 or cells[1] == "—":     # 00 overview 행은 Phase 가 아니다
+            continue
+        phases.append({
+            "no": row[0],
+            "doc": plain(cells[0]),
+            "phase": plain(cells[1]),
+            "status": plain(cells[2]),
+            "gate": plain(cells[3]),
+            "credit": plain(cells[4]),
+        })
+    if len(phases) != 9:
+        raise ValueError(f"{SSOT_MD} §1 Phase 표에서 9행이 아니라 {len(phases)}행을 읽었다")
+
+    return {
+        "spentWon": total_won,
+        "spentLedger": ledger,
+        "creditWon": 100000,          # CONVENTION.md — 규정값이고 측정값이 아니다
+        "tests": int(tests.group(1).replace(",", "")),
+        "gates": {"closed": int(gates.group(1)), "total": int(gates.group(2))},
+        "phases": phases,
+        "ssot": SSOT_MD,
+    }
+
+
 def build_meta() -> dict:
     """홈과 모든 페이지가 공유하는 헤드라인 수치.
 
-    출처는 artifacts/ablation/v2/summary.json 의 A8 항목이다. heldout 은
-    docs/total_plan.md §0 의 확정 집계값을 상수로 들고 있다 — 산출물을 읽지 않는다.
+    🔴 이 함수에 수치 리터럴이 하나도 없어야 한다. 성적은 산출물에서,
+    지출·게이트·테스트 수는 docs/total_plan.md §1 파싱에서 온다.
+    🔴 heldout 은 등장하지 않는다 (보안 ③ — 낙폭 게이트 은퇴 · 동결 원장).
     """
-    summary = read_json("artifacts/ablation/v2/summary.json")
+    gen = resolve_generation()
+    summary = read_json(f"artifacts/ablation/{gen}/summary.json")
     a8 = summary["summary"]["arms"]["A8"]
+    ssot = parse_ssot()
     recall = read_json("artifacts/eval/recall_v2.json")
-    full = recall["cohorts"]["full_88"]["harness"] if "full_88" in recall["cohorts"] else None
+    full = recall["cohorts"].get("full_88", {}).get("harness")
 
     return {
         "metadata": metadata(
-            "홈·전 페이지 공유 헤드라인. heldout 은 집계 수치만 상수로 들고 있다.",
-            ["artifacts/ablation/v2/summary.json", "artifacts/eval/recall_v2.json"],
+            "홈·전 페이지 공유 헤드라인. 성적은 산출물, 지출·게이트·테스트는 total_plan §1 파싱.",
+            [
+                f"artifacts/ablation/{gen}/summary.json",
+                "artifacts/eval/recall_v2.json",
+                SSOT_MD,
+            ],
         ),
+        "generation": {
+            "arm": gen,
+            "generated": summary["meta"]["generated"],
+            "indexSnapshot": summary["meta"].get("index_snapshot"),
+        },
         "headline": {
             "submissionArm": "A8",
             "devGrid": {
@@ -1034,6 +1386,7 @@ def build_meta() -> dict:
                 "n": a8["n_scored"],
                 "rate": round(a8["rate"], 4),
             },
+            "overall": {"correct": a8["overall_correct"], "n": a8["overall_n_scored"]},
             "infoLimit": {"correct": a8["info_limit_correct"], "n": a8["info_limit_n"]},
             "regression": {
                 "correct": a8["tracks"]["regression"]["correct"],
@@ -1041,16 +1394,25 @@ def build_meta() -> dict:
             },
             "hallucination": a8["hallucination"],
             "citationRate": a8["citation_rate"],
-            "goldenEvidence": {"hit": a8["golden_evidence_hit"], "total": a8["golden_total"]},
+            "goldenEvidence": {
+                "hit": a8["golden_evidence_hit"],
+                "total": a8["golden_total"],
+                "unreachable": a8.get("golden_unreachable"),
+            },
             "recall5": full["recall5_rate"] if full else None,
-            # docs/total_plan.md §0 — 최종 1회 측정, 재측정 불가. 집계만.
-            "heldout": {"correct": 15, "n": 18, "rate": 0.833, "runs": 2, "retired": True},
-            "spentWon": 12846.7,
-            "creditWon": 100000,
+            "spentWon": ssot["spentWon"],
+            "creditWon": ssot["creditWon"],
         },
-        "toolCount": 15,   # tools.TOOL_SPECS = 검색 8 + 계산 7
-        "tests": 728,
-        "gates": {"closed": 68, "total": 71},
+        "toolCount": count_tool_specs(),   # 🔴 src 에서 센다. "15종" 을 적지 않는다
+        "tests": ssot["tests"],
+        "gates": ssot["gates"],
+        "ssotLinks": {
+            "grades": f"artifacts/ablation/{gen}/summary.json",
+            "spend": f"{SSOT_MD} §1",
+            "armVerdicts": "docs/pipeline/09-ablation.md §I-5f ⑧",
+            "endpoint": "deploy/README.md",
+            "organizer": "docs/organizer-qa.md",
+        },
     }
 
 
@@ -1076,6 +1438,20 @@ def main(argv: list[str] | None = None) -> int:
 if __name__ == "__main__":
     raise SystemExit(main())
 ```
+
+> ✅ **`parse_ssot()` 는 2026-08-14 에 실측으로 검증했다 (LLM 0회 · 크레딧 0원).**
+> 현 `docs/total_plan.md` 에서 **누적 12행 · 행 합 = `누적` 행 (검산 통과) · 테스트 수 ·
+> 게이트 총계 · Phase 9행**을 전부 뽑았고, `count_tool_specs()` 도 `tools.py` 를
+> **import 하지 않고** 도구 종수를 냈다. 🔴 **여기에 그 값들을 적지 않는다** — 적으면 그것이
+> 정확히 이 계획서가 처음 저지른 결함이다. 값을 보려면 스크립트를 돌려라.
+>
+> 🔴 **원장 행에 `heldout 최종 1회` 항목이 들어온다. 그 행을 지우지 마라.** 그것은
+> **지출 기록**이고 보안 ③ 이 막는 것은 **문항·정답·골든 라벨**이다. 지우면 검산이 깨진다.
+>
+> 🔴 **검산이 깨지면 사이트를 고치지 말고 문서를 고쳐라.** `ValueError` 는 "파서가 틀렸다" 가
+> 아니라 **"정본 안에서 두 수가 갈렸다"** 는 신호일 수 있다 — `total_plan §1` 이 그 사고를
+> 실제로 겪었고(R2E 가 행만 넣고 `누적`·검산식을 안 고쳐 하루를 낡은 채로 살았다),
+> 이 파서는 **그 사고를 다시 나면 즉시 알려 주는 장치**다.
 
 - [ ] **Step 4: `recall_v2.json` 의 실제 코호트 키를 확인해 `build_meta` 를 맞춘다**
 
@@ -1105,7 +1481,9 @@ Expected: `site/public/data/site_meta.json` 생성. 이제 `test_no_heldout_leak
 - [ ] **Step 7: 전체 테스트가 깨지지 않았는지 확인**
 
 Run: `python -m pytest tests/ -q`
-Expected: 기존 728건 + 신규 9건 모두 PASS.
+Expected: 기존 테스트 전건 + 신규 9건 모두 PASS. 🔴 **기존 건수를 여기 적지 않는다** —
+그 수는 라운드마다 늘어나고 정본은 `docs/total_plan.md` §1 이다(v3 `R3-b` 규율).
+회귀 판정은 **"실패 0건"** 으로 한다: `python -m pytest tests/ -q` 의 마지막 줄에 `failed` 가 없으면 통과.
 
 - [ ] **Step 8: 커밋**
 
@@ -1326,7 +1704,8 @@ Run:
 python -c "
 import json,sys; sys.path.insert(0,'scripts')
 import build_site_data as b
-d=json.load(open('artifacts/ablation/v2/A8/responses/Q-001.json',encoding='utf-8'))['response']
+gen=b.resolve_generation()
+d=json.load(open(f'artifacts/ablation/{gen}/A8/responses/Q-001.json',encoding='utf-8'))['response']
 steps=b.parse_think_trace(d['think_trace'])
 ev=b.parse_evidence(d['retrieved_context'])
 print('steps:',[s['kind'] for s in steps])
@@ -1345,7 +1724,7 @@ import json,glob,sys; sys.path.insert(0,'scripts')
 import build_site_data as b
 from collections import Counter
 c=Counter(); notes=[]
-for p in glob.glob('artifacts/ablation/v2/A8/responses/Q-*.json'):
+for p in glob.glob(f'artifacts/ablation/{b.resolve_generation()}/A8/responses/Q-*.json'):
     d=json.load(open(p,encoding='utf-8'))['response']
     for s in b.parse_think_trace(d['think_trace']):
         c[s['kind']]+=1
@@ -1379,12 +1758,15 @@ git commit -m "feat: think_trace·retrieved_context 파서 + 단위 테스트"
 - Consumes: `bsd.metadata` · `bsd.read_json` · `bsd.read_jsonl` · `bsd.write_site_json` · `bsd.build_meta` (Task 2) · `StatCard` (Task 1)
 - Produces:
   - `read_jsonl_unsafe_heldout_ids() -> list[dict]` — 테스트 전용. heldout 의 `question_id` 만 반환
-  - `build_home() -> dict` — `{"metadata", "headline", "capabilities", "examples"}`
+  - `build_home() -> dict` — `{"metadata", "headline", "generation", "capabilities", "coverage"}`
   - `site_home.json` 스키마:
     - `headline` — Task 2 `build_meta()["headline"]` 과 동일 구조
+    - `generation` — `{arm, generated, indexSnapshot}`. 🔴 세대 라벨을 화면 하단에 렌더한다
     - `capabilities: [{ "title": str, "body": str, "evidence": str }]` — 4개
-    - `examples: [{ "questionId": str, "question": str, "difficulty": str, "docGroup": str }]` — 6개
-  - `LandingSearch` 컴포넌트: props `{ examples: { questionId: string; question: string }[] }`
+    - `coverage: [{ "docGroup": str, "byDifficulty": {난이도: n}, "n": int }]`
+  - 🔴 **`examples` 키는 없다** (2026-08-14 재검토 · 보안 ④). 종전 스키마의
+    `examples[].question` 이 `evalset/questions.jsonl` 의 **질문 전문**이었다.
+    `LandingSearch` 는 예시 칩 없이 입력창만 둔다 — props 는 `{}` 다.
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다 — `tests/test_site_data.py` 맨 끝에 추가**
 
@@ -1393,23 +1775,36 @@ git commit -m "feat: think_trace·retrieved_context 파서 + 단위 테스트"
 
 def test_build_home_shape():
     payload = bsd.build_home()
-    assert set(payload) == {"metadata", "headline", "capabilities", "examples"}
+    assert set(payload) == {"metadata", "headline", "generation", "capabilities", "coverage"}
     assert payload["headline"]["submissionArm"] == "A8"
     assert len(payload["capabilities"]) == 4
     assert all({"title", "body", "evidence"} == set(c) for c in payload["capabilities"])
-    assert len(payload["examples"]) == 6
-    assert all(
-        {"questionId", "question", "difficulty", "docGroup"} == set(e)
-        for e in payload["examples"]
-    )
+    assert payload["coverage"]                       # 문서군 축이 비어 있지 않다
+    assert payload["generation"]["generated"]        # 🔴 세대 라벨이 있다
 
 
-def test_build_home_examples_are_dev_questions_only():
-    """예시 질문은 dev 그리드에서만 뽑는다 — heldout 문항이 섞이면 안 된다."""
+def test_build_home_carries_no_question_text():
+    """🔴 보안 ④ — 질문 전문이 한 글자도 없다.
+
+    종전 판은 예시 문항 6개의 `question` 을 그대로 실었다. 이 테스트가 그 회귀를 막는다.
+    evalset 전 문항의 질문 문자열을 실제로 읽어 와 페이로드 안에 없는지 본다.
+    """
     payload = bsd.build_home()
-    heldout_ids = {r["question_id"] for r in bsd.read_jsonl_unsafe_heldout_ids()}
-    for example in payload["examples"]:
-        assert example["questionId"] not in heldout_ids
+    blob = json.dumps(payload, ensure_ascii=False)
+    for rel in ("evalset/questions.jsonl", "evalset/regression.jsonl", "evalset/valuechain.jsonl"):
+        for item in bsd.read_jsonl(rel):
+            question = item["question"]
+            assert question not in blob, f"{item['question_id']} 질문 전문이 홈에 실렸다"
+            # 앞 20자만 잘라 실어도 유출이다
+            assert question[:20] not in blob
+
+
+def test_build_home_has_no_heldout_ids():
+    """heldout 문항 ID 조차 등장하지 않는다."""
+    payload = bsd.build_home()
+    blob = json.dumps(payload, ensure_ascii=False)
+    for row in bsd.read_jsonl_unsafe_heldout_ids():
+        assert row["question_id"] not in blob
 ```
 
 `read_jsonl_unsafe_heldout_ids` 는 **테스트 전용 헬퍼**다. 유출 게이트를 우회하지 않고 ID 만 읽는다 — Step 3 에서 함께 구현한다.
@@ -1454,7 +1849,8 @@ CAPABILITIES = [
         "title": "정정 공시를 체인으로 따라간다",
         "body": "공시는 정정된다. 원공시와 정정본을 체인으로 잇고 체인 위치로만 최신 여부를 "
         "판정한다. 질문이 시점을 지정하면 그 시점 값을 답하고 정정 사실을 부기한다.",
-        "evidence": "정정체인 hop 제거 시 −8.3%p (L1)",
+        # 🔴 값을 적지 않는다 — L1 Δ 는 세대마다 움직인다 (v2 −8.3%p → v3 −9.7%p).
+        "evidence": "정정체인 hop 제거 시 {l1DeltaPp}%p (L1) · 골든 근거도 동반 하락한다",
     },
     {
         "title": "계산은 모델이 아니라 도구가 한다",
@@ -1477,7 +1873,7 @@ CAPABILITIES = [
 ]
 
 
-def _fill(template: str, head: dict, tool_count: int) -> str:
+def _fill(template: str, head: dict, tool_count: int, l1_delta_pp: float) -> str:
     return template.format(
         goldenHit=head["goldenEvidence"]["hit"],
         goldenTotal=head["goldenEvidence"]["total"],
@@ -1486,57 +1882,59 @@ def _fill(template: str, head: dict, tool_count: int) -> str:
         infoLimitN=head["infoLimit"]["n"],
         hallucination=head["hallucination"],
         toolCount=tool_count,
+        l1DeltaPp=f"{l1_delta_pp:+.1f}",
     )
 
 
-# 홈 예시 문항 — dev 에서 문서군·난이도가 섞이게 고른 6개. Step 4 에서 실존 확인한다.
-EXAMPLE_IDS = ["Q-001", "Q-022", "Q-047", "Q-071", "Q-094", "Q-105"]
+# 🔴 홈 예시 문항을 싣지 않는다 (2026-08-14 재검토 · 보안 ④).
+#    종전 판은 EXAMPLE_IDS 6개의 `question` 전문을 site_home.json 에 넣었다.
+#    evalset 문항·정답은 우리가 만든 라벨이고 total_plan §5 가 그 라벨의 부풀림을 명시한다.
+#    대신 **축 커버리지 요약**(문서군 × 난이도 셀이 채워졌다는 사실)만 낸다 — 질문 문자열 0개.
 
 
 def build_home() -> dict:
     meta_payload = build_meta()
     head = meta_payload["headline"]
-    tool_count = meta_payload["toolCount"]
-    rows = {
-        r["question_id"]: r
-        for r in read_json("artifacts/eval/error_analysis_v2.json")["rows"]
-    }
-    questions = {q["question_id"]: q for q in read_jsonl("evalset/questions.jsonl")}
+    gen = meta_payload["generation"]["arm"]
+    arms = read_json(f"artifacts/ablation/{gen}/summary.json")["summary"]["arms"]
+    l1_delta_pp = (arms["L1"]["rate"] - arms["A8"]["rate"]) * 100
 
-    examples = []
-    for qid in EXAMPLE_IDS:
-        row = rows.get(qid)
-        question = questions.get(qid)
-        if not row or not question:
+    rows = [
+        {k: r[k] for k in ROW_FIELDS_ALLOWED if k in r}      # 🔴 화이트리스트 (보안 ⑤)
+        for r in read_json(f"artifacts/ablation/{gen}/A8/report.json")["rows"]
+    ]
+
+    coverage: dict[str, dict[str, int]] = {}
+    for r in rows:
+        if r.get("track") != "grid":
             continue
-        examples.append(
-            {
-                "questionId": qid,
-                "question": question["question"],
-                "difficulty": row["difficulty"],
-                "docGroup": row["doc_group"],
-            }
-        )
+        coverage.setdefault(r["doc_group"], {}).setdefault(r["difficulty"], 0)
+        coverage[r["doc_group"]][r["difficulty"]] += 1
 
     return {
         "metadata": metadata(
-            "홈 — 헤드라인 지표, 공시 Agent 고유 능력 4개, dev 예시 문항 6개",
+            "홈 — 헤드라인 지표, 공시 Agent 고유 능력 4개, 축 커버리지. "
+            "🔴 질문 전문·정답·답변 전문을 싣지 않는다 (보안 ③④⑤).",
             [
-                "artifacts/ablation/v2/summary.json",
-                "artifacts/eval/error_analysis_v2.json",
-                "evalset/questions.jsonl",
+                f"artifacts/ablation/{gen}/summary.json",
+                f"artifacts/ablation/{gen}/A8/report.json",
+                SSOT_MD,
             ],
         ),
         "headline": head,
+        "generation": meta_payload["generation"],
         "capabilities": [
             {
                 "title": c["title"],
                 "body": c["body"],
-                "evidence": _fill(c["evidence"], head, tool_count),
+                "evidence": _fill(c["evidence"], head, meta_payload["toolCount"], l1_delta_pp),
             }
             for c in CAPABILITIES
         ],
-        "examples": examples,
+        "coverage": [
+            {"docGroup": group, "byDifficulty": by_diff, "n": sum(by_diff.values())}
+            for group, by_diff in sorted(coverage.items())
+        ],
     }
 ```
 
@@ -1555,15 +1953,19 @@ Run:
 ```bash
 python -m pytest tests/test_site_data.py -k "home" -v
 ```
-Expected: 2건 PASS. `len(examples) != 6` 으로 실패하면 아래로 실존 ID 를 뽑아 `EXAMPLE_IDS` 를 고친다.
+Expected: 3건 PASS. 🔴 `test_build_home_carries_no_question_text` 가 실패하면 **테스트를
+고치지 말고 페이로드에서 질문 문자열을 빼라** — 그것이 보안 ④ 다.
+
+축 커버리지가 비었으면 원천의 `track`·`doc_group` 값을 확인한다 (질문 전문을 출력하지 않는다):
 
 ```bash
-python -c "
+PYTHONIOENCODING=utf-8 python -c "
 import json
-rows=json.load(open('artifacts/eval/error_analysis_v2.json',encoding='utf-8'))['rows']
+gen=next(g for g in ('v4','v3','v2') if __import__('pathlib').Path(f'artifacts/ablation/{g}/summary.json').exists())
+rows=json.load(open(f'artifacts/ablation/{gen}/A8/report.json',encoding='utf-8'))['rows']
 grid=[r for r in rows if r['track']=='grid']
 for g in ['exchange','major','holding','periodic']:
-    print(g, [r['question_id']+'/'+r['difficulty'] for r in grid if r['doc_group']==g][:5])
+    print(g, sorted({r['difficulty'] for r in grid if r['doc_group']==g}), len([r for r in grid if r['doc_group']==g]))
 "
 ```
 
@@ -1586,9 +1988,10 @@ Expected: 전건 PASS. `site/public/data/site_home.json` 생성.
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-type Example = { questionId: string; question: string };
+// 🔴 예시 칩을 두지 않는다 (보안 ④) — 칩 라벨이 곧 evalset 질문 전문이었다.
+//    props 없이 입력창만 둔다. 종전 `Example = { questionId, question }` 타입은 삭제했다.
 
-export default function LandingSearch({ examples }: { examples: Example[] }) {
+export default function LandingSearch() {
   const router = useRouter();
   const [value, setValue] = useState("");
 
@@ -1611,30 +2014,17 @@ export default function LandingSearch({ examples }: { examples: Example[] }) {
           id="landing-q"
           value={value}
           onChange={(event) => setValue(event.target.value)}
-          placeholder="예: 삼성SDI 유상증자 조달 총액"
+          placeholder="예: Q-047 · 지분공시 · 난이도 상"
           autoComplete="off"
         />
         <button type="submit" className="btn btn-primary">
           검색
         </button>
       </form>
-      <p className="landing-search-note">평가셋 문항을 번호·기업·섹터·본문으로 찾습니다.</p>
-      <div className="example-chips">
-        {examples.map((example) => (
-          <button
-            type="button"
-            className="chip"
-            key={example.questionId}
-            onClick={() => go(example.question)}
-          >
-            {example.questionId}
-            <span aria-hidden="true">·</span>
-            {example.question.length > 34
-              ? `${example.question.slice(0, 34)}…`
-              : example.question}
-          </button>
-        ))}
-      </div>
+      <p className="landing-search-note">
+        평가셋 문항을 번호·문서군·난이도·트랙으로 찾습니다. 🔴 질문 전문과 정답은 공개하지
+        않습니다 — 우리가 만든 라벨이고, 검색 튜닝이 가능한 형태이기 때문입니다.
+      </p>
     </div>
   );
 }
@@ -1734,7 +2124,7 @@ export default function Home() {
             거래소공시·주요사항보고서·지분공시·정기공시를 정규화·색인해 두고, 접수번호 단위 근거와
             추론 트레이스를 함께 돌려주는 DART 공시 질의응답 Agent 입니다.
           </p>
-          <LandingSearch examples={data.examples} />
+          <LandingSearch />
         </div>
       </section>
 
@@ -1797,7 +2187,11 @@ Expected: 오류 0건, `/` 프리렌더 성공.
 - [ ] **Step 10: 육안 확인**
 
 Run: `cd site && npm run dev`
-Expected: 히어로에 `제출 구성 A8` 배지, 검색창, 예시 칩 6개. 지표 카드 4장에 `61/72` · `6/6` · `8/10` · `15/18`. 특성 카드 4장. 예시 칩 클릭 시 `/search?query=...` 로 이동한다 (404 는 정상 — Task 6 에서 만든다). 확인 후 종료.
+Expected: 히어로에 `제출 구성 A8` 배지와 검색창. 🔴 **예시 칩은 없다**(보안 ④).
+지표 카드 4장 — **그리드 · 정보한계 · 회귀 · 골든 근거**. 🔴 **네 값이 `site_meta.json` 과
+글자 단위로 같은지만 본다. 기대값을 여기 적지 않는다** — 세대마다 움직인다.
+🔴 **heldout 카드를 두지 않는다**(보안 ③ — 낙폭 게이트 은퇴 · 동결 원장).
+하단에 세대 라벨(`generation.arm` · `generated`)이 보인다. 특성 카드 4장. 확인 후 종료.
 
 - [ ] **Step 11: 커밋**
 
@@ -1809,6 +2203,22 @@ git commit -m "feat: 홈 — 히어로·질의 검색·헤드라인 지표"
 ---
 
 ### Task 5: 질의응답 트레이스 화면 — 이 사이트의 주력
+
+> 🔴 **2026-08-14 재검토 — 이 Task 는 `R6-MVP` 에서 제외됐다. 보안 ④⑤ 와 정면으로 충돌한다.**
+>
+> 이 화면은 설계상 **질문 전문 + 답변 전문 + 근거 발췌**를 함께 낸다. 그 셋 중 앞의 둘이
+> `evalset` 문항과 우리가 만든 정답에 직접 맞물려 있고(답변은 질문을 되풀어 쓴다),
+> `total_plan §5` 는 **우리 라벨에 부풀림이 있다**고 명시한다(`Q-110` 10× 환산이 judge 통과).
+> **틀렸을 수 있는 것을 "정답 트레이스" 로 발행하는 것**이 이 화면의 위험이다.
+>
+> **되살리는 조건 셋 — 하나라도 빠지면 만들지 않는다.**
+> 1. 🔴 `evalset` 문항이 아닌 **자체 시연 질의**를 쓴다 (평가셋 문항을 재사용하지 않는다).
+>    그 질의의 응답은 **캐시에 없으므로 LLM 호출이 필요하다** — 코드 동결(08-25) 전에는 금지다.
+> 2. 🔴 `A19`(judge 수치 자기일관성 축 · v4 `R3-1`)가 닫혀서 **부풀림 0** 이 확인돼야 한다.
+> 3. 🔴 제출·평가가 끝난 뒤(**09-21 이후**)여야 한다.
+>
+> 아래 원문은 **설계 기록**으로 남긴다. `parse_think_trace`·`parse_evidence`(Task 3)는
+> 그 자체로는 유출이 아니고 `R6-MVP` 의 근거 통계에 쓰이므로 **Task 3 은 유지된다.**
 
 문항 하나를 고르면 **근거(접수번호 + DART 원문 링크) → 추론 단계 → 답변** 이 순서대로 보인다. 공시 Agent 의 성격이 가장 직접적으로 드러나는 화면이다.
 
@@ -1953,6 +2363,12 @@ def _pick_cases(rows: list[dict], limit: int) -> list[dict]:
 
 
 def build_answers(limit: int = 24) -> dict:
+    # 🔴 이월분. 아래 두 줄이 보안 ④⑤ 를 위반한다 — 되살릴 때 반드시 고칠 곳이다:
+    #      "question": response["question"]   ← evalset 질문 전문
+    #      "answer":   response["answer"]     ← 답변이 질문을 되풀어 쓴다 (④ 의 우회로)
+    #    그리고 원천은 `ablation/{gen}/A8/report.json` 으로 옮겨야 한다
+    #    (`error_analysis_v2.json` 은 옛 라벨을 들고 있다 — `total_plan §5`).
+    #    `corp_name` 도 화이트리스트에서 일부러 뺀 필드다.
     rows = read_json("artifacts/eval/error_analysis_v2.json")["rows"]
     with_response = [r for r in rows if _response_of(r["question_id"])]
     picked = _pick_cases(with_response, limit)
@@ -2486,6 +2902,15 @@ git commit -m "feat: 질의응답 트레이스 화면 — 근거·추론단계·
 
 ### Task 6: 상세 검색 — 평가셋 문항 탐색
 
+> 🔴 **2026-08-14 재검토 — `questions[].question` 을 스키마에서 뺐다 (보안 ④).**
+> 종전 판은 `evalset/{questions,regression,valuechain}.jsonl` 의 **질문 전문 전량**을
+> `site_search.json` 에 실었다. 축 메타·채점 결과만 남기고 **질문 문자열은 읽고 버린다.**
+> 검색창은 `question_id`·기업명·문서군·난이도·트랙을 대상으로 한다.
+> `corpName`·`sector` 는 산출물의 값이고 질문 전문이 아니므로 남긴다.
+>
+> 🔴 **그리고 이 Task 도 `R6-MVP` 에는 없다** — 클라이언트 필터 컴포넌트가 필요해서
+> 정적 HTML 5쪽 범위를 넘는다. MVP 는 `/errors` 의 **문항 ID 표**로 같은 정보를 낸다.
+
 **Files:**
 - Modify: `scripts/build_site_data.py` (`build_search` 추가)
 - Modify: `tests/test_site_data.py`
@@ -2503,7 +2928,7 @@ git commit -m "feat: 질의응답 트레이스 화면 — 근거·추론단계·
     - `metadata`
     - `facets: { docGroup: str[], difficulty: str[], taskType: str[], answerMode: str[], track: str[] }`
     - `tracks: [{ id: str, label: str, n: int, note: str }]`
-    - `questions: [{ questionId, question, difficulty, docGroup, taskType, answerMode, track, answerable, corpName, sector, correct, firstFailure }]` — `correct` 는 미측정 시 `null`
+    - `questions: [{ questionId, difficulty, docGroup, taskType, answerMode, track, answerable, corpName, sector, correct, firstFailure }]` — `correct` 는 미측정 시 `null`. 🔴 **`question` 키는 없다 (보안 ④)**
   - `QuestionExplorer` 컴포넌트 + `export type Question` · `export type Facets`
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다 — `tests/test_site_data.py` 맨 끝에 추가**
@@ -2587,9 +3012,10 @@ _TRACK_ORDER = ("grid", "info_limit", "regression", "valuechain")
 
 
 def build_search() -> dict:
+    gen = resolve_generation()
     rows = {
-        r["question_id"]: r
-        for r in read_json("artifacts/eval/error_analysis_v2.json")["rows"]
+        r["question_id"]: {k: r[k] for k in ROW_FIELDS_ALLOWED if k in r}
+        for r in read_json(f"artifacts/ablation/{gen}/A8/report.json")["rows"]
     }
 
     # (파일, 강제 트랙). questions.jsonl 은 grid 와 info_limit 이 섞여 있어
@@ -2617,16 +3043,14 @@ def build_search() -> dict:
                 track = "info_limit" if not item.get("answerable", True) else "grid"
             questions.append(
                 {
+                    # 🔴 `item["question"]` 을 읽지 않는다 (보안 ④). 축 메타만 쓴다.
                     "questionId": qid,
-                    "question": item["question"],
                     "difficulty": item.get("difficulty") or (row or {}).get("difficulty") or "-",
                     "docGroup": (row or {}).get("doc_group") or "-",
                     "taskType": item.get("task_type") or "-",
                     "answerMode": item.get("answer_mode") or "-",
                     "track": track,
                     "answerable": bool(item.get("answerable", True)),
-                    "corpName": (row or {}).get("corp_name") or [],
-                    "sector": (row or {}).get("sector") or "-",
                     "correct": None if row is None else bool(row["correct"]),
                     "firstFailure": (row or {}).get("first_failure"),
                 }
@@ -2651,12 +3075,13 @@ def build_search() -> dict:
 
     return {
         "metadata": metadata(
-            "상세 검색 — 문항 메타와 채점 결과만. 정답값·근거는 싣지 않는다. heldout 제외.",
+            "상세 검색 — 축 메타와 채점 결과만. 🔴 질문 전문·정답값·근거·기업명을 "
+            "싣지 않는다 (보안 ④⑤). heldout 제외.",
             [
                 "evalset/questions.jsonl",
                 "evalset/regression.jsonl",
                 "evalset/valuechain.jsonl",
-                "artifacts/eval/error_analysis_v2.json",
+                f"artifacts/ablation/{gen}/A8/report.json",
             ],
         ),
         "facets": {
@@ -3027,17 +3452,19 @@ git commit -m "feat: 상세 검색 — 트랙·문서군·난이도 탐색"
 - Consumes: `read_json` · `metadata` (Task 2) · `StatCard` (Task 1)
 - Produces:
   - `LADDER_ORDER: tuple[str, ...]` = `("A0","A1","A1b","A4","A5","A6","A7","A8")`
-  - `LOO_ORDER: tuple[str, ...]` = `("L1","L2","L3")`
-  - `ARM_LABELS: dict[str, str]` · `ARM_NOTES: dict[str, str]`
+  - `LOO_ORDER: tuple[str, ...]` = `("L1","L2","L3","L4")`
+  - `DIAGNOSTIC_OR_REJECTED: tuple[str, ...]` = `("ORACLE","A8-lean")`
+  - `resolve_ladder_generation() -> str` · `_fill_findings(ladder_arms) -> list[dict]`
   - `build_ablation() -> dict`
   - `site_ablation.json` 스키마:
     - `metadata`
+    - `generations: { ladder: {arm, generated}, current: {arm, generated}, warning: str }` — 🔴 필수
     - `cohort: { nCases: int, nGrid: int, priceWonPer1k: float }`
     - `ladder: [{ arm, label, note, correct, n, rate, deltaPp: float|null, tokens, costWon, llmCalls, goldenHit, goldenTotal, citationRate, hallucination }]`
-    - `loo: [{ arm, label, note, correct, n, rate, deltaPp }]` — `deltaPp` 는 A8 대비
+    - `loo: [{ arm, label, note, correct, n, rate, deltaPp, generation }]` — `deltaPp` 는 **같은 세대** A8 대비
     - `axes: [{ axis: str, rows: [{ key: str, cells: [{ arm, correct, n, rate }] }] }]`
-    - `ledger: [{ item: str, tokens: int|null, costWon: float, source: str }]` + `ledgerTotalWon: float`
-    - `findings: [{ title: str, body: str }]`
+    - `ledger` + `ledgerTotalWon` + `creditWon` + `ledgerSource` — 🔴 **`parse_ssot()` 파싱값**
+    - `findings: [{ title: str, body: str }]` · `notAdopted` · `verdictSource`
   - `LadderBars` 컴포넌트: `{ rows: LadderRow[] }`
   - `Heatmap` 컴포넌트: `{ arms: string[]; rows: HeatRow[] }`
 
@@ -3049,15 +3476,33 @@ git commit -m "feat: 상세 검색 — 트랙·문서군·난이도 탐색"
 def test_build_ablation_shape():
     payload = bsd.build_ablation()
     assert set(payload) == {
-        "metadata", "cohort", "ladder", "loo", "axes", "ledger", "ledgerTotalWon", "findings",
+        "metadata", "generations", "cohort", "ladder", "loo", "axes",
+        "ledger", "ledgerTotalWon", "creditWon", "ledgerSource",
+        "findings", "notAdopted", "verdictSource",
     }
     assert [row["arm"] for row in payload["ladder"]] == list(bsd.LADDER_ORDER)
-    assert [row["arm"] for row in payload["loo"]] == list(bsd.LOO_ORDER)
+    assert [row["arm"] for row in payload["loo"]] == [
+        name for name in bsd.LOO_ORDER if name in
+        bsd.read_json(f"artifacts/ablation/{bsd.resolve_generation()}/summary.json")["summary"]["arms"]
+    ]
 
 
-def test_build_ablation_ladder_matches_summary():
-    """사다리 수치는 summary.json 을 그대로 옮긴 것이어야 한다."""
-    summary = bsd.read_json("artifacts/ablation/v2/summary.json")["summary"]["arms"]
+def test_build_ablation_labels_both_generations():
+    """🔴 사다리와 LOO 의 세대가 다르다 — 라벨 없이 렌더하면 화면이 세대를 섞는다.
+
+    실측 2026-08-14: 사다리 전 arm(A0~A8)은 v2 에만 있고 v3 는 A8·LOO·진단 arm 만 갖는다.
+    """
+    payload = bsd.build_ablation()
+    gens = payload["generations"]
+    assert gens["ladder"]["arm"] and gens["current"]["arm"]
+    assert gens["ladder"]["generated"] and gens["current"]["generated"]
+    assert "빼지 않는다" in gens["warning"]
+
+
+def test_build_ablation_ladder_matches_its_own_generation():
+    """사다리 수치는 **사다리 세대의** summary.json 을 그대로 옮긴 것이어야 한다."""
+    gen = bsd.resolve_ladder_generation()
+    summary = bsd.read_json(f"artifacts/ablation/{gen}/summary.json")["summary"]["arms"]
     payload = bsd.build_ablation()
     for row in payload["ladder"]:
         arm = summary[row["arm"]]
@@ -3067,11 +3512,18 @@ def test_build_ablation_ladder_matches_summary():
 
 
 def test_build_ablation_a0_to_a1_delta_is_negative():
-    """v2 의 핵심 발견 — A0→A1 이 마이너스다. 부호가 뒤집히면 화면이 거짓말을 한다."""
+    """핵심 발견 — A0→A1 이 마이너스다. 🔴 값이 아니라 **부호**만 단언한다."""
     payload = bsd.build_ablation()
     a1 = next(row for row in payload["ladder"] if row["arm"] == "A1")
     assert a1["deltaPp"] is not None
     assert a1["deltaPp"] < 0
+
+
+def test_build_ablation_a1b_is_the_largest_single_delta():
+    """`doc_subtype` 메타 축이 사다리 최대 전이다 — 이것이 '엣지 재정의는 채택됐다' 의 근거다."""
+    payload = bsd.build_ablation()
+    deltas = {row["arm"]: row["deltaPp"] for row in payload["ladder"] if row["deltaPp"] is not None}
+    assert max(deltas, key=lambda k: deltas[k]) == "A1b"
 
 
 def test_build_ablation_first_row_has_no_delta():
@@ -3080,13 +3532,15 @@ def test_build_ablation_first_row_has_no_delta():
     assert payload["ladder"][0]["deltaPp"] is None
 
 
-def test_build_ablation_loo_deltas_are_against_a8():
+def test_build_ablation_loo_deltas_are_same_generation():
+    """🔴 LOO Δ 의 기준선은 **같은 세대의** A8 이어야 한다 (세대 혼합 뺄셈 금지)."""
     payload = bsd.build_ablation()
-    a8 = bsd.read_json("artifacts/ablation/v2/summary.json")["summary"]["arms"]["A8"]
+    gen = bsd.resolve_generation()
+    a8 = bsd.read_json(f"artifacts/ablation/{gen}/summary.json")["summary"]["arms"]["A8"]
     base = a8["correct"] / a8["n_scored"] * 100
     for row in payload["loo"]:
-        expected = round(row["rate"] * 100 - base, 1)
-        assert row["deltaPp"] == expected, row["arm"]
+        assert row["generation"] == gen
+        assert row["deltaPp"] == round(row["rate"] * 100 - base, 1), row["arm"]
 
 
 def test_build_ablation_axes_cover_three_axes():
@@ -3096,10 +3550,31 @@ def test_build_ablation_axes_cover_three_axes():
     assert [row["key"] for row in difficulty["rows"]] == ["하", "중", "상"]
 
 
-def test_build_ablation_ledger_sums_to_total():
+def test_build_ablation_ledger_mirrors_the_ssot():
+    """🔴 원장은 `docs/total_plan.md` §1 의 **미러**여야 한다 — 사본이 아니다.
+
+    종전 판은 8행을 코드에 상수로 들고 합계 12,846.7원을 단언했다. 그 값은 v2 세대이고
+    지금 정본은 다르다. 이 테스트는 값을 모르고도 어긋남을 잡는다.
+    """
     payload = bsd.build_ablation()
-    total = round(sum(item["costWon"] for item in payload["ledger"]), 1)
-    assert total == payload["ledgerTotalWon"], f"{total} != {payload['ledgerTotalWon']}"
+    ssot = bsd.parse_ssot()
+    assert payload["ledger"] == ssot["spentLedger"]
+    assert payload["ledgerTotalWon"] == ssot["spentWon"]
+    assert round(sum(item["costWon"] for item in payload["ledger"]), 1) == payload["ledgerTotalWon"]
+
+
+def test_build_site_data_has_no_hardcoded_currency():
+    """🔴 빌드 스크립트 소스에 `12846.7` 류의 금액 리터럴이 없어야 한다.
+
+    이 저장소가 열한 번 겪은 결함이 '같은 수를 두 곳에 적고 한쪽만 고치는 것' 이다.
+    여기서는 **소스를 문자열로 훑어** 그 양식 자체를 금지한다.
+    """
+    src = (ROOT / "scripts" / "build_site_data.py").read_text(encoding="utf-8")
+    code = "\n".join(
+        line.split("#", 1)[0] for line in src.splitlines()
+    )   # 주석은 검사 대상이 아니다 (이력 서술에 옛 값이 남아 있어도 된다)
+    # 1,000 이상의 소수 리터럴 = 금액. 허용 예외는 credit 상수 100000 뿐이고 그것은 정수다.
+    assert not re.findall(r"\b\d{3,}\.\d\b", code), "금액 리터럴이 소스에 있다 — 정본을 파싱하라"
 
 
 def test_build_ablation_findings_are_present():
@@ -3117,12 +3592,18 @@ Expected: FAIL — `AttributeError: module 'build_site_data' has no attribute 'b
 
 ```python
 LADDER_ORDER = ("A0", "A1", "A1b", "A4", "A5", "A6", "A7", "A8")
-LOO_ORDER = ("L1", "L2", "L3")
+LOO_ORDER = ("L1", "L2", "L3", "L4")     # 🔴 L4(REFERS_TO 계열)는 v3 에서 신설됐다
+
+# 🔴 진단 arm 은 사다리·LOO 어디에도 넣지 않는다. `summary.json` 의 `diagnostic` 플래그가
+#    코드 쪽 제동이고, 화면 쪽 제동이 이 집합이다.
+#    `ORACLE` — 평가 시점에 골든이 없어 제출 구성이 될 수 없다. **정답률을 성적으로 인용 금지.**
+#    `A8-lean` — 🔴 **쟀고 기각됐다**(그리드 불변 · 오답 집합 문항 단위 동일).
+DIAGNOSTIC_OR_REJECTED = ("ORACLE", "A8-lean")
 
 ARM_LABELS = {
     "A0": "메타 프리필터",
     "A1": "+ BM25 (exchange 만)",
-    "A1b": "+ 인덱스 커버리지",
+    "A1b": "+ 인덱스 커버리지 (doc_subtype 메타 축)",
     "A4": "+ Agent 루프",
     "A5": "+ 계산 Tool",
     "A6": "+ Verifier",
@@ -3131,6 +3612,7 @@ ARM_LABELS = {
     "L1": "A8 − 정정체인 hop",
     "L2": "A8 − major·holding 필드",
     "L3": "A8 − 발주처 2-hop",
+    "L4": "A8 − REFERS_TO 계열",
 }
 
 ARM_NOTES = {
@@ -3142,57 +3624,94 @@ ARM_NOTES = {
     "A6": "계산·완결성 검증기. LLM 호출 0회이므로 한계 비용도 0이다",
     "A7": "정보한계 질의 거절 강제 + 시점 지정 질의 처리. 플래그가 없는 무조건 코드다",
     "A8": "발주처를 노드로 승격해 2-hop. 그리드에서는 발화 0건이고 밸류체인에서만 듣는다",
-    "L1": "정정체인을 따라가지 않으면 무엇을 잃는가",
+    "L1": "정정체인을 따라가지 않으면 무엇을 잃는가 — 최대 낙폭 축 둘 중 하나다",
     "L2": "주요사항·지분공시 스키마 필드를 빼면 무엇을 잃는가",
     "L3": "발주처 hop 을 빼면 무엇을 잃는가 — 그리드에서는 0, 밸류체인에서만 듣는다",
+    "L4": "REFERS_TO 계열을 빼면 무엇을 잃는가 — 그리드 0, 회귀 트랙에서 1문항",
 }
 
-# docs/total_plan.md §1 '누적 지출 — 실측' 표를 그대로 옮긴 것이다.
-# 합계 12,846.7원은 그 문서가 권위값이고, 검산식도 거기 박혀 있다.
-# 🔴 이 표는 '신규 지출' 이다 — 산출물의 totals.cost_won(재생 비용)과 섞으면 이중 계상된다.
-COST_LEDGER = [
-    {"item": "CLOVA 연결 검증 노트북 (25콜)", "tokens": 4230, "costWon": 29.7, "source": "노트북"},
-    {"item": "Phase H v1 오류분석 (dev 42문항)", "tokens": 134538, "costWon": 944.5,
-     "source": "artifacts/eval/error_analysis.json"},
-    {"item": "Ablation v1 (8 arm + heldout 1회)", "tokens": 528168, "costWon": 3707.7,
-     "source": "scripts/ablation_report.V1_PAID_WON"},
-    {"item": "A2 임베딩 (bge-m3)", "tokens": None, "costWon": 113.4,
-     "source": "docs/pipeline/09-ablation.md §I-5c"},
-    {"item": "A7 (표적 16회 + 전수 회귀)", "tokens": None, "costWon": 1244.8,
-     "source": "docs/pipeline/09-ablation.md §I-5d"},
-    {"item": "Phase H v2 재측정 (88문항 + 밸류체인)", "tokens": None, "costWon": 1505.1,
-     "source": "docs/pipeline/08-error-analysis.md 게이트"},
-    {"item": "Ablation v2 (11 구성 + 밸류체인 2구성)", "tokens": None, "costWon": 4627.7,
-     "source": "artifacts/ablation/v2/gate_I.md §1"},
-    {"item": "heldout 최종 1회 (A8 · 18문항)", "tokens": 95984, "costWon": 673.8,
-     "source": "docs/total_plan.md §1"},
-]
+# 🔴 원장을 옮겨 적지 않는다. `parse_ssot()` 가 docs/total_plan.md §1 을 파싱한다 (Task 2).
+#    종전 판은 이 자리에 8행을 상수로 들고 있었고 합계 12,846.7원을 적어 뒀다 —
+#    그 값은 v2 세대이고 지금 정본은 다르며, 사본은 **다음 라운드에 또 낡는다.**
+#    파서는 행 합과 `누적` 행을 둘 다 읽어 어긋나면 빌드를 깬다.
+# 🔴 이 원장은 '신규 지출' 이다 — 산출물의 totals.cost_won(재생 비용)과 섞으면 이중 계상된다.
 
+# 발견 서술. 🔴 **수치는 {중괄호} 자리표시자로만 두고 산출물에서 채운다.**
+#    종전 판은 337,603 · 337,555 · 14.1원 · +56.9%p · +51.4%p · −8.3%p 를 문장에 박아 뒀고
+#    전부 세대가 바뀌며 낡았다 (v3 R2D·R2E 재측정).
 FINDINGS = [
     {
-        "title": "A0 → A1 이 −8.3%p — v1 에서 부호가 뒤집혔다",
+        "title": "A0 → A1 이 {deltaA0A1}%p — v1 에서 부호가 뒤집혔다",
         "body": "BM25 를 켰는데 정답률이 내려간다. 원인은 랭킹이 아니라 커버리지다. "
         "A1 은 정의상 exchange 인덱스만 보므로 주요사항·지분·정기공시 질의가 검색 단계에서 "
-        "통째로 떨어진다. exchange 는 +1건이고 나머지 문서군이 −7건이다. "
+        "통째로 떨어진다. exchange 쪽은 오르고 나머지 문서군에서 그보다 많이 잃는다. "
         "커버리지가 랭킹보다 먼저라는 뜻이고, 그 몫이 곧 A1b 의 Δ 다.",
     },
     {
-        "title": "A5 부터 Δ 가 0인데도 A6·A7·A8 을 다 넣었다",
+        "title": "Δ 가 0이 된 뒤의 arm 도 다 넣었다",
         "body": "판단 기준을 정답률 Δ 가 아니라 한계 비용으로 바꿨기 때문이다. A6 검증기는 "
         "LLM 0회라 비용이 0이고, A7 은 플래그가 없는 무조건 코드다. A8 은 그리드에서 발화가 "
-        "0건이라 Δ 가 측정값이 아니라 정의상 0이다. 통제 증거는 A6·A7·A8·L3 의 토큰이 337,603 으로 "
-        "전 항목 일치한다는 것 — 생성 프롬프트가 바이트 동일임을 LLM 0회로 확인했다. "
-        "(A5 는 337,555 다. Verifier 경고문이 없어 open 채점기 프롬프트가 달라 judge 토큰이 48 어긋나고, "
-        "그 차이가 A5 의 신규 지출 14.1원 전부다. A5 를 통제 증거에 넣으면 산출물과 대조하는 사람에게 "
-        "증거 전체가 의심받는다.)",
+        "0건이라 Δ 가 측정값이 아니라 정의상 0이다. 통제 증거는 A6·A7·A8·L3 의 토큰이 "
+        "{controlTokens} 으로 전 항목 일치한다는 것 — 생성 프롬프트가 바이트 동일임을 "
+        "LLM 0회로 확인했다. (A5 는 {a5Tokens} 이다. Verifier 경고문이 없어 open 채점기 "
+        "프롬프트가 달라 judge 토큰이 {judgeTokenGap} 어긋난다. A5 를 통제 증거에 넣으면 "
+        "산출물과 대조하는 사람에게 증거 전체가 의심받는다.) "
+        "🔴 꺾이는 지점은 A5 가 아니라 A4 다 — A4=A5=A6=A7=A8 이다.",
     },
     {
         "title": "성능은 A1b·A4 두 arm 에서 나왔고, 둘 다 LLM 을 더 쓰는 것이 아니다",
-        "body": "두 arm 의 Δ 합이 +56.9%p(38.889 + 18.056)인데 A0→A8 전체 순증은 +51.4%p 다. 두 arm 의 몫이 "
-        "전체보다 큰 것은 사이에서 A1 이 −8.3%p 를 깎았기 때문이고, 그래서 '성능의 몇 %' 같은 "
-        "비율로 적을 수 없다. 두 arm 의 실체는 규칙 파싱과 도구 호출이다.",
+        "body": "두 arm 의 Δ 합이 {twoArmSum}%p 인데 A0→A8 전체 순증은 {netGain}%p 다. "
+        "두 arm 의 몫이 전체보다 큰 것은 사이에서 A1 이 깎았기 때문이고, 그래서 "
+        "'성능의 몇 %' 같은 비율로 적을 수 없다. 두 arm 의 실체는 규칙 파싱과 도구 호출이다. "
+        "A1b 는 `doc_subtype` 을 탐색 축이 아니라 **메타 축**으로 쓴 것이고, 그것이 "
+        "사다리 최대 전이다 — 🔴 기각된 것은 GraphRAG 가 아니라 **기업—기업 엣지 정의** 하나다.",
     },
 ]
+
+
+def _fill_findings(ladder_arms: dict) -> list[dict]:
+    """FINDINGS 의 자리표시자를 산출물 값으로 채운다. 🔴 여기 리터럴 수치가 없다.
+
+    🔴 **사다리 세대의 arms 만 받는다.** A0~A5 는 사다리 세대에만 있고 현 세대에는 없다
+    (실측 2026-08-14: v3 의 `summary.arms` 는 A8·L1·L2·L3·L4·A8-lean·ORACLE 뿐이다).
+    두 세대를 한 문장에 섞으면 그것이 `total_plan §0b` 가 금지한 세대 혼합 뺄셈이다.
+    """
+    def pp(name: str, base: str) -> str:
+        return f"{(ladder_arms[name]['rate'] - ladder_arms[base]['rate']) * 100:+.1f}"
+
+    a8_tokens = ladder_arms["A8"]["tokens"]
+    a5_tokens = ladder_arms["A5"]["tokens"]
+    values = {
+        "deltaA0A1": pp("A1", "A0"),
+        "controlTokens": f"{a8_tokens:,}",
+        "a5Tokens": f"{a5_tokens:,}",
+        "judgeTokenGap": f"{abs(a8_tokens - a5_tokens):,}",
+        "twoArmSum": f"{(ladder_arms['A4']['rate'] - ladder_arms['A1']['rate']) * 100:+.1f}",
+        "netGain": f"{(ladder_arms['A8']['rate'] - ladder_arms['A0']['rate']) * 100:+.1f}",
+    }
+    return [
+        {"title": f["title"].format(**values), "body": f["body"].format(**values)}
+        for f in FINDINGS
+    ]
+
+
+LADDER_ARMS_REQUIRED = ("A0", "A1", "A1b", "A4", "A5", "A6", "A7", "A8")
+
+
+def resolve_ladder_generation() -> str:
+    """🔴 사다리(A0→A8)를 가진 **가장 새로운** 세대를 고른다.
+
+    사다리는 세대마다 다시 재는 것이 아니다 — v3·v4 는 `A8` 과 LOO 만 재측정한다.
+    그래서 `/ablation` 화면은 **두 세대를 나란히 두고 라벨을 붙여야 한다.**
+    """
+    for gen in GENERATIONS:
+        path = REPO / "artifacts" / "ablation" / gen / "summary.json"
+        if not path.exists():
+            continue
+        arms = json.loads(path.read_text(encoding="utf-8"))["summary"]["arms"]
+        if all(name in arms for name in LADDER_ARMS_REQUIRED):
+            return gen
+    raise FileNotFoundError("사다리 전 arm 을 가진 세대가 없다")
 
 
 def _rate_pp(arm: dict) -> float:
@@ -3200,10 +3719,15 @@ def _rate_pp(arm: dict) -> float:
 
 
 def build_ablation() -> dict:
-    raw = read_json("artifacts/ablation/v2/summary.json")
+    # 🔴 두 세대를 **따로** 읽고 라벨을 붙인다. 섞어 뺄셈하지 않는다.
+    ladder_gen = resolve_ladder_generation()      # 사다리 A0→A8 을 가진 세대
+    current_gen = resolve_generation()            # 현 세대 (A8 · LOO)
+    raw = read_json(f"artifacts/ablation/{ladder_gen}/summary.json")
     meta = raw["meta"]
     summary = raw["summary"]
     arms = summary["arms"]
+    current = read_json(f"artifacts/ablation/{current_gen}/summary.json")
+    current_arms = current["summary"]["arms"]
 
     ladder = []
     previous: float | None = None
@@ -3230,10 +3754,13 @@ def build_ablation() -> dict:
         )
         previous = rate_pp
 
-    base_pp = _rate_pp(arms["A8"])
+    # 🔴 LOO 는 **현 세대**에서 뽑는다. 기준선도 같은 세대의 A8 이다.
+    base_pp = _rate_pp(current_arms["A8"])
     loo = []
     for name in LOO_ORDER:
-        arm = arms[name]
+        arm = current_arms.get(name)
+        if arm is None:          # 세대에 그 LOO 축이 없으면 조용히 빼지 않고 건너뛴 사실을 남긴다
+            continue
         loo.append(
             {
                 "arm": name,
@@ -3243,6 +3770,7 @@ def build_ablation() -> dict:
                 "n": arm["n_scored"],
                 "rate": round(arm["rate"], 4),
                 "deltaPp": round(_rate_pp(arm) - base_pp, 1),
+                "generation": current_gen,
             }
         )
 
@@ -3272,11 +3800,26 @@ def build_ablation() -> dict:
             )
         axes.append({"axis": axis_name, "rows": rows})
 
+    ssot = parse_ssot()
     return {
         "metadata": metadata(
-            "Ablation v2 — 사다리 8구성 + LOO 3구성 + 축별 분해 + 비용 원장",
-            ["artifacts/ablation/v2/summary.json", "docs/total_plan.md"],
+            "Ablation — 사다리 8구성 + LOO + 축별 분해 + 비용 원장. "
+            "🔴 사다리와 LOO 는 세대가 다르다. 라벨을 붙여 렌더하고 서로 빼지 않는다.",
+            [
+                f"artifacts/ablation/{ladder_gen}/summary.json",
+                f"artifacts/ablation/{current_gen}/summary.json",
+                SSOT_MD,
+            ],
         ),
+        # 🔴 두 세대 라벨. 화면에서 사다리 표와 LOO 표 머리에 각각 붙인다.
+        "generations": {
+            "ladder": {"arm": ladder_gen, "generated": meta["generated"]},
+            "current": {"arm": current_gen, "generated": current["meta"]["generated"]},
+            "warning": (
+                "사다리와 LOO 의 세대가 다르면 두 표의 값을 서로 빼지 않는다. "
+                "세대 간 입력 차이가 있어 그 뺄셈은 어느 시스템의 값도 아니다."
+            ),
+        },
         "cohort": {
             "nCases": meta["n_cases"],
             "nGrid": arms["A8"]["n_grid"],
@@ -3285,11 +3828,27 @@ def build_ablation() -> dict:
         "ladder": ladder,
         "loo": loo,
         "axes": axes,
-        "ledger": COST_LEDGER,
-        "ledgerTotalWon": round(sum(item["costWon"] for item in COST_LEDGER), 1),
-        "findings": FINDINGS,
+        # 🔴 원장은 정본 마크다운 파싱값이다. 여기에 상수 표를 두지 않는다.
+        "ledger": ssot["spentLedger"],
+        "ledgerTotalWon": ssot["spentWon"],
+        "creditWon": ssot["creditWon"],
+        "ledgerSource": f"{SSOT_MD} §1",
+        "findings": _fill_findings(arms),
+        # 🔴 기각·진단 arm 을 사다리에 섞지 않고 **따로** 낸다. 판정 정본은 링크로 가리킨다.
+        "verdictSource": "docs/pipeline/09-ablation.md §I-5f ⑧",
+        "notAdopted": [
+            {"arm": name, "correct": current_arms[name]["correct"], "n": current_arms[name]["n_scored"]}
+            for name in DIAGNOSTIC_OR_REJECTED
+            if name in current_arms
+        ],
     }
 ```
+
+🔴 **`notAdopted` 의 정답률을 성적으로 렌더하지 마라.** `ORACLE` 은 진단 arm 이고(평가 시점에
+골든이 없다) 현 세대에서 `A8` 보다 **낮다** — 상한도 아니다. `A8-lean` 은 **쟀고 기각**됐다.
+화면에는 **"이것은 성적이 아니다" 라는 라벨과 함께** 낸다. 기각 목록의 정본은
+`docs/pipeline/09-ablation.md §I-5f ⑧` 이고, 그 대장이 `A3`·`A11`·`A9`·`A8-lean`·`A16`·`T1-full`·
+`T1-md`·`A2`·`A1b-clova`·`A4-rr` 을 들고 있다 — **사이트는 그 목록을 복사하지 않고 링크한다.**
 
 `BUILDERS` 에 한 줄 추가:
 
@@ -3302,7 +3861,16 @@ def build_ablation() -> dict:
 Run: `python -m pytest tests/test_site_data.py -k "ablation" -v`
 Expected: 8건 PASS.
 
-`test_build_ablation_ledger_sums_to_total` 이 실패하면 원장 합계가 `docs/total_plan.md` §1 의 12,846.7원과 어긋난 것이다. **테스트를 고치지 말고 `COST_LEDGER` 를 문서 값에 맞춘다** — 그 문서가 권위값이고, 합계를 **네 번** 틀린 이력이 있다(§1 의 정정 ①~④).
+🔴 **`test_build_ablation_ledger_mirrors_the_ssot` 가 실패하는 두 경우를 가른다.**
+
+| 증상 | 뜻 | 처방 |
+|---|---|---|
+| `parse_ssot()` 가 `ValueError`(행 합 ≠ `누적`) | **정본 안에서 두 수가 갈렸다** | 🔴 **사이트가 아니라 `docs/total_plan.md` 를 고친다.** §1 은 그 사고를 실제로 겪었다 — 표 · `누적` 행 · 검산식 · §0 머리말 **네 자리를 한 커밋에서** 고친다 |
+| `payload["ledger"] != ssot["spentLedger"]` | 빌드가 파싱값을 가공했다 | 빌드에서 가공을 뺀다. **원장은 미러다** |
+| `parse_ssot()` 가 `ValueError`(표를 못 찾음) | 문서 서식이 바뀌었다 | 파서를 고친다. 🔴 **값을 코드에 옮겨 적어 우회하지 않는다** |
+
+🔴 **어느 경우에도 `COST_LEDGER` 같은 상수를 되살리지 않는다.** 종전 판이 그 상수를 두었고,
+그것이 이 계획서가 세 세대를 낡은 채로 살아 있게 한 원인이다.
 
 - [ ] **Step 5: 생성과 유출 게이트 재확인**
 
@@ -3573,7 +4141,11 @@ export default function AblationPage() {
     <main className="section">
       <div className="container">
         <div className="section-heading">
-          <span className="badge">Ablation v2 · 그리드 {data.cohort.nGrid}문항</span>
+          {/* 🔴 세대를 문자열로 박지 않는다. 사다리 세대와 현 세대가 다를 수 있다 */}
+          <span className="badge">
+            사다리 {data.generations.ladder.arm} · 현 세대 {data.generations.current.arm} · 그리드{" "}
+            {data.cohort.nGrid}문항
+          </span>
           <h1>무엇이 성능을 벌었는지 하나씩 떼어보고 확인했다</h1>
           <p className="lead">
             구성요소를 하나씩 켜 올리는 사다리 8구성과, 완성 구성에서 하나씩 빼는 LOO 3구성입니다.
@@ -3597,7 +4169,10 @@ export default function AblationPage() {
           <StatCard
             label="누적 지출"
             value={`${data.ledgerTotalWon.toLocaleString("ko-KR")}원`}
-            helper="웰컴 크레딧 100,000원 기준"
+            helper={`웰컴 크레딧 ${data.creditWon.toLocaleString("ko-KR")}원 기준 · ${(
+              (data.ledgerTotalWon / data.creditWon) *
+              100
+            ).toFixed(1)}%`}
           />
         </section>
 
@@ -3692,6 +4267,9 @@ export default function AblationPage() {
             <h2>전 파이프라인 누적 지출</h2>
             <p className="lead">
               전부 API 응답의 <code>usage</code> 필드 실측입니다. 추정치는 없습니다.
+              이 표는 <code>{data.ledgerSource}</code> 를 빌드 시점에 파싱한 것이며, 행 합과
+              누적 행이 어긋나면 빌드가 실패합니다 — 🔴 <strong>사이트가 정본을 복사하지 않습니다.</strong>
+              기각된 구성의 지출도 원장에 싣습니다. 빼면 다음 사람이 같은 것을 다시 삽니다.
             </p>
           </div>
           <div className="table-wrap">
@@ -3743,7 +4321,22 @@ Expected: 오류 0건, `/ablation` 프리렌더 성공.
 - [ ] **Step 11: 육안 확인 — 부호가 화면에서 맞는지**
 
 Run: `cd site && npm run dev`
-Expected: `/ablation` 에서 사다리 8행. **A1 행의 막대가 빨간색이고 Δ 가 `−8.3%p`** 다. A1b 는 `+38.9%p`, A4 는 `+18.1%p`. LOO 표에서 L1 `−8.3%p` · L2 `−15.3%p` · L3 `+0.0%p`. 히트맵 3개(난이도·답변 형태·질의 유형)에서 난이도 '상' 행이 A1b→A4 구간에서 눈에 띄게 진해진다. 원장 마지막 행이 `12,847원`. 확인 후 종료.
+Expected: `/ablation` 에서 사다리 8행 + LOO 표. 🔴 **기대 Δ 값을 여기 적지 않는다** — 세대마다
+움직이고, 적으면 그것이 열두 번째 하드코딩이다. 대신 **구조와 부호**를 본다:
+
+```
+사다리 8행이 A0…A8 순서로 있다
+A1 행의 막대가 빨간색이다              (Δ < 0 — 이 곡선의 핵심 발견)
+최대 단일 Δ 행이 A1b 다                (doc_subtype 메타 축 = 사다리 최대 전이)
+A4 이후 행의 Δ 가 전부 0.0%p 다         (꺾이는 지점은 A5 가 아니라 A4)
+LOO 표에서 L2 가 가장 큰 음수다         (최대 병목 = n-ary 이벤트 노드 속성)
+L3·L4 는 그리드에서 0.0%p 다            (밸류체인·회귀에서만 듣는다 — 그 라벨이 붙어 있다)
+🔴 사다리 표와 LOO 표 머리에 **서로 다른 세대 라벨**이 붙어 있다
+🔴 원장 마지막 행이 site_ablation.json 의 ledgerTotalWon 과 글자 단위로 같다
+🔴 heldout 카드·ORACLE 정답률이 성적 자리에 없다
+```
+
+확인 후 종료.
 
 - [ ] **Step 12: 커밋**
 
@@ -3772,7 +4365,7 @@ git commit -m "feat: 기여도 사다리 — A0→A8 · LOO · 축별 분해 · 
   - `site_errors.json` 스키마:
     - `metadata`
     - `totals: { questions, llmCalls, totalTokens, costWon, costWonScope, hopsTotal, stepsMax }`
-      🔴 **`latencySMean` 을 싣지 않는다.** `error_analysis_v2.json > totals.latency_s_mean`
+      🔴 **`latencySMean` 을 싣지 않는다.** `report.json > totals.latency_s_mean`
       은 응답 파일에 **기록된** 벽시계 시간의 평균이고, 그 파일을 만들 때 요청 캐시가
       적중했다면 파이프라인이 **~1ms** 에 끝난 시간이 저장돼 있다(A0 3.73초 vs A5·A8
       0.02~0.03초). 편향이 **언제나 빠르게 보이는 한 방향**이라 UI 에 "평균 응답 시간" 으로
@@ -3802,24 +4395,54 @@ def test_build_errors_shape():
     assert [s["stage"] for s in payload["stages"]] == list(bsd.STAGE_ORDER)
 
 
-def test_build_errors_grid_failure_count_is_eleven():
-    """그리드 72문항의 잔여 실패는 11건이다 — 분모를 붙이지 않으면 13·12 와 헷갈린다."""
+def test_build_errors_grid_failures_are_self_consistent():
+    """🔴 값을 못박지 않는다 — **자기일관성**으로 잡는다.
+
+    종전 판은 `== 11` 을 단언했다. 그 수는 v3 R2D 에서 6 이 됐고, 그때 이 테스트는
+    '사이트가 낡았다' 가 아니라 '테스트가 낡았다' 로 깨졌을 것이다.
+    이제는 단계 합 == (그리드 분모 − 정답) 인지만 본다. 어느 세대에서도 성립해야 한다.
+    """
     payload = bsd.build_errors()
-    assert sum(s["gridCount"] for s in payload["stages"]) == 11
+    gen = bsd.resolve_generation()
+    rows = bsd.read_json(f"artifacts/ablation/{gen}/A8/report.json")["rows"]
+    grid = [r for r in rows if r["track"] == "grid"]
+    wrong = [r for r in grid if not r["correct"]]
+    assert sum(s["gridCount"] for s in payload["stages"]) == len(wrong)
 
 
 def test_build_errors_lists_three_denominators():
+    """세 분모가 **각자 라벨과 함께** 있는지만 본다. 값은 세대마다 움직인다."""
     payload = bsd.build_errors()
-    assert [d["value"] for d in payload["denominators"]] == [13, 11, 12]
-    assert all({"value", "denominator", "what", "composition"} == set(d) for d in payload["denominators"])
+    keys = [d["key"] for d in payload["denominators"]]
+    assert keys == ["overall", "grid", "attributed"]
+    assert all({"key", "value", "denominator", "what", "composition"} == set(d)
+               for d in payload["denominators"])
+    # 🔴 분모 라벨에 반드시 수가 붙어 있어야 한다 — 라벨 없는 수치가 이 저장소를 한 번 오판시켰다
+    assert all(d["denominator"] for d in payload["denominators"])
+    by_key = {d["key"]: d["value"] for d in payload["denominators"]}
+    assert by_key["overall"] >= by_key["grid"]        # 그리드는 전체의 부분집합이다
+    assert by_key["overall"] >= by_key["attributed"]  # 배분은 오답의 부분집합이다
 
 
-def test_build_errors_tool_and_routing_are_zero_in_grid():
-    """Phase H 의 결론 — 병목은 RETRIEVAL 쪽이고 TOOL 은 0건이다."""
+def test_build_errors_masks_amounts_in_free_text():
+    """🔴 보안 ⑤ — `failure_why` 의 6자리 이상 숫자가 마스킹돼야 한다."""
     payload = bsd.build_errors()
-    by_stage = {s["stage"]: s["gridCount"] for s in payload["stages"]}
-    assert by_stage["TOOL"] == 0
-    assert by_stage["ROUTING"] == 0
+    for f in payload["failures"]:
+        assert not re.search(r"\d[\d,]{5,}", f["failureWhy"]), f["questionId"]
+
+
+def test_build_errors_stage_histogram_is_not_asserted_by_value():
+    """🔴 단계별 0/비0 을 못박지 않는다.
+
+    종전 판은 `TOOL == 0` · `ROUTING == 0` 을 단언했다. `Q-097` 은 실제로
+    `root_cause=TOOL` 로 찍혀 있었고(v4 `R0-2`), 그 단언은 세대에 따라 깨진다.
+    여기서는 **분포가 원천과 같은지**만 본다.
+    """
+    payload = bsd.build_errors()
+    gen = bsd.resolve_generation()
+    source = bsd.read_json(f"artifacts/ablation/{gen}/A8/report.json")["failure_histogram_grid"]
+    for s in payload["stages"]:
+        assert s["gridCount"] == source.get(s["stage"], 0), s["stage"]
 
 
 def test_build_errors_failures_are_wrong_answers_only():
@@ -3829,7 +4452,8 @@ def test_build_errors_failures_are_wrong_answers_only():
 
 
 def test_build_errors_doc_group_rates_match_source():
-    source = bsd.read_json("artifacts/eval/error_analysis_v2.json")["by_doc_group_grid"]
+    gen = bsd.resolve_generation()
+    source = bsd.read_json(f"artifacts/ablation/{gen}/A8/report.json")["by_doc_group_grid"]
     payload = bsd.build_errors()
     for row in payload["byDocGroup"]:
         assert row["correct"] == source[row["docGroup"]]["correct"]
@@ -3876,42 +4500,60 @@ STAGE_NOTES = {
     "VERIFY": "검증 단계가 잡아내지 못했거나 잘못 잡았다",
 }
 
-# docs/total_plan.md §5 '잔여 실패의 세 가지 수' 표를 그대로 옮긴 것이다.
-# 🔴 세 수를 나란히 두고 각자 분모를 붙이는 것이 이 화면의 요점이다.
-DENOMINATORS = [
+# 🔴 분모는 **정의**라서 여기 두고, **값은 산출물에서 센다.**
+#    종전 판은 세 값(13 · 11 · 12)과 구성 문자열까지 상수로 들고 있었다.
+#    그 셋은 v3 R2D 재측정에서 전부 바뀌었고(그리드 잔여 10건 → v4 R0 시점 6건)
+#    구성 문자열(`GENERATION 5 · VERIFY 3 …`)도 F3 의 귀속 순서 수정으로 낡았다.
+#    🔴 `total_plan §5` 는 그 파일(`error_analysis_v2.json`)이 **옛 라벨을 들고 있다**고
+#    명시한다 — 그래서 원천을 `ablation/{gen}/A8/report.json` 으로 옮겼다.
+DENOMINATOR_DEFS = [
     {
-        "value": 13,
+        "key": "overall",
         "denominator": "전체 88 (그리드 72 + 정보한계 6 + 회귀 10)",
-        "what": "원문까지 대조해 배분한 오답 전부",
-        "composition": "그리드 11 + 회귀 트랙 2 (Q-065 · Q-066)",
+        "what": "A8 오답 전량",
     },
     {
-        "value": 11,
+        "key": "grid",
         "denominator": "그리드 72",
-        "what": "정답률 판정에 쓰는 잔여 실패",
-        "composition": "GENERATION 5 · VERIFY 3 · RETRIEVAL 2 · RANKING 1",
+        "what": "정답률 판정에 쓰는 잔여 실패 — 🔴 성적의 축은 이 분모 하나다",
     },
     {
-        "value": 12,
-        "denominator": "전체 88 오답 13 − A3 겨냥 1건",
-        "what": "arm 겨냥 배분 (A3 는 arm 보류라 빠진다)",
-        "composition": "A4 5 → A5 4 → A1b 2 → A6 1",
+        "key": "attributed",
+        "denominator": "전체 88 오답 − 미배분",
+        "what": "arm 겨냥 배분. 🔴 미배분은 그 라운드 부작용이라 배분표에 자리가 없다",
     },
 ]
 
-# docs/total_plan.md §4 '데이터 상한' 표.
+DENOMINATOR_SOURCE = "docs/total_plan.md §5 '잔여 실패의 세 가지 수'"
+
+# 🔴 데이터 상한 표는 `docs/total_plan.md` §4 가 정본이고, 그 규모 수치는 **코퍼스 프로파일**에서
+#    나온 것이라 재측정 대상이 아니다. 그래도 여기 옮겨 적지 않는다 — 옮겨 적은 판에서
+#    이미 한 건이 어긋났다("임상·품목허가 105건 vs total_plan 166건, 출처 미확인").
+#    사이트는 **항목명과 사유만** 들고 규모는 §4 를 링크한다. 🔴 링크가 값보다 늙지 않는다.
 DATA_LIMITS = [
-    {"item": "공시유보 계약", "scale": "66건", "why": "경영상 비밀유지로 원본 값이 '-' 다"},
-    {"item": "임상·품목허가 공시", "scale": "105건", "why": "애초에 금액 항목이 없는 서식이다 (total_plan §4 의 166건은 출처 미확인)"},
-    {"item": "※ 관련공시 미해소", "scale": "49.2% (1,005건)", "why": "2023-01-01 이전 문서를 참조한다"},
-    {"item": "정정 원본 부재", "scale": "45.5%", "why": "원본이 코퍼스 밖이다"},
-    {"item": "정기공시 본문 부재", "scale": "2건", "why": "수집본이 뷰어 셸뿐이고 본문은 PDF 만 있다"},
-    {"item": "합병·분할·교환이전 금액", "scale": "24건", "why": "서식에 단일 '금액' 칸이 없다"},
+    {"item": "공시유보 계약", "why": "경영상 비밀유지로 원본 값이 '-' 다"},
+    {"item": "임상·품목허가 공시", "why": "애초에 금액 항목이 없는 서식이다"},
+    {"item": "※ 관련공시 미해소", "why": "코퍼스 수집 시작일 이전 문서를 참조한다"},
+    {"item": "정정 원본 부재", "why": "원본이 코퍼스 밖이다"},
+    {"item": "정기공시 본문 부재", "why": "수집본이 뷰어 셸뿐이고 본문은 PDF 만 있다"},
+    {"item": "합병·분할·교환이전 금액", "why": "서식에 단일 '금액' 칸이 없다"},
 ]
+
+DATA_LIMITS_SOURCE = "docs/total_plan.md §4 '데이터 상한 — 노력으로 넘을 수 없는 것'"
+
+
+def _mask_amounts(text: str) -> str:
+    """🔴 자유 서술에서 6자리 이상 숫자를 마스킹한다 (보안 ⑤).
+
+    `failure_why` 는 사람이 쓴 문장이고 골든 값이 인용돼 있을 수 있다 —
+    실측 2026-08-14: 현 세대 88행 중 **3행**에 6자리 이상 숫자가 있다.
+    """
+    return re.sub(r"\d[\d,]{5,}", "(수치 생략)", text or "")
 
 
 def build_errors() -> dict:
-    data = read_json("artifacts/eval/error_analysis_v2.json")
+    gen = resolve_generation()
+    data = read_json(f"artifacts/ablation/{gen}/A8/report.json")
     totals = data["totals"]
     grid_hist = data["failure_histogram_grid"]
     all_hist = data["failure_histogram"]
@@ -3958,7 +4600,7 @@ def build_errors() -> dict:
             "taskType": r["task_type"],
             "firstFailure": r["first_failure"],
             "rootCause": r["root_cause"] or "-",
-            "failureWhy": r["failure_why"] or "-",
+            "failureWhy": _mask_amounts(r["failure_why"]) or "-",   # 🔴 보안 ⑤
             "hasCitation": bool(r["has_citation"]),
         }
         for r in data["rows"]
@@ -3966,11 +4608,38 @@ def build_errors() -> dict:
     ]
     failures.sort(key=lambda f: (STAGE_ORDER.index(f["firstFailure"]) if f["firstFailure"] in STAGE_ORDER else 99, f["questionId"]))
 
+    # 🔴 세 분모의 **값을 센다.** 상수로 두지 않는다.
+    grid_rows = [r for r in data["rows"] if r["track"] == "grid"]
+    overall_wrong = [r for r in data["rows"] if not r["correct"]]
+    grid_wrong = [r for r in grid_rows if not r["correct"]]
+    attributed = [r for r in overall_wrong if r["first_failure"]]
+    counted = {
+        "overall": len(overall_wrong),
+        "grid": len(grid_wrong),
+        "attributed": len(attributed),
+    }
+    denominators = [
+        dict(
+            d,
+            value=counted[d["key"]],
+            composition=", ".join(
+                f"{STAGE_LABELS.get(stage, stage)} {n}"
+                for stage, n in sorted(grid_hist.items(), key=lambda kv: -kv[1])
+                if n
+            ) if d["key"] == "grid" else "",
+        )
+        for d in DENOMINATOR_DEFS
+    ]
+
     return {
         "metadata": metadata(
-            "실패 해부 — 6단계 귀속, 근본 원인, 문서군별, 분모 세 개. golden 라벨은 싣지 않는다.",
-            ["artifacts/eval/error_analysis_v2.json", "docs/total_plan.md"],
+            "실패 해부 — 6단계 귀속, 근본 원인, 문서군별, 분모 세 개. "
+            "🔴 golden 라벨·질문 전문·답변 전문을 싣지 않는다 (보안 ④⑤).",
+            [f"artifacts/ablation/{gen}/A8/report.json", SSOT_MD],
         ),
+        "generation": {"arm": gen},
+        "denominatorSource": DENOMINATOR_SOURCE,
+        "dataLimitsSource": DATA_LIMITS_SOURCE,
         "totals": {
             "questions": totals["questions"],
             "llmCalls": totals["llm_calls"],
@@ -3984,7 +4653,7 @@ def build_errors() -> dict:
         "stages": stages,
         "rootCauses": root_causes,
         "byDocGroup": doc_groups,
-        "denominators": DENOMINATORS,
+        "denominators": denominators,
         "failures": failures,
         "dataLimits": DATA_LIMITS,
     }
@@ -3999,18 +4668,29 @@ def build_errors() -> dict:
 - [ ] **Step 4: 테스트 통과 확인**
 
 Run: `python -m pytest tests/test_site_data.py -k "errors" -v`
-Expected: 8건 PASS.
+Expected: 전건 PASS. 🔴 **건수를 여기 적지 않는다.**
 
-`test_build_errors_grid_failure_count_is_eleven` 이 실패하면 `failure_histogram_grid` 의 합이 11이 아닌 것이다. 아래로 실제 값을 확인하고, 11이 아니면 **테스트 숫자가 아니라 `docs/total_plan.md` §5 를 함께 확인한다** — 그 문서가 권위값이고 분모가 세 개라는 것이 요점이다.
+`test_build_errors_grid_failures_are_self_consistent` 가 실패하면 **단계 히스토그램과
+문항별 채점이 어긋난 것**이다 — 사이트 버그가 아니라 **산출물 안의 불일치**일 수 있다.
+아래로 세 수를 각자의 분모와 함께 확인한다:
 
 ```bash
-python -c "
-import json
-d=json.load(open('artifacts/eval/error_analysis_v2.json',encoding='utf-8'))
-print('grid:', d['failure_histogram_grid'], sum(d['failure_histogram_grid'].values()))
-print('all :', d['failure_histogram'], sum(d['failure_histogram'].values()))
+PYTHONIOENCODING=utf-8 python -c "
+import json,pathlib
+gen=next(g for g in ('v4','v3','v2') if pathlib.Path(f'artifacts/ablation/{g}/summary.json').exists())
+d=json.load(open(f'artifacts/ablation/{gen}/A8/report.json',encoding='utf-8'))
+rows=d['rows']; grid=[r for r in rows if r['track']=='grid']
+print('세대', gen)
+print('그리드 분모', len(grid), '오답', len([r for r in grid if not r['correct']]))
+print('전체 분모', len(rows), '오답', len([r for r in rows if not r['correct']]))
+print('grid hist:', d['failure_histogram_grid'], sum(d['failure_histogram_grid'].values()))
+print('all  hist:', d['failure_histogram'], sum(d['failure_histogram'].values()))
 "
 ```
+
+🔴 **어긋나면 `total_plan §5` 와 `09-ablation §I-5f ⑧` 을 함께 본다.** 그 절이
+"자동 arm 배분표는 원문 대조와 **원리적으로** 일치시킬 수 없다" 고 적어 뒀다 —
+사이트는 **자동 배분값을 렌더하고 그 한계를 화면에 적는다.** 값을 손으로 맞추지 않는다.
 
 - [ ] **Step 5: 생성과 유출 게이트 재확인**
 
@@ -4163,14 +4843,18 @@ export default function ErrorsPage() {
           <div className="section-heading compact">
             <span className="badge">🔴 분모를 반드시 붙인다</span>
             <h2>잔여 실패의 세 가지 수</h2>
+            {/* 🔴 세 값을 문장에 적지 않는다 — 재측정마다 바뀐다. 카드가 산출물 값을 낸다 */}
             <p className="lead">
-              13 · 11 · 12 는 서로 다른 것을 셉니다. 분모를 떼면 합이 맞지 않아 보이고, 그러면 다음 사람이
-              엉뚱한 것을 고칩니다. 이 프로젝트는 같은 유형으로 이미 두 번 틀렸습니다.
+              아래 세 수는 <strong>서로 다른 것을 셉니다.</strong> 분모를 떼면 합이 맞지 않아 보이고,
+              그러면 다음 사람이 엉뚱한 것을 고칩니다. 이 프로젝트는 같은 유형으로 이미 두 번 틀렸습니다.
+              🔴 그리고 자동 배분표는 원문 대조와 <strong>원리적으로</strong> 일치시킬 수 없습니다 —
+              아래 값은 자동 배분이고, 원문 대조 결과는{" "}
+              <code>{data.denominatorSource}</code> 에 있습니다.
             </p>
           </div>
           <div className="grid grid-3">
             {data.denominators.map((item) => (
-              <article className="card denominator-card" key={item.value}>
+              <article className="card denominator-card" key={item.key}>
                 <p className="eyebrow">오답 수</p>
                 <div className="metric">{item.value}</div>
                 <dl>
@@ -4452,11 +5136,23 @@ def test_build_counterparty_hubs_are_sorted_and_capped():
     assert all(len(h["partners"]) >= 2 for h in hubs)
 
 
-def test_build_counterparty_edge_density_supports_graphrag_rejection():
-    """엣지 밀도 12.4% — GraphRAG 기각의 근거다. 부호가 뒤집히면 화면이 거짓말을 한다."""
+def test_build_counterparty_edge_density_supports_edge_definition_rejection():
+    """🔴 기각된 것은 **기업—기업 엣지 정의** 하나다 — GraphRAG 가 아니다.
+
+    `total_plan §7` · `03-graph-schema.md:68` 이 그 구분을 명시적으로 요구한다.
+    여기서는 값이 아니라 **부등호**만 본다 (기재율은 높고 밀도는 낮다).
+    """
     payload = bsd.build_counterparty()
     assert payload["edgeDensity"]["strictDensity"] < 0.2
     assert payload["edgeDensity"]["fillRate"] > 0.9
+
+
+def test_build_counterparty_verdict_does_not_say_graphrag_rejected():
+    """🔴 서술 회귀 방지 — 'GraphRAG 를 기각' 이라는 문구가 화면 데이터에 없어야 한다."""
+    blob = json.dumps(bsd.build_counterparty()["verdict"], ensure_ascii=False)
+    assert "GraphRAG 를 기각" not in blob
+    assert "GraphRAG 기각" not in blob
+    assert "엣지 정의" in blob      # 정정된 서술이 실제로 실려 있다
 
 
 def test_build_counterparty_class_breakdown_sums_to_hundred():
@@ -4467,8 +5163,10 @@ def test_build_counterparty_class_breakdown_sums_to_hundred():
 
 def test_build_counterparty_verdict_present():
     payload = bsd.build_counterparty()
-    assert len(payload["verdict"]) == 3
+    assert len(payload["verdict"]) == len(bsd.COUNTERPARTY_VERDICT)
     assert all({"title", "body"} == set(v) for v in payload["verdict"])
+    # 🔴 자리표시자가 남아 있으면 화면에 중괄호가 그대로 뜬다
+    assert not any("{" in v["body"] or "{" in v["title"] for v in payload["verdict"])
 ```
 
 - [ ] **Step 2: 테스트 실패 확인**
@@ -4566,26 +5264,43 @@ COUNTERPARTY_CLASS_LABELS = {
     "universe_affiliate": "유니버스 계열",
 }
 
+# 🔴 서술 정정 (2026-08-14). 종전 판은 "GraphRAG 를 기각했다" 로 적었다 —
+#    `total_plan §7` · `03-graph-schema.md:68` 이 그것을 명시적으로 금지한다:
+#    *"전제가 기각된 것이 아니라 논문이 쓴 엣지 정의가 기각된 것이다."*
+#    🔴 그리고 수치는 자리표시자로 두고 산출물에서 채운다 (밀도·기재율·발화 건수·골든 회수).
 COUNTERPARTY_VERDICT = [
     {
-        "title": "기업–기업 엣지 밀도 12.4% — GraphRAG 를 기각했다",
-        "body": "계약 상대가 적힌 레코드는 97.5% 인데, 그중 우리 유니버스 안의 다른 상장사로 "
-        "정확히 연결되는 것은 12.4% 뿐이다. 나머지는 해외 법인·공공 부문·비공개 처리다. "
-        "'공시는 관계형 데이터' 라는 전제를 우리 코퍼스로 재보니 기업 간 그래프가 서지 않았다.",
+        "title": "기업–기업 **엣지 정의**를 기각했다 — GraphRAG 를 기각한 것이 아니다",
+        "body": "계약 상대가 적힌 레코드는 {fillRate} 인데, 그중 우리 유니버스 안의 다른 "
+        "상장사로 정확히 연결되는 것은 {density} 뿐이다(완결도는 더 낮다). 나머지는 해외 "
+        "법인·공공 부문·비공개 처리다. 🔴 기각한 것은 `기업 —계약했다→ 기업` **직접 엣지 "
+        "하나**와 그것을 전제로 한 커뮤니티 탐지다. **노드·엣지를 코퍼스에 맞게 재정의한 "
+        "쪽은 채택됐고, 우리 성적의 대부분이 거기서 나온다.**",
+    },
+    {
+        "title": "재정의한 쪽이 성적을 벌었다 — 사다리 최대 전이가 그 증거다",
+        "body": "① `공시 —정정한다→ 공시` 체인 순회, ② n-ary 이벤트 노드 속성(주요사항·지분 "
+        "필드), ③ **2부 그래프를 탐색이 아니라 메타 축으로**(`doc_subtype` 문서군별 색인). "
+        "셋 다 실측으로 기여가 확인됐고, 특히 ③ 은 `A1 → A1b` 전이로 **사다리에서 가장 큰 "
+        "단일 Δ** 다. 즉 '공시는 관계형 데이터' 라는 전제는 살아 있고, 그 관계를 **무엇으로 "
+        "정의하는가**만 우리 코퍼스에 맞게 바뀌었다.",
     },
     {
         "title": "그래서 기업이 아니라 발주처를 노드로 승격했다",
-        "body": "한국전력공사·방위사업청·한국수력원자력처럼 여러 상장사와 계약하는 주체를 노드로 "
-        "올리면, 기업–발주처–기업 2-hop 으로 같은 사업의 계약을 모을 수 있다. 기업 간 직접 엣지가 "
-        "희소한 것과 발주처 경유 경로가 있는 것은 다른 이야기다.",
+        "body": "여러 상장사와 계약하는 발주 주체를 노드로 올리면, 기업–발주처–기업 2-hop 으로 "
+        "같은 사업의 계약을 모을 수 있다. 기업 간 직접 엣지가 희소한 것과 발주처 경유 경로가 "
+        "있는 것은 다른 이야기다. 🔴 이 엣지는 **아직 미확정**이다 — 그리드 Δ 가 0 이고 근거로 "
+        "쓰는 축은 골든 근거 완결성이다.",
     },
     {
         "title": "그리드에서는 발화 0건, 밸류체인에서만 듣는다",
-        "body": "발주처 hop 은 3축 그리드 88문항에서 한 번도 발화하지 않고, 발주처를 지목한 "
-        "밸류체인 12문항에서 8건 발화한다. 그래서 그리드 Δ 는 측정값이 아니라 정의상 0이다. "
-        "밸류체인 정답률은 5/12 대 4/12 지만 n=12 에서 1문항이 8.3%p 이므로 그 Δ 는 근거로 쓰지 않는다 — "
-        "A8 의 성공 기준은 골든 근거 완결성이고, 그 축은 Q-110 5/6 대 2/6 · Q-114 1/5 대 0/5 · "
-        "Q-116 3/3 대 2/3 이다.",
+        "body": "발주처 hop 은 3축 그리드에서 한 번도 발화하지 않고, 발주처를 지목한 밸류체인 "
+        "문항에서만 발화한다. 그래서 그리드 Δ 는 측정값이 아니라 **정의상 0** 이다. "
+        "🔴 밸류체인 정답률 Δ 는 **부호만 읽고 크기는 읽지 않는다** — n 이 작아 1문항이 크게 "
+        "움직이고, 실제로 두 라운드 연속 같은 한 문항이 뒤집혔다. 정본 축은 골든 근거 회수 "
+        "({vcGoldenA8} 대 {vcGoldenL3})다. ⚠️ 그리고 그 정답률에는 **부풀림 1건**이 들어 "
+        "있다(개방형 judge 가 수치 자기일관성을 안 본다 — `total_plan §5` 채점 결함 ①). "
+        "그리드·전체 분모에는 이 결함이 0건이므로 제출 성적은 여기 물려 있지 않다.",
     },
 ]
 
@@ -4645,9 +5360,57 @@ def build_counterparty() -> dict:
             {"a": pair["a"], "b": pair["b"], "via": pair.get("via") or []}
             for pair in graph["pairs"]
         ],
-        "verdict": COUNTERPARTY_VERDICT,
+        # 🔴 판정 서술의 자리표시자를 산출물 값으로 채운다. 문장에 수를 박지 않는다.
+        "verdict": [
+            {
+                "title": v["title"].format(**verdict_values),
+                "body": v["body"].format(**verdict_values),
+            }
+            for v in COUNTERPARTY_VERDICT
+        ],
+        "verdictSource": "docs/total_plan.md §7 · docs/pipeline/03-graph-schema.md C-0",
     }
 ```
+
+`verdict_values` 는 `return` 문 **앞**에서 만든다 — 밸류체인 골든 회수는 밸류체인 산출물에서 온다:
+
+```python
+    vc_gen = resolve_generation()
+
+    def vc_golden(arm: str) -> str:
+        """밸류체인 골든 회수를 `vc/{arm}/report.json` 의 행에서 **센다**.
+
+        🔴 `vc/summary.json` 의 `golden_evidence_hit` 은 **0 이다** (실측 2026-08-14) —
+        그 집계는 그리드 트랙 기준이라 밸류체인에서 채워지지 않는다. summary 를 그대로
+        읽으면 화면에 `0/0` 이 뜨고 그것이 거짓말이다. 행에서 세면 정본과 일치한다.
+
+        🔴 `golden`(접수번호 목록)을 **세기만 하고 내보내지 않는다** (보안 ⑤).
+        """
+        rel = f"artifacts/ablation/{vc_gen}/vc/{arm}/report.json"
+        if not (REPO / rel).exists():
+            return "미측정"
+        rows = read_json(rel)["rows"]
+        hit = sum(len(r.get("golden_in_evidence") or []) for r in rows)
+        total = sum(len(r.get("golden") or []) for r in rows)
+        unreachable = sum(len(r.get("golden_unreachable") or []) for r in rows)
+        # 🔴 도달불가를 뺀 조정 분모를 함께 낸다. 하나만 적으면 다음 사람이 두 수를 헷갈린다
+        return f"{hit}/{total} (도달불가 {unreachable} 조정 {hit}/{total - unreachable})"
+
+    verdict_values = {
+        "fillRate": f"{density['counterparty_fill_rate'] * 100:.1f}%",
+        "density": f"{density['edge_density_strict_over_all_contracts'] * 100:.1f}%",
+        # 🔴 밸류체인 값은 **밸류체인 산출물**의 것이다. 그리드 값과 섞지 않는다.
+        "vcGoldenA8": vc_golden("A8"),
+        "vcGoldenL3": vc_golden("L3"),
+    }
+```
+
+🔴 **밸류체인 arm 이 현 세대에 없으면 `"미측정"` 이 렌더된다.** 값을 채워 넣지 말고
+그 문자열을 그대로 낸다 — **"없는 것" 과 "0" 은 다르다.**
+
+> ✅ **이 셈법은 2026-08-14 에 실측으로 확인했다** — 현 세대 `vc/A8`·`vc/L3` 의 행에서 센
+> 값이 `docs/total_plan.md` §0 의 골든 근거 수와 **일치**했고, `vc/summary.json` 의
+> 집계 필드는 **0** 이었다. 🔴 **그 두 값을 여기 적지 않는다** (정본은 산출물과 §0 이다).
 
 `BUILDERS` 에 두 줄 추가:
 
@@ -4995,10 +5758,12 @@ export default function CounterpartyPage() {
       <div className="container">
         <div className="section-heading">
           <span className="badge">발주처 밸류체인</span>
-          <h1>기업 간 그래프가 안 서서, 발주처를 노드로 올렸다</h1>
+          <h1>기업 간 직접 엣지가 안 서서, 발주처를 노드로 올렸다</h1>
           <p className="lead">
-            "공시는 관계형 데이터니 GraphRAG 가 맞다" 는 전제를 우리 코퍼스로 먼저 재봤습니다. 결과는
-            기각이었고, 그 기각이 지금 구조를 만들었습니다.
+            "공시는 관계형 데이터" 라는 전제를 우리 코퍼스로 먼저 재봤습니다. 🔴 기각된 것은{" "}
+            <strong>그 전제가 아니라 논문이 쓴 엣지 정의</strong>입니다 — 기업—기업 직접 엣지
+            하나와 그것을 전제로 한 커뮤니티 탐지입니다. 노드·엣지를 코퍼스에 맞게 재정의한
+            쪽은 채택됐고, 성적의 대부분이 거기서 나왔습니다.
           </p>
         </div>
 
@@ -5178,7 +5943,9 @@ git commit -m "feat: 정정 체인·발주처 밸류체인 화면"
     - `recall: { cohort, golden, recall5, recall5Rate, evidenceHitRate, byDifficulty: [{ key, golden, recall5, rate }], gateVerdict }`
     - `apiContract: { endpoint, keys: str[], note }`
     - `artifactsNote: str`
-  - `site/lib/pipeline.ts` — `export type PipelinePhase` · `export const pipelinePhases: PipelinePhase[]` (9개)
+  - `build_pipeline() -> dict` — `{metadata, phases, gates, tests, source}`. 🔴 `parse_ssot()` 파싱값
+  - `site/lib/pipeline.ts` — `export type PipelinePhase` · `export const pipelinePhases: PipelinePhase[]` (9개).
+    🔴 **산문만.** `gate`·`creditWon`·`status` 는 `site_pipeline.json` 에서 `order` ↔ `no` 로 조인한다
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다 — `tests/test_site_data.py` 맨 끝에 추가**
 
@@ -5255,18 +6022,31 @@ INDEX_CATALOG = [
 ]
 
 API_CONTRACT = {
+    # 🔴 경로·키·프로토콜은 **규정**이라 상수로 둔다 (측정값이 아니다). 정본은 아래 링크.
     "endpoint": "GET /answer?question_id=&question=",
     "keys": ["question_id", "question", "retrieved_context", "think_trace", "answer"],
-    "note": "주최 측 고정 계약이다. 키를 늘리거나 이름을 바꾸지 않는다 (docs/CONVENTION.md §4). "
-    "retrieved_context 가 근거, think_trace 가 추론 경로이고 이 사이트의 트레이스 화면이 "
-    "그 두 필드를 그대로 렌더링한 것이다.",
+    "protocol": "HTTP 기본 · HTTPS 선택(self-signed 무방) · 표준 포트 · 도메인 불필요 · 인증 헤더 없음",
+    "calling": "순차 1건씩 · 타임아웃 300초 · 타임아웃/5xx 시 최대 2회 재시도",
+    # 🔴 공인 IP 를 사이트에 싣지 않는다. 평가용 엔드포인트이고 정본은 deploy/README.md 다.
+    #    사이트가 그 IP 를 발행하면 평가 서버가 외부 트래픽을 받을 수 있다 —
+    #    c2-g3a 2 vCPU / 4 GB 에서 그것은 단건 지연을 흔든다.
+    "endpointSource": "deploy/README.md 첫 절 (공인 IP·유지 기한의 정본)",
+    "specSource": "docs/organizer-qa.md · docs/CONVENTION.md §4",
+    "note": "주최 측 고정 계약이다. 키를 늘리거나 이름을 바꾸지 않는다. 모든 필드가 string 이고 "
+    "빈 문자열도 허용된다. retrieved_context 가 근거, think_trace 가 추론 경로다. "
+    "🔴 답할 수 없을 때도 5xx 를 던지지 않고 200 + 정보한계 응답을 낸다 — 재시도가 "
+    "비결정적 실패에서 크레딧을 3배로 만들기 때문이다.",
 }
 
 ARTIFACTS_NOTE = (
     "artifacts/ 는 gitignore 대상이다. 이 사이트가 읽는 JSON 은 scripts/build_site_data.py 가 "
     "생성해 site/public/data/ 에 커밋한 것이므로, 산출물이 없는 클론에서도 사이트는 빌드된다. "
-    "🔴 단 evalset/heldout.jsonl 과 artifacts/ablation/v2/heldout/ 은 빌드가 읽지 않는다 — "
-    "18문항은 최종 1회용이고 재측정이 불가능하다."
+    "🔴 빌드가 읽지 않는 것: evalset/heldout.jsonl · heldout 산출물 폴더 전체 · 코퍼스 원문. "
+    "heldout 18문항은 최종 구성 1회용이고 두 번 다 썼으므로 집계 수치조차 싣지 않는다. "
+    "🔴 평가셋의 질문 전문과 정답도 싣지 않는다 — 우리가 만든 라벨이고, 그 라벨의 부풀림이 "
+    "문서에 기록돼 있다. 이 사이트에 보이는 문항 정보는 번호와 축 메타뿐이다. "
+    "🔴 전처리 산출물은 제출물 4종의 하나이고, 대용량은 클라우드 스토리지 링크로 제출한다 — "
+    "이 사이트가 그 배포 경로가 아니다."
 )
 
 
@@ -5376,18 +6156,42 @@ for name,payload in d['cohorts'].items():
 
 레퍼런스 `lib/methodology.ts` 의 형태를 그대로 쓴다 — 타입 + 배열 상수. 9개 Phase 는 `docs/pipeline/` 과 `docs/total_plan.md` §1 의 한 줄 요약에서 온다.
 
+> 🔴 **2026-08-14 재검토 — 이 파일에서 `gate`·`creditWon`·수치 서술을 걷어냈다.**
+> 종전 판은 Phase 별 게이트(`0/3`·`68/71` 합)와 크레딧을 TS 상수로 들고 있었고, 게이트 E 가
+> `A3` 최종 기각으로 **3/3** 이 되면서 **9행 중 한 행이 낡고 총계가 틀어졌다.** 지금은
+> `parse_ssot()["phases"]` 가 `site_pipeline.json` 으로 나가고, TS 는 **산문만** 갖는다.
+> 매칭 키는 `order`(`"01"`~`"09"`)다.
+>
+> ```python
+> # scripts/build_site_data.py — BUILDERS 에 "pipeline" 추가
+> def build_pipeline() -> dict:
+>     ssot = parse_ssot()
+>     return {
+>         "metadata": metadata(
+>             "Phase A~I 게이트·크레딧 — docs/total_plan.md §1 Phase 표 파싱값. "
+>             "산문(제목·상세·결론)은 site/lib/pipeline.ts 가 갖는다.",
+>             [SSOT_MD],
+>         ),
+>         "phases": ssot["phases"],          # [{no, doc, phase, status, gate, credit}]
+>         "gates": ssot["gates"],            # 게이트 총계
+>         "tests": ssot["tests"],
+>         "source": f"{SSOT_MD} §1",
+>     }
+> ```
+>
+> 🔴 **TS 쪽에 `gate`·`creditWon` 필드를 되살리지 마라.** 되살리면 다음 라운드에
+> `05` 행이 또 낡는다. 화면은 `order` 로 두 원천을 조인한다.
+
 ```ts
 export type PipelinePhase = {
   slug: string;
-  order: string;
+  order: string;      // 🔴 site_pipeline.json 의 `no` 와 조인하는 키
   phase: string;
   title: string;
-  status: "완료" | "의도적 보류";
-  gate: string;
-  creditWon: string;
   shortDescription: string;
   detail: string[];
   outcome: string;
+  // 🔴 gate · creditWon · status 는 여기 두지 않는다 — total_plan §1 파싱값이 정본이다
 };
 
 export const pipelinePhases: PipelinePhase[] = [
@@ -5396,145 +6200,134 @@ export const pipelinePhases: PipelinePhase[] = [
     order: "01",
     phase: "A",
     title: "데이터 EDA — 전제부터 재본다",
-    status: "완료",
-    gate: "5/5",
-    creditWon: "0원",
-    shortDescription: "코퍼스를 먼저 프로파일링해 GraphRAG 적합성 자체를 검증했다.",
+    shortDescription: "코퍼스를 먼저 프로파일링해 논문이 전제한 그래프 정의를 검증했다.",
     detail: [
       "문서군 4종의 크기·필드 채움률·표 구조·목차 트리를 전수 또는 층화표본으로 훑었다.",
       "기업–기업 엣지 밀도를 직접 재서 '공시는 관계형 데이터' 라는 전제를 검증했다.",
       "정정 체인 복원 가능성과 관련공시 참조 해소율을 측정해 데이터 상한을 먼저 확정했다.",
     ],
-    outcome: "엣지 밀도 12.4% → GraphRAG 기각. 코퍼스 5.55GB 중 정기공시가 95.4%.",
+    // 🔴 "GraphRAG 기각" 이 아니다. 기각된 것은 기업—기업 엣지 정의 하나다 (total_plan §7)
+    outcome:
+      "기업–기업 엣지 정의를 기각하고 노드·엣지를 코퍼스에 맞게 재정의했다. 재정의한 쪽은 채택됐다.",
   },
   {
     slug: "golden-set",
     order: "02",
     phase: "B",
     title: "Golden Test Set — 측정 도구를 먼저 만든다",
-    status: "완료",
-    gate: "7/7",
-    creditWon: "0원",
     shortDescription: "질의 유형 × 답변 형태 × 난이도 3축 그리드로 문항을 설계했다.",
     detail: [
-      "18개 셀에 dev 4문항 + heldout 1문항을 채워 셀당 표본을 확보했다.",
+      "18개 셀에 dev 문항과 heldout 문항을 채워 셀당 표본을 확보했다.",
       "감시가 목적인 회귀 문항과 발주처가 필요한 밸류체인 문항은 그리드 밖 별도 파일에 뒀다 — 그리드에 넣으면 난이도 축이 측정 도구이기를 그만둔다.",
       "정보한계 문항은 answerable=false 로 두어 거절이 정답이 되게 했다.",
+      "🔴 heldout 은 최종 구성 1회용이고 두 번 다 썼다. 그래서 이 사이트는 문항도 정답도 공개하지 않는다.",
     ],
-    outcome: "106문항 (그리드 90 + 정보한계 6 + 회귀 10) + 밸류체인 12. 자동 검증 16항목.",
+    // 🔴 문항 수를 적지 않는다 — 종전 판의 "106문항 (그리드 90 + …)" 은 어느 세대와도 안 맞았다.
+    //    분모는 site_meta.json 과 site_errors.json 이 산출물에서 세어 낸다.
+    outcome: "트랙을 합치지 않는다 — 그리드·정보한계·회귀·밸류체인이 각자 분모를 갖는다.",
   },
   {
     slug: "graph-schema",
     order: "03",
     phase: "C",
     title: "Graph Schema — 기업이 아니라 발주처를 노드로",
-    status: "완료",
-    gate: "5/5",
-    creditWon: "0원",
     shortDescription: "기업–공시–이벤트 2부 그래프에 발주처 노드를 더했다.",
     detail: [
       "기업 간 직접 엣지가 희소하다는 EDA 결과를 받아, 여러 상장사와 계약하는 발주처를 노드로 승격했다.",
       "관련공시 참조와 지분 보유 관계를 엣지로 잇고, 상용구·모호 표현은 정규화 단계에서 제외했다.",
+      "🔴 2부 그래프를 탐색 축이 아니라 메타 축(doc_subtype 문서군별 색인)으로 쓴 것이 사다리 최대 전이를 냈다.",
     ],
-    outcome: "REFERS_TO 910 · HOLDS_STAKE 15쌍 · 발주처 노드 145 · 기업쌍 44.",
+    // 🔴 노드·엣지 건수는 site_counterparty.json 의 stats 에서 렌더한다 (여기 적지 않는다)
+    outcome: "발주처 경유 2-hop 은 아직 미확정 엣지다 — 그리드 Δ 0, 근거 완결성 축에서만 신호가 있다.",
   },
   {
     slug: "retriever",
     order: "04",
     phase: "D",
     title: "Retriever — 문서군별 별도 인덱스 + 라우터",
-    status: "완료",
-    gate: "10/10",
-    creditWon: "0원",
     shortDescription: "하나의 인덱스가 아니라 문서군마다 인덱스를 따로 두고 라우터가 고른다.",
     detail: [
-      "정기공시는 목차 축으로 섹션을 잘라 157,397 조각으로 색인했다(100자 미만 스텁 제외 시 133,601).",
+      "정기공시는 목차 축으로 섹션을 잘라 색인했다 — 100자 미만 스텁을 뺀 분모를 따로 적는다.",
       "메타 프리필터(기업·기간·공시유형)를 BM25 앞에 두어 후보를 먼저 좁힌다.",
       "게이트 수치에 모집단과 시점 라벨을 붙이도록 고쳤다 — 라벨 없는 수치가 낡아서 한 번 오판했다.",
     ],
-    outcome: "Recall@5 0.880 (117/133 · full 88) · 0.967 (58/60 · measured 42). 상주 427MB.",
+    // 🔴 Recall@5 값은 site_data.json(recall_v2.json 파싱)에서 렌더한다. 코호트 라벨을 반드시 붙인다
+    outcome: "Recall@5 는 코호트별로 따로 읽는다 — 하나의 수로 합치면 게이트 판정이 거짓이 된다.",
   },
   {
     slug: "reranker",
     order: "05",
     phase: "E",
-    title: "Re-ranker — 겨냥할 실패가 없어 보류",
-    status: "의도적 보류",
-    gate: "0/3",
-    creditWon: "0원",
-    shortDescription: "붙일 수는 있지만 지금 코퍼스에서 겨냥할 실패가 1~2건뿐이다.",
+    title: "Re-ranker — 겨냥할 실패가 사라져 최종 기각",
+    shortDescription: "붙일 수는 있지만 겨냥할 실패가 세 분모 전부에서 0 이 됐다.",
     detail: [
-      "리랭커가 고칠 수 있는 실패를 세어 보니 그리드에서 2건이고, 재검토 문턱 3건에 닿지 않았다.",
-      "McNemar 로 보면 불일치쌍 1개는 p=1.000 — 판정 자체가 불가능한 구간이다.",
-      "붙였다 뗄 수 있는 형태로 설계만 남겨 두었다.",
+      "리랭커가 고칠 수 있는 실패를 세어 보니 재검토 문턱에 닿지 않았다.",
+      "McNemar 로 보면 불일치쌍이 너무 적어 판정 자체가 불가능한 구간이었다.",
+      "🔴 종전에는 '보류' 였고, 겨냥 0 을 그리드·전체·밸류체인 세 분모 전부에서 확인해 **최종 기각**했다.",
+      "🔴 닫은 사유는 '성능이 안 나왔다' 가 아니라 '잴 대상이 사라졌다' 이고, 다시 여는 조건을 기계적으로 명시해 뒀다.",
     ],
-    outcome: "미완 3게이트는 전부 이 보류다. 실질 미완 게이트는 0개.",
+    outcome: "기각도 결과다 — 다시 여는 조건이 문서에 박혀 있다.",
   },
   {
     slug: "agent-tool",
     order: "06",
     phase: "F",
     title: "Agent + Tool — 한 번 더 물어보는 루프",
-    status: "완료",
-    gate: "8/8",
-    creditWon: "1,244.8원",
     shortDescription: "ReAct 루프에 정정체인 hop·다중지점 분해·발주처 2-hop 을 붙였다.",
     detail: [
       "근거가 부족하다고 판정되면 hop 을 늘려 다시 회수한다. 난이도 '상' 의 정답률이 여기서 크게 튄다.",
-      "계산은 모델이 아니라 도구가 수행한다 — 현재 tools.TOOL_SPECS 는 15종(검색 8 + 계산 7)이다.",
+      "계산은 모델이 아니라 도구가 수행한다 — 도구 종수는 소스에서 센 값을 렌더한다.",
       "정기공시 섹션 하강은 붙여서 재본 뒤 넣지 않기로 판정했다 — 회수는 동일한데 스텝이 2배가 된다.",
+      "🔴 타임아웃 300초가 확정돼 지연은 더 이상 제약이 아니다. 묶는 이유는 크레딧과 과잉탐색뿐이다.",
     ],
-    outcome: "Tool 15종. 상 난이도 A1b → A4 에서 +33.3%p.",
+    // 🔴 "+33.3%p" 를 적지 않는다 — 재측정으로 값이 바뀌었다. 축별 Δ 는 히트맵이 산출물에서 낸다
+    outcome: "커버리지 먼저, 그다음 루프 — 난이도 '상' 에서 두 칸이 거의 같은 크기로 튄다.",
   },
   {
     slug: "verifier",
     order: "07",
     phase: "G",
     title: "Verifier — LLM 을 부르지 않는 검증",
-    status: "완료",
-    gate: "6/6",
-    creditWon: "0원",
-    shortDescription: "계산 검증 7종과 완결성 검증 4종을 규칙으로 구현했다.",
+    shortDescription: "계산 검증과 완결성 검증을 규칙으로 구현했다.",
     detail: [
       "답변의 수치를 근거의 수치와 다시 맞추고, 열거형 질의는 빠진 항목이 있는지 본다.",
       "둘 다 LLM 호출이 0회이므로 한계 비용이 0이다. 그래서 정답률 Δ 가 0이어도 넣었다.",
-      "거짓 경보 2건은 전부 발화를 줄이는 방향으로만 고쳤다 — 새 발화 조건을 추가하지 않았다.",
+      "거짓 경보는 전부 발화를 줄이는 방향으로만 고쳤다 — 새 발화 조건을 추가하지 않았다.",
       "전제가 선 횟수와 발화 횟수를 분리해 기록한다. 전체 문항으로 나누면 규칙이 저절로 좋아진 것처럼 보인다.",
+      "🔴 한계: 검증기는 답변 수치 중 근거와 가장 가까운 것을 고르므로 10배 단위환산 오류가 통과하는 구간이 남아 있었다. 그 구간을 좁힌 이력과 남은 구멍을 함께 적는다.",
     ],
-    outcome: "정답 문항 거짓 경보 0건 · 정밀도 1.00.",
+    outcome: "정답 문항의 거짓 경보를 0 으로 유지한다 — 정밀도를 재현율보다 우선했다.",
   },
   {
     slug: "error-analysis",
     order: "08",
     phase: "H",
     title: "Error Analysis — 처음 틀어진 곳에만 배분한다",
-    status: "완료",
-    gate: "15/15",
-    creditWon: "2,449.6원",
     shortDescription: "오답을 6단계 중 처음 틀어진 단계에 귀속하고 3축으로 교차했다.",
     detail: [
       "오답 전건을 원문까지 대조했다. 상관을 원인으로 적으면 다음 사람이 엉뚱한 것을 고친다.",
-      "사전 예상은 생성·도구 병목이었는데 실측은 검색 쪽이었고 도구는 0건이었다.",
-      "실패 유형 8종을 재현하는 회귀 문항을 만들어 그리드 밖에 뒀다.",
+      "사전 예상은 생성·도구 병목이었는데 실측은 검색 쪽이었다 — 예상이 틀린 이력을 지우지 않는다.",
+      "실패 유형을 재현하는 회귀 문항을 만들어 그리드 밖에 뒀다.",
+      "🔴 자동 arm 배분표는 원문 대조와 원리적으로 일치시킬 수 없다 — 그 한계를 화면에 함께 적는다.",
     ],
-    outcome: "RETRIEVAL 64.7% (v1). 잔여 실패는 분모별로 13 · 11 · 12.",
+    // 🔴 "13 · 11 · 12" 를 적지 않는다 — 세 수 전부 재측정으로 바뀌었다. site_errors.json 이 센다
+    outcome: "잔여 실패는 **세 분모로 각각** 읽는다 — 하나의 수로 적으면 어느 것도 맞지 않는다.",
   },
   {
     slug: "ablation",
     order: "09",
     phase: "I",
     title: "Ablation — 사다리와 LOO",
-    status: "완료",
-    gate: "12/12",
-    creditWon: "8,100.8원",
-    shortDescription: "구성요소를 켜 올리는 사다리 8구성과 빼는 LOO 3구성을 측정했다.",
+    shortDescription: "구성요소를 켜 올리는 사다리와 빼는 LOO 를 세대마다 측정했다.",
     detail: [
-      "v1 산출물을 한 바이트도 덮지 않고 v2 를 따로 냈다 — 측정이 계획을 뒤집은 이력이 산출물이다.",
-      "A0→A1 의 부호가 v1 에서 뒤집혔다. 커버리지가 랭킹보다 먼저라는 뜻이다.",
-      "A5 이후 Δ 가 0인 구성도 넣었다. 판단 기준을 Δ 가 아니라 한계 비용으로 바꿨다.",
+      "앞 세대 산출물을 한 바이트도 덮지 않고 새 세대를 따로 냈다 — 측정이 계획을 뒤집은 이력이 산출물이다.",
+      "A0→A1 의 부호가 뒤집혔다. 커버리지가 랭킹보다 먼저라는 뜻이다.",
+      "Δ 가 0인 구성도 넣었다. 판단 기준을 Δ 가 아니라 한계 비용으로 바꿨다.",
       "heldout 낙폭 게이트는 분자가 영구 고정돼 1문항이 임계를 넘기므로 은퇴시켰다.",
+      "🔴 세대가 다르면 Δ 를 비교하지 않는다. 사다리와 LOO 의 세대 라벨을 화면에 붙인다.",
+      "🔴 기각된 구성의 지출도 원장에 싣는다 — 빼면 다음 사람이 같은 것을 다시 산다.",
     ],
-    outcome: "제출 구성 A8. 성능은 A1b·A4 두 arm에서 나왔고 둘 다 LLM 을 더 쓰는 것이 아니다.",
+    outcome: "제출 구성 A8. 성능은 A1b·A4 두 arm 에서 나왔고 둘 다 LLM 을 더 쓰는 것이 아니다.",
   },
 ];
 ```
@@ -5618,19 +6411,26 @@ export const pipelinePhases: PipelinePhase[] = [
 ```tsx
 import { pipelinePhases } from "../../lib/pipeline";
 import meta from "../../public/data/site_meta.json";
+import pipelineData from "../../public/data/site_pipeline.json";
+
+// 🔴 산문(TS)과 게이트·크레딧(정본 파싱값)을 `order` ↔ `no` 로 조인한다.
+//    게이트 수를 TS 에 두면 다음 라운드에 낡는다 — 실제로 05 행이 그렇게 낡았다.
+const byOrder = new Map(pipelineData.phases.map((row) => [row.no, row]));
 
 export default function PipelinePage() {
-  const done = pipelinePhases.filter((phase) => phase.status === "완료").length;
+  const done = pipelineData.phases.filter((row) => row.status.includes("완료")).length;
 
   return (
     <main className="section">
       <div className="container narrow">
         <div className="section-heading">
           <span className="badge">파이프라인 · Phase A~I</span>
-          <h1>측정이 계획을 여섯 번 뒤집었다</h1>
+          {/* 🔴 뒤집힌 횟수를 적지 않는다 — 라운드마다 늘어난다(정본 total_plan §7 · v4 §7). */}
+          <h1>측정이 계획을 여러 번 뒤집었다</h1>
           <p className="lead">
             데이터를 먼저 보고, 측정 도구를 먼저 만들고, 그 다음에 모델을 붙이는 순서로 갔습니다. 그
             결과 계획이 여러 번 뒤집혔고, 뒤집힌 이력을 지우지 않고 남겨 뒀습니다 — 기각도 결과입니다.
+            뒤집힌 항목의 정본 목록은 <code>docs/total_plan.md</code> §7 입니다.
           </p>
         </div>
 
@@ -5638,9 +6438,9 @@ export default function PipelinePage() {
           <article className="card">
             <p className="eyebrow">완료 Phase</p>
             <div className="metric">
-              {done}/{pipelinePhases.length}
+              {done}/{pipelineData.phases.length}
             </div>
-            <p className="helper">미완 1건은 의도적 보류입니다</p>
+            <p className="helper">docs/total_plan.md §1 의 Phase 표를 그대로 읽습니다</p>
           </article>
           <article className="card">
             <p className="eyebrow">게이트</p>
@@ -5652,22 +6452,27 @@ export default function PipelinePage() {
           <article className="card">
             <p className="eyebrow">테스트</p>
             <div className="metric">{meta.tests}</div>
-            <p className="helper">전부 통과 상태를 유지합니다</p>
+            <p className="helper">
+              라운드마다 늘어납니다 — 정본은 <code>{pipelineData.source}</code> 입니다
+            </p>
           </article>
         </section>
 
         <div className="grid spacious">
-          {pipelinePhases.map((phase) => (
+          {pipelinePhases.map((phase) => {
+            const row = byOrder.get(phase.order);
+            return (
             <article
-              className={`panel phase-card ${phase.status === "완료" ? "" : "is-paused"}`}
+              className={`panel phase-card ${row?.status.includes("완료") ? "" : "is-paused"}`}
               key={phase.slug}
             >
               <div className="phase-head">
                 <span className="phase-order">{phase.order}</span>
                 <span className="badge">Phase {phase.phase}</span>
-                <span className="chip">{phase.status}</span>
-                <span className="chip">게이트 {phase.gate}</span>
-                <span className="chip">{phase.creditWon}</span>
+                {/* 🔴 세 칩은 전부 정본 파싱값이다. TS 상수로 되돌리지 않는다 */}
+                <span className="chip">{row?.status ?? "—"}</span>
+                <span className="chip">게이트 {row?.gate ?? "—"}</span>
+                <span className="chip">{row?.credit ?? "—"}</span>
               </div>
               <h2>{phase.title}</h2>
               <p className="lead">{phase.shortDescription}</p>
@@ -5678,7 +6483,8 @@ export default function PipelinePage() {
               </ul>
               <p className="phase-outcome">결과 — {phase.outcome}</p>
             </article>
-          ))}
+            );
+          })}
         </div>
       </div>
     </main>
@@ -5864,8 +6670,9 @@ export default function DataPage() {
             ))}
           </div>
           <p className="helper">
-            <Link href="/answers">질의응답 트레이스</Link> 화면이 <code>retrieved_context</code> 와{" "}
-            <code>think_trace</code> 를 그대로 렌더링한 것입니다.
+            {/* 🔴 /answers 는 MVP 에 없다 (보안 ④⑤). 살아 있는 링크만 건다 */}
+            <code>retrieved_context</code> 가 근거, <code>think_trace</code> 가 추론 경로입니다.
+            문항 단위 트레이스는 공개하지 않습니다 — 질문 전문과 답변이 곧 평가셋 라벨이기 때문입니다.
           </p>
         </section>
 
@@ -5920,28 +6727,35 @@ python scripts/build_site_data.py --only ablation
 `artifacts/` 는 gitignore 대상이지만 생성된 `site/public/data/*.json` 은 커밋하므로,
 산출물이 없는 클론에서도 사이트는 빌드된다.
 
-## 🔴 heldout 을 읽지 않는다
+## 🔴 공개하지 않는 것 다섯
 
-`evalset/heldout.jsonl` 18문항과 `artifacts/ablation/v2/heldout/` 은 빌드 스크립트가
-`ValueError` 로 거부한다. 18문항은 최종 1회용이고 재측정이 불가능하며, 산출물에 질문 전문과
-`golden` 접수번호가 들어 있어 검색 튜닝 라벨로 쓰일 수 있다. heldout 은 집계 수치로만 등장한다.
+| # | 무엇 | 왜 |
+|---|---|---|
+| ① | `.env` · `CLOVA_API_KEY` | 빌드는 `argus` 패키지를 import 하지 않는다 — 키가 메모리에 들어오지 않는다 |
+| ② | 코퍼스 원문 | 주최측 제공물이다. 근거는 산출물의 `retrieved_context` 발췌만 쓴다 |
+| ③ | `evalset/heldout.jsonl` · heldout 산출물 | 최종 구성 1회용이고 두 번 다 썼다. **집계 수치조차 싣지 않는다** — 낙폭 게이트는 은퇴했다 |
+| ④ | `evalset/*.jsonl` 의 **질문 전문·정답** | 우리가 만든 라벨이고 채점 결함이 문서화돼 있다. 검색 튜닝이 가능한 형태다 |
+| ⑤ | `golden` · `golden_rank` · `answer` · `think_trace` (문항 단위) | 골든 라벨이고, 답변은 질문을 되풀어 쓴다 |
 
-`tests/test_site_data.py` 가 생성된 JSON 전체를 훑어 heldout 문자열·`golden_rank`·API 키
-형태의 문자열이 없는지 검사한다.
+`FORBIDDEN_PATHS` 가 경로 조각으로 ③②를 막고, `ROW_FIELDS_ALLOWED` 화이트리스트가 ⑤를 막는다.
+`tests/test_site_data.py` 가 생성된 JSON 전체를 훑어 heldout 문자열·질문 전문·`golden_rank`·
+API 키 형태의 문자열이 없는지 검사한다.
 
 ## 페이지
 
-| 경로 | 내용 |
-|---|---|
-| `/` | 헤드라인 지표 · 공시 Agent 특성 4개 · 질의 검색 |
-| `/answers` | 질의응답 트레이스 — 근거(접수번호·DART 링크) → 추론 단계 → 답변 |
-| `/search` | 평가셋 문항 탐색 (트랙·문서군·난이도) |
-| `/ablation` | 기여도 사다리 A0→A8 · LOO · 축별 분해 · 비용 원장 |
-| `/errors` | 실패 해부 — 6단계 귀속 · 근본 원인 · 분모 세 개 · 데이터 상한 |
-| `/corrections` | 정정 체인 — 최장 19본 · 문서군별 연결률 · 처리 원칙 |
-| `/counterparty` | 발주처 밸류체인 — 엣지 밀도 12.4% · 허브 · 기업쌍 |
-| `/pipeline` | Phase A~I 방법론 |
-| `/data` | 코퍼스 프로파일 · 인덱스 · 회수 지표 · API 계약 |
+🔴 **`R6-MVP` 는 아래 다섯 쪽만 만든다.** 나머지는 제출·평가 후(09-21 이후) 또는 폐기다.
+
+| 경로 | MVP | 내용 |
+|---|---|---|
+| `/` | ✅ | 헤드라인 지표 · 공시 Agent 특성 4개 · 세대 라벨 |
+| `/ablation` | ✅ | 사다리 A0→A8 · LOO · 축별 분해 · 비용 원장(정본 파싱) · 기각 목록 링크 |
+| `/errors` | ✅ | 실패 해부 — 6단계 귀속 · 근본 원인 · **분모 세 개** · 데이터 상한 |
+| `/pipeline` | ✅ | Phase A~I 방법론 + 게이트·크레딧(정본 파싱) |
+| `/data` | ✅ | 코퍼스 프로파일 · 인덱스 · 회수 지표 · API 계약 · 출처 |
+| `/corrections` | ⏸ | 정정 체인 — 문서군별 연결률 · 처리 원칙 |
+| `/counterparty` | ⏸ | 발주처 밸류체인 — 엣지 정의 기각 · 허브 · 기업쌍 |
+| `/search` | ⏸ | 평가셋 문항 **메타** 탐색 (질문 전문 없음) |
+| `/answers` | ❌ | 질의응답 트레이스 — 🔴 보안 ④⑤ 와 충돌. 되살리는 조건 셋이 Task 5 에 있다 |
 
 ## 스타일
 
@@ -5966,7 +6780,9 @@ Run:
 python scripts/build_site_data.py
 python -m pytest tests/ -q
 ```
-Expected: `site_*.json` 9개 생성. 기존 728건 + 신규 테스트 전건 PASS. 유출 게이트가 9개 파일 전부를 훑는다.
+Expected: `site_*.json` 이 `BUILDERS` 의 키 수만큼 생성. 🔴 **기존 테스트 건수를 적지 않는다** —
+정본은 `docs/total_plan.md` §1 이고 라운드마다 늘어난다. 판정은 **`failed` 0건**으로 한다.
+유출 게이트가 생성된 파일 **전부**를 훑는다(`OUT_DIR.glob("site_*.json")` — 파일 수를 못박지 않는다).
 
 - [ ] **Step 12: 사이트 전체 빌드 + 라우트 확인**
 
@@ -5974,16 +6790,18 @@ Run:
 ```bash
 cd site && npm run typecheck && npm run build
 ```
-Expected: 오류 0건. 라우트 목록에 `/` · `/answers` · `/search` · `/ablation` · `/errors` · `/corrections` · `/counterparty` · `/pipeline` · `/data` 9개가 전부 뜬다.
+Expected: 오류 0건. 라우트 목록에 **만든 페이지가 전부** 뜬다. 🔴 `/answers` 는 없다(보안 ④⑤).
 
 - [ ] **Step 13: 전 페이지 육안 회귀 + 좁은 화면 확인**
 
 Run: `cd site && npm run dev`
 Expected:
-- 헤더 `분석 ▾` 의 5개 항목이 모두 살아 있는 페이지로 가고, 현재 페이지가 활성 표시된다.
-- 9개 페이지 모두 콘솔 오류 0건.
+- 헤더 드롭다운의 항목이 모두 살아 있는 페이지로 가고, 현재 페이지가 활성 표시된다. **죽은 링크 0건.**
+- 만든 페이지 모두 콘솔 오류 0건.
 - 브라우저 폭을 375px 로 좁혔을 때 **가로 스크롤이 생기지 않는다.** 표는 각자의 `.table-wrap` 안에서만 가로 스크롤된다.
-- 트레이스 화면이 좁은 폭에서 1열로 접히고 문항 목록이 상단 320px 영역이 된다.
+- 🔴 **모든 페이지 하단에 세대 라벨(`generation.arm` · `generated` · `argusCommit`)이 있다.**
+- 🔴 **화면 어디에도 질문 전문·정답·공인 IP·API 키 형태 문자열이 없다.** 브라우저에서
+  `Ctrl+F` 로 `223.130` 을 찾아 0건인지 확인한다.
 
 확인 후 종료.
 
@@ -6017,7 +6835,7 @@ git commit -m "feat: 파이프라인·데이터 화면 + 사이트 README"
 | 측정 문화 (사다리 · LOO · 분모 · 비용 원장) | Task 7 · 8 |
 | heldout 유출 방지 | Task 2 (게이트) · 전 Task (재확인 스텝) |
 
-**2. 플레이스홀더 스캔** — `TBD`·`적절히 처리`·`Task N 과 유사` 없음. 모든 코드 스텝에 실제 코드가 있고, 필드명은 실측 확인한 것이다 (`error_analysis_v2.json` 41필드 · `summary.json` `arms/axes/cells` · `relation_profile.correction_chains` · `counterparty_graph.stats`).
+**2. 플레이스홀더 스캔** — `TBD`·`적절히 처리`·`Task N 과 유사` 없음. 모든 코드 스텝에 실제 코드가 있고, 필드명은 실측 확인한 것이다 (`summary.json` `arms/axes/cells` · `A8/report.json` 44필드 · `relation_profile.correction_chains` · `counterparty_graph.stats`).
 
 **3. 타입 일관성**
 
@@ -6036,4 +6854,349 @@ Task 1 → 2 → 3 → 4 → (5 · 6 · 7 · 8) → 9 → 10.
 **5. 계획을 쓰면서 확인한 위험 두 개**
 
 - 🔴 `artifacts/` 가 gitignore 라서, **산출물이 없는 머신에서는 `scripts/build_site_data.py` 가 `FileNotFoundError` 로 죽는다.** 사이트 자체는 커밋된 JSON 으로 빌드되므로 문제없지만, 데이터 재생성은 산출물이 있는 머신에서만 된다. Task 10 의 `site/README.md` 에 적었다.
-- 🔴 `test_build_ablation_ledger_sums_to_total` 과 `test_build_errors_grid_failure_count_is_eleven` 은 **문서의 수치를 코드에 못박는 테스트**다. 다음 재측정에서 값이 바뀌면 이 테스트가 먼저 깨진다 — 그것이 의도다. 깨지면 테스트를 고치지 말고 `docs/total_plan.md` 와 함께 갱신한다.
+- ~~🔴 `test_build_ablation_ledger_sums_to_total` 과 `test_build_errors_grid_failure_count_is_eleven` 은 **문서의 수치를 코드에 못박는 테스트**다. 다음 재측정에서 값이 바뀌면 이 테스트가 먼저 깨진다 — 그것이 의도다.~~
+  🔴 **2026-08-14 — 그 설계가 틀렸다.** 값을 못박은 테스트는 "사이트가 낡았다" 를 잡지 못한다.
+  실제로 잡는 것은 **"테스트가 낡았다"** 이고, 값을 고치는 사람은 문서가 아니라 테스트를 고친다.
+  두 테스트는 **자기일관성·미러 검사**로 교체했다(`..._mirrors_the_ssot` ·
+  `..._are_self_consistent`). 값을 모르고도 어긋남을 잡는다.
+
+---
+
+## 🔴 재검토 기록 (2026-08-14 · v4 `R6` 편입 검토)
+
+**세 세대 뒤의 계획서를 현 상태 기준으로 검토한 결과다.** 무엇을 어떻게 고쳤는지 남긴다 —
+같은 결함이 다시 나면 이 절이 먼저 읽혀야 한다.
+
+**① 낡은 사본을 정본 참조로 바꾼 자리 (값 삭제 → 파싱/링크)**
+
+| 자리 | 종전 | 지금 |
+|---|---|---|
+| `build_meta.spentWon` | `12846.7` 리터럴 | `parse_ssot()` 가 `total_plan §1` 표를 파싱 · 검산까지 대조 |
+| `build_meta.tests` · `gates` | `728` · `68/71` | 같은 파서 |
+| `COST_LEDGER` 8행 | Python 상수 표 | 삭제. 파서의 `spentLedger` |
+| `build_meta.heldout` | `15/18` 상수 | **삭제** (보안 ③ · 게이트 은퇴) |
+| `toolCount` | `15` 리터럴 | `count_tool_specs()` — `ast` 로 `tools.py` 를 세고 **import 하지 않는다** |
+| `FINDINGS` 세 문장 | 토큰·Δ·원 5개 리터럴 | `{자리표시자}` + 산출물 주입 |
+| `DENOMINATORS` 3값·구성 | `13`·`11`·`12` 상수 | `report.json` 에서 센다 |
+| `DATA_LIMITS` 규모 | `66건`·`105건`… | 항목·사유만. 규모는 §4 링크 |
+| `pipelinePhases` 9행 | `gate`·`creditWon` TS 상수 | `parse_ssot()["phases"]` 와 `order` 로 조인 |
+| `/answers`·`/search`·홈 예시 | 질문 전문 | **삭제** (보안 ④) |
+| 원천 경로 `v2` 고정 | `artifacts/ablation/v2/…` | `resolve_generation()` · `resolve_ladder_generation()` |
+| 게이트/성적 원천 | `error_analysis_v2.json` | `ablation/{gen}/A8/report.json` (`v2` 파일은 옛 라벨) |
+
+**② 서술 정정** — `GraphRAG 기각` → **기업—기업 엣지 정의 기각**(재정의한 쪽은 채택, `A1→A1b`
+사다리 최대 전이) · `A5 부터 Δ 0` → **A4 부터** · `A3 보류` → **최종 기각** · `제출물 3종` →
+**4종**(전처리 산출물 · `Dockerfile` 필수 아님) · `106문항` → 분모는 산출물에서 센다.
+
+**③ 이 라운드가 새로 막은 것** — 평가셋 **질문 전문·정답**의 발행(보안 ④),
+`report.json > rows` 44필드의 **화이트리스트 강제**(보안 ⑤), `failure_why` 자유 서술의
+**금액 마스킹**, `.env` 를 **import 경로에서 차단**, 공인 IP **비발행**,
+호스팅을 평가 서버 밖으로.
+
+**④ 남은 위험 셋**
+
+1. 🔴 **`parse_ssot()` 는 마크다운 서식에 의존한다.** `total_plan §1` 의 표 열 수가 바뀌면
+   `ValueError` 로 빌드가 깨진다. **그것이 설계다**(조용히 틀린 값을 내는 것보다 낫다).
+2. 🔴 **사다리 세대와 현 세대가 다르다.** 화면이 라벨을 잃으면 그 자체가 세대 혼합이다.
+   `test_build_ablation_labels_both_generations` 가 지키지만 **TSX 렌더는 테스트가 없다** —
+   Step 13 육안 확인이 유일한 게이트다.
+3. 🔴 **`R6-MVP` 는 Next.js 를 쓰지 않는다**(아래 §R6). Task 1~10 과 **툴체인이 다르다** —
+   나중에 Next.js 판을 살릴 때 `build_site_data.py` 는 재사용되지만 렌더 층은 다시 쓴다.
+
+---
+
+# §R6. 🔴 MVP — **정적 HTML 5쪽 · Node 0 · 크레딧 0원 · LLM 0회**
+
+> **For agentic workers:** 이 절만 실행한다. 위의 Task 1~10 은 **제출 후 이월분**이다.
+> v4 계획서 `§11`·`§12` 와 같은 태스크 양식이고, `R6` 은 **`R5` 뒤**에 온다
+> (제안서가 먼저다 — 웹사이트는 제출물이 아니다).
+
+## 왜 Next.js 를 버리는가 — **판정**
+
+| 조건 (MVP 기준) | Next.js 판 | 정적 HTML 판 |
+|---|---|---|
+| 제출을 위험에 빠뜨리지 않는다 | 🔴 미완 108 · npm 툴체인 신설 · 코드 동결 08-25 까지 11일 | ✅ 스크립트 1개 + 테스트 1개 |
+| 평가 서버와 자원을 다투지 않는다 | 🟡 `node` 런타임이 필요해 같은 서버 유혹이 생긴다 | ✅ **파일이라 서버가 없다** |
+| 빌드 타임에 `artifacts/` 를 읽어 정적 산출물 | ✅ (`output: export`) | ✅ |
+| 우리 토큰 | 🔴 TSX 12파일 · CSS 900행 · 리뷰 | ✅ 그 1/5 |
+
+🔴 **디자인은 버리지 않는다.** `scratch/ARGUS_example` 의 **토큰·시맨틱 클래스명·카드/표/막대
+구조**를 CSS 한 파일로 옮긴다. 버리는 것은 **React·TypeScript·npm** 이다.
+🔴 **그리고 `Task 2` 의 `build_site_data.py` 규격을 그대로 쓴다** — 정본 파서(`parse_ssot`)·
+세대 해석(`resolve_generation`)·유출 게이트(`FORBIDDEN_PATHS`·`ROW_FIELDS_ALLOWED`)가
+전부 재사용된다. 나중에 Next.js 판을 살리면 **데이터 층은 손대지 않는다.**
+
+**산출물**
+
+```
+scripts/build_site.py          artifacts/ + docs/total_plan.md → site/*.html + site/data/*.json
+tests/test_build_site.py       스키마 · 정본 미러 · 🔴 유출 게이트 5종
+site/index.html                홈 — 헤드라인 지표 · 능력 4개 · 세대 라벨
+site/ablation.html             사다리 · LOO · 축별 히트맵 · 지출 원장 · 기각 목록 링크
+site/errors.html               6단계 귀속 · 근본 원인 · 문서군 · 🔴 분모 셋 · 데이터 상한
+site/pipeline.html             Phase A~I · 게이트·크레딧(정본 파싱) · 뒤집힌 이력
+site/data.html                 코퍼스 프로파일 · 인덱스 · 회수 지표 · API 계약 · 출처
+site/style.css                 디자인 토큰 + 전체 스타일 (단일 파일)
+site/data/site_*.json          provenance 용 생성 JSON (커밋함)
+site/README.md                 실행 · 데이터 흐름 · 공개하지 않는 것 다섯
+```
+
+🔴 **호스팅**: 저장소의 정적 파일 또는 GitHub Pages. **`223.130.129.131` 에 올리지 않는다.**
+
+---
+
+## Task R6-1: 빌드 골격 — 정본 파서 · 세대 해석 · 유출 게이트
+
+**Files:**
+- Create: `scripts/build_site.py` · `tests/test_build_site.py`
+- Read: `docs/total_plan.md` · `artifacts/ablation/*/summary.json`
+
+- [ ] **Step 1: 실패하는 테스트를 먼저 쓴다 (4분)**
+
+`tests/test_build_site.py` 에 §Task 2 의 테스트를 옮긴다 —
+`test_out_dir_is_inside_site` · `test_metadata_has_required_keys` ·
+`test_read_json_refuses_heldout_paths` · `test_write_site_json_requires_metadata` ·
+`test_build_site_data_has_no_hardcoded_currency`.
+
+```bash
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe -m pytest tests/test_build_site.py -q
+```
+Expected: `ModuleNotFoundError: build_site` 또는 `AttributeError` — **아직 스크립트가 없다.**
+
+- [ ] **Step 2: `scripts/build_site.py` 의 헬퍼를 쓴다 (5분)**
+
+§Task 2 의 블록을 그대로 옮긴다: `REPO` · `OUT_DIR = REPO/"site"/"data"` ·
+`FORBIDDEN_PATHS = ("heldout", "data/")` · `GENERATIONS` · `resolve_generation` ·
+`resolve_ladder_generation` · `argus_commit` · `metadata` · `_guard` · `read_json` ·
+`read_jsonl` · `write_site_json` · `count_tool_specs` · `parse_ssot` ·
+`ROW_FIELDS_ALLOWED` · `_mask_amounts`.
+
+🔴 **`argus` 패키지를 import 하지 않는다** (보안 ① — `argus.config.settings` 가 `.env` 를 읽는다).
+
+- [ ] **Step 3: 정본 파서를 실측한다 (2분)**
+
+```bash
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe -c "import sys;sys.path.insert(0,'scripts');import build_site as b;d=b.parse_ssot();print(d['spentWon'],d['tests'],d['gates'],len(d['spentLedger']),len(d['phases']),b.count_tool_specs(),b.resolve_generation(),b.resolve_ladder_generation())"
+```
+Expected: 누적 지출 · 테스트 수 · 게이트 · 원장 12행 · Phase 9행 · 도구 종수 · 두 세대 이름이
+한 줄로 나온다. 🔴 **그 값을 계획서·커밋 메시지에 적지 않는다.** 정본은 `docs/total_plan.md` §1 이다.
+검산이 어긋나면 `ValueError` 가 나고, **그때 고칠 것은 스크립트가 아니라 문서다.**
+
+- [ ] **Step 4: 테스트 통과 (2분)**
+
+```bash
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe -m pytest tests/test_build_site.py -q
+```
+Expected: 전건 PASS. 생성물이 없어 유출 게이트는 `skip`.
+
+- [ ] **Step 5: 커밋 (2분)**
+
+```bash
+git commit --only scripts/build_site.py tests/test_build_site.py -m "feat(site): 빌드 골격 — 정본 파서·세대 해석·유출 게이트"
+```
+
+## Task R6-2: 🔴 유출 게이트를 먼저 켠다 — **다섯 검사**
+
+🔴 **화면보다 게이트가 먼저다.** 한 번 발행하면 되돌릴 수 없다.
+
+- [ ] **Step 1: 다섯 검사를 쓴다 (5분)**
+
+```python
+def _generated() -> list[Path]:
+    return sorted(bsd.OUT_DIR.glob("site_*.json")) + sorted((ROOT / "site").glob("*.html"))
+
+def test_gate_no_heldout_text():          # ③ heldout 질문 전문·문항 ID
+def test_gate_no_evalset_question_text(): # ④ questions/regression/valuechain 전문 + 앞 20자
+def test_gate_no_golden_fields():         # ⑤ golden · golden_rank · answer · think_trace 키
+def test_gate_no_api_key_shape():         # ① nv- · sk- · Bearer · 40자 이상 hex/base64
+def test_gate_no_public_ip():             # 공인 IP (deploy/README.md 에서 읽어 대조)
+```
+
+🔴 `test_gate_no_public_ip` 는 IP 를 테스트에 적지 않는다 — `deploy/README.md` 에서
+`\d+\.\d+\.\d+\.\d+` 를 뽑아 생성물에 없는지 본다. **정본에서 읽어 대조한다.**
+
+- [ ] **Step 2: 게이트가 실제로 발화하는지 본다 (3분)**
+
+일부러 위반 페이로드를 써 넣고 테스트가 **실패**하는지 확인한다.
+
+```bash
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe -c "import sys;sys.path.insert(0,'scripts');import build_site as b;q=b.read_jsonl('evalset/questions.jsonl')[0]['question'];b.write_site_json('site_leak_probe.json',{'metadata':b.metadata('probe',[]),'q':q})"
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe -m pytest tests/test_build_site.py -q -k gate
+```
+Expected: 🔴 **FAIL** — `질문 전문이 실렸다`. 게이트가 살아 있다는 증거다.
+🔴 **발화를 확인하지 않은 게이트는 게이트가 아니다** — 이 저장소가 거짓 경보/무발화를 둘 다 겪었다.
+
+- [ ] **Step 3: 프로브를 지우고 다시 통과시킨다 (1분)**
+
+```bash
+rm site/data/site_leak_probe.json
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe -m pytest tests/test_build_site.py -q -k gate
+```
+Expected: PASS 또는 `skip`(생성물 없음).
+
+- [ ] **Step 4: 커밋 (2분)**
+
+```bash
+git commit --only tests/test_build_site.py -m "test(site): 유출 게이트 다섯 — 발화 확인까지"
+```
+
+## Task R6-3: 데이터 빌더 — `meta` · `ablation` · `errors` · `pipeline` · `data`
+
+- [ ] **Step 1: `build_meta` 를 옮긴다 (4분)** — §Task 2 의 최종본. 🔴 `heldout` 키 없음 · `toolCount` 는 `ast` 로 센 값.
+- [ ] **Step 2: `build_ablation` 을 옮긴다 (5분)** — 🔴 두 세대 라벨 · `parse_ssot` 원장 · `notAdopted` · `_fill_findings`.
+- [ ] **Step 3: `build_errors` 를 옮긴다 (5분)** — 🔴 분모 셋을 **센다** · `_mask_amounts` · 화이트리스트.
+- [ ] **Step 4: `build_pipeline` · `build_data` 를 옮긴다 (5분)** — Phase 표 파싱 · `recall_v2` 코호트 라벨 · `API_CONTRACT`(🔴 IP 없음).
+- [ ] **Step 5: 전부 생성하고 게이트를 켠다 (3분)**
+
+```bash
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe scripts/build_site.py
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe -m pytest tests/test_build_site.py -q
+```
+Expected: `site/data/site_{meta,ablation,errors,pipeline,data}.json` 5개 생성 · 전건 PASS
+(유출 게이트가 이제 `skip` 이 아니다).
+
+- [ ] **Step 6: 🔴 생성물을 사람이 한 번 읽는다 (4분)**
+
+```bash
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe -c "import json,glob;[print(p,json.load(open(p,encoding='utf-8'))['metadata']['note']) for p in sorted(glob.glob('site/data/site_*.json'))]"
+```
+Expected: 5줄. 각 `note` 가 "무엇인지" 를 말하고 `sourceFiles` 에 `docs/total_plan.md` 가 들어 있다.
+
+```bash
+grep -c golden site/data/*.json
+```
+Expected: 전부 0.
+
+- [ ] **Step 7: 커밋 (2분)**
+
+```bash
+git commit --only scripts/build_site.py tests/test_build_site.py -m "feat(site): 데이터 빌더 다섯 — 성적은 산출물, 지출·게이트는 정본 파싱"
+git add -f site/data
+git commit --only site/data -m "feat(site): 생성 JSON 커밋 — 산출물 없는 클론에서도 빌드된다"
+```
+
+## Task R6-4: 렌더러 — 정적 HTML 다섯 쪽
+
+**Files:** Modify: `scripts/build_site.py` · Create: `site/style.css`
+
+- [ ] **Step 1: `site/style.css` 를 쓴다 (5분)**
+
+§Task 1 의 `globals.css` 에서 **토큰과 시맨틱 클래스만** 옮긴다:
+`:root` 커스텀 프로퍼티 · `.container` `.section` `.card` `.badge` `.chip` `.lead`
+`.section-heading` `.table` `.table-wrap` `.panel` `.grid` `.grid-3` `.grid-4`
+`.eyebrow` `.helper` `.metric` `.rate-bar` `.heat`.
+🔴 라이트 전용 · Tailwind 없음 · 차트 라이브러리 없음(막대는 `div` 폭 %).
+
+- [ ] **Step 2: HTML 헬퍼를 쓴다 (5분)**
+
+```python
+def esc(v) -> str: ...                      # html.escape. 🔴 모든 값이 이걸 통과한다
+def page(title, body, gen, commit) -> str:  # <html lang="ko"> + style.css + 내비 5쪽
+                                            # 🔴 푸터에 세대 라벨 + argusCommit
+def card(label, value, helper) -> str: ...
+def table(headers, rows) -> str: ...        # .table-wrap 로 감싼다
+def bar(pct, negative) -> str: ...          # CSS 막대
+```
+
+🔴 **템플릿에 수치를 넣지 않는다.** 모든 값은 `site/data/site_*.json` 인자로 들어온다.
+
+- [ ] **Step 3: 다섯 쪽을 쓴다 (5분 × 5)**
+
+각 쪽은 `render_<name>(payload) -> str` 하나다. 담는 것:
+
+| 쪽 | 반드시 있어야 하는 것 |
+|---|---|
+| `index` | 지표 카드 4장(그리드·정보한계·회귀·골든 근거) · 능력 4개 · 축 커버리지 · 🔴 heldout 카드 없음 |
+| `ablation` | 사다리 막대(A1 빨강) · LOO 표 · 히트맵 3개 · 원장 표 + `ledgerSource` · `notAdopted`("성적이 아니다" 라벨) · 🔴 **두 세대 라벨** |
+| `errors` | 6단계 히스토그램 · 근본 원인 · 문서군 · 🔴 **분모 셋을 나란히, 각자 라벨과 함께** · 데이터 상한(§4 링크) · 자동 배분의 한계 문장 |
+| `pipeline` | Phase 9장 카드(게이트·크레딧은 파싱값) · 게이트 총계 · 테스트 수 + "정본은 §1" 문장 |
+| `data` | 코퍼스 표 · 인덱스 · Recall@5(🔴 코호트 라벨 필수) · API 계약 · `artifactsNote` |
+
+- [ ] **Step 4: 렌더하고 눈으로 본다 (4분)**
+
+```bash
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe scripts/build_site.py --html
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe -c "import pathlib;[print(p.name,p.stat().st_size) for p in sorted(pathlib.Path('site').glob('*.html'))]"
+```
+Expected: 5개 HTML. 브라우저로 `site/index.html` 을 열어 ① 내비 5개가 전부 살아 있는지
+(죽은 링크 0건) ② 375px 폭에서 가로 스크롤이 없는지 ③ 푸터에 세대 라벨이 있는지 본다.
+
+- [ ] **Step 5: 🔴 HTML 에도 유출 게이트를 돌린다 (3분)**
+
+게이트 다섯이 `site/*.html` 까지 훑도록 확장한다 — JSON 만 검사하면 **템플릿에 박은 문자열을 놓친다.**
+
+```bash
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe -m pytest tests/test_build_site.py -q -k gate
+grep -c 223.130 site/*.html site/data/*.json
+```
+Expected: 전건 PASS · IP 카운트 전부 0.
+
+- [ ] **Step 6: 커밋 (2분)**
+
+```bash
+git commit --only scripts/build_site.py site/style.css -m "feat(site): 정적 HTML 렌더러 5쪽"
+git add -f site/index.html site/ablation.html site/errors.html site/pipeline.html site/data.html
+git commit --only site -m "feat(site): 발행본 5쪽"
+```
+
+## Task R6-5: 마감 게이트 — 회귀 · 재현 · 정본 역참조
+
+- [ ] **Step 1: 전량 테스트 (3분)**
+
+```bash
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe -m pytest tests/ -q
+```
+Expected: **`failed` 0건.** 🔴 건수를 여기 적지 않는다 — 정본은 `docs/total_plan.md` §1 이고
+그 수는 이 태스크가 늘린다. **늘어난 수를 §1 에 반영하고 증가 이력 꼬리도 함께 잇는다**
+(헤드라인만 고치고 꼬리를 두면 그것이 열 번째 결함의 재발이다).
+
+- [ ] **Step 2: 🔴 재현성 — 두 번 돌려 같은 바이트가 나오는지 (3분)**
+
+```bash
+PYTHONIOENCODING=utf-8 C:/Users/Juhwankim/miniconda3/python.exe scripts/build_site.py --html
+git status --porcelain site/
+```
+Expected: `metadata.generated` 를 뺀 나머지가 동일하다. 🔴 **정렬이 불안정한 곳이 있으면
+`sorted()` 를 넣는다** — 매 빌드마다 diff 가 나면 사본이 있는 것과 같은 병이 된다.
+
+- [ ] **Step 3: `site/README.md` 를 쓴다 (4분)** — §Task 10 Step 9 의 최종본(공개하지 않는 것 다섯 · 페이지 표 · 데이터 흐름). 🔴 `npm` 절을 빼고 Python 명령으로 바꾼다.
+
+- [ ] **Step 4: 저장소 루트 `README.md` 에 두 행 추가 (2분)**
+
+```markdown
+| `site/` | 결과 공개용 정적 사이트 (`site/README.md`) — 🔴 평가 서버에 올리지 않는다 |
+| `scripts/build_site.py` | `artifacts/` + `docs/total_plan.md` → `site/*.html`. LLM 0회 |
+```
+
+- [ ] **Step 5: 🔴 `docs/total_plan.md` §8 참조표에 한 줄 (2분)**
+
+```markdown
+| `site/` | 결과 공개용 정적 사이트. 🔴 성적·지출을 **이 문서에서 파싱**한다 — 사본이 아니다 |
+```
+🔴 **이 줄이 있어야 §1 을 고치는 사람이 "사이트가 나를 읽는다" 는 것을 안다.**
+정본→사본 방향만 적어 두면 다음 사람이 사본의 존재를 모른 채 문서를 고친다.
+
+- [ ] **Step 6: 커밋 (2분)**
+
+```bash
+git commit --only site/README.md README.md docs/total_plan.md -m "docs(site): 사이트 문서와 정본 역참조"
+```
+
+## 🔴 이 라운드에서 하지 않는 것
+
+| 항목 | 이유 |
+|---|---|
+| `/answers` 트레이스 | 보안 ④⑤. 되살리는 조건 셋이 Task 5 머리에 있다 |
+| `/search` 클라이언트 필터 | 정적 HTML 범위 밖. `errors` 의 문항 ID 표가 같은 정보를 낸다 |
+| `/corrections`·`/counterparty` | 🟡 만들 수는 있다. **여유가 있으면 `R6-6` 으로 붙인다**(각 40분) |
+| Next.js · React · TypeScript · npm | 위 판정표 |
+| 평가 서버 배포 | 🔴 09-07~09-20 에 2 vCPU 를 나누지 않는다 |
+| 새 측정 | 🔴 크레딧 0원 · LLM 0회. 사이트는 **이미 있는 산출물만** 읽는다 |
+| 새 heldout 수치 | `R4-1` 이 만들면 **빌드가 저절로 읽는다** — 사이트에 값을 넣을 일이 없다 |
+
+**예상**: `R6` 전체 **6~9시간** (골격 1h + 게이트 1h + 빌더 2h + 렌더 2~3h + 마감 1~2h) ·
+**크레딧 0원** · **LLM 0회** · 우리 토큰 ~25%.
+
+**선행 조건**: `R5`(제안서 최종) 완료 · `R4-0` 코드 동결 이후 —
+🔴 **사이트는 `src/` 를 읽기만 하므로 동결을 깨지 않는다**(`ast` 로 소스를 세는 것도 읽기다).
+🔴 **`R6` 이 밀리면 버린다.** 제출물 4종이 먼저다.
