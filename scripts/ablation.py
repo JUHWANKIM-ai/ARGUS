@@ -202,6 +202,38 @@ def load_cases(cohort: str = "", snapshot: str | Path | None = None) -> list[dic
     return load_dev(snapshot)
 
 
+def install_oracle_golden(targets: list[str], cases: list[dict]) -> dict | None:
+    """🔴 `ORACLE` arm 을 돌리기 전에 코호트의 `{question_id: evidence}` 를 주입한다.
+
+    파이프라인은 `question_id` 만 알고 evalset 을 모른다 (`src/argus/ablation.py` 머리말).
+    주입 없이 arm 만 켜면 `OracleGoldenMissing` 이 나서 **거기서 멈춘다** — 조용히 빈
+    근거로 진행해 "오라클을 줘도 생성이 다 틀렸다" 가 되는 것보다 낫다.
+
+    🔴 **heldout 은 절대 주입 대상이 아니다.** 구조적으로도 여기 못 온다 (`main` 의
+    heldout 경로는 이 함수 앞에서 반환한다). 그래도 split 을 한 번 더 본다 — 되돌릴 수
+    없는 조작의 제동은 겹으로 거는 것이 이 저장소의 규칙이다.
+
+    🔴 **진단 전용이다.** 평가 시점에는 골든이 없으므로 이 arm 의 정답률은 제출 성적이
+    아니다 (`ablation.DIAGNOSTIC_ARMS`).
+    """
+    arms = [a for a in targets if a in ablation.ARMS and ablation.ARMS[a].golden_oracle]
+    if not arms:
+        return None
+    held = sorted(c["question_id"] for c in cases if c.get("split") == "heldout")
+    if held:
+        raise SystemExit(
+            f"🔴 heldout 문항에 골든을 주입하려 했습니다: {held[:5]} — 거부합니다.")
+    mapping = {c["question_id"]: (c.get("evidence") or []) for c in cases}
+    ablation.set_oracle_golden(mapping)
+    n_ev = sum(len(v) for v in mapping.values())
+    n_sec = sum(1 for v in mapping.values() for e in v if e.get("section"))
+    empty = sorted(q for q, v in mapping.items() if not v)
+    print(f'\n🔴 진단 arm {arms} — 골든 근거 주입 {len(mapping)}문항 · evidence {n_ev}개 '
+          f'(section 지정 {n_sec}) · 골든 없는 문항 {len(empty)}건 {empty}')
+    print("   ORACLE 은 평가 시점에 재현할 수 없다 — **제출 성적으로 인용하지 않는다.**")
+    return mapping
+
+
 def load_heldout() -> list[dict]:
     """🔴 heldout 18문항. **최종 구성 1회 전용.** arm 루프는 이 함수를 부르지 않는다."""
     path = ROOT / "evalset" / "heldout.jsonl"
@@ -1048,6 +1080,15 @@ def render_summary(summary: dict, meta: dict) -> str:
            f'/ 상한 {meta["budget_won"]:,.0f}원 · 요청 캐시 적중 {meta["cache_hits"]}회\n',
            f'지출 출처: {meta.get("spent_won_source", "—")}\n']
 
+    # 🔴 진단 arm 은 **성적이 아니다.** 산출물만 보는 사람이 숫자를 제출 성적으로 읽는 것을
+    #    막는 유일한 수단이 이 줄이다 — 표 안에서는 다른 arm 과 똑같이 생겼다.
+    diagnostic = [a for a in ablation.DIAGNOSTIC_ARMS if a in summary["arms"]]
+    if diagnostic:
+        out.append(f'> 🔴 **{", ".join(diagnostic)} 는 진단 전용이다.** 평가 시점에 없는 '
+                   "정보(골든 근거)를 쓰므로 제출 구성이 될 수 없고, 그 정답률을 "
+                   "성적으로 인용하면 자기 성적표를 부풀리는 것이 된다. 읽는 법은 "
+                   "§2b 의 Δ 하나뿐이다.\n")
+
     out.append("\n## 1. 누적 곡선 — 정답률과 Δ (**그리드 기준**)\n")
     out.append("| arm | 정답 / 채점 | 정답률 | Δ(직전) | 골든 전건적중 | LLM 호출 | 토큰 | arm 비용(원) |")
     out.append("|---|---|---|---|---|---|---|---|")
@@ -1090,6 +1131,24 @@ def render_summary(summary: dict, meta: dict) -> str:
             out.append(f'| {arm} | {ablation.LOO_REMOVED[arm]} '
                        f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
                        f'| {_pp(base["rate"], row["rate"])} |')
+
+    # 🔴 진단 arm 은 사다리에도 LOO 에도 없으므로 위 두 표에 **안 찍힌다.** 자리를 안 주면
+    #    경고만 뜨고 잰 값은 산출물 어디에도 안 남아, 다음 사람이 report.json 을 직접
+    #    열어야 한다. 여기 한 칸을 주되 **경고를 표 안에 같이 적는다.**
+    if diagnostic:
+        out.append("\n## 2b. 진단 arm — **성적이 아니다**\n")
+        out.append("| arm | 재는 것 | 정답 / 채점 | 정답률 | Δ(A8 대비) | 골든 전건적중 |")
+        out.append("|---|---|---|---|---|---|")
+        base = summary["arms"].get("A8")
+        for arm in diagnostic:
+            row = summary["arms"][arm]
+            out.append(f'| {arm} | 검색을 골든으로 고정한 **생성 능력** '
+                       f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
+                       f'| {_pp(base["rate"] if base else None, row["rate"])} '
+                       f'| {row["golden_evidence_all"]}/{row["n_grid"]} |')
+        out.append("\n> 🔴 평가 시점에 골든이 없다. 이 줄의 정답률은 **제출 성적이 아니라 "
+                   "진단값**이다. `Δ = 검색이 아직 못 가져온 몫` 이고, 잔여 오답은 "
+                   "`순수 생성 실패` 로 읽는다.\n")
 
     out.append("\n## 3. 축별 Δ 분해\n")
     # 🔴 `ladder[0]`·`base_name` 을 무방비로 쓰면 LOO 단독 실행에서 IndexError 로 죽는다 —
@@ -2286,6 +2345,9 @@ def main(argv: list[str] | None = None) -> None:
         targets = list(ablation.RUN_ORDER)
     elif args.arm:
         targets = [a.strip() for a in args.arm.split(",") if a.strip()]
+
+    # 🔴 `ORACLE` 은 골든이 주입돼야 돈다. heldout 경로는 위에서 이미 반환했다.
+    install_oracle_golden(targets, cases)
 
     live: dict[str, dict] = {}
     for arm in targets:

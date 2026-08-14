@@ -1368,6 +1368,156 @@ def _gather_evidence(r, question: str = "",
     return _joined(), trace
 
 
+# --- ORACLE — 골든 근거 주입 (🔴 진단 전용 · 제출 구성이 될 수 없다) --------------
+# `A0`~`A8` 은 전부 "검색 + 생성" 의 합성 성능이라 **검색을 고정한 생성 능력을 잰 적이
+# 없다.** 이 경로는 검색 차선 전체를 골든 근거로 갈아치워 그 축을 하나 만든다.
+#
+#     Δ(A8 → ORACLE)      검색이 아직 못 가져온 몫
+#     ORACLE 의 잔여 오답  순수 생성 실패
+#
+# 🔴 **평가 시점에는 골든이 없다.** 이 경로로 나온 정답률은 성적이 아니라 진단값이다.
+#
+# 🔴 **형식·순서·절단 규칙을 검색 경로와 같게 맞춘다.** 다르면 Δ 에 '형식 효과' 가 섞여
+# 검색 몫과 구별되지 않는다. 그래서 정형 레코드는 `record["markdown"]` 을 `MAX_EVIDENCE`
+# 까지, 정기공시는 `tools._section_markdown` 블록을 `_join_section_evidence` 로 —
+# 둘 다 검색 경로가 쓰는 **같은 함수·같은 상한**이다.
+
+#: 정기공시 문서 식별자 접두. 골든은 접수번호만 주므로 여기서 만든다
+#: (`filter_docs(doc_group="periodic")` 의 `doc_id` 와 같은 형태다).
+PERIODIC_DOC_PREFIX = "periodic_"
+
+#: 골든 목차 하나에서 볼 조각 후보 수. 상한은 `MAX_SECTION_EVIDENCE` 가 다시 조인다.
+#: 넉넉히 잡는 이유는 골든 `section` 이 **대목 전체**를 가리키는 경우가 있어서다 —
+#: 실측 Q-088 의 `III. 재무에 관한 사항 > 3. 연결재무제표 주석` 은 조각 57개 · 231,624자다.
+ORACLE_SECTION_POOL = 8
+
+#: `parse_hops` 가 되읽을 hop 번호. 검색 hop 과 겹치지 않게 발주처 hop 다음에 둔다 —
+#: 같은 번호를 쓰면 Phase H 가 두 종류의 후보를 한 레코드로 합쳐 읽는다.
+ORACLE_HOP = COUNTERPARTY_HOP + 1
+
+
+def _oracle_section_blocks(rcept_no: str, section: str, question: str, cap: int,
+                           budget: Budget, trace: list[str]) -> list[dict]:
+    """골든이 지목한 (문서, 목차) 안에서 근거 조각을 고른다. LLM 0회.
+
+    🔴 **오라클의 한계가 여기 있다.** 골든 `section` 은 목차 '대목' 이라 조각 수십 개로
+    풀리는데 프롬프트 예산(`MAX_SECTION_CHARS` 12,000자)은 4조각쯤만 받는다. 그래서
+    문서 순서대로 앞에서 자르면 오라클이 아니라 '검색 없음' 이 된다 (Q-088 은 앞 4조각이
+    일반사항·회계정책이고 골든 표는 뒤에 있다). **문서와 목차는 골든으로 못박고, 그 안의
+    조각 선택만 기존 랭커에 맡긴다** — 즉 이 arm 이 완벽하게 고정하는 것은 *문서·대목*
+    이지 *문단* 이 아니다. 보고서가 이 사실을 함께 적어야 Δ 를 옳게 읽는다.
+
+    BM25 가 한 조각도 못 고르면(질의어가 하나도 안 겹치면) 문서 순서로 되돌린다 —
+    빈 근거로 내려가면 그 문항이 '생성 실패' 로 오독된다.
+    """
+    doc_id = f"{PERIODIC_DOC_PREFIX}{rcept_no}"
+    index = tools._section_index()
+    wanted = bm25_module.norm_path(section)
+    rows = [r for r in (tools._sections_of(index, doc_id) if index else [])
+            if bm25_module.norm_path(r["path"]) == wanted
+            or bm25_module.norm_path(r["path"]).startswith(wanted)]
+    rows.sort(key=lambda r: (r["chunk_id"].split("/")[0], r["part"]))
+    # 기업 축은 인덱스 레코드에서 되찾는다. `search_chunks` 는 `corp_name` 을 안 돌려주는데,
+    # `_join_section_evidence` 가 그 축으로 라운드로빈한다 — None 으로 두면 비교 질의에서
+    # 한 기업이 근거 칸을 다 먹는다 (`_cover_order` 주석의 Q-049 사고와 같은 기전).
+    corp_of = {r["chunk_id"]: r["corp_name"] for r in rows}
+
+    try:
+        budget.spend_step()
+    except BudgetExceeded as exc:
+        trace.append(f"hop={ORACLE_HOP} strat=oracle stop=step_budget ({exc})")
+        return []
+    out = tools.execute("search_chunks", {"query": question, "top_k": ORACLE_SECTION_POOL,
+                                          "group": "periodic", "doc_id": doc_id,
+                                          "path": section, "include_stubs": True})
+    if "error" in out:
+        trace.append(f'hop={ORACLE_HOP} strat=oracle tool=search_chunks group=periodic '
+                     f'skip=tool_error 건너뜀({out["error"]})')
+        chunks = []
+    else:
+        chunks = [c for c in (out.get("chunks") or []) if c.get("chunk_id") in corp_of]
+    if not chunks:
+        # 질의어가 한 조각과도 안 겹쳤다 (BM25 는 점수 0 을 후보에서 뺀다). 문서 순서로
+        # 되돌린다 — `read_section` 과 같은 정렬이다 (조각 번호 → part).
+        trace.append(f'hop={ORACLE_HOP} strat=oracle tool=search_chunks group=periodic '
+                     f'doc_id={doc_id} fallback=doc_order n={len(rows)}')
+        chunks = [{"chunk_id": r["chunk_id"], "score": None,
+                   "markdown": tools._section_markdown(r)}
+                  for r in rows[:ORACLE_SECTION_POOL]]
+    return [{"doc_id": c["chunk_id"], "markdown": c.get("markdown"),
+             "score": c.get("score"), "corp": corp_of.get(c["chunk_id"])}
+            for c in chunks if c.get("markdown")][:cap]
+
+
+def _gather_golden(question_id: str, question: str,
+                   budget: Budget) -> tuple[str, list[str]]:
+    """골든 근거만으로 프롬프트 근거를 만든다. 🔴 진단 전용 (`ablation.ORACLE`).
+
+    주입이 없으면 `ablation.oracle_golden_for` 가 **예외를 던진다** — 조용히 빈 근거로
+    내려가면 그것이 "오라클을 줘도 생성이 다 틀렸다" 로 굳는다.
+    """
+    golden = ablation.oracle_golden_for(question_id)
+    trace: list[str] = [
+        f"oracle=golden n_golden={len(golden)} "
+        "🔴 진단 전용 — 검색을 골든으로 대체했다 (제출 구성이 될 수 없다)"]
+
+    # 🔴 골든 근거마다 **공평 몫**을 준다. `_gather_sections` 가 (기업 × 경로) 셀에 할당량을
+    #    두는 것과 같은 이유다 — 안 두면 조각이 많은 골든 하나가 근거 칸 4개를 다 먹고
+    #    나머지 골든이 통째로 빠진다 (실측 Q-054·Q-088·Q-094 — 대목 전체를 가리키는
+    #    `연결재무제표 주석` 이 같은 문항의 `정정 신고` 를 밀어냈다). `_cover_order` 는
+    #    기업 축으로만 나누므로 **같은 기업의 골든 둘**은 그것만으로 안 갈린다.
+    n_sections = sum(1 for item in golden if (item or {}).get("section"))
+    cap = max(1, MAX_SECTION_EVIDENCE // n_sections) if n_sections else MAX_SECTION_EVIDENCE
+
+    records: list[dict] = []
+    sections: list[dict] = []
+    missing: list[str] = []
+    for item in golden:
+        rcept_no = str((item or {}).get("rcept_no") or "")
+        section = (item or {}).get("section")
+        if not rcept_no:
+            missing.append("?")
+            continue
+        if section:
+            blocks = _oracle_section_blocks(rcept_no, section, question, cap,
+                                            budget, trace)
+            if not blocks:
+                missing.append(rcept_no)
+            sections.extend(blocks)
+            continue
+        record = tools._record_of(rcept_no)
+        if record is None or not record.get("markdown"):
+            missing.append(rcept_no)
+            continue
+        records.append({"doc_id": record["doc_id"], "markdown": record["markdown"],
+                        "score": None, "corp": record.get("corp_name")})
+
+    picked = records + sections
+    # 🔴 `parse_hops` 가 되읽는 줄. 골든 문서를 `ids=` 에 적어야 Phase H 의 실패 귀속이
+    #    이 arm 에서도 성립한다 — 안 적으면 골든이 '어떤 hop 후보에도 없다' 가 되어
+    #    전건이 RETRIEVAL 로 귀속되고, 그것이 이 측정의 결론을 통째로 뒤집는다.
+    corps = sorted({p["corp"] for p in picked if p.get("corp")})
+    trace.append(
+        f'hop={ORACLE_HOP} strat=oracle tool=golden_evidence '
+        f'corp="{",".join(corps) or "-"}" period=none '
+        + ("group=periodic " if sections else "")
+        + f'n={len(picked)} top_score=- '
+        f'ids={",".join(str(p["doc_id"]) for p in picked) or "-"}')
+    if missing:
+        # 골든이 코퍼스에서 안 열리는 경우. **삼키지 않는다** — 근거가 준 것보다 적다.
+        trace.append(f'hop={ORACLE_HOP} strat=oracle skip=golden_unresolved '
+                     f'ids={",".join(missing)}')
+    trace.append(_log_verdict(ORACLE_HOP, bool(picked), len(picked),
+                              [] if picked else ["oracle_empty"]))
+
+    parts = []
+    if records:
+        parts.append("\n\n".join(p["markdown"] for p in records[:MAX_EVIDENCE]))
+    if sections:
+        parts.append(_join_section_evidence(sections))
+    return "\n\n".join(p for p in parts if p), trace
+
+
 def answer_question(question_id: str, question: str) -> dict:
     budget = Budget()
     clean, warnings = sanitize_question(question)
@@ -1383,7 +1533,12 @@ def answer_question(question_id: str, question: str) -> dict:
         trace.append("범위 밖 — LLM 호출 없이 한계 고지")
         return _respond(question_id, question, "", trace, UNANSWERABLE, budget)
 
-    evidence, tool_trace = _gather_evidence(r, clean, budget)
+    # 🔴 ORACLE 은 여기서 갈린다 — `_gather_evidence` 안에는 `question_id` 가 없다.
+    #    플래그가 꺼져 있으면(기본값) 아래 한 줄은 종전과 글자 하나 다르지 않다.
+    if ablation.current().golden_oracle:
+        evidence, tool_trace = _gather_golden(question_id, clean, budget)
+    else:
+        evidence, tool_trace = _gather_evidence(r, clean, budget)
     trace.extend(tool_trace)
     # 근거 성형은 **검색이 끝난 뒤**다. 여기 위로 올리면 A5·L2 의 Δ 에 검색 변화가
     # 섞여 단일 변수 조작이 아니게 된다 (`ablation.shape_evidence` 주석).

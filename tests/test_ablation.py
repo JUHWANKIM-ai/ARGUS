@@ -1416,3 +1416,278 @@ def test_the_refusal_happens_before_any_directory_is_created(fake_root, monkeypa
         runner.main(["--heldout", "--arm", "A8",
                      "--out", "artifacts/ablation/v3/heldout"])
     assert made == [], f"제동 앞에서 디렉터리를 만들었다: {made}"
+
+
+# --- ORACLE — 검색을 고정하고 생성만 잰다 (🔴 진단 전용 · 사다리 밖) ---------------
+# `A0`~`A8` 은 전부 "검색 + 생성" 의 합성 성능이라 **검색을 고정한 생성 능력을 잰 적이
+# 없다.** 이 arm 이 그 축을 만든다. 여기 테스트가 지키는 성질은 셋이다.
+#
+#   ① 플래그가 기본 꺼짐이고 `A8` 과 **그 하나만** 다르다 (Δ 의 귀속)
+#   ② 주입 없이 켜면 **명확히 실패**한다 (조용한 빈 근거 = 최악의 Δ 0)
+#   ③ 골든이 근거에 실제로 실린다 (켰는데 안 켜진 것도 같은 크기의 위험)
+
+#: 정형 레코드 골든 (`section` 이 없다 → `tools._record_of` 로 열린다).
+ORACLE_RECORD_Q = ("Q-001", "HD현대일렉트릭이 2023년 1월에 체결한 2500kVA 배전변압기 등 "
+                   "3,500대 공급계약의 계약금액은 얼마인가?",
+                   [{"rcept_no": "20230131800162", "section": None}])
+#: 정기공시 골든 (`section` 이 있다 → 섹션 인덱스로 열린다. `doc_id` 는 `periodic_<접수번호>`).
+ORACLE_SECTION_Q = ("Q-046", "삼성전자 DS 부문 매출액이 제53기와 제57기 사이에 "
+                    "어떻게 달라졌는지 각 값을 들어 설명하라.",
+                    [{"rcept_no": "20240312000736",
+                      "section": "II. 사업의 내용 > 4. 매출 및 수주상황"},
+                     {"rcept_no": "20260310002820",
+                      "section": "II. 사업의 내용 > 4. 매출 및 수주상황"}])
+
+
+@pytest.fixture(autouse=True)
+def no_oracle_golden_leaks():
+    """주입은 모듈 전역이다. 한 테스트가 남긴 골든이 다음 테스트를 조용히 통과시키면
+    "주입 없이도 돈다" 는 거짓이 스위트 안에서 만들어진다."""
+    yield
+    ablation.set_oracle_golden(None)
+
+
+def _oracle_evidence(question_id: str, question: str, golden: list[dict]) -> str:
+    """골든을 주입하고 근거만 조립한다. **LLM 0회** — 생성 경로를 타지 않는다."""
+    with ablation.use("ORACLE"), ablation.use_oracle_golden({question_id: golden}):
+        evidence, _ = pipeline._gather_golden(question_id, question, Budget())
+        return ablation.shape_evidence(evidence)
+
+
+# --- ① 플래그 --------------------------------------------------------------------
+
+def test_the_oracle_flag_is_off_by_default():
+    """🔴 기본값이 곧 운영 경로다. 참이면 제출 구성이 골든을 읽는다 — 있을 수 없는 일이다."""
+    assert ablation.Arm("X").golden_oracle is False
+    assert ablation.A8.golden_oracle is False
+    assert ablation.current().golden_oracle is False
+    assert "golden_oracle" in FLAGS                  # `FLAG_NAMES` 가 자동으로 잡는다
+
+
+def test_oracle_differs_from_a8_by_exactly_the_golden_flag():
+    """단일 변수 조작. 하나라도 더 바뀌면 Δ 가 '검색 고정' 의 것이 아니다."""
+    a8, oracle = ablation.flags("A8"), ablation.flags("ORACLE")
+    assert {k for k in oracle if oracle[k] != a8[k]} == {"golden_oracle"}
+
+
+def test_oracle_is_a_side_branch_not_a_rung_and_not_a_loo():
+    """🔴 사다리에 넣으면 누적 곡선이 '골든을 본 성적' 을 품는다. LOO 표에 넣으면
+    '뺀 것' 칸이 성립하지 않는다 — `A2`/`A2F` 와 같은 곁가지다."""
+    assert "ORACLE" not in ablation.LADDER
+    assert "ORACLE" not in ablation.LOO_REMOVED
+    assert "ORACLE" in ablation.ARMS and "ORACLE" in ablation.RUN_ORDER
+    assert ablation.RUN_ORDER[-1] == "ORACLE"        # 가장 나중 — 사다리를 다 확보한 뒤다
+
+
+def test_oracle_is_declared_diagnostic_so_the_report_cannot_quote_it_as_a_score():
+    """🔴 평가 시점에 골든이 없다. 이 목록이 없으면 산출물만 보는 사람이 숫자를
+    제출 성적으로 읽는다 (러너의 `render_summary` 가 이 목록을 읽어 경고를 찍는다)."""
+    assert "ORACLE" in ablation.DIAGNOSTIC_ARMS
+    assert all(ablation.ARMS[a].golden_oracle for a in ablation.DIAGNOSTIC_ARMS)
+
+
+def test_the_oracle_flag_refuses_to_hide_a_retrieval_loo():
+    """🔴 오라클 위에서는 검색 플래그가 **안 읽힌다** — `L1 + golden_oracle` 의 Δ 는
+    정의상 0 이고, 우리는 0 을 "그 구성요소는 기여가 없다" 로 읽는다.
+    `META_UNREACHABLE_FLAGS` 와 같은 종류의 방어를 여기도 건다."""
+    for flag in ("chain_hop", "counterparty_hop", "hop_ladder", "split_query"):
+        extra = {"followup_hop": False} if flag == "chain_hop" else {}
+        with pytest.raises(ValueError, match="golden_oracle"):
+            replace(ablation.ORACLE, name="ORACLE-broken", **{flag: False}, **extra)
+    with pytest.raises(ValueError, match="golden_oracle"):
+        replace(ablation.ORACLE, name="ORACLE-dense", dense=True)
+
+
+def test_the_oracle_flag_does_not_disable_evidence_shaping_or_the_verifier():
+    """`shape_evidence` 와 `_verify` 는 근거 출처와 무관하게 돈다 — 그래서 이 셋은
+    도달 불가 목록에 **없어야** 한다. 있으면 오라클 위 A5·L2·A6 이 못 서게 된다."""
+    for flag in ("schema_fields", "calc_values", "verifier"):
+        assert flag not in ablation.ORACLE_UNREACHABLE_FLAGS
+        replace(ablation.ORACLE, name="ORACLE-shaped", **{flag: False})   # 예외가 없어야 한다
+
+
+# --- ② 주입이 없으면 **조용히 넘어가지 않는다** ------------------------------------
+
+def test_answering_with_oracle_and_no_injection_fails_loudly():
+    """🔴 이 파일에서 가장 중요한 오라클 테스트다.
+
+    빈 근거로 내려가면 파이프라인이 `UNANSWERABLE` 을 내보내고 채점기가 오답으로 세며,
+    우리는 그것을 "오라클을 줘도 생성이 다 틀렸다" 로 읽는다. 측정이 아니라 **주입
+    누락**인데 그것이 판정으로 굳는다. `conftest` 가 CLOVA 를 막고 있으므로 생성까지
+    갔다면 다른 예외가 났을 것이다 — 즉 **근거 조립 단계에서** 멈춰야 한다.
+    """
+    ablation.set_oracle_golden(None)
+    with ablation.use("ORACLE"):
+        with pytest.raises(ablation.OracleGoldenMissing, match="주입되지 않았"):
+            pipeline.answer_question("Q-001", ORACLE_RECORD_Q[1])
+
+
+def test_a_question_missing_from_the_injected_mapping_also_fails_loudly():
+    """코호트와 매핑이 어긋난 경우. 조용히 빈 근거가 되면 그 문항만 오답으로 굳는다."""
+    with ablation.use("ORACLE"), ablation.use_oracle_golden({"Q-001": []}):
+        with pytest.raises(ablation.OracleGoldenMissing, match="Q-999"):
+            pipeline.answer_question("Q-999", ORACLE_RECORD_Q[1])
+
+
+def test_an_injected_empty_golden_is_not_the_same_as_no_injection():
+    """`answerable=false` 문항은 골든이 **실제로 없다**. 그 빈 목록과 '주입 안 됨' 을
+    같이 취급하면 제동이 정상 문항에서 발화한다."""
+    with ablation.use_oracle_golden({"Q-037": []}):
+        assert ablation.oracle_golden_for("Q-037") == []
+
+
+def test_the_injection_is_restored_after_the_context_exits():
+    assert ablation.oracle_golden() is None
+    with ablation.use_oracle_golden({"Q-001": []}):
+        assert ablation.oracle_golden() == {"Q-001": []}
+    assert ablation.oracle_golden() is None
+
+
+# --- ③ 골든이 실제로 실리는가 (LLM 0회) -------------------------------------------
+
+def test_oracle_puts_the_golden_record_into_the_evidence():
+    qid, question, golden = ORACLE_RECORD_Q
+    evidence = _oracle_evidence(qid, question, golden)
+    assert golden[0]["rcept_no"] in evidence
+    assert evidence.lstrip().startswith("## ")       # 검색 경로와 같은 블록 형식
+
+
+def test_oracle_puts_the_golden_section_into_the_evidence():
+    """정기공시는 **문서가 아니라 섹션이 근거 단위**다 — 목차까지 맞아야 실린 것이다
+    (`error_analysis.evidence_hit` 이 같은 규칙으로 센다)."""
+    from argus.retrieve.bm25 import norm_path
+
+    qid, question, golden = ORACLE_SECTION_Q
+    evidence = _oracle_evidence(qid, question, golden)
+    blocks = evidence.split("\n\n## ")
+    headers = [b.split("\n", 1)[0] for b in blocks]
+    for item in golden:
+        assert any(item["rcept_no"] in b for b in blocks)
+        assert any(norm_path(item["section"]) in norm_path(h) for h in headers)
+
+
+def test_oracle_evidence_carries_every_golden_document_of_the_cohort():
+    """🔴 '켰는데 안 켜진 것' 을 막는 값이다. 오라클의 정의상 골든 **전건**이 실려야
+    하고, 안 실리면 그 문항의 잔여 오답을 '생성 실패' 로 읽을 자격이 없다.
+
+    LLM 0회 — 근거 조립 함수만 부른다.
+    """
+    from scripts import error_analysis as ea
+
+    cases = [c for c in ea.load_cohort("full") if c.get("evidence")]
+    mapping = {c["question_id"]: c["evidence"] for c in cases}
+    misses = []
+    with ablation.use("ORACLE"), ablation.use_oracle_golden(mapping):
+        for case in cases:
+            evidence, _ = pipeline._gather_golden(case["question_id"],
+                                                  case["question"], Budget())
+            hit = ea.evidence_hit(case, ablation.shape_evidence(evidence))
+            if not hit["all"]:
+                misses.append((case["question_id"], hit["n_present"], hit["n_golden"]))
+    assert misses == [], f"골든이 근거에 안 실린 문항: {misses}"
+
+
+def test_oracle_leaves_a_trace_that_phase_h_can_read_back():
+    """🔴 `parse_hops` 가 골든 문서를 `ids=` 에서 못 읽으면 Phase H 가 **전건을
+    RETRIEVAL 로 귀속**한다 — 이 측정의 결론이 통째로 뒤집힌다."""
+    from scripts import error_analysis as ea
+
+    qid, question, golden = ORACLE_RECORD_Q
+    with ablation.use("ORACLE"), ablation.use_oracle_golden({qid: golden}):
+        _, lines = pipeline._gather_golden(qid, question, Budget())
+    trace = " | ".join(lines)
+    assert "oracle=golden" in trace and "제출 구성이 될 수 없다" in trace
+    case = {"question_id": qid, "evidence": golden}
+    hops = pipeline.parse_hops(trace)
+    assert ea.golden_positions(case, hops)["in_candidates"] == [golden[0]["rcept_no"]]
+
+
+def test_the_default_arm_never_walks_the_oracle_path(monkeypatch):
+    """🔴 기본 동작은 한 글자도 바뀌면 안 된다. 플래그가 꺼져 있으면 이 함수는
+    **불리지 않는다** — 불린다면 운영 경로가 골든을 읽고 있다는 뜻이다."""
+    def _boom(*args, **kwargs):
+        raise AssertionError("기본 arm 이 오라클 경로를 탔다")
+
+    monkeypatch.setattr(pipeline, "_gather_golden", _boom)
+    monkeypatch.setattr(pipeline, "chat",
+                        lambda *a, **k: _Fake("답 (근거: 접수번호 20230602800079)"))
+    for arm in ("A8", "A0", "L4"):
+        with ablation.use(arm):
+            pipeline.answer_question("Q-T", CHAIN_Q)
+
+
+# --- 🔴 스텁 없는 도구 인자 검사 -------------------------------------------------
+# `tools.execute` 는 `fn(**args)` 이고 `TypeError` 를 `{"error": "인자 오류: …"}` 로 삼킨다.
+# 오라클의 섹션 경로는 그 오류를 만나면 **문서 순서 폴백**으로 조용히 넘어가므로, 스텁
+# 테스트로는 인자명 오타를 못 잡는다 (`get_history` 에서 이미 한 번 겪은 함정이다).
+# 그래서 진짜 도구를 한 번 태운다 — LLM 0회 · I/O 만.
+
+def test_search_chunks_really_accepts_the_doc_id_filter_without_stubbing():
+    from argus.agent import tools
+
+    _, question, golden = ORACLE_SECTION_Q
+    doc_id = f'{pipeline.PERIODIC_DOC_PREFIX}{golden[0]["rcept_no"]}'
+    out = tools.execute("search_chunks",
+                        {"query": question, "top_k": pipeline.ORACLE_SECTION_POOL,
+                         "group": "periodic", "doc_id": doc_id,
+                         "path": golden[0]["section"], "include_stubs": True})
+    assert "error" not in out, out.get("error")
+    assert out["chunks"], "골든 문서 안에서 한 조각도 못 골랐다"
+    assert {c["doc_id"] for c in out["chunks"]} == {doc_id}, "다른 문서가 섞였다"
+
+
+def test_the_doc_id_filter_is_off_by_default_so_the_search_path_is_unchanged():
+    """기본 동작 보존. 인자를 안 주면 후보 집합이 종전과 같아야 한다 —
+    이 필터가 검색 경로에 새면 A8 의 Δ 가 오라클 배선의 것이 된다."""
+    from argus.agent import tools
+
+    _, question, golden = ORACLE_SECTION_Q
+    plain = tools.execute("search_chunks", {"query": question, "top_k": 5,
+                                            "group": "periodic",
+                                            "path": golden[0]["section"]})
+    assert "error" not in plain
+    assert len({c["doc_id"] for c in plain["chunks"]}) > 1, "문서가 하나로 좁혀졌다"
+
+
+# --- 러너 — 주입은 러너의 몫이고 heldout 에는 절대 가지 않는다 --------------------
+
+def test_the_runner_injects_the_cohort_golden_before_running_oracle():
+    from scripts import ablation as runner
+    from scripts import error_analysis as ea
+
+    cases = ea.load_cohort("full")
+    assert runner.install_oracle_golden(["A8", "L4"], cases) is None   # 오라클이 없으면 무동작
+    assert ablation.oracle_golden() is None
+
+    mapping = runner.install_oracle_golden(["ORACLE"], cases)
+    assert set(mapping) == {c["question_id"] for c in cases}
+    assert ablation.oracle_golden() == mapping
+
+
+def test_the_runner_refuses_to_inject_heldout_golden():
+    """🔴 heldout 은 구조적으로 여기 못 오지만(러너의 heldout 경로가 앞에서 반환한다)
+    되돌릴 수 없는 조작의 제동은 겹으로 건다."""
+    from scripts import ablation as runner
+
+    cases = [{"question_id": "Q-H1", "split": "heldout", "evidence": []}]
+    with pytest.raises(SystemExit, match="heldout"):
+        runner.install_oracle_golden(["ORACLE"], cases)
+    assert ablation.oracle_golden() is None
+
+
+def test_the_summary_marks_the_diagnostic_arm_so_it_is_not_read_as_a_score():
+    """🔴 표 안에서 ORACLE 은 다른 arm 과 똑같이 생겼다. 이 경고 줄이 유일한 구분이다."""
+    from scripts import ablation as runner
+    from scripts import error_analysis as ea
+
+    rows = [{**_BLANK_ROW, "question_id": "Q-g1", "track": "grid", "correct": True}]
+    report = ea.build_report([], rows)
+    meta = {"spent_won": 0.0, "budget_won": 1.0, "cache_hits": 0, "n_cases": 1}
+    text = runner.render_summary(runner.summarise({"ORACLE": report}), meta)
+    assert "진단 전용" in text and "성적으로 인용" in text
+    # 🔴 자리도 있어야 한다. 사다리·LOO 표에는 안 찍히므로, 여기 칸이 없으면 경고만 뜨고
+    #    잰 값은 산출물 어디에도 안 남는다 (다음 사람이 report.json 을 직접 열어야 한다).
+    assert "## 2b. 진단 arm" in text and "| ORACLE |" in text
+
+    plain = runner.render_summary(runner.summarise({"A8": report}), meta)
+    assert "진단 전용" not in plain and "2b." not in plain

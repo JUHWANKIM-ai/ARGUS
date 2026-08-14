@@ -291,16 +291,23 @@ def _search_sections(query: str, corp_name: str | None = None, top_k: int = 5,
                      base_year: int | str | None = None,
                      doc_subtype: str | None = None,
                      path: str | None = None, rcept_dt: str | None = None,
-                     include_stubs: bool = True) -> dict:
+                     include_stubs: bool = True,
+                     doc_id: str | None = None) -> dict:
     """정기공시 섹션 검색. exchange 와 **인덱스가 다르다**.
 
     축이 셋 다르다 — 기간은 접수일이 아니라 `base_year`(사업연도), 보고서 종류가
     `doc_subtype`, 그리고 목차 `path` 접두. 실측 근거는 04-retriever D-5.
+
+    `doc_id` 는 **문서 하나로 못박는 완전일치 필터**다 (`SECTION_FIELDS` 축). 검색 계획은
+    이 인자를 쓰지 않는다 — `ablation.ORACLE` 이 골든 문서 안에서만 조각을 고르기 위한
+    것이고, 기본값 `None` 이면 종전 후보 집합이 글자 하나 안 바뀐다.
     """
     index = _section_index()
     if index is None:
         return {"error": "섹션 인덱스가 없습니다"}
     filters: dict = {}
+    if doc_id:
+        filters["doc_id"] = doc_id
     if corp_name:
         resolved = resolve_company(corp_name)
         filters["corp_name"] = resolved["corp_name"] if resolved else corp_name
@@ -333,21 +340,26 @@ def search_chunks(query: str, corp_name: str | None = None, top_k: int = 5,
                   year: int | None = None, ym: str | None = None,
                   group: str | None = None, base_year: int | str | None = None,
                   doc_subtype: str | None = None, path: str | None = None,
-                  rcept_dt: str | None = None, include_stubs: bool = True) -> dict:
+                  rcept_dt: str | None = None, include_stubs: bool = True,
+                  doc_id: str | None = None) -> dict:
     """§7.7 ⑥ 하이브리드 검색 폴백. **인덱스 두 개를 인자로 가른다.**
 
     기간 조건이 랭킹을 좌우한다 — 실측에서 corp_name 만으로는 골든이 15/26 이지만
     rcept_dt prefix 를 함께 걸면 1위가 된다. 도구 스펙에도 노출해야 한다.
 
-    정기공시 축(`base_year`·`doc_subtype`·`path`)이 하나라도 오거나 `group="periodic"`
-    이면 섹션 인덱스로 간다. 두 인덱스를 합치지 않은 이유는 실측이다 —
+    정기공시 축(`base_year`·`doc_subtype`·`path`·`doc_id`)이 하나라도 오거나
+    `group="periodic"` 이면 섹션 인덱스로 간다. 두 인덱스를 합치지 않은 이유는 실측이다 —
     합치면 exchange 골든 회수가 27 -> 26, top3 25 -> 24 로 떨어진다 (04-retriever D-5).
+
+    `doc_id` 는 **섹션 인덱스 축에만 있다** (`periodic_<접수번호>`). `TOOL_SPECS` 에는
+    노출하지 않는다 — 검색 계획이 쓰는 축이 아니라 `ablation.ORACLE` 이 골든 문서를
+    못박기 위한 축이다.
     """
-    if group == "periodic" or base_year or doc_subtype or path:
+    if group == "periodic" or base_year or doc_subtype or path or doc_id:
         return _search_sections(query, corp_name=corp_name, top_k=top_k,
                                 base_year=base_year, doc_subtype=doc_subtype,
                                 path=path, rcept_dt=rcept_dt or ym,
-                                include_stubs=include_stubs)
+                                include_stubs=include_stubs, doc_id=doc_id)
     target = group if group in RECORD_GROUPS else "exchange"
     index = _group_index(target)
     if index is None:

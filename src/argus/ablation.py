@@ -116,11 +116,37 @@ HippoRAG 방식(제거가 성립하지 않는 요소는 '더 단순한 것으로
 않으므로, 이걸 떼면 '계산을 LLM 에게 넘긴' 것이 아니라 **정보를 지운** 것이 된다.
 계산 ablation 이 정보 ablation 으로 둔갑하면 Δ 의 귀속이 틀어진다.
 
+## 🔴 `ORACLE` — 검색을 고정하고 **생성만** 재는 곁가지 (v3 신설 · 사다리 밖)
+
+`A0`~`A8` 은 전부 "검색 + 생성" 의 **합성** 성능이다. 그래서 잔여 오답이 검색 몫인지
+생성 몫인지 사다리만으로는 못 가른다 — v2 A8 의 잔여 11건 중 **8건이 `GENERATION`
+단계**로 귀속돼 있는데, 그 라벨은 "골든이 프롬프트에 실렸는데 답이 틀렸다" 라는
+**소거법의 결과**이지 생성 실패를 직접 관측한 것이 아니다.
+
+`ORACLE` 은 검색 전체를 **골든 근거 주입**으로 갈아치운다.
+
+    Δ(A8 → ORACLE)      검색이 아직 못 가져온 몫
+    ORACLE 의 잔여 오답  순수 생성 실패
+
+🔴 **`ORACLE` 은 제출 구성이 될 수 없다.** 평가 시점에는 골든이 없다. 이 arm 의 정답률을
+게이트·제안서에 '성적' 으로 인용하면 자기 성적표를 부풀리는 것이 된다 (그래서
+`DIAGNOSTIC_ARMS` 에 넣어 두고, 러너의 요약이 그 사실을 표 옆에 찍는다).
+같은 이유로 `LADDER` 에도 `LOO_REMOVED` 에도 넣지 않는다 — `A2`/`A2F` 와 같은 곁가지다.
+
+**골든은 러너가 주입한다.** 파이프라인은 `question_id` 만 알고 evalset 을 모른다. 주입
+없이 arm 만 켜면 근거가 조용히 비어 `UNANSWERABLE` 이 나가고, 그것은 "생성이 다 틀렸다"
+로 읽힌다 — 이 저장소가 최악으로 보는 **조용한 Δ** 다. 그래서 `oracle_golden_for()` 는
+빈 값을 돌려주지 않고 `OracleGoldenMissing` 을 던진다.
+
 ## 근거 성형은 **생성 직전에만** 한다
 
 `schema_fields` · `calc_values` 는 프롬프트에 실릴 근거 문자열에만 건다. 검색·충분성
 판정(`_sufficiency`)은 원본 마크다운을 그대로 본다 — 여기까지 바꾸면 A5·L2 의 Δ 에
 검색 변화가 섞여 단일 변수 조작이 아니게 된다.
+
+`ORACLE` 의 근거에도 **같은 성형이 그대로 걸린다** (`answer_question` 이 근거 출처와
+무관하게 `shape_evidence` 를 한 번 부른다). 그래서 `schema_fields`·`calc_values`·`verifier`
+는 오라클 위에서도 살아 있고, `ORACLE_UNREACHABLE_FLAGS` 에 들어가지 않는다.
 """
 from __future__ import annotations
 
@@ -151,6 +177,18 @@ META_UNREACHABLE_FLAGS = ("hop_ladder", "chain_hop", "split_query", "counterpart
 #: 산문으로만 적어 두면 검사가 그것을 못 읽는다 — 그래서 데이터로 둔다.
 FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {"chain_hop": ("followup_hop",)}
 
+#: 🔴 `golden_oracle=True` 에서 **읽히지 않는** 축. 검색 차선을 통째로 골든 주입으로
+#: 갈아치우므로 이 플래그들을 건드려도 근거가 한 글자도 안 바뀐다 —
+#: `META_UNREACHABLE_FLAGS` 와 같은 종류의 **조용한 Δ 0** 이다.
+#:
+#: 다만 여기서는 '켜면 안 된다' 가 아니라 **'기본값에서 움직이면 안 된다'** 로 막는다.
+#: `ORACLE = A8 + golden_oracle` 이라 이 축들이 전부 켜져 있는 것이 정상이고, 문제는
+#: `L1 + golden_oracle` 처럼 **오라클 위에서 검색 LOO 를 흉내내는 것**이다. 그 Δ 는
+#: 정의상 0 이고, 0 을 "그 구성요소는 기여가 없다" 로 읽는 사고가 이 모듈의 존재 이유다.
+#: 기준값은 `Arm` 의 **필드 기본값**이다 (= A8, 머리말 참조 — 전방참조가 필요 없다).
+ORACLE_UNREACHABLE_FLAGS = ("retrieval", "dense", "hop_ladder", "chain_hop",
+                            "split_query", "counterparty_hop", "followup_hop")
+
 
 @dataclass(frozen=True)
 class Arm:
@@ -173,6 +211,11 @@ class Arm:
     calc_values: bool = True
     verifier: bool = True
     followup_hop: bool = True
+    #: 🔴 **ORACLE 전용 · 진단용이고 제출 구성이 될 수 없다** (평가 시점에 골든이 없다).
+    #: 참이면 `pipeline.answer_question` 이 검색 대신 골든 근거를 싣는다. 기본값 False 가
+    #: G1 격리(`dense`)와 같은 역할을 한다 — 스위치를 안 건드린 운영 경로는 골든을
+    #: **한 번도 열지 않는다** (러너가 주입하지 않으면 매핑 자체가 없다).
+    golden_oracle: bool = False
 
     def __post_init__(self) -> None:
         if self.retrieval not in RETRIEVAL_MODES:
@@ -192,6 +235,15 @@ class Arm:
                 raise ValueError(
                     f"{parent}=False 이면 {on} 은 코드가 도달하지 않습니다 — Δ 가 조용히 "
                     f"0 이 됩니다 (arm {self.name!r}). 함께 끄십시오.")
+        if self.golden_oracle:
+            fields = type(self).__dataclass_fields__
+            moved = [f for f in ORACLE_UNREACHABLE_FLAGS
+                     if getattr(self, f) != fields[f].default]
+            if moved:
+                raise ValueError(
+                    f"golden_oracle=True 는 검색 차선을 골든 주입으로 갈아치우므로 {moved} "
+                    f"를 기본값에서 움직여도 근거가 안 바뀝니다 — Δ 가 조용히 0 이 됩니다 "
+                    f"(arm {self.name!r}). 검색 LOO 는 오라클 없이 재십시오.")
 
     @property
     def uses_bm25(self) -> bool:
@@ -239,11 +291,18 @@ L4 = replace(A8, name="L4", followup_hop=False)
 A2 = replace(A1B, name="A2", dense=True)            # §I-2 자리: A1b + dense
 A2F = replace(A8, name="A2F", dense=True)           # 제출 구성 위: A8 + dense
 
+# --- ORACLE — 검색 고정 · 생성만 잰다 (사다리 밖 곁가지 · 🔴 진단 전용) -----------
+#: `A8` 과 **플래그 하나만** 다르다. 그 하나가 검색 차선 전체를 골든 주입으로 갈아치우므로
+#: Δ(A8→ORACLE) 이 "검색이 아직 못 가져온 몫" 이 된다 (머리말 참조).
+#: 🔴 제출 구성이 아니다 — 평가 시점에 골든이 없다.
+ORACLE = replace(A8, name="ORACLE", golden_oracle=True)
+
 #: 실행 순서는 **A8 부터 역순**이다 (§I-4b) — 가장 비싼 구성을 먼저 확보해야
 #: 중간에 예산이 끊겨도 최신 성능을 안다. A2 계열은 사다리를 다 확보한 뒤 맨 끝이다 —
 #: G1 불허로 A2 를 버려도 앞의 여덟 칸이 그대로 남아야 한다.
+#: 🔴 `ORACLE` 은 맨 끝이다 — 진단용이라 사다리·LOO 를 다 확보한 뒤에 붙는다.
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
-             "A2F", "A2")
+             "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
 LADDER = ("A0", "A1", "A1b", "A4", "A5", "A6", "A7", "A8")
@@ -258,8 +317,14 @@ LOO_REMOVED = {"L1": "CHAIN_HOP 전체 (정정체인 550엣지 + 관련공시 �
 #: dense 를 켜는 arm. G1 이 불허로 확정되면 **이 둘만 빼면 된다.**
 DENSE_ARMS = ("A2", "A2F")
 
+#: 🔴 **성적으로 인용하면 안 되는 arm.** 평가 시점에 재현할 수 없는 정보(골든)를 쓰므로
+#: 제출 구성이 될 수 없다. 러너의 요약이 이 목록을 읽어 표 옆에 경고를 찍는다 —
+#: 산출물만 보는 사람이 숫자를 성적으로 읽는 것을 막는 유일한 수단이다.
+DIAGNOSTIC_ARMS = ("ORACLE",)
+
 ARMS: dict[str, Arm] = {a.name: a for a in
-                        (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, A2, A2F)}
+                        (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, A2, A2F,
+                         ORACLE)}
 
 #: 모든 스위치 이름. 새 플래그를 넣으면 여기 자동으로 잡힌다 — 목록을 손으로 적어 두면
 #: 빠뜨린 플래그가 LOO 의 '단일 변수 조작' 검사를 조용히 통과한다.
@@ -308,6 +373,68 @@ def use(arm: Arm | str):
         yield current()
     finally:
         set_arm(previous)
+
+
+# --- ORACLE 골든 주입 (러너 전용) ----------------------------------------------
+# 파이프라인은 `question_id` 만 알고 evalset 을 모른다. 그래서 골든은 **러너가 넣는다**.
+# 모듈 전역인 이유는 `set_arm` 과 같다 — arm 을 갈아끼우는 축과 같은 자리에 있어야
+# "무엇으로 쟀는가" 가 한 곳에서 읽힌다.
+
+
+class OracleGoldenMissing(RuntimeError):
+    """🔴 `golden_oracle` arm 인데 골든이 주입되지 않았다. **조용히 넘어가지 않는다.**
+
+    빈 근거로 진행하면 파이프라인이 `UNANSWERABLE` 을 내보내고, 채점기는 그것을 오답으로
+    세며, 우리는 그 결과를 "오라클을 줘도 생성이 다 틀렸다" 로 읽는다. 측정이 아니라
+    **주입 누락**인데 그것이 판정으로 굳는다 — 이 모듈이 막으려는 바로 그 사고다.
+    """
+
+
+#: `{question_id: [{"rcept_no": ..., "section": ...}, ...]}`. `None` 은 '주입 안 됨' 이고
+#: 빈 목록은 '이 문항의 골든이 실제로 없다'(= answerable=false) 라서 **구분해야 한다.**
+_oracle_golden: dict[str, list[dict]] | None = None
+
+
+def set_oracle_golden(mapping: dict[str, list[dict]] | None) -> dict | None:
+    """코호트의 `{question_id: evidence}` 를 주입하고 이전 값을 돌려준다. 러너 전용.
+
+    🔴 **heldout 에는 절대 주입하지 않는다** (`scripts/ablation.py` 의 heldout 경로는
+    이 함수를 부르지 않고, 그 앞에서 반환한다).
+    """
+    global _oracle_golden
+    previous = _oracle_golden
+    _oracle_golden = None if mapping is None else {
+        str(qid): list(items or []) for qid, items in mapping.items()}
+    return previous
+
+
+def oracle_golden() -> dict[str, list[dict]] | None:
+    """주입된 매핑 그대로. 주입 전이면 `None`."""
+    return _oracle_golden
+
+
+def oracle_golden_for(question_id: str) -> list[dict]:
+    """한 문항의 골든 근거. **없으면 예외** — 조용한 빈 근거를 만들지 않는다."""
+    if _oracle_golden is None:
+        raise OracleGoldenMissing(
+            "ORACLE arm 인데 골든이 주입되지 않았습니다 — "
+            "`ablation.set_oracle_golden({question_id: evidence})` 를 먼저 부르십시오 "
+            f"(문항 {question_id!r}). 빈 근거로 진행하면 '생성 실패' 로 오독됩니다.")
+    if question_id not in _oracle_golden:
+        raise OracleGoldenMissing(
+            f"ORACLE 골든 매핑에 {question_id!r} 이 없습니다 (주입된 문항 "
+            f"{len(_oracle_golden)}건). 코호트와 매핑이 어긋났습니다.")
+    return _oracle_golden[question_id]
+
+
+@contextmanager
+def use_oracle_golden(mapping: dict[str, list[dict]] | None):
+    """`with ablation.use_oracle_golden(m): ...` — 블록을 벗어나면 반드시 되돌린다."""
+    previous = set_oracle_golden(mapping)
+    try:
+        yield oracle_golden()
+    finally:
+        set_oracle_golden(previous)
 
 
 # --- 근거 성형 (생성 직전) -----------------------------------------------------
