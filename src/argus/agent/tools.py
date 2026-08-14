@@ -201,9 +201,21 @@ def resolve_company_tool(name: str) -> dict:
             "sector": row["sector"], "market": row["market"]}
 
 
+#: `query_events` 가 돌려주는 이벤트 수. LLM 이 읽을 목록이라 20 이 상한이었다.
+EVENTS_PAGE = 20
+
+
 def query_events(corp_name: str | None = None, doc_subtype: str | None = None,
                  year: int | None = None, min_amount: float | None = None,
-                 is_latest: bool = True) -> dict:
+                 is_latest: bool = True, limit: int = EVENTS_PAGE) -> dict:
+    """정형 이벤트 조회. `count` 는 **필터를 통과한 전량**이고 `events` 는 그중 `limit` 건이다.
+
+    `limit` 은 **`TOOL_SPECS` 에 노출하지 않는다** — 검색 계획이 쓰는 축이 아니라
+    `pipeline._enumerate_events` 가 **그룹핑을 위해** 모집단 전체를 받아야 해서 있는
+    것이다(계약상대별 그룹 크기와 각 그룹의 최신본은 20건만 봐서는 못 정한다 — 실측
+    `Q-117` 은 한전기술 최신본 27건이고 골든 3건이 21번째 이후에 있다). `search_chunks`
+    의 `doc_id` 축과 같은 성격이고, 기본값이면 종전과 글자 하나 안 바뀐다.
+    """
     rows = _records()
     if corp_name:
         resolved = resolve_company(corp_name)
@@ -217,7 +229,7 @@ def query_events(corp_name: str | None = None, doc_subtype: str | None = None,
         rows = [r for r in rows if (r.get("amount") or 0) >= min_amount]
     if is_latest:
         rows = [r for r in rows if r.get("is_latest", True)]
-    return {"count": len(rows), "events": rows[:20]}
+    return {"count": len(rows), "events": rows[:max(int(limit), 0)]}
 
 
 def list_filings(corp_name: str, doc_group: str = "periodic",
