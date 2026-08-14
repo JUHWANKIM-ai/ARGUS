@@ -2342,50 +2342,62 @@ judge 를 온도 0.0 에서 **3회 더** 재호출해(요청 캐시 우회 · �
 | 산출물 | `section_index.npz` 197.8MB + `section_index.json` 19.2MB | `[04 산출물]` |
 | 상주 | 섹션 356MB · 정형 3종 포함 **427MB** (게이트 500MB) | `[04 산출물]` |
 | 빌드 | 섹션 185초 + 색인 23초 · **LLM 0회** | `[04 D-2·D-5]` |
-| 정정 체인 | **554** (exchange 385 · major 131 · holding 38) | `[03]` |
-| `REFERS_TO` | **910 해소 / 엣지 1,267** (44.6%) | `[03 C-4]` |
+| 정정 체인 | **550** (exchange 381 · major 131 · holding 38) — W4 전 554 | `[03 C-1]` |
+| `REFERS_TO` | **910 해소 / 엣지 1,267** (44.6%) · 서식명까지 일치 **887 (97.5%)** | `[03 C-4]` |
+| 계약상대(발주처) | 노드 **145** · 2-hop **44쌍 / 허브 25** · 2-hop 완결도 **1.82%** | `[03 C-1]` |
+| exchange 재빌드 (v3 R2D) | `markdown` **233건** 갱신 · `avgdl` 82.4 → **121.4** | `[total_plan §6]` |
 
 ### A-3. 골든셋
 
 | 항목 | 값 | 출처 |
 |---|---|---|
-| 전체 | **106** — dev 78 (그리드 72 + 정보한계 6) · heldout 18 · 회귀 10 | `[02 B-0]` |
-| 그리드 | 18셀 × 5 (dev 4 + heldout 1) = **90** | `[02 B-4]` |
+| 전체 | **118** — 106(dev 78 = 그리드 72 + 정보한계 6 · heldout 18 · 회귀 10) + **밸류체인 12** | `[02 B-0]` `[total_plan §1]` |
+| 그리드 | 18셀 × 5 (dev 4 + heldout 1) = **90** · 채점 대상 dev **72** | `[02 B-4]` |
 | 문서군 배분 | exchange 40 · periodic 36 · major 10 · holding 10 (4:1:1:3) | `[02 B-0]` |
 | 등장 기업 / 섹터 | **52 / 70** · **20 / 20** | `[02 B-9]` |
 | 근거 | 106문항 · **166건** 전부 manifest 실재 | `[02 B-7 C1]` |
 | '상' 정정 추적 | 그리드 30문항 중 **25** (회귀 3건 포함 시 33 중 28) | `[02 게이트 B]` |
-| 자동 검증 | **16항목 PASS** · 회귀 테스트 29개 | `[02 B-7]` |
-| dev CI | n=72 · 95%CI **±8.0%p** | `[02 B-9]` |
+| 자동 검증 | **18항목 PASS** (`RESULT: OK`) | `[total_plan §1]` |
+| dev CI | n=72 · 95%CI **±8.0%p** (1문항 = 1.4%p) | `[02 B-9]` |
 
-### A-4. 성능
+### A-4. 성능 — **v3 세대 (2026-08-14 · 제출 구성 `A8`)**
 
 | 항목 | 값 | 출처 |
 |---|---|---|
-| dev 42 코호트 (A7) | **38/42 (90.5%)** | `[total_plan §0]` |
-| dev 그리드 (A7 + 채점기 수정) | **33/36 (91.7%)** | `[total_plan §0]` |
-| heldout (**A6 1회**) | **15/18 (83.3%)** · 낙폭 −2.8%p | `[gate_I §10]` |
-| Recall@5 dev | **58/60 (0.967)** — 하 1.000 · 중 1.000 · 상 0.931 | `[04 D-4]` |
-| Recall@5 heldout | 31/33 (0.939) | `[04 D-4]` |
-| 정보한계 | **6/6** · 환각 **0** | `[total_plan §0]` |
-| 근거 인용률 (A6) | dev 72.2% · heldout 66.7% | `[gate_I §10]` |
-| 문항당 LLM 호출 | 1.33 (Phase H) | `[08 H-5.1]` |
-| 지연 | p50 4.3s · p95 8.8s · 최대 9.8s | `[08 H-5.1]` |
+| **dev 그리드 72** | **66/72 (91.7%)** | `[total_plan §0]` `[v3 gate_I §2]` |
+| 정보한계 6 | **6/6** · 거절정답 7/7 · 환각 **0** | `[v3 gate_I §4]` |
+| 회귀 10 | **10/10** | `[v3 gate_I §4]` |
+| **밸류체인 12** | **7/12** — 🔴 **실질 6/12** (`Q-110` 부풀림 1건) | `[v3 vc/gate_I §4·§11]` |
+| (참고) 전체 88 | 82/88 — **판정에 쓰지 않는다** | `[total_plan §0]` |
+| 골든 근거 회수 | 전체 88 **126/133** · 밸류체인 **34/46** (도달 불가 3 제외 34/43) · dev 118건 **112/118** | `[v3 summary §0]` `[v3 vc/summary §0]` |
+| Recall@5 (W1·W2·W3 세대) | full 88 **124/133 (0.932)** · dev 78 111/118 (0.941) · `measured 42` **58/60 (0.967)** | `[04 D-4b]` |
+| LOO | `L1` **−9.7%p** · `L2` **−15.3%p** · `L3` +0.0%p(밸류체인 +16.7%p) · `L4` +0.0%p(회귀 −1문항) | `[v3 gate_I §5]` |
+| 🔬 `ORACLE` (진단 · **성적 아님**) | 그리드 64/72 · 골든 133/133 · 밸류체인 46/46 인데 정답 7/12 불변 | `[v3 gate_I §5b]` |
+| **heldout** | 🔴 **없다** (2회 소진). 동결 원장 15/18 은 옛 세대 값 | `[total_plan §0]` |
+| 문항당 LLM 호출 | 1.33 (Phase H v1) | `[08 H-5.1]` |
+| 응답 지연 | **문항당 5.88초** (heldout 18문항 · 캐시 적중 0) | `[total_plan §5]` |
+| 게이트 / 테스트 | **71/71** · **951 passed** | `[total_plan §1]` |
 
 ### A-5. 비용
 
-| 항목 | 토큰 | 비용 | 출처 |
-|---|---:|---:|---|
-| CLOVA 연결 검증 (25콜) | 4,230 | 29.7원 | `[total_plan §1]` |
-| Phase H 오류분석 (dev 42) | 134,538 | 944.5원 | `[total_plan §1]` |
-| Ablation v1 (8 arm + heldout, 캐시 후) | 528,168 | 3,708원 | `[total_plan §1]` |
-| A2 임베딩 (bge-m3) | 1,134,373 | 113.4원 | `[09 §I-5c ⑩]` |
-| A7 (표적 + 전수 회귀) | 167,914 | 1,244.7원 | `[total_plan §1]` |
-| **누적 (문서 기재값)** | | **5,927원** | `[total_plan §1]` |
-| 캐시가 막은 금액 (Ablation) | | 4,873원 | `[total_plan §1]` |
-| 단가 | 혼합 **7.02원/1K** 역산 확정 | | `[total_plan §3]` |
+| 항목 | 비용 | 출처 |
+|---|---:|---|
+| CLOVA 연결 검증 (25콜 · 4,230토큰) | 29.7원 | `[total_plan §1]` |
+| Phase H v1 오류분석 (dev 42 · 134,538토큰) | 944.5원 | `[total_plan §1]` |
+| Ablation v1 (8 arm + heldout · 528,168토큰) | 3,707.7원 | `[total_plan §1]` |
+| A2 임베딩 (bge-m3) | 113.4원 | `[09 §I-5c ⑩]` |
+| A7 (표적 + 전수 회귀) | 1,244.8원 | `[total_plan §1]` |
+| Phase H v2 재측정 | 1,505.1원 | `[total_plan §1]` |
+| Ablation v2 (11 arm + 밸류체인 2구성) | 6,589.0원 | `[total_plan §1]` |
+| heldout 최종 1회 (A8 · 18문항 · 95,984토큰) | 673.8원 | `[total_plan §1]` |
+| Ablation v3 (R1 3,309.2 + R2D 655.1 + R2E 320.3) | 4,284.6원 | `[total_plan §1]` |
+| **누적** | **19,092.6원** = 웰컴 크레딧의 **19.1%** | `[total_plan §1]` |
+| 캐시가 막은 금액 | v1 4,873원 · v2 현세대 23,901원 · v3 R1 4,187원 · v3 R2 14,899원 | `[total_plan §1]` `[v3 gate_I §1]` |
+| 단가 | 혼합 **7.02원/1K** 역산 확정 | `[total_plan §1]` |
 
-🔶 표의 5개 항목 합은 6,040.3원 — §11.5 ①.
+🔴 **누적은 "정확한 총액" 이 아니라 "산출물로 재현 가능한 하한" 이다** — 원장이 세대를 하나만
+보존하므로 앞선 세대의 결제가 밀려나 사라진다. **인용은 `total_plan §1` 의 표와 검산식에서
+한다** `[total_plan §1]`.
 
 ---
 
@@ -2419,7 +2431,7 @@ arm 매핑은 `09-ablation.md` 부록 A~D 에 있다.
 | **Think-on-Graph 2.0** (2025) | KG×Text tight coupling 반복 · **training-free** | **A4** |
 | **HippoRAG** (2024) | PPR 단일스텝 · 동의어 엣지 | A2 (기각) |
 | **G-Retriever** (2024) | SentenceBert 인덱싱 · PCST 압축 | A2 (기각) · 후보 |
-| **Relink** (2026) | query-driven ranker · PMI 공동출현 pool | A1 · A3 |
+| **Relink** (2026) | query-driven ranker · PMI 공동출현 pool | A1 · A3 (**최종 기각** · §7.3) |
 | **GraphRAG** (2024) | 커뮤니티 요약 map-reduce | 후보 (섹터 계층으로 축소) |
 | **Graph of Thoughts** (2024) | thought aggregation | A4 multi_compare 경로 |
 | **GraphRAG-R1** (2026) | 얕은 검색·과잉사고 억제 | 예산 가드 |
@@ -2428,7 +2440,8 @@ arm 매핑은 `09-ablation.md` 부록 A~D 에 있다.
 ① 엔티티 프루닝 도구 비교에서 **BGE-Reranker 1위, 그러나 BM25 도 근접**하며 자원 효율 우수
 → A1(BM25)을 진지한 baseline 으로 두고 **A3 의 Δ 가 작을 수 있음을 미리 예상했다.**
 ② **ToG-FinQA**(2023년 중국 기업 재무제표): ToG-2 34.0% vs Vanilla RAG **0%**
-→ 우리 도메인과 가장 가까운 조건이고, A1b 의 +36.1%p 를 판정하는 기준이 됐다(§6.6).
+→ 우리 도메인과 가장 가까운 조건이고, A1b 의 Δ(v1 +36.1%p · **v2 그리드 72 +41.7%p**)를
+판정하는 기준이 됐다(§6.6).
 
 **HippoRAG 에서 공짜로 얻은 것** — 동의어 엣지가 표기 변이를 흡수한다.
 우리는 `universe.csv` 의 `corp_name`/`listed_name`/`corp_eng_name` 이 **이미 동의어 사전**이라
@@ -2464,12 +2477,14 @@ critic 에 호출을 쓰는 것이 생성기를 키우는 것보다 효율적이
 
 ## 부록 C — 평가용 API 명세 (요약)
 
-> 제출물 3번(엔드포인트 + API 명세서)의 **초안 요약**이다. 실제 제출 문서는 별도로 낸다.
+> **제출물 4종 중 3번**(평가용 API 서버 정보 = End-point URL + API 명세서)의 **초안 요약**이다.
+> 🔴 **정본 기재 위치는 저장소 루트 `README.md`** 이고 주최측이 필수로 못박았다
+> `[CONVENTION §9]` `[organizer-qa 2차 공지]`.
 
 ### 요청
 
 ```
-GET https://{endpoint}/answer?question_id={id}&question={평가 질의}
+GET http://{공인 IP}/answer?question_id={id}&question={평가 질의}
 ```
 
 | 파라미터 | 타입 | 필수 | 설명 |
@@ -2503,11 +2518,13 @@ GET https://{endpoint}/answer?question_id={id}&question={평가 질의}
 
 | 항목 | 값 |
 |---|---|
-| 프로토콜 | HTTPS · 공인 IP 필수 🔶 **[확인 필요] — 인증서 확보 방법 주최 측 공지 대기** |
+| 프로토콜 | ✅ **HTTP 기본** · HTTPS 는 선택이며 **self-signed 무방** · 포트 80/443 · **도메인 불필요** `[CONVENTION §4]` |
+| 인증 | **헤더 없음** · 접근 제어는 주최측 발신 IP 허용 (대역 추후 공지) |
 | 동시성 | 순차 평가 전제, 동접 1 `[CONVENTION §4]` |
+| 타임아웃 · 재시도 | **300초** · 타임아웃/5xx 시 **최대 2회** → 🔴 **어떤 예외에도 200 + 한계 고지** (§9.4) |
 | 서버 | 2 vCPU / 4GB · 상주 427MB `[deploy/README]` |
-| 상시 가동 | 2026-09-07 ~ 09-20 `[CONVENTION §1]` |
-| **엔드포인트 URL** | 🔶 **[확인 필요] — 미확정** |
+| 상시 가동 | 2026-09-07 ~ 09-20 **중 별도 공지 · 각 주제별 최대 1주** 🔶 일자·시간대 미공지 `[CONVENTION §4]` |
+| **엔드포인트 URL** | 🔶 **[확인 필요] — 미확정.** 기재 위치는 루트 `README.md` 로 확정 |
 
 ### 오류 처리
 
@@ -2523,10 +2540,16 @@ GET https://{endpoint}/answer?question_id={id}&question={평가 질의}
 
 | 태그 | 파일 |
 |---|---|
-| `[CONVENTION §N]` | `docs/CONVENTION.md` |
-| `[total_plan §N]` | `docs/total_plan.md` |
+| `[CONVENTION §N]` | `docs/CONVENTION.md` — 규정·예산·API 규격의 정본 |
+| `[total_plan §N]` | `docs/total_plan.md` — 🔴 **성적·지출의 단일 진실 공급원** |
+| `[organizer-qa …]` | `docs/organizer-qa.md` — 주최측 답변 전사 (2026-08-12 · 2건) |
 | `[01 …]` ~ `[09 …]` | `docs/pipeline/01-eda.md` ~ `09-ablation.md` |
-| `[gate_I §N]` | `artifacts/ablation/gate_I.md` (자동 생성 · LLM 0회 재생성 가능) |
+| `[gate_I §N]` | `artifacts/ablation/gate_I.md` — **v1** (자동 생성 · LLM 0회 재생성 가능) |
+| **`[v3 gate_I §N]`** | `artifacts/ablation/v3/gate_I.md` — **현 세대 전체 88 코호트** |
+| **`[v3 vc/gate_I §N]`** · `[v3 vc/summary §N]` | `artifacts/ablation/v3/vc/` — **밸류체인 12 코호트** |
+| **`[v3 summary §N]`** | `artifacts/ablation/v3/summary.md` |
+| **`[R2E-report …]`** · `[R2F-review …]` · `[T0a-report …]` · `[ORACLE-report …]` · `[judge-sigma-report …]` · `[R2A-report …]` · `[R2D-report …]` | `.superpowers/sdd/2026-08-12-ablation-v3/` — v3 판정 보고서 |
+| **`[plan v3 §…]`** | `docs/superpowers/plans/2026-08-12-ablation-v3.md` — 취소·보류 판정의 정본 |
 | `[README]` · `[deploy/README]` | `README.md` · `deploy/README.md` |
 | 코드 경로 | `src/argus/…` · `scripts/…` · `tests/…` |
 
@@ -2534,8 +2557,15 @@ GET https://{endpoint}/answer?question_id={id}&question={평가 질의}
 
 | 산출물 | 재생성 |
 |---|---|
-| `artifacts/ablation/gate_I.md` | `python scripts/ablation_report.py` — **LLM 0회** |
+| `artifacts/ablation/v3/gate_I.md` · `vc/gate_I.md` | `python scripts/ablation.py --report --out artifacts/ablation/v3[/vc]` — **LLM 0회** |
 | `artifacts/eval/error_analysis.json` · `error_matrix.md` | `python scripts/error_analysis.py` — 캐시 재사용, 재과금 없음 |
-| 골든셋 검증 16항목 | `python scripts/validate_evalset.py` — **LLM 0회**, 실패 시 exit 1 |
+| 골든셋 검증 **18항목** | `python scripts/validate_evalset.py` — **LLM 0회**, 실패 시 exit 1 |
 | 검색 지표 (Recall@5 등) | `_gather_evidence` 전수 실행 — **LLM 0회** |
 | A2 검색 Δ | `python scripts/ablation.py --retrieval A6,A2F,A1b,A2` — **LLM 0회** |
+| 도달 불가 표시 · 감도 곡선 | `tests/test_reachability.py` — 매 실행마다 기준을 다시 돌려 대조 `[R2D-report §5]` |
+
+> 🔴 **재측정 규율 — 내용이 바뀌었으면 `--force` 를 붙인다.** `run_case` 가 `question_id`
+> 로만 캐시하고 내용 해시가 없어서, 색인·프롬프트가 바뀌어도 저장 응답을 재생한다
+> (R2D 와 R2E 가 각각 밟았다 — **캐시 적중 0 / 미적중 0** 이 그 신호다). `--force` 는 응답
+> 파일 캐시만 뚫고 **요청 캐시(프롬프트 해시)는 살아 있어서** 프롬프트가 안 바뀐 문항은
+> **0원**이다 `[total_plan §5]`.
