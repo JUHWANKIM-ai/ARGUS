@@ -8,6 +8,7 @@
 여기 테스트는 전부 `_gather_evidence` / `shape_evidence` 를 직접 부른다. 생성은 타지
 않으므로 CLOVA 호출이 0 이고, `conftest.block_clova_network` 가 그걸 강제한다.
 """
+import contextlib
 import json
 from dataclasses import replace
 
@@ -1691,3 +1692,296 @@ def test_the_summary_marks_the_diagnostic_arm_so_it_is_not_read_as_a_score():
 
     plain = runner.render_summary(runner.summarise({"A8": report}), meta)
     assert "진단 전용" not in plain and "2b." not in plain
+
+
+# --- judge 재현 편차 (σ) ---------------------------------------------------------
+# 🔴 개방형 문항은 LLM judge 가 채점하는데 **재현 편차를 한 번도 안 쟀다.** 밸류체인
+# 12문항에서 A8 의 정답이 재측정마다 6 → 5 → 6 으로 움직인 기록이 있고, 다음 라운드
+# arm 들의 Δ 는 1~2문항 규모로 예상된다 — σ 를 모르면 Δ 가 신호인지 잡음인지 못 가른다.
+# 여기 테스트가 지키는 것은 둘이다. ① 기본값 1 에서 종전 경로가 안 바뀐다.
+# ② 반복 회차는 **요청 캐시를 우회한다** (안 하면 3회가 전부 같은 파일을 읽어 측정이 죽는다).
+
+_OPEN_CASE = {"question_id": "Q-901", "answer_mode": "open", "track": "valuechain",
+              "question": "밸류체인 질문", "answer_key_points": ["가", "나"],
+              "answerable": True, "task_type": "complex_reason", "difficulty": "상",
+              "doc_group": "exchange", "evidence": []}
+
+
+def _seed_response(base: _Path, qid: str = "Q-901") -> None:
+    """응답 파일을 미리 깔아 둔다 — 🔴 **생성은 다시 하지 않는다** 는 전제 그 자체다."""
+    path = base / "responses" / f"{qid}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
+        "question_id": qid, "llm_calls": 2, "prompt_tokens": 900,
+        "completion_tokens": 100, "latency_s": 0.02, "calls": [],
+        "response": {"answer": "답변입니다 (근거: 접수번호 20250101000001)",
+                     "retrieved_context": "## [공급계약] 어떤기업 – 접수번호 20250101000001",
+                     "think_trace": "route=search difficulty=상"}}),
+        encoding="utf-8")
+
+
+class _FakeCache:
+    """`RequestCache` 의 최소 대역. `no_cache()` 가 실제로 불렸는지만 센다."""
+
+    hits = misses = 0
+    fresh_won = 0.0
+
+    def __init__(self):
+        self.bypass_calls = 0
+        self.bypassed = 0
+
+    @contextlib.contextmanager
+    def no_cache(self):
+        self.bypass_calls += 1
+        self.bypassed += 1                   # 진짜 캐시가 우회 호출을 세는 자리
+        yield self
+
+
+def _stub_judge(monkeypatch, verdicts):
+    """`judge_open` 을 회차별 판정 목록으로 대체한다. **LLM 0회.**"""
+    from argus.agent import critic
+
+    calls = []
+
+    def fake(question, evidence, key_points, answer, budget=None):
+        mark = verdicts[min(len(calls), len(verdicts) - 1)]
+        calls.append(answer)
+        return critic.OpenVerdict(mark, mark, mark, f"stub#{len(calls)}")
+
+    monkeypatch.setattr(critic, "judge_open", fake)
+    return calls
+
+
+def test_judge_repeat_one_changes_nothing_about_the_old_path(tmp_path, monkeypatch):
+    """🔴 **기본값 1 에서는 기존 동작이 한 글자도 바뀌면 안 된다.** judge 는 정확히
+    한 번 돌고, 회차 폴더는 안 생기며, 산출물은 종전 자리(`judge/<qid>.json`)에만 쌓인다."""
+    from scripts import ablation as runner
+
+    monkeypatch.setattr(runner, "OUT_DIR", tmp_path)
+    _seed_response(tmp_path / "A8")
+    calls = _stub_judge(monkeypatch, [True])
+
+    live = runner.run_arm("A8", [_OPEN_CASE], _FakeCache(), budget_won=1000.0)
+
+    assert len(calls) == 1                                   # judge 1회
+    assert not (tmp_path / "A8" / runner.JUDGE_REPEAT_DIRNAME).exists()
+    assert (tmp_path / "A8" / "judge" / "Q-901.json").exists()
+    assert "judge_repeat" not in live                        # run.json 서식도 그대로
+    assert "judge_repeat_verdicts" not in live["runs"][0]
+
+
+def test_judge_repeat_three_keeps_every_round_and_never_touches_the_canonical_file(
+        tmp_path, monkeypatch):
+    """회차를 **덮지 않고 따로** 남긴다. 정본 `judge/<qid>.json` 은 1회차 값 그대로여야
+    한다 — 그 파일 형식을 깨면 `ea.analyse` 를 비롯한 다른 도구가 통째로 못 읽는다."""
+    from scripts import ablation as runner
+
+    monkeypatch.setattr(runner, "OUT_DIR", tmp_path)
+    _seed_response(tmp_path / "A8")
+    # 정본 1회 + 회차 3회 = 4회. 회차 2 만 판정이 뒤집힌다.
+    calls = _stub_judge(monkeypatch, [True, True, False, True])
+    cache = _FakeCache()
+
+    live = runner.run_arm("A8", [_OPEN_CASE], cache, budget_won=1000.0, judge_repeat=3)
+
+    assert len(calls) == 4                                   # 정본 1 + 회차 3
+    assert cache.bypass_calls == 3                           # 🔴 회차마다 캐시 우회
+    rounds = runner.judge_round_dirs("A8")
+    assert [p.name for p in rounds] == ["round_1", "round_2", "round_3"]
+    marks = [json.loads((p / "Q-901.json").read_text(encoding="utf-8"))["correct"]
+             for p in rounds]
+    assert marks == [True, False, True]
+    # 정본은 첫 호출 값 그대로. 회차가 이 파일을 덮지 않았다.
+    canonical = json.loads(
+        (tmp_path / "A8" / "judge" / "Q-901.json").read_text(encoding="utf-8"))
+    assert canonical["correct"] is True and canonical["reason"] == "stub#1"
+    assert live["judge_repeat"] == 3
+    assert live["runs"][0]["judge_repeat_verdicts"] == [True, False, True]
+    assert live["runs"][0]["judge_repeat_agreed"] is False
+    # 🔴 지출의 출처를 산출물이 스스로 말한다. 실측 v3 full 은 `cache_misses 0` 인데
+    #    1,266원을 썼다 — 우회 호출 수가 안 남으면 그 조합이 자기모순으로 읽힌다.
+    assert live["judge_repeat_bypassed_calls"] == 3
+
+
+def test_a_finished_round_is_not_bought_twice(tmp_path, monkeypatch):
+    """끊긴 실행을 이어 돌릴 때 앞 회차를 다시 결제하지 않는다. 회차마다 파일이 따로라
+    이 재사용이 회차 간 독립성을 깨지 않는다."""
+    from scripts import ablation as runner
+
+    monkeypatch.setattr(runner, "OUT_DIR", tmp_path)
+    _seed_response(tmp_path / "A8")
+    done = tmp_path / "A8" / runner.JUDGE_REPEAT_DIRNAME / "round_1" / "Q-901.json"
+    done.parent.mkdir(parents=True)
+    done.write_text(json.dumps({"question_id": "Q-901", "correct": True,
+                                "covers_key_points": True, "grounded": True,
+                                "no_fabrication": True, "reason": "이미 산 값"}),
+                    encoding="utf-8")
+    calls = _stub_judge(monkeypatch, [True])
+    cache = _FakeCache()
+
+    runner.run_arm("A8", [_OPEN_CASE], cache, budget_won=1000.0, judge_repeat=2)
+
+    assert len(calls) == 2                       # 정본 1 + 회차 2 뿐 (회차 1은 재사용)
+    assert cache.bypass_calls == 1
+    assert json.loads(done.read_text(encoding="utf-8"))["reason"] == "이미 산 값"
+
+
+def test_the_repeat_rounds_really_bypass_the_request_cache(tmp_path):
+    """🔴 **측정이 성립하는 유일한 조건.** 온도 0.0 이라 같은 프롬프트는 캐시가 반드시
+    적중한다 — 우회하지 않으면 3회가 디스크에서 같은 파일을 세 번 읽을 뿐이고 "편차 0"
+    이 judge 의 성질인지 캐시의 성질인지 가를 수 없다. 우회는 **읽기·쓰기 양쪽**을 끈다."""
+    from argus import clova
+    from scripts import ablation as runner
+
+    cache = runner.RequestCache(tmp_path / "cache")
+    seen = []
+    original = clova._post
+    try:
+        def fake(url, headers, body, timeout=60):
+            seen.append(body)
+            return 200, {"result": {
+                "message": {"content": '{"n":%d}' % len(seen)},
+                "usage": {"promptTokens": 100, "completionTokens": 10}}}, 0.01
+
+        clova._post = fake
+        cache.install()
+        body = {"messages": [{"role": "user", "content": "판정하라"}]}
+        clova._post("https://x/chat", {}, body)                  # ① 미적중 -> 저장
+        clova._post("https://x/chat", {}, body)                  # ② 적중 (호출 0)
+        with cache.no_cache():
+            clova._post("https://x/chat", {}, body)              # ③ 우회 -> 진짜 호출
+        clova._post("https://x/chat", {}, body)                  # ④ 다시 적중
+    finally:
+        clova._post = original
+
+    assert len(seen) == 2                       # ①③ 만 실제 호출됐다
+    assert (cache.hits, cache.misses, cache.bypassed) == (2, 1, 1)
+    # 🔴 우회 호출은 캐시에 **쓰지도 않는다.** 썼다면 ④가 3회차 응답을 읽었을 것이고,
+    #    나아가 일반 경로의 정본 응답까지 이번 회차 값으로 갈렸을 것이다.
+    saved = list((tmp_path / "cache").glob("*.json"))
+    assert len(saved) == 1
+    stored = json.loads(saved[0].read_text(encoding="utf-8"))
+    assert stored["payload"]["result"]["message"]["content"] == '{"n":1}'
+    # 비용은 우회분도 센다 — 안 세면 예산 제동이 안 걸린다.
+    assert cache.fresh_prompt == 200 and cache.fresh_completion == 20
+
+
+def test_offline_and_judge_repeat_cannot_be_combined(monkeypatch):
+    """`--offline` 은 캐시 미적중 호출을 금지하고 반복 회차는 정의상 우회다. 첫 회차에서
+    `RuntimeError` 로 죽는 대신 인자 단계에서 이유를 말하고 멈춘다."""
+    from scripts import ablation as runner
+
+    monkeypatch.setattr(runner, "_utf8_console", lambda: None)
+    with pytest.raises(SystemExit, match="offline"):
+        runner.main(["--arm", "A8", "--offline", "--judge-repeat", "3"])
+
+
+def test_judge_sigma_names_the_question_that_flipped(tmp_path, monkeypatch):
+    """🔴 **어느 문항이 흔들리는가가 핵심 산출이다.** 정답 수만 남기면 6 → 5 → 6 을
+    만든 문항을 못 찾고, 그러면 다음 라운드에서 같은 잡음을 또 Δ 로 읽는다."""
+    from scripts import ablation as runner
+
+    monkeypatch.setattr(runner, "OUT_DIR", tmp_path)
+    base = tmp_path / "A8"
+    cases = [dict(_OPEN_CASE, question_id="Q-901"),
+             dict(_OPEN_CASE, question_id="Q-902")]
+    for case in cases:
+        _seed_response(base, case["question_id"])
+
+    def _put(folder: _Path, qid: str, mark: bool, tag: str) -> None:
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{qid}.json").write_text(json.dumps({
+            "question_id": qid, "correct": mark, "covers_key_points": mark,
+            "grounded": True, "no_fabrication": True, "reason": tag,
+            "prompt_tokens": 1000, "completion_tokens": 50}), encoding="utf-8")
+
+    # Q-901 만 2회차에 뒤집힌다 -> 정답 수 2 → 1 → 2 (밸류체인 6 → 5 → 6 의 축소판)
+    for k, mark in enumerate((True, False, True), start=1):
+        folder = base / runner.JUDGE_REPEAT_DIRNAME / f"round_{k}"
+        _put(folder, "Q-901", mark, f"r{k}")
+        _put(folder, "Q-902", True, f"r{k}")
+    _put(base / "judge", "Q-901", True, "정본")
+    _put(base / "judge", "Q-902", True, "정본")
+
+    out = runner.judge_sigma("A8", cases, {}, cohort="valuechain")
+
+    assert out["correct_counts"] == [2, 1, 2]
+    assert out["min"] == 1 and out["max"] == 2
+    assert out["mean"] == pytest.approx(1.667, abs=1e-3)
+    assert out["sigma_sample"] == pytest.approx(0.577, abs=1e-3)
+    assert out["split_questions"] == ["Q-901"]               # 🔴 범인을 지목한다
+    assert out["questions"]["Q-901"]["rounds"] == [True, False, True]
+    assert out["questions"]["Q-902"]["agreed"] is True
+    assert out["baseline_correct"]["correct"] == 2
+    # 산출물로도 남는다 — 보고서는 이 파일을 인용한다.
+    assert json.loads((base / "judge_sigma.json").read_text(
+        encoding="utf-8"))["split_questions"] == ["Q-901"]
+
+
+def test_judge_sigma_is_zero_when_the_judge_is_deterministic(tmp_path, monkeypatch):
+    """편차가 0 으로 나오는 것도 유효한 결과다 — 그때 결론은 "judge 는 결정적이다" 이고
+    ±1문항 흔들림의 원인을 **다른 곳에서** 찾아야 한다."""
+    from scripts import ablation as runner
+
+    monkeypatch.setattr(runner, "OUT_DIR", tmp_path)
+    base = tmp_path / "A8"
+    cases = [dict(_OPEN_CASE, question_id="Q-901")]
+    _seed_response(base, "Q-901")
+    for k in (1, 2, 3):
+        folder = base / runner.JUDGE_REPEAT_DIRNAME / f"round_{k}"
+        folder.mkdir(parents=True)
+        (folder / "Q-901.json").write_text(json.dumps({
+            "question_id": "Q-901", "correct": True, "covers_key_points": True,
+            "grounded": True, "no_fabrication": True, "reason": f"r{k}"}),
+            encoding="utf-8")
+
+    out = runner.judge_sigma("A8", cases, {}, cohort="valuechain")
+    assert out["sigma_sample"] == 0.0 and out["range"] == 0
+    assert out["split_questions"] == [] and out["agreement_rate"] == 1.0
+
+
+def test_judge_sigma_restores_the_canonical_judge_directory(tmp_path, monkeypatch):
+    """🔴 집계는 `ea.JUDGE_DIR` 을 회차 폴더로 **갈아 끼운다.** 되돌리지 않으면 뒤이어
+    도는 `score_arm` 이 3회차 판정으로 정본 `report.json` 을 쓴다."""
+    from scripts import ablation as runner
+    from scripts import error_analysis as ea
+
+    monkeypatch.setattr(runner, "OUT_DIR", tmp_path)
+    base = tmp_path / "A8"
+    cases = [dict(_OPEN_CASE, question_id="Q-901")]
+    _seed_response(base, "Q-901")
+    folder = base / runner.JUDGE_REPEAT_DIRNAME / "round_1"
+    folder.mkdir(parents=True)
+    (folder / "Q-901.json").write_text(json.dumps({
+        "question_id": "Q-901", "correct": True, "covers_key_points": True,
+        "grounded": True, "no_fabrication": True, "reason": "r1"}), encoding="utf-8")
+
+    runner.judge_sigma("A8", cases, {}, cohort="valuechain")
+    assert ea.JUDGE_DIR == base / "judge"
+
+
+def test_the_arm_without_repeat_rounds_has_nothing_to_measure(tmp_path, monkeypatch):
+    """회차가 없으면 `None` 이다 — 없는 σ 를 0 으로 적으면 "judge 는 결정적이다" 가
+    측정 없이 산출물에 들어간다."""
+    from scripts import ablation as runner
+
+    monkeypatch.setattr(runner, "OUT_DIR", tmp_path)
+    _seed_response(tmp_path / "A8", "Q-901")
+    assert runner.judge_sigma("A8", [dict(_OPEN_CASE)], {}, cohort="valuechain") is None
+
+
+def test_the_summary_says_the_spend_came_from_a_deliberate_bypass(tmp_path):
+    """🔴 `--judge-repeat` 실행은 **미적중 0 인데 지출이 있다** (실측 v3 full: 미적중 0 ·
+    1,266.0원). 우회 호출 수가 필드로 안 남으면 그 조합이 자기모순으로 읽히고, 다음 사람이
+    지출 기록 자체를 의심하게 된다."""
+    from scripts import ablation as runner
+
+    class FakeCache:
+        hits = misses = 0
+        bypassed = 90
+        fresh_prompt, fresh_completion = 170_000, 10_339
+        fresh_won = 1266.0
+
+    meta = runner._spend_meta(tmp_path, FakeCache(), live={"arm": "A8"})
+    assert meta["cache_misses"] == 0 and meta["cache_bypassed"] == 90
+    assert meta["this_process_spent_won"] == 1266.0

@@ -7,6 +7,11 @@
         --out artifacts/ablation/v2/heldout --budget 1000    # 🔴 최종 구성 1회만
     python scripts/ablation.py --offline --out artifacts/ablation/v2 --cohort full
                                                      # 캐시만으로 재집계 (LLM 0회)
+    python scripts/ablation.py --arm A8 --cohort valuechain \
+        --out artifacts/ablation/v3/vc --judge-repeat 3 --budget-won 600
+                                                     # judge 재현 편차 σ (생성은 재사용)
+    python scripts/ablation.py --arm A8 --cohort valuechain \
+        --out artifacts/ablation/v3/vc --judge-sigma  # σ 재집계만 (LLM 0회)
 
 🔴 **재집계에 `--out` 을 빼지 마라.** `--out` 없이 돌리면 `OUT_DIR` 이 v1 자리
 (`artifacts/ablation`)가 되고, 그 폴더는 **v2 를 자기 하위에 품고 있다** — v1 `summary.json`
@@ -58,9 +63,11 @@ v2 는 88문항을 재면서 **같은 이름을 덮지 않아야** 한다 — �
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import re
+import statistics
 import sys
 import time
 from pathlib import Path
@@ -107,12 +114,39 @@ class RequestCache:
         self.root = root
         self.offline = offline
         self.hits = self.misses = 0
+        #: 🔴 우회 호출 수. 미적중(`misses`)과 **따로 센다** — 우회는 캐시에 없어서 산
+        #: 것이 아니라 **있는데도 일부러 다시 산 것**이고, 그 둘을 합치면 캐시 적중률이
+        #: 실제보다 나쁘게 보인다.
+        self.bypassed = 0
+        #: 🔴 `no_cache()` 만 켠다. 일반 경로는 이 값을 절대 건드리지 않는다.
+        self.bypass = False
         self.fresh_prompt = self.fresh_completion = 0
 
     @staticmethod
     def _key(url: str, body: dict) -> str:
         blob = json.dumps({"url": url, "body": body}, ensure_ascii=False, sort_keys=True)
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+    @contextlib.contextmanager
+    def no_cache(self):
+        """🔴 **judge 재현 편차 측정 전용.** 이 블록 안의 호출은 캐시를 읽지도 쓰지도 않는다.
+
+        온도 0.0 이라 같은 프롬프트는 캐시가 **반드시** 적중한다. 그 적중을 그대로 두면
+        judge 를 3회 돌려도 디스크에서 같은 파일을 세 번 읽을 뿐이고, "편차 0" 이라는
+        결론이 **측정이 아니라 캐시의 성질**에서 나온다 — 측정이 무의미해진다.
+
+        🔴 **쓰지도 않는다.** 우회 호출의 응답을 캐시에 얹으면 다음 회차가 그 값을
+        적중시키고(1회차 응답이 2·3회차를 오염시킨다), 나아가 일반 경로가 읽는 정본
+        응답까지 이번 회차 값으로 갈린다. 우회는 읽기·쓰기 **양쪽 다** 꺼야 한다.
+
+        토큰(비용)은 우회 여부와 무관하게 센다 — 안 세면 예산 제동이 안 걸린다.
+        """
+        before = self.bypass
+        self.bypass = True
+        try:
+            yield self
+        finally:
+            self.bypass = before
 
     def install(self):
         from argus import clova
@@ -121,7 +155,7 @@ class RequestCache:
 
         def cached(url, headers, body, timeout=60):
             path = self.root / f"{self._key(url, body)}.json"
-            if path.exists():
+            if path.exists() and not self.bypass:
                 saved = json.loads(path.read_text(encoding="utf-8"))
                 self.hits += 1
                 return saved["status"], saved["payload"], saved["latency_s"]
@@ -129,12 +163,15 @@ class RequestCache:
                 raise RuntimeError("요청 캐시 미적중인데 --offline 입니다 (호출 금지)")
             status, payload, latency = original(url, headers, body, timeout)
             if status == 200:
-                self.root.mkdir(parents=True, exist_ok=True)
-                path.write_text(json.dumps(
-                    {"status": status, "payload": payload, "latency_s": latency},
-                    ensure_ascii=False), encoding="utf-8")
+                if self.bypass:
+                    self.bypassed += 1
+                else:
+                    self.root.mkdir(parents=True, exist_ok=True)
+                    path.write_text(json.dumps(
+                        {"status": status, "payload": payload, "latency_s": latency},
+                        ensure_ascii=False), encoding="utf-8")
+                    self.misses += 1
                 usage = (payload.get("result") or {}).get("usage") or {}
-                self.misses += 1
                 # 🔴 임베딩 응답은 `promptTokens` 가 아니라 `inputTokens` 를 쓴다
                 #    (`src/argus/embed.py`). `promptTokens` 만 세면 dense arm(A2·A2F)의
                 #    임베딩 비용이 **예산 제동과 `spent_won` 에서 통째로 빠진다** —
@@ -388,17 +425,70 @@ def _use_dirs(arm: str) -> None:
     ea.OUT_DIR = base
 
 
+#: 🔴 회차별 judge 산출물의 자리. **`judge/` 를 덮지 않는다** — 그 폴더는 `ea.analyse`
+#: 가 읽는 정본이고 형식을 깨면 다른 도구가 통째로 못 읽는다. 회차는 자기 폴더에 쌓는다.
+JUDGE_REPEAT_DIRNAME = "judge_repeat"
+
+
+def judge_round_dirs(arm: str) -> list[Path]:
+    """`judge_repeat/round_1`, `round_2`, … 를 회차 순으로. 없으면 빈 목록."""
+    base = arm_dir(arm) / JUDGE_REPEAT_DIRNAME
+    if not base.exists():
+        return []
+    rounds = [p for p in base.glob("round_*") if p.is_dir()]
+    return sorted(rounds, key=lambda p: int(p.name.split("_")[1]))
+
+
+def run_judge_rounds(arm: str, case: dict, response: dict, cache: RequestCache,
+                     repeat: int, force: bool = False) -> list[dict]:
+    """🔴 **같은 응답에 judge 만 N 회 다시 돌린다.** 생성은 다시 하지 않는다.
+
+    응답(`response`)은 호출부가 이미 디스크에서 읽어 넘겨 주므로 이 함수는 judge 만
+    산다. 회차마다 **요청 캐시를 우회**한다(`cache.no_cache()`) — 우회하지 않으면
+    온도 0.0 의 같은 프롬프트가 반드시 적중해서 3회가 전부 같은 값이 되고, 그러면
+    "편차 0" 이 캐시의 성질이지 judge 의 성질인지 가를 수 없다.
+
+    회차 파일이 이미 있으면 다시 사지 않는다. 예산 제동이나 429 로 중간에 끊긴
+    실행을 이어 돌릴 때 앞 회차를 두 번 결제하지 않기 위한 것이고, 회차마다 **파일이
+    따로**라 이 재사용이 회차 간 독립성을 깨지 않는다.
+    """
+    base = arm_dir(arm) / JUDGE_REPEAT_DIRNAME
+    out: list[dict] = []
+    for k in range(1, repeat + 1):
+        path = base / f"round_{k}" / f'{case["question_id"]}.json'
+        if path.exists() and not force:
+            record = json.loads(path.read_text(encoding="utf-8"))
+            record["replayed"] = True
+            out.append(record)
+            continue
+        with cache.no_cache():
+            record, _ = ea.with_retry(ea.run_judge, case, response,
+                                      force=True, path=path)
+        record["replayed"] = False
+        out.append(record)
+        time.sleep(ea.PACE_S)
+    return out
+
+
 def run_arm(arm: str, cases: list[dict], cache: RequestCache,
-            budget_won: float, force: bool = False, config: str | None = None) -> dict:
+            budget_won: float, force: bool = False, config: str | None = None,
+            judge_repeat: int = 1) -> dict:
     """한 arm 을 전수로 돌린다. **문항마다 즉시 디스크에 남긴다** — 끊겨도 잃지 않는다.
 
     `config` 는 폴더 이름과 arm 구성을 가르기 위한 것이다. heldout 실행은 결과를
     `A6_heldout_run/` 에 남기지만 구성은 **A6 그대로**여야 한다.
+
+    🔴 `judge_repeat` 는 **기본값 1 에서 종전 동작과 한 글자도 다르지 않다** (아래
+    `if judge_repeat > 1` 안으로만 들어간다). 2 이상이면 open 문항마다 judge 를 그
+    횟수만큼 **캐시를 우회해** 더 돌려 회차별 폴더에 남긴다 — judge 재현 편차(σ) 측정용.
+    반복은 **문항 단위로 묶여** 돌므로, 예산 제동에 걸려 중간에 끊겨도 끝난 문항은
+    회차가 전부 있고 안 끝난 문항은 회차가 전부 없다 (회차 간 비교가 깨지지 않는다).
     """
     _use_dirs(arm)
     base = arm_dir(arm)
     base.mkdir(parents=True, exist_ok=True)
     started_won = cache.fresh_won
+    started_bypass = getattr(cache, "bypassed", 0)
     rows, stopped = [], None
 
     with ablation.use(config or arm):
@@ -411,14 +501,18 @@ def run_arm(arm: str, cases: list[dict], cache: RequestCache,
             hits_before, won_before = cache.hits, cache.fresh_won
             run, cached = ea.with_retry(ea.run_case, case, force=force)
             judged, judge_cached = None, None
+            repeats: list[dict] = []
             if case.get("answer_mode") == "open":
                 judged, judge_cached = ea.with_retry(ea.run_judge, case,
                                                      run["response"], force=force)
                 if not judge_cached:
                     time.sleep(ea.PACE_S)
+                if judge_repeat > 1:
+                    repeats = run_judge_rounds(arm, case, run["response"], cache,
+                                               judge_repeat, force)
             if not cached:
                 time.sleep(ea.PACE_S)
-            rows.append({
+            row = {
                 "question_id": case["question_id"],
                 "cached": cached,                    # 응답 파일 캐시 적중 (= 재생)
                 "judge_cached": judge_cached,        # open 문항만. closed 는 None
@@ -430,7 +524,17 @@ def run_arm(arm: str, cases: list[dict], cache: RequestCache,
                 "judge_tokens": (judged or {}).get("prompt_tokens", 0)
                                 + (judged or {}).get("completion_tokens", 0),
                 "latency_s": run["latency_s"],
-            })
+            }
+            if repeats:
+                # 🔴 회차별 판정을 **행에도** 남긴다. 집계는 회차 폴더를 다시 읽지만,
+                #    `run.json` 만 보는 쪽에도 "이 문항이 갈렸다" 가 보여야 한다.
+                row["judge_repeat_verdicts"] = [bool(r["correct"]) for r in repeats]
+                row["judge_repeat_agreed"] = len(
+                    {bool(r["correct"]) for r in repeats}) == 1
+                row["judge_repeat_tokens"] = sum(
+                    r.get("prompt_tokens", 0) + r.get("completion_tokens", 0)
+                    for r in repeats if not r.get("replayed"))
+            rows.append(row)
             spent = cache.fresh_won - started_won
             print(f'  [{arm}] {case["question_id"]} calls={run["llm_calls"]} '
                   f'tok={run["prompt_tokens"]}+{run["completion_tokens"]} '
@@ -441,8 +545,16 @@ def run_arm(arm: str, cases: list[dict], cache: RequestCache,
                       f"{stopped} 에서 중단합니다 (누적 {cache.fresh_won:,.0f}원)")
                 break
 
-    return {"arm": arm, "n_run": len(rows), "stopped_at": stopped,
+    live = {"arm": arm, "n_run": len(rows), "stopped_at": stopped,
             "spent_won": round(cache.fresh_won - started_won, 1), "runs": rows}
+    if judge_repeat > 1:
+        # 🔴 무엇을 몇 회 쟀는지가 산출물에 남아야 한다. 회차 폴더만 보고는 "3회로
+        #    돌렸는데 1회에서 끊긴 것" 과 "1회로 돌린 것" 이 구별되지 않는다.
+        live["judge_repeat"] = judge_repeat
+        # 🔴 이 지출이 **캐시 미적중이 아니라 의도적 우회**에서 나왔다는 증거.
+        live["judge_repeat_bypassed_calls"] = (getattr(cache, "bypassed", 0)
+                                               - started_bypass)
+    return live
 
 
 def _write_run(folder: str, live: dict) -> dict:
@@ -726,6 +838,13 @@ def _spend_meta(root: Path, cache: "RequestCache", live: dict) -> dict:
     }
     if live:
         out.update({"cache_hits": cache.hits, "cache_misses": cache.misses,
+                    # 🔴 **우회 호출 수.** 이 값이 없으면 `--judge-repeat` 실행의
+                    #    산출물이 자기모순으로 읽힌다 — 실측 v3 full 은
+                    #    `cache_misses 0` 인데 `this_process_spent_won 1,266.0` 이다.
+                    #    미적중 0 에 지출이 있는 이유는 회차 호출이 **캐시에 있는데도
+                    #    일부러 다시 산 것**(`RequestCache.no_cache`)이기 때문이고,
+                    #    그 사실이 필드로 안 남으면 다음 사람이 지출 기록을 의심한다.
+                    "cache_bypassed": cache.bypassed,
                     "fresh_prompt_tokens": cache.fresh_prompt,
                     "fresh_completion_tokens": cache.fresh_completion,
                     "cache_stats_are_this_process": True,
@@ -738,6 +857,7 @@ def _spend_meta(root: Path, cache: "RequestCache", live: dict) -> dict:
         out.update({
             "cache_hits": previous.get("cache_hits", 0),
             "cache_misses": previous.get("cache_misses", 0),
+            "cache_bypassed": previous.get("cache_bypassed", 0),
             "fresh_prompt_tokens": previous.get("fresh_prompt_tokens", 0),
             "fresh_completion_tokens": previous.get("fresh_completion_tokens", 0),
             "cache_stats_are_this_process": False,
@@ -788,6 +908,190 @@ def score_arm(arm: str, cases: list[dict], records: dict, cohort: str = "") -> d
     (base / "error_matrix.md").write_text(
         ea.render_matrix(rows, report), encoding="utf-8")
     return report
+
+
+# --- judge 재현 편차 (σ) — LLM 0회 집계 -----------------------------------------
+# 🔴 **왜 재는가.** 개방형 문항은 LLM judge 가 채점한다. 그런데 judge 의 재현 편차를
+# 한 번도 안 쟀다. 실제로 밸류체인 12문항에서 A8 의 정답이 재측정마다 6 → 5 → 6 으로
+# 움직였고, 문서들은 그것을 "재측정마다 ±1문항" 이라고 **추정으로** 적고 있다.
+# 다음 라운드 arm 들의 Δ 가 1~2문항 규모로 예상되므로, σ 를 모르면 Δ 가 채택 신호인지
+# 잡음인지 **판정할 수 없다**. KDD '26(paper/idea/QA.pdf)이 GPT-4o judge 를 3회 돌려
+# 표준편차를 표(Table 6·7·8)로 내는 것과 같은 이유이고 같은 방법이다.
+
+#: 판정을 이루는 세 축. `correct` 는 셋의 AND 다 (`critic.OpenVerdict.correct`).
+JUDGE_FIELDS = ("covers_key_points", "grounded", "no_fabrication")
+
+
+def _short(path: Path) -> str:
+    """산출물에 적는 경로. 저장소 밖(테스트 tmp)이면 그대로 둔다."""
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def _cohort_rate(rows: list[dict], cohort: str) -> dict:
+    """이 코호트의 정답 수. **분모를 코호트에 맞춘다.**
+
+    밸류체인은 그리드 밖 트랙이라 `grid_rows` 로 세면 **0문항**이 된다 (6→5→6 이
+    관측된 축이 통째로 사라진다). 그리드 코호트는 반대로 회귀·밸류체인이 섞이면 안 된다.
+    """
+    if cohort in ea.OFF_GRID_TRACKS:
+        sub = [r for r in rows if r.get("track") == cohort]
+    else:
+        sub = ea.grid_rows(rows)
+    return ea._rate(sub)
+
+
+def judge_sigma(arm: str, cases: list[dict], records: dict,
+                cohort: str = "") -> dict | None:
+    """회차별 judge 산출물을 다시 채점해 **문항별 일치와 arm 별 σ** 를 낸다. LLM 0회.
+
+    🔴 회차 점수는 **`ea.analyse` 로 다시 낸다** — 회차 폴더를 `JUDGE_DIR` 로 갈아
+    끼우고 정본과 같은 채점기를 태운다. judge 파일에서 `correct` 만 세지 않는 이유는
+    그것이 코호트 정답 수가 아니기 때문이다. closed 문항의 EM·DATA_LIMIT 분모 제외 ·
+    트랙 분리가 전부 채점기 안에 있고, 그 규칙을 여기 다시 적으면 두 곳이 갈린다.
+
+    회차가 하나도 없으면 `None` — `--judge-repeat` 없이 돈 arm 에는 잴 것이 없다.
+    """
+    rounds = judge_round_dirs(arm)
+    if not rounds:
+        return None
+
+    open_ids = [c["question_id"] for c in cases if c.get("answer_mode") == "open"]
+    per_round, verdicts = [], {}
+    # 🔴 **먼저 정본 경로로 맞춘다.** `ea.RESPONSE_DIR` 은 모듈 전역이라 앞선 호출의
+    #    값이 남아 있다 — 응답을 엉뚱한 arm 폴더에서 읽으면 회차 점수가 통째로 틀린다.
+    _use_dirs(arm)
+    try:
+        for path in rounds:
+            ea.JUDGE_DIR = path
+            rows = ea.analyse(cases, records)
+            rate = _cohort_rate(rows, cohort)
+            judged = {}
+            for qid in open_ids:
+                file = path / f"{qid}.json"
+                judged[qid] = (json.loads(file.read_text(encoding="utf-8"))
+                               if file.exists() else None)
+            verdicts[path.name] = judged
+            per_round.append({
+                "round": int(path.name.split("_")[1]),
+                "dir": _short(path),
+                "n_judged": sum(1 for v in judged.values() if v),
+                "n_open": len(open_ids),
+                "correct": rate["correct"], "n_scored": rate["n_scored"],
+                "rate": rate["rate"],
+            })
+    finally:
+        _use_dirs(arm)                     # 🔴 정본 경로를 반드시 되돌린다
+
+    # 🔴 정본(`judge/`)의 판정도 나란히 둔다. 이것은 **다른 날 산 표본**이라 회차와
+    #    같은 격으로 σ 에 넣지 않지만, "3회가 서로 같은데 정본과는 다르다" 를 볼 수 있다.
+    baseline = {}
+    for qid in open_ids:
+        file = arm_dir(arm) / "judge" / f"{qid}.json"
+        baseline[qid] = (json.loads(file.read_text(encoding="utf-8"))
+                         if file.exists() else None)
+
+    names = [p.name for p in rounds]
+    questions, split, split_fields = {}, [], []
+    for qid in open_ids:
+        got = [verdicts[n][qid] for n in names]
+        if not any(got):
+            continue                       # 회차가 하나도 없는 문항 (예산 제동 뒤)
+        marks = [None if v is None else bool(v["correct"]) for v in got]
+        fields = {f: [None if v is None else bool(v[f]) for v in got]
+                  for f in JUDGE_FIELDS}
+        base = baseline.get(qid)
+        agreed = len(set(marks)) == 1
+        agreed_fields = all(len(set(vals)) == 1 for vals in fields.values())
+        questions[qid] = {
+            "rounds": marks,
+            "agreed": agreed,
+            "fields": fields,
+            "fields_agreed": agreed_fields,
+            "baseline": None if base is None else bool(base["correct"]),
+            "agrees_with_baseline": (base is not None and len(set(marks)) == 1
+                                     and marks[0] == bool(base["correct"])),
+            "reasons": [None if v is None else (v.get("reason") or "")[:400]
+                        for v in got],
+        }
+        if not agreed:
+            split.append(qid)
+        elif not agreed_fields:
+            split_fields.append(qid)
+
+    counts = [r["correct"] for r in per_round]
+    out = {
+        "arm": arm,
+        "cohort": cohort,
+        "n_cases": len(cases),
+        "n_open": len(open_ids),
+        "n_rounds": len(rounds),
+        "rounds": per_round,
+        "correct_counts": counts,
+        "mean": round(statistics.fmean(counts), 3) if counts else None,
+        # 🔴 두 σ 를 **둘 다** 낸다. 표본 3개에서 모집단 σ(ddof=0)와 표본 σ(ddof=1)는
+        #    1.22 배 차이가 나고, 어느 쪽인지 안 밝히면 Δ 판정의 문턱이 그만큼 흔들린다.
+        #    본문 인용은 표본 σ(ddof=1) 쪽이다 — 논문 표와 같은 관행.
+        "sigma_sample": (round(statistics.stdev(counts), 3)
+                         if len(counts) > 1 else None),
+        "sigma_population": (round(statistics.pstdev(counts), 3)
+                             if counts else None),
+        "min": min(counts) if counts else None,
+        "max": max(counts) if counts else None,
+        "range": (max(counts) - min(counts)) if counts else None,
+        "baseline_correct": _baseline_correct(arm, cases, records, cohort),
+        "questions": questions,
+        "split_questions": split,
+        "split_fields_only": split_fields,
+        "n_compared": len(questions),
+        "agreement_rate": (round(1 - len(split) / len(questions), 4)
+                           if questions else None),
+        "note": ("생성은 다시 하지 않았다 — 같은 응답 파일에 judge 만 다시 돌렸다. "
+                 "회차 호출은 요청 캐시를 우회한다 (`RequestCache.no_cache`). "
+                 "judge 온도는 0.0 그대로다 (`critic.judge_open`)."),
+    }
+    (arm_dir(arm) / "judge_sigma.json").write_text(
+        json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+    return out
+
+
+def _baseline_correct(arm: str, cases: list[dict], records: dict,
+                      cohort: str) -> dict | None:
+    """정본 `judge/` 로 채점한 정답 수. 회차와 나란히 읽는 기준선이다."""
+    if not (arm_dir(arm) / "judge").exists():
+        return None
+    _use_dirs(arm)
+    return _cohort_rate(ea.analyse(cases, records), cohort)
+
+
+def print_judge_sigma(result: dict) -> None:
+    """표를 콘솔에 찍는다. 🔴 **갈린 문항이 핵심 산출**이라 그것을 마지막에 둔다."""
+    print(f'\n=== judge 재현 편차 · {result["arm"]} · 코호트 {result["cohort"]} '
+          f'· {result["n_rounds"]}회 ===')
+    for row in result["rounds"]:
+        print(f'  회차 {row["round"]}: {row["correct"]}/{row["n_scored"]} '
+              f'(rate={row["rate"]}) · judge 산출 {row["n_judged"]}/{row["n_open"]}')
+    base = result.get("baseline_correct") or {}
+    if base:
+        print(f'  정본(judge/): {base["correct"]}/{base["n_scored"]} '
+              f'(rate={base["rate"]}) — 다른 날 산 표본, σ 에는 안 넣는다')
+    print(f'  정답 수 {result["correct_counts"]} · 평균 {result["mean"]} · '
+          f'σ(표본) {result["sigma_sample"]} · σ(모집단) {result["sigma_population"]} · '
+          f'최소 {result["min"]} · 최대 {result["max"]}')
+    print(f'  일치 {result["n_compared"] - len(result["split_questions"])}'
+          f'/{result["n_compared"]} 문항 (일치율 {result["agreement_rate"]})')
+    if result["split_questions"]:
+        print(f'  🔴 갈린 문항 {result["split_questions"]}')
+        for qid in result["split_questions"]:
+            q = result["questions"][qid]
+            print(f'     {qid}: 회차 {q["rounds"]} · 정본 {q["baseline"]} · '
+                  f'축 {[(f, v) for f, v in q["fields"].items() if len(set(v)) > 1]}')
+    else:
+        print("  갈린 문항 **0건** — 이 코호트에서 judge 는 결정적이다")
+    if result["split_fields_only"]:
+        print(f'  판정은 같은데 축이 갈린 문항 {result["split_fields_only"]}')
 
 
 # --- 검색 단계만 재기 (LLM 0회) --------------------------------------------------
@@ -2208,6 +2512,25 @@ def run_retrieval(args) -> None:
     print(f'-> {base / "retrieval.md"}')
 
 
+def run_judge_sigma(args) -> None:
+    """🔴 크레딧 규칙: LLM 0회. 회차 폴더가 있는 arm 만 집계한다."""
+    records = ea._load_records()
+    cases = load_cases(args.cohort, args.snapshot)
+    arms = ([a.strip() for a in args.arm.split(",") if a.strip()]
+            or list(ablation.RUN_ORDER))
+    found = 0
+    for arm in arms:
+        result = judge_sigma(arm, cases, records, cohort=args.cohort or "dev")
+        if not result:
+            continue
+        found += 1
+        print_judge_sigma(result)
+        print(f'-> {arm_dir(arm) / "judge_sigma.json"}')
+    if not found:
+        print(f'회차별 judge 산출물이 없습니다 ({OUT_DIR}/<arm>/'
+              f'{JUDGE_REPEAT_DIRNAME}/round_*). `--judge-repeat N` 으로 먼저 재세요.')
+
+
 def _utf8_console() -> None:
     """🔴 Windows 콘솔 기본 코드페이지(cp949)는 `—`·`✓` 를 못 찍어 **실행이 다 끝난 뒤
     마지막 print 에서** UnicodeEncodeError 로 죽는다. 산출물은 이미 디스크에 있으니 측정
@@ -2256,7 +2579,28 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--budget-won", "--budget", dest="budget_won", type=float,
                         default=None,
                         help="상한(원). 러너는 그 80%%(=정지선)에서 멈춘다")
+    parser.add_argument("--judge-repeat", dest="judge_repeat", type=int, default=1,
+                        help="🔴 open 문항의 judge 를 N 회 반복해 재현 편차(σ)를 잰다. "
+                             "기본 1 = 종전 동작. 반복 회차는 요청 캐시를 우회한다")
+    parser.add_argument("--judge-sigma", action="store_true",
+                        help="이미 있는 회차별 judge 산출물만 다시 집계한다 (LLM 0회)")
     args = parser.parse_args(argv)
+
+    if args.judge_repeat < 1:
+        raise SystemExit(f"--judge-repeat 은 1 이상이어야 합니다: {args.judge_repeat}")
+    # 🔴 `--offline` 은 "요청 캐시 적중만 허용" 이고 반복 회차는 **정의상 우회**다.
+    #    두 인자를 같이 받으면 첫 우회 호출이 `RuntimeError` 로 죽는다 — 인자 단계에서 막는다.
+    if args.offline and args.judge_repeat > 1:
+        raise SystemExit(
+            "🔴 `--offline` 과 `--judge-repeat > 1` 은 같이 못 씁니다. 반복 회차는 "
+            "요청 캐시를 **우회**해야 측정이 성립하는데(온도 0.0 이라 안 우회하면 3회가 "
+            "전부 같은 파일을 읽습니다), `--offline` 은 캐시 미적중 호출을 금지합니다.\n"
+            "   이미 돌려 둔 회차를 다시 집계만 하려면 `--judge-sigma` 를 쓰세요 (LLM 0회).")
+    # 🔴 heldout 은 반복 대상이 아니다. 회차마다 judge 를 새로 사는 것은 heldout 을
+    #    한 번 더 '여는' 일이 아니지만, 되돌릴 수 없는 자산에 새 호출을 얹는 경로는
+    #    아예 열지 않는다 — 이 측정은 dev 쪽에서 끝난다.
+    if args.heldout and args.judge_repeat > 1:
+        raise SystemExit("🔴 `--heldout` 과 `--judge-repeat > 1` 은 같이 못 씁니다.")
 
     global OUT_DIR
     if args.out:
@@ -2274,6 +2618,11 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.retrieval:
         run_retrieval(args)
+        return
+
+    if args.judge_sigma:
+        # 🔴 LLM 0회. 디스크에 이미 있는 회차 폴더만 다시 읽는다.
+        run_judge_sigma(args)
         return
 
     # 🔴 heldout 제동은 **디렉터리를 만들기 전에** 건다. 뒤에 걸면 거부된 실행이 빈 폴더와
@@ -2355,10 +2704,13 @@ def main(argv: list[str] | None = None) -> None:
             print(f"\n🔴 정지선 도달 — {arm} 이하를 실행하지 않습니다")
             break
         print(f"\n=== {arm} · {len(cases)}문항 · 누적 {cache.fresh_won:,.0f}원 "
-              f"/ 정지선 {stop_won:,.0f}원 (상한 {budget_cap:,.0f}) ===")
+              f"/ 정지선 {stop_won:,.0f}원 (상한 {budget_cap:,.0f})"
+              + (f" · judge {args.judge_repeat}회 반복" if args.judge_repeat > 1 else "")
+              + " ===")
         # 🔴 `_write_run` 이 지출 보존 가드를 들고 있다. 직접 `write_text` 하지 않는다 —
         #    그것이 1,901.0원을 0.0 으로 덮은 경로다 (`_write_run` docstring ③).
-        live[arm] = _write_run(arm, run_arm(arm, cases, cache, stop_won, args.force))
+        live[arm] = _write_run(arm, run_arm(arm, cases, cache, stop_won, args.force,
+                                            judge_repeat=args.judge_repeat))
 
     scored_cases = load_cases(args.cohort, args.snapshot)
     reports = {}
@@ -2366,6 +2718,14 @@ def main(argv: list[str] | None = None) -> None:
         if (arm_dir(arm) / "responses").exists():
             reports[arm] = score_arm(arm, scored_cases, records,
                                      cohort=args.cohort or "dev")
+
+    # 🔴 회차별 judge 산출물이 있으면 σ 를 낸다. LLM 0회 — `score_arm` 뒤에 두는 것은
+    #    `_use_dirs` 를 갈아 끼우는 함수 둘이 서로의 경로를 물려받지 않게 하기 위함이다.
+    for arm in (targets or list(reports)):
+        sigma = judge_sigma(arm, scored_cases, records, cohort=args.cohort or "dev")
+        if sigma:
+            print_judge_sigma(sigma)
+            print(f'-> {arm_dir(arm) / "judge_sigma.json"}')
 
     summary = summarise(reports)
     meta = {"generated": time.strftime("%Y-%m-%dT%H:%M:%S"),

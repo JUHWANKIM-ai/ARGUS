@@ -738,10 +738,17 @@ def run_case(case: dict, force: bool = False) -> tuple[dict, bool]:
     return record, False
 
 
-def run_judge(case: dict, response: dict, force: bool = False) -> tuple[dict, bool]:
-    """open 문항 채점 (B-5). closed 는 여기 오지 않는다 — EM 이 LLM 0회다."""
-    JUDGE_DIR.mkdir(parents=True, exist_ok=True)
-    path = JUDGE_DIR / f'{case["question_id"]}.json'
+def run_judge(case: dict, response: dict, force: bool = False,
+              path: Path | None = None) -> tuple[dict, bool]:
+    """open 문항 채점 (B-5). closed 는 여기 오지 않는다 — EM 이 LLM 0회다.
+
+    🔴 `path` 는 **judge 재현 편차 측정(`--judge-repeat`) 전용 우회로**다. 기본값
+    `None` 이면 종전과 글자 하나 다르지 않게 `JUDGE_DIR/<qid>.json` 을 쓴다. 회차별
+    결과를 이 파일에 덮으면 다른 도구가 읽는 산출물 형식이 깨지므로, 반복 경로는
+    **자기 폴더**(`judge_repeat/round_K/`)를 넘겨 받아 쓴다.
+    """
+    path = Path(path) if path else JUDGE_DIR / f'{case["question_id"]}.json'
+    path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and not force:
         return json.loads(path.read_text(encoding="utf-8")), True
 
