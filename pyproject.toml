@@ -2,7 +2,10 @@
 name = "argus"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["fastapi>=0.115", "uvicorn>=0.32", "rank-bm25>=0.2.2"]
+# 🔴 pydantic 은 src/argus/api/server.py:5 가 직접 import 한다.
+# fastapi 가 끌어오므로 선언 없이도 동작해 왔지만, 그것은 우연이다 —
+# fastapi 가 의존을 바꾸면 조용히 깨진다. 직접 쓰는 것은 직접 선언한다.
+dependencies = ["fastapi>=0.115", "uvicorn>=0.32", "rank-bm25>=0.2.2", "pydantic>=2.9"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "httpx>=0.27"]
