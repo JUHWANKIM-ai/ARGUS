@@ -1494,6 +1494,20 @@ def render_matrix(rows: list[dict], report: dict) -> str:
     out.append(f'생성 {time.strftime("%Y-%m-%d %H:%M")} · 자동 생성물 '
                "(`scripts/error_analysis.py`)\n")
     out.append("셀 표기 = `정답/채점대상` + 실패단계. **채점 대상에서 DATA_LIMIT 은 뺐다.**\n")
+    # 🔴 진단 arm 의 이 파일은 제출 arm 의 것과 **모양이 완전히 같다** (R2F 가 잡았다).
+    #    `ORACLE/error_matrix.md` 가 `| grid | 64/72 | 0.889 |` 을 찍고 비고 칸에
+    #    "3축 결론은 이 행에서만 낸다" 를 적는데, 그 arm 은 평가 시점에 없는 골든을
+    #    주입한 값이다 — 경고가 `summary.md`·`gate_I.md` 에만 있어 이 파일만 복사되면
+    #    아무것도 막지 않는다. 파일 하나가 홀로 여행할 수 있다면 제동도 그 안에 있어야 한다.
+    from argus import ablation as _ablation
+    if report.get("arm") in _ablation.DIAGNOSTIC_ARMS:
+        out.append(f'\n> 🔴 **`{report["arm"]}` 는 진단 전용이다 — 이 문서의 정답률을 '
+                   "성적으로 인용하면 자기 성적표를 부풀리는 것이 된다.** 평가 시점에 "
+                   "없는 골든 근거를 주입한 값이라 제출 구성이 될 수 없고, **상한도 "
+                   "아니다**(주입은 근거를 더하는 것이 아니라 골든만으로 교체하므로 근거가 "
+                   "줄고, 실측에서 `A8` 보다 낮다). 아래 `GENERATION` 칸이 큰 것도 생성이 "
+                   "더 나빠진 것이 아니라 **다른 단계의 실패가 이동한 것**이다. 읽는 법은 "
+                   "`src/argus/ablation.py` 머리말 §ORACLE 이 정본이다.\n")
 
     out.append("\n## 18셀\n")
     out.append("| task_type | mode | 하 | 중 | 상 |")

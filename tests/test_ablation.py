@@ -1757,6 +1757,24 @@ def test_the_machine_readable_summary_also_marks_the_diagnostic_arm():
     assert summary["arms"]["A8"]["diagnostic_note"] is None
 
 
+def test_the_per_arm_error_matrix_also_carries_the_diagnostic_brake():
+    """🔴 `error_matrix.md` 는 **arm 폴더 안에 홀로 있다** — 경고가 `summary.md`·
+    `gate_I.md` 에만 있으면 이 파일만 복사됐을 때 아무것도 막지 않는다 (R2F).
+
+    실물이 그랬다: `v3/ORACLE/error_matrix.md` 가 제출 arm 의 파일과 **모양이 완전히
+    같은 채로** `| grid | 64/72 | 0.889 |` 과 *"3축 결론은 이 행에서만 낸다"* 를 찍었다.
+    ⚠️ 출하된 파일은 다음 **재집계**에서 갱신된다 — `--report` 는 이 파일을 안 만든다.
+    """
+    from scripts import error_analysis as ea
+
+    report = ea.build_report([], [])
+    report["arm"] = "ORACLE"
+    text = ea.render_matrix([], report)
+    assert "진단 전용" in text and "상한도 아니다" in text
+    report["arm"] = "A8"
+    assert "진단 전용" not in ea.render_matrix([], report)
+
+
 def test_no_renderer_string_revives_the_broken_oracle_contract():
     """🔴 R1 의 두 줄(`Δ = 검색이 아직 못 가져온 몫` · `잔여 오답 = 순수 생성 실패`)은
     R2E 재측정에서 깨졌다. **렌더러가 그것을 단정문으로 다시 찍으면 안 된다.**
