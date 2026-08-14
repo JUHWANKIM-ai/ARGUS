@@ -108,17 +108,69 @@ nano /opt/argus/.env
 chmod 600 /opt/argus/.env
 ```
 
-## ⑤ 산출물 전송 — 🔴 **시간을 지배하는 단계**
+## ⑤ 산출물 전송 — 🔴 **시간을 지배하는 단계. 압축이 필수다**
 
-```bash
-# 로컬에서. 약 1.2GB — 업로드 속도에 따라 10분~1시간+
-scp -i <KEY> -r artifacts root@223.130.129.131:/opt/argus/
+### 실측 (2026-08-15)
+
+```
+artifacts/ 전체              1,256 MB
+서버 런타임이 실제로 여는 것    1,161 MB
+제외 가능                       39 MB  (3% — 큰 이득 없다)
+
+🔴 압축하면            1,256 → 약 440 MB
+   periodic_sections.txt   926 → 217 MB  (압축률 23% · 한국어 텍스트)
+   section_index.npz       198 MB  — npz 는 이미 압축 컨테이너다. 추가 이득 없음
 ```
 
-🔴 **끊기면 처음부터입니다.** 큰 파일이면 `rsync` 를 쓰는 편이 안전합니다:
+### 🔴 `rsync -z` 를 쓰세요. `scp` 는 압축하지 않습니다
 
 ```bash
-rsync -avz --progress -e "ssh -i <KEY>" artifacts/ root@223.130.129.131:/opt/argus/artifacts/
+# 로컬에서 실행. -z 가 전송량을 1,256 → 약 440 MB 로 줄인다
+rsync -avz --progress -e "ssh -i <KEY>" \
+  --exclude 'ablation/' --exclude 'ablation_dry/' --exclude 'embeddings/' \
+  --exclude 'attic/' --exclude 'eda/' --exclude 'eval/' --exclude 'eval_report.json' \
+  artifacts/ root@223.130.129.131:/opt/argus/artifacts/
+```
+
+🔴 **`rsync` 는 끊겨도 이어서 받습니다.** `scp` 는 처음부터입니다. **반드시 `rsync` 를 쓰세요.**
+
+### 런타임이 여는 파일 — 이 열이 다입니다
+
+```
+periodic_sections.txt      926.4 MB   🔴 corpus/sections.py:349 가 offset seek 로 읽는다
+section_index.npz          197.8 MB   agent/tools.py:160 SectionBm25Index.load
+section_index.json          19.2 MB   같은 인덱스의 메타
+holding_records.jsonl        6.1 MB   agent/tools.py:39
+periodic_sections.jsonl     55.2 MB   corpus/sections.py:319
+exchange_records.jsonl       4.8 MB
+major_records.jsonl          4.4 MB
+exchange_bm25.json           1.0 MB   agent/tools.py:49
+holding_bm25.json            0.9 MB
+major_bm25.json              0.5 MB
+references.jsonl             0.6 MB   agent/tools.py:93
+counterparty_graph.json      0.1 MB   agent/tools.py:506
+```
+
+🔴 **`embeddings/` 를 제외하는 근거**: `A2`(dense 임베딩) arm 은 v1 에서 **측정 후 기각**됐다
+(dense top_k 31건 중 골든 0건). 제출 구성 `A8` 은 dense 를 쓰지 않는다.
+
+### 전송 후 검증
+
+```bash
+# 서버에서
+ls -la /opt/argus/artifacts/ | head -20
+du -sh /opt/argus/artifacts/          # 🔴 약 1.2G 여야 한다 (압축은 전송만이다)
+
+# 🔴 offset seek 가 되는지 — 이것이 정기공시 근거의 생명줄이다
+cd /opt/argus && . .venv/bin/activate
+python -c "
+import sys; sys.path.insert(0,'src')
+from argus.agent.tools import _section_index, section_paths
+i=_section_index()
+print('섹션 인덱스:', '로드 실패 🔴' if i is None else '%d 청크'%len(i.chunk_ids))
+print('공통 경로:', len(section_paths()), '개')
+"
+# 🔴 "로드 실패" 가 나오면 section_index.npz/json 전송이 덜 됐다
 ```
 
 ## ⑥ systemd 등록
