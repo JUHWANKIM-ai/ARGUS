@@ -1664,6 +1664,12 @@ def render_gate(root: Path, budget_cap: float) -> str:
     reports = {k: v for k, v in reports.items() if v}
     ladder = [a for a in ablation.LADDER if a in reports]
     loo = [a for a in ablation.LOO_REMOVED if a in reports]
+    # 🔴 진단 arm 은 사다리에도 LOO 에도 없다 (`ablation.DIAGNOSTIC_ARMS` 머리말). 그래서
+    #    이 목록을 따로 들지 않으면 **게이트 문서에 한 글자도 안 나온다** — 실제로 `ORACLE`
+    #    1,747원을 쓰고도 gate_I.md 어디에도 없었다. 더 나쁜 것은 §1 의 "캐시가 막은 금액"
+    #    이다: 실지출(재귀 합)에는 그 돈이 들어가는데 arm 비용 합계에는 안 들어가서
+    #    차액이 그만큼 작게 찍힌다. **비용 표에는 넣고, 성적 표(누적 곡선·LOO)에는 안 넣는다.**
+    diag = [a for a in ablation.DIAGNOSTIC_ARMS if a in reports]
     full = ladder[-1] if ladder else ""
     summary = summarise(reports)
     arms = summary["arms"]
@@ -1672,8 +1678,10 @@ def render_gate(root: Path, budget_cap: float) -> str:
     meta = (json.loads(meta_path.read_text(encoding="utf-8"))["meta"]
             if meta_path.exists() else {})
     budget_cap, budget_source, budget_note = resolve_budget_cap(meta, budget_cap)
-    vc = {a: _load_report(root / "vc", a) for a in ("A8", "L3", "A7")}
+    vc = {a: _load_report(root / "vc", a)
+          for a in ("A8", "L3", "A7") + ablation.DIAGNOSTIC_ARMS}
     vc = {k: v for k, v in vc.items() if v}
+    vc_diag = [a for a in ablation.DIAGNOSTIC_ARMS if a in vc]
 
     o: list[str] = []
     o.append("# Phase I — Ablation v2 결과 (게이트 I)\n")
@@ -1708,13 +1716,18 @@ def render_gate(root: Path, budget_cap: float) -> str:
     flags = [f for f in ablation.FLAG_NAMES if f != "dense"]
     o.append("| arm | " + " | ".join(f"`{f}`" for f in flags) + " |")
     o.append("|---|" + "---|" * len(flags))
-    for arm in ladder + loo:
+    for arm in ladder + loo + diag:
         cells = []
         for f in flags:
             value = arms[arm]["flags"].get(f)
             cells.append(str(value) if isinstance(value, str)
                          else ("✓" if value else "✗"))
-        o.append(f"| **{arm}** | " + " | ".join(cells) + " |")
+        o.append(f"| **{arm}**{' 🔬' if arm in diag else ''} | "
+                 + " | ".join(cells) + " |")
+    if diag:
+        o.append(f'\n🔬 = 진단 arm (`{"`·`".join(diag)}`). **성적이 아니다** — 평가 시점에 '
+                 "없는 정보(골든 근거)를 쓰므로 제출 구성이 될 수 없다. 스위치 표에만 "
+                 "싣고 누적 곡선·LOO 표에는 넣지 않는다 (`ablation.DIAGNOSTIC_ARMS`).\n")
     o.append("\n🔴 **`A7` 은 플래그가 A6 과 같다** — 거절 강제·시점 지정은 무조건 실행되는 "
              "코드이고(`router.missing_named_report` · `pipeline._as_of_ym`) 플래그로 끌 수 "
              "없다. 그래서 사다리의 `Δ(A6→A7)` 은 **측정값이 아니라 정의상 0** 이다. "
@@ -1729,11 +1742,12 @@ def render_gate(root: Path, budget_cap: float) -> str:
     o.append("| arm | LLM 호출 | prompt | completion | judge | 총 토큰 | arm 비용(원) | 신규 지출(원) |")
     o.append("|---|---|---|---|---|---|---|---|")
     arm_sum = 0.0
-    for arm in ladder + loo:
+    for arm in ladder + loo + diag:
         t = reports[arm]["totals"]
         arm_sum += t["cost_won"]
         fresh = spend["per_arm"].get(arm)
-        o.append(f'| {arm} | {t["llm_calls"]} | {t["prompt_tokens"]:,} '
+        o.append(f'| {arm}{" 🔬" if arm in diag else ""} | {t["llm_calls"]} '
+                 f'| {t["prompt_tokens"]:,} '
                  f'| {t["completion_tokens"]:,} | {t["judge_tokens"]:,} '
                  f'| {t["total_tokens"]:,} | {t["cost_won"]:,.1f} '
                  f'| {"—" if fresh is None else f"{fresh:,.1f}"} |')
@@ -1742,7 +1756,8 @@ def render_gate(root: Path, budget_cap: float) -> str:
     for arm, report in vc.items():
         t = report["totals"]
         fresh = vc_runs.get(arm)
-        o.append(f'| {arm}/밸류체인 (12문항) | {t["llm_calls"]} | {t["prompt_tokens"]:,} '
+        o.append(f'| {arm}{" 🔬" if arm in vc_diag else ""}/밸류체인 (12문항) '
+                 f'| {t["llm_calls"]} | {t["prompt_tokens"]:,} '
                  f'| {t["completion_tokens"]:,} | {t["judge_tokens"]:,} '
                  f'| {t["total_tokens"]:,} | {t["cost_won"]:,.1f} '
                  f'| {"—" if fresh is None else f"{fresh:,.1f}"} |')
@@ -1807,7 +1822,7 @@ def render_gate(root: Path, budget_cap: float) -> str:
     #    예산 중단된 arm 은 **더 작은 분모로** 표에 실린다 — 그러면 그 arm 의 정답률이
     #    다른 arm 과 다른 잣대가 되고, 표만 보면 그 사실이 안 보인다.
     partial = []
-    for arm in ladder + loo:
+    for arm in ladder + loo + diag:
         rep = reports[arm]
         run_path = root / arm / "run.json"
         run = (json.loads(run_path.read_text(encoding="utf-8"))
@@ -1963,6 +1978,34 @@ def render_gate(root: Path, budget_cap: float) -> str:
                     r = summary["axes"][axis][value][arm]
                     cells += [f'{r["correct"]}/{r["n"]}', _pp(b["rate"], r["rate"])]
                 o.append(f'| {value} | ' + " | ".join(cells) + " |")
+
+    # --- 5b. 진단 arm — 사다리에도 LOO 에도 자리가 없다 ---
+    # 🔴 성적 표와 **같은 표에 넣지 않는다.** 같은 표에 있으면 다음 사람이 그 줄을 성적으로
+    #    인용한다. 그렇다고 안 실으면 잰 값이 게이트 문서에서 사라진다 — 자리를 주되
+    #    경고를 표 안에 같이 쓴다 (`render_summary` §2b 와 같은 규칙).
+    if diag and full:
+        base = arms[full]
+        o.append("\n## 5b. 진단 arm — **성적이 아니다**\n")
+        o.append("| arm | 재는 것 | 정답 | 정답률 | Δ(A8) | 골든 근거 적중 | 전건 적중 |")
+        o.append("|---|---|---|---|---|---|---|")
+        for arm in diag:
+            row = arms[arm]
+            o.append(f'| {arm} | 검색을 골든으로 고정한 **생성 능력** '
+                     f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
+                     f'| {_pp(base["rate"], row["rate"])} '
+                     f'| {row["golden_evidence_hit"]}/{row["golden_total"]} '
+                     f'| {row["golden_evidence_all"]}/{row["n_grid"]} |')
+        o.append("\n> 🔴 평가 시점에 골든 근거가 없다. 이 줄의 정답률은 **제출 성적이 "
+                 "아니라 진단값**이다. 읽는 법은 둘뿐이다 — `Δ` 는 **검색이 아직 못 "
+                 "가져온 몫**이고, 잔여 오답은 **순수 생성 실패**다.\n")
+        o.append("| arm | " + " | ".join(ea.ALL_LABELS) + " |")
+        o.append("|---|" + "---|" * len(ea.ALL_LABELS))
+        for arm in [full] + diag:
+            hist = arms[arm]["failures"]
+            o.append(f'| {arm}{" 🔬" if arm in diag else ""} | '
+                     + " | ".join(str(hist.get(s, 0)) for s in ea.ALL_LABELS) + " |")
+        o.append("\n🔴 **이 두 줄을 나란히 읽는 것이 이 절의 전부다.** 골든 근거 적중이 "
+                 "최대치인데도 `GENERATION` 칸이 안 줄면, 남은 실패는 검색 몫이 아니다.\n")
 
     # --- 6. A8 — 밸류체인 세 갈래 ---
     o.append("\n## 6. 🔴 A8 의 성공 기준은 정답률이 아니라 완결성이다\n")
@@ -2320,21 +2363,36 @@ def render_gate(root: Path, budget_cap: float) -> str:
             o.append(f'| **v1** measured 36 | {g0["correct"]}/{g0["n_scored"]} '
                      f'| {g1["correct"]}/{g1["n_scored"]} '
                      f'| {_pp(_exact_rate(g0), _exact_rate(g1))} |')
-        for label, keep in (("**v2** measured 36 (동일 코호트)", True),
-                            ("**v2** 증설 36", False)):
-            cells = []
-            for arm in ("A0", "A1"):
-                rows_ = [r for r in ea.grid_rows(reports[arm]["rows"])
-                         if (r["question_id"] in wanted) == keep]
-                cells.append(ea._rate(rows_))
-            o.append(f'| {label} | {cells[0]["correct"]}/{cells[0]["n_scored"]} '
-                     f'| {cells[1]["correct"]}/{cells[1]["n_scored"]} '
-                     f'| {_pp(_exact_rate(cells[0]), _exact_rate(cells[1]))} |')
-        o.append("\n**두 성분이 같은 방향이고 크기가 다르다.** 동일 36문항에서 v1 은 "
-                 "`+2.8%p` 였는데 v2 는 음수다 — 그 몫은 **문항 증설이 아니라 v1→v2 코드 "
-                 "변화**다. 🔴 **어느 커밋이 원인인지는 v2 산출물로 특정할 수 없다** "
-                 "(v1 이후 파이프라인이 여러 트랙에서 바뀌었고, 이 트랙은 arm 플래그만 "
-                 "변수로 뒀다). 특정하려면 커밋별 재측정이 필요하고 그것은 별개 작업이다.\n")
+        # 🔴 이 분해는 `A0`·`A1` 산출물이 **이 세대 폴더 안에** 있을 때만 성립한다.
+        #    부분 세대(`--out artifacts/ablation/v3` 처럼 LOO·진단 arm 만 담긴 폴더)에서
+        #    무방비로 색인하면 `KeyError: 'A0'` 으로 보고서 전체가 죽는다 — 실제로 죽었다.
+        #    다른 세대의 A0/A1 을 끌어와 채우지 않는다. 그것이야말로 이 절이 경고하는
+        #    **세대 혼합**이고, 그렇게 만든 Δ 는 어느 시스템의 것도 아니다.
+        if all(a in reports for a in ("A0", "A1")):
+            for label, keep in (("**v2** measured 36 (동일 코호트)", True),
+                                ("**v2** 증설 36", False)):
+                cells = []
+                for arm in ("A0", "A1"):
+                    rows_ = [r for r in ea.grid_rows(reports[arm]["rows"])
+                             if (r["question_id"] in wanted) == keep]
+                    cells.append(ea._rate(rows_))
+                o.append(f'| {label} | {cells[0]["correct"]}/{cells[0]["n_scored"]} '
+                         f'| {cells[1]["correct"]}/{cells[1]["n_scored"]} '
+                         f'| {_pp(_exact_rate(cells[0]), _exact_rate(cells[1]))} |')
+        else:
+            missing = [a for a in ("A0", "A1") if a not in reports]
+            o.append(f'| 🔴 이 세대에 없다 (`{"`·`".join(missing)}`) | — | — | — |')
+            o.append("\n🔴 **이 세대 폴더에는 `A0`·`A1` 산출물이 없어 분해를 못 한다.** "
+                     "다른 세대의 값을 끌어와 채우지 않는다 — 이 절의 요지가 **세대를 "
+                     "섞지 말라**는 것이므로, 섞어서 채운 표는 이 절의 결론을 거짓으로 "
+                     "만든다. 분해가 필요하면 그 세대 폴더에 `--report` 를 돌린다 "
+                     "(`artifacts/ablation/v2`).\n")
+        if all(a in reports for a in ("A0", "A1")):
+            o.append("\n**두 성분이 같은 방향이고 크기가 다르다.** 동일 36문항에서 v1 은 "
+                     "`+2.8%p` 였는데 v2 는 음수다 — 그 몫은 **문항 증설이 아니라 v1→v2 코드 "
+                     "변화**다. 🔴 **어느 커밋이 원인인지는 v2 산출물로 특정할 수 없다** "
+                     "(v1 이후 파이프라인이 여러 트랙에서 바뀌었고, 이 트랙은 arm 플래그만 "
+                     "변수로 뒀다). 특정하려면 커밋별 재측정이 필요하고 그것은 별개 작업이다.\n")
 
     # --- 13. 읽을 때 주의 ---
     o.append("\n## 13. 이 표를 읽을 때 주의할 것\n")
