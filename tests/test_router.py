@@ -351,6 +351,48 @@ def test_disclosing_company_is_never_bound_as_counterparty():
     assert canonical("한전기술") not in _counterparty_nodes()
 
 
+# --- v3 R2 ② — `시행` 표지 (Q-111) ---------------------------------------------
+# 밸류체인 12문항 중 유일한 `ROUTING` 실패를 겨냥한다. 표지가 `계약상대`·`발주` 둘뿐이라
+# "경안리버시티개발이 **시행하는** … 도급계약이 해지되고" 가 결속에 실패했고, 골든
+# 기업도 질문에 이름이 없어 `unanswerable(out_of_universe)` 로 단락됐다 — LLM 0회 · 0/3.
+#
+# 실측 (LLM 0회, dev 78 + 회귀 10 + 밸류체인 12 = 100문항): 발화 **8 → 9**.
+# 늘어난 것은 Q-111 하나이고 나머지 8건은 글자 하나 안 바뀐다. 골든 회수는
+# 밸류체인 46 기준 **29 → 32** (Q-111 0/3 → 3/3), 잃은 골든 0건.
+
+def test_a_developer_who_awards_the_contract_is_the_counterparty():
+    """`시행사` 는 도급을 **주는** 쪽이다 — 발주 주체와 같은 방향의 표지다."""
+    q = ("경안리버시티개발이 시행하는 광주 경안2지구 도시개발사업은 2024년 11월 15일 "
+         "기존 시공사와의 도급계약이 해지되고 같은 날 다른 건설사가 시공계약 체결을 "
+         "공시했다. 새로 체결된 계약금액은 해지금액보다 얼마나 적은가?")
+    r = route(q)
+    assert r.counterparty == "경안리버시티개발"
+    assert r.companies == []          # 골든 기업은 질문에 이름으로 없다
+    assert r.kind != "unanswerable"   # 발주처가 살려 낸다 (스텝 0 단락이 사라진다)
+
+
+def test_the_enforcement_sense_of_the_word_does_not_bind():
+    """🔴 `시행` 은 법령 어휘와 겹친다 — `시행령`·`시행규칙`·`시행일`.
+
+    조사만 보면 `"삼성전자가 시행령에 따라…"` 가 결속돼 **공시한 쪽이 발주처가 된다.**
+    이미 기각한 오탐 6종과 같은 실수다. 뒤에 오는 것까지 봐서 막는다.
+    """
+    for question in (
+        "삼성전자가 시행령에 따라 공시한 계약 건수는?",
+        "두산에너빌리티가 시행규칙 개정 이후 공시한 계약은?",
+    ):
+        assert route(question).counterparty is None, question
+
+
+def test_the_object_particle_does_not_bind_the_developer_role():
+    """🔴 `시행` 에는 목적격을 안 붙인다 — `"N을 시행하다"` 는 N 이 **대상**이다.
+
+    `발주`·`계약상대` 는 목적격도 옳지만(`"X를 계약상대로"` = X 가 주는 쪽) `시행` 은
+    방향이 정반대다. 격을 안 가르면 오탐 6종을 방향만 바꿔 되풀이한다.
+    """
+    assert route("삼성전자를 시행하는 사업은 무엇인가?").counterparty is None
+
+
 def test_both_order_branches_are_reachable_without_the_graph():
     """§5 #4 재정의 — Q-117 은 그래프 문제가 아니라 **열거** 문제다. LLM 0회.
 
