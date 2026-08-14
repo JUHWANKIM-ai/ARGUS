@@ -116,7 +116,7 @@ CONVENTION **G1**("LLM 은 HyperCLOVA X 만") 의 임베딩 적용 여부가 **�
 
 ## `calc_values` 를 '제거' 가 아니라 '대체' 로 잰 이유
 
-계산 도구 14종은 `TOOL_SPECS` 로 노출돼 있지만 **생성 호출에는 `tools` 를 넘기지 않는다**
+계산 도구 7종은 `TOOL_SPECS` 로 노출돼 있지만 **생성 호출에는 `tools` 를 넘기지 않는다**
 (`pipeline.answer_question` → `chat(..., max_tokens=…)`). 따라서 "function calling 을 끈다"
 는 조작은 실행 경로에서 아무것도 바꾸지 못한다 — Δ 가 정의상 0 이 되는 헛측정이다.
 
