@@ -151,15 +151,37 @@ def test_both_conditional_rules_can_attach_together():
     assert "원 단위로 환산" in system and "질문이 지목한 기준의 표" in system
 
 
+#: 채점에 직결되는 네 규칙의 **내용**. 🔴 번호를 붙이지 않는다 (R2F) — 위
+#: `test_rule_numbers_run_from_one_without_a_gap` 이 이미 *"번호는 붙일 때 매긴다"* 를
+#: 지키는데, 여기에 `1. `~`4. ` 접두를 박아 두면 규칙을 하나 **앞에** 끼우는 정당한
+#: 변경이 이 네 단언을 함께 깨뜨린다. 그때 고칠 것은 프롬프트가 아니라 이 리터럴이고,
+#: 그것이 이 저장소가 `== 13` 에서 겪은 사고와 같은 모양이다. 순서는 아래에서 따로 본다.
+SCORED_RULE_TEXTS = ("제공된 공시 근거에 있는 내용만 사용하십시오",
+                     '근거로 확인할 수 없으면 "공시에서 확인되지 않습니다"',
+                     "모든 답변 끝에 근거를 다음 형식으로 표기하십시오",
+                     "정정공시를 근거로 썼으면 정정본임을 밝히십시오")
+
+
 def test_the_scored_rules_one_to_four_are_never_touched():
-    """🔴 규칙 1~4(근거만 사용 · 거절 문구 · 인용 형식 · 정정본 명시)는 채점에 직결된다."""
+    """🔴 규칙 1~4(근거만 사용 · 거절 문구 · 인용 형식 · 정정본 명시)는 채점에 직결된다.
+
+    내용과 **상대 순서**를 지킨다. 절대 번호는 지키지 않는다 — 조건부 규칙이 붙는
+    설계에서 절대 번호를 박으면 번호 규율(`붙일 때 매긴다`)과 서로 반박한다.
+    """
     for question, evidence in [("q", "e"), (Q047_QUESTION, Q047_EVIDENCE),
                                (Q098_QUESTION, Q098_EVIDENCE)]:
         system = prompts.build_answer_messages(question, evidence)[0]["content"]
-        assert "1. 제공된 공시 근거에 있는 내용만 사용하십시오" in system
-        assert '2. 근거로 확인할 수 없으면 "공시에서 확인되지 않습니다"' in system
-        assert "3. 모든 답변 끝에 근거를 다음 형식으로 표기하십시오" in system
-        assert "4. 정정공시를 근거로 썼으면 정정본임을 밝히십시오" in system
+        at = []
+        for text in SCORED_RULE_TEXTS:
+            assert text in system, text
+            at.append(system.index(text))
+        assert at == sorted(at), f"채점 규칙 넷의 순서가 바뀌었다: {at}"
+        # 🔴 넷이 **맨 앞 네 칸**을 차지하는 것까지 본다 (번호는 안 박는다).
+        numbers = [int(n) for n in _NUMBERED.findall(system)]
+        assert numbers[:4] == [1, 2, 3, 4], numbers
+        first_conditional = system.index(SCORED_RULE_TEXTS[-1])
+        assert all(system.index(t) < first_conditional or t == SCORED_RULE_TEXTS[-1]
+                   for t in SCORED_RULE_TEXTS)
 
 
 # --- ⑤ 노출 문항 수를 저장 응답 전수로 못 박는다 -------------------------------
@@ -215,3 +237,20 @@ def test_rule_exposure_matches_the_stored_responses(cohort):
     assert conso == conso_ids, f"{cohort} 연결/별도 노출이 달라졌다: {sorted(conso)}"
     assert exposed_correct <= EXPOSED_WHILE_CORRECT, (
         f"{cohort} 현재 정답인데 새로 노출된 문항: {sorted(exposed_correct)}")
+
+
+def test_the_hostage_is_a_subset_of_the_exposed_and_correct_set():
+    """🔴 `EXPOSED_HOSTAGE_ONLY` 는 정의만 되고 **어느 단언도 읽지 않았다** (R2F).
+
+    R2D 가 수혜자(셋)와 인질(하나)을 갈라 두 상수를 만들었는데, 갈라 놓은 사실을
+    지키는 것이 없었다 — 한쪽만 갱신되면 이분탐색이 엉뚱한 문항에서 시작한다.
+    인질은 정의상 **노출됐고 정답인** 문항의 부분집합이고, 수혜자와 겹치지 않는다.
+    """
+    assert EXPOSED_HOSTAGE_ONLY
+    assert EXPOSED_HOSTAGE_ONLY <= EXPOSED_WHILE_CORRECT, (
+        f"인질이 노출·정답 집합 밖이다: {sorted(EXPOSED_HOSTAGE_ONLY - EXPOSED_WHILE_CORRECT)}")
+    # 🔴 인질은 규칙에 실제로 노출돼 있어야 한다 — 상수만 남고 노출이 사라지면
+    #    "되돌릴 순서" 서술이 근거를 잃는다.
+    resp_dir, labels, unit_ids, conso_ids = RULE_EXPOSURE["그리드 88"]
+    assert EXPOSED_HOSTAGE_ONLY <= (unit_ids | conso_ids), (
+        f"인질이 어느 규칙에도 노출돼 있지 않다: {sorted(EXPOSED_HOSTAGE_ONLY)}")

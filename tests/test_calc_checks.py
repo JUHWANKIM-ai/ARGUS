@@ -14,6 +14,7 @@ import pathlib
 import pytest
 
 from argus.agent import critic
+from scripts import error_analysis as ea
 
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -183,6 +184,12 @@ ARITHMETIC_SNAPSHOTS = {
                      "artifacts/ablation/v3/vc/ORACLE/report.json", {"Q-109"}),
 }
 
+#: 🔴 현 세대 · 전체 88 코호트의 스냅샷 — **위 표에서 파생한다.** 리터럴로 또 적으면
+#: arm 을 하나 더 재는 라운드가 두 곳을 고쳐야 하고, 한 곳을 빼먹으면 "현 세대 전 arm"
+#: 이라는 말이 조용히 좁아진다 (R2E 가 `L1`·`L2`·`L3` 를 넣을 때 실제로 두 곳이었다).
+CURRENT_GENERATION_FULL = tuple(k for k in ARITHMETIC_SNAPSHOTS
+                                if k.startswith("v3/") and k.endswith("(88)"))
+
 #: 검사가 옳은데 판정기가 통과시킨 문항. **묵인이 아니라 명시다** — 목록이 늘면
 #: 그때는 검사가 아니라 채점을 봐야 한다.
 #:
@@ -227,7 +234,12 @@ ARITHMETIC_SNAPSHOTS = {
 #: R2D·R2E 재측정과의 비교가 깨진다. 다음 라운드로 넘긴다 —
 #: 처방 후보는 `critic.judge_open` 에 `verify_answer_arithmetic` 을 **하드 게이트가
 #: 아니라 넷째 축**으로 붙이는 것이고, 붙이는 순간 전 세대 재채점이 필요하다.
-JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG = {"Q-034", "Q-110"}
+#: 🔴 **R2F — 정본을 `scripts/error_analysis.py` 로 옮겼다. 여기는 재수출이다.**
+#: 리터럴을 여기 두는 동안 게이트 렌더러(`scripts/ablation.py` §11)는 같은 사실을
+#: **문자열로** 들고 있었고, 재생성된 v3 게이트가 §0·§4(계산 34/46 · 7/12)와 §11
+#: (문자열 28/46 · 6/12)에서 서로를 반박했다. 이제 렌더러가 상수를 읽는다.
+#: **값을 여기서 고치지 마라 — `ea.JUDGED_CORRECT_ARITHMETIC_WRONG` 을 고쳐라.**
+JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG = set(ea.JUDGED_CORRECT_ARITHMETIC_WRONG)
 
 
 def _snapshot(name):
@@ -275,16 +287,24 @@ def test_the_current_generation_has_no_false_alarm_at_all():
     여기 없다 — 그쪽에는 `Q-110` 이라는 실재하는 예외가 있고, 그 예외는
     `JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG` 이 명시로 들고 있다.
     """
-    for snapshot in ("v3/A8(88)", "v3/L1(88)", "v3/L2(88)", "v3/L3(88)",
-                     "v3/L4(88)", "v3/ORACLE(88)"):
+    # 🔴 arm 목록을 두 번째로 손으로 적지 않는다 (R2F). 종전에는 여섯 이름이 여기
+    #    리터럴로 또 있었고, R2E 가 `L1`·`L2`·`L3` 를 `ARITHMETIC_SNAPSHOTS` 에 넣을 때
+    #    **두 곳을 다 고쳐야** 했다 — 이 저장소가 여섯 번 겪은 "한쪽만 갱신되는 짝" 이다.
+    #    이제 위 표에서 파생하므로 arm 을 하나 더 재면 자동으로 여기에 들어온다.
+    assert CURRENT_GENERATION_FULL, "현 세대 전체 88 스냅샷이 표에서 사라졌다"
+    checked = 0
+    for snapshot in CURRENT_GENERATION_FULL:
         loaded = _snapshot(snapshot)
         if loaded is None:
-            pytest.skip(f"{snapshot} 산출물이 없다")
+            continue                      # 🔴 루프 안에서 skip 하면 나머지 arm 이 안 돈다
         responses, rows = loaded
         for qid, resp in sorted(responses.items()):
             if rows.get(qid, {}).get("correct"):
                 out = critic.verify_answer_arithmetic(resp.get("answer") or "")
                 assert out["ok"], f"{snapshot} {qid} 정답 문항 거짓 경보: {out['reason']}"
+                checked += 1
+    if not checked:
+        pytest.skip("현 세대 전체 88 산출물이 없다")
 
 
 def test_q044_and_q018_are_invisible_to_record_based_verification():

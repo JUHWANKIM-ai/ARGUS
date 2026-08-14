@@ -1367,10 +1367,17 @@ def test_the_v1_gate_does_not_read_the_shared_cache_as_its_own_spend():
     조용히 틀리면 제출물이 크레딧을 거의 다 쓴 것처럼 보인다.
     """
     from scripts import ablation_report as rep
+    from scripts import error_analysis as ea
 
     # v1 의 지출은 **실측 usage 를 고정**해 둔다 — 원 단위 값을 박으면 표시 반올림만 남는다.
+    # 🔴 R2F — 이 단언이 그 서술과 어긋나 있었다. `V1_PAID_WON` 은 `ea.cost_won` 이
+    #    **단가를 곱한 파생값**이라, 3707.7 을 박으면 단가 상수를 고치는 순간 이 테스트가
+    #    깨진다 — 과거 지출은 한 푼도 안 바뀌었는데도. 그래서 **고정하는 것을 usage 로
+    #    옮기고**, 원 단위 값은 같은 함수로 다시 계산해 대조한다(이중 서식지 제거).
     assert rep.V1_PAID_REQUESTS == 309
-    assert round(rep.V1_PAID_WON, 1) == 3707.7
+    assert (rep.V1_PAID_PROMPT_TOKENS, rep.V1_PAID_COMPLETION_TOKENS) == (493_629, 34_539)
+    assert rep.V1_PAID_WON == ea.cost_won(rep.V1_PAID_PROMPT_TOKENS,
+                                          rep.V1_PAID_COMPLETION_TOKENS)
     # 공용 캐시 합은 여전히 계산하지만 **v1 지출이 아니라고** 이름과 표에 적는다.
     shared = rep.spend_from_cache()
     assert shared["requests"] >= rep.V1_PAID_REQUESTS
@@ -1447,9 +1454,14 @@ def test_the_refusal_happens_before_any_directory_is_created(fake_root, monkeypa
     assert made == [], f"제동 앞에서 디렉터리를 만들었다: {made}"
 
 
-# --- ORACLE — 검색을 고정하고 생성만 잰다 (🔴 진단 전용 · 사다리 밖) ---------------
-# `A0`~`A8` 은 전부 "검색 + 생성" 의 합성 성능이라 **검색을 고정한 생성 능력을 잰 적이
-# 없다.** 이 arm 이 그 축을 만든다. 여기 테스트가 지키는 성질은 셋이다.
+# --- ORACLE — 근거를 골든만으로 교체한다 (🔴 진단 전용 · 사다리 밖) ---------------
+# `A0`~`A8` 은 전부 "검색 + 생성" 의 합성 성능이라 **근거를 고정한 생성 능력을 잰 적이
+# 없다.** 이 arm 이 그 축을 만든다.
+# 🔴 **R2E 재측정이 R1 의 계약을 깼다** — `Δ = 검색이 못 가져온 몫` 이 아니다. 주입은
+# 근거를 더하지 않고 **교체**하므로 근거가 줄고, 정오가 갈린 문항 전수에서 골든 회수가
+# `A8` 과 동일했다. 아래 테스트들은 **그 계약이 아니라 주입의 무결성**을 지킨다 —
+# 계약 서술의 정본은 `src/argus/ablation.py` 머리말 §ORACLE 이다.
+# 여기 테스트가 지키는 성질은 셋이다.
 #
 #   ① 플래그가 기본 꺼짐이고 `A8` 과 **그 하나만** 다르다 (Δ 의 귀속)
 #   ② 주입 없이 켜면 **명확히 실패**한다 (조용한 빈 근거 = 최악의 Δ 0)
@@ -1494,7 +1506,7 @@ def test_the_oracle_flag_is_off_by_default():
 
 
 def test_oracle_differs_from_a8_by_exactly_the_golden_flag():
-    """단일 변수 조작. 하나라도 더 바뀌면 Δ 가 '검색 고정' 의 것이 아니다."""
+    """단일 변수 조작. 하나라도 더 바뀌면 Δ 가 '근거 교체' 의 것이 아니다."""
     a8, oracle = ablation.flags("A8"), ablation.flags("ORACLE")
     assert {k for k in oracle if oracle[k] != a8[k]} == {"golden_oracle"}
 
@@ -1597,7 +1609,9 @@ def test_oracle_puts_the_golden_section_into_the_evidence():
 
 def test_oracle_evidence_carries_every_golden_document_of_the_cohort():
     """🔴 '켰는데 안 켜진 것' 을 막는 값이다. 오라클의 정의상 골든 **전건**이 실려야
-    하고, 안 실리면 그 문항의 잔여 오답을 '생성 실패' 로 읽을 자격이 없다.
+    하고, 안 실리면 그 arm 이 재는 것("근거를 골든만으로 교체했을 때 답이 서는가")이
+    정의되지 않는다. 🔴 전건이 실려도 잔여 오답을 곧바로 '생성 실패' 로 읽을 수는
+    없다 — 그 읽기는 근거가 `A8` 과 **바이트 동일**한 문항에서만 성립한다(R2E).
 
     LLM 0회 — 근거 조립 함수만 부른다.
     """
@@ -1720,6 +1734,46 @@ def test_the_summary_marks_the_diagnostic_arm_so_it_is_not_read_as_a_score():
 
     plain = runner.render_summary(runner.summarise({"A8": report}), meta)
     assert "진단 전용" not in plain and "2b." not in plain
+
+
+def test_the_machine_readable_summary_also_marks_the_diagnostic_arm():
+    """🔴 렌더된 md 에만 경고를 두면 **기계가 읽는 자리는 무방비**다 (R2F).
+
+    `summary.json` 의 `arms["ORACLE"]["rate"]` 는 다른 arm 과 모양이 같아서, 다음
+    도구가 그 수를 집어 성적으로 쓰면 아무것도 막지 않는다. `latency_s_note` 와
+    같은 규칙으로 플래그와 주석을 붙였고, 여기서 그것을 잠근다.
+    """
+    from scripts import ablation as runner
+    from scripts import error_analysis as ea
+
+    rows = [{**_BLANK_ROW, "question_id": "Q-g1", "track": "grid", "correct": True}]
+    report = ea.build_report([], rows)
+    summary = runner.summarise({"ORACLE": report, "A8": report})
+    assert summary["arms"]["ORACLE"]["diagnostic"] is True
+    assert summary["arms"]["A8"]["diagnostic"] is False
+    note = summary["arms"]["ORACLE"]["diagnostic_note"]
+    # 🔴 깨진 계약을 되살리지 않는다 — 주석이 '상한' 을 부정하고 Δ 를 금지해야 한다.
+    assert "상한도 아니다" in note and "교체" in note
+    assert summary["arms"]["A8"]["diagnostic_note"] is None
+
+
+def test_no_renderer_string_revives_the_broken_oracle_contract():
+    """🔴 R1 의 두 줄(`Δ = 검색이 아직 못 가져온 몫` · `잔여 오답 = 순수 생성 실패`)은
+    R2E 재측정에서 깨졌다. **렌더러가 그것을 단정문으로 다시 찍으면 안 된다.**
+
+    문자열 금지가 아니라 **단정 금지**다 — "이렇게 읽지 마라" 는 서술은 그 어구를
+    포함해도 된다. 그래서 부정어와 같은 문장에 있는지를 본다.
+    """
+    source = (_GRAPH_PATH.parents[1] / "scripts" / "ablation.py").read_text(
+        encoding="utf-8")
+    for phrase in ("검색이 아직 못 가져온 몫", "순수 생성 실패"):
+        for line in source.splitlines():
+            if phrase not in line:
+                continue
+            window = source[max(0, source.index(line) - 400):
+                            source.index(line) + len(line) + 400]
+            assert any(w in window for w in ("아니다", "안 된다", "깨졌다", "뿐이다")), (
+                f"깨진 ORACLE 계약을 단정문으로 되살렸다: {line.strip()}")
 
 
 # --- judge 재현 편차 (σ) ---------------------------------------------------------

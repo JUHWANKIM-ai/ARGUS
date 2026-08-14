@@ -1377,6 +1377,18 @@ def summarise(reports: dict[str, dict]) -> dict:
             "golden_unreachable": sum(len(r.get("golden_unreachable") or [])
                                       for r in ea.grid_rows(report["rows"])),
             "golden_recall": ea.golden_recall_denominators(report["rows"]),
+            # 🔴 **기계가 읽는 자리에도 제동을 둔다** (R2F). 종전에는 `summary.json` 이
+            #    진단 arm 의 `rate` 를 다른 arm 과 **구별 불가능한 모양**으로 실어,
+            #    경고가 렌더된 `summary.md` 에만 있었다 — 다음 도구가 `arms["ORACLE"]
+            #    ["rate"]` 를 집어 성적으로 쓰면 아무것도 막지 않는다.
+            #    `latency_s_note` 와 같은 규칙이다: 오독 위험이 있는 수에는 주석을 붙인다.
+            "diagnostic": arm in ablation.DIAGNOSTIC_ARMS,
+            "diagnostic_note": (
+                "🔴 진단 전용 — 평가 시점에 없는 골든 근거를 주입한 값이다. 제출 성적이 "
+                "아니고 **상한도 아니다**(주입은 근거를 더하는 것이 아니라 골든만으로 "
+                "교체하므로 근거가 줄고, 실측에서 A8 보다 낮다). `Δ` 를 '검색이 못 "
+                "가져온 몫' 으로 읽지 않는다."
+                if arm in ablation.DIAGNOSTIC_ARMS else None),
         }
         for axis, values in AXES.items():
             for value in values:
@@ -1415,8 +1427,10 @@ def render_summary(summary: dict, meta: dict) -> str:
     if diagnostic:
         out.append(f'> 🔴 **{", ".join(diagnostic)} 는 진단 전용이다.** 평가 시점에 없는 '
                    "정보(골든 근거)를 쓰므로 제출 구성이 될 수 없고, 그 정답률을 "
-                   "성적으로 인용하면 자기 성적표를 부풀리는 것이 된다. 읽는 법은 "
-                   "§2b 의 Δ 하나뿐이다.\n")
+                   "성적으로 인용하면 자기 성적표를 부풀리는 것이 된다. "
+                   "🔴 **상한도 아니다** — 주입은 근거를 더하는 것이 아니라 "
+                   "**골든만으로 교체**하는 것이라 근거가 줄고, 실측에서 A8 보다 낮게 "
+                   "나온다. 읽는 법은 §2b 의 주석을 따른다.\n")
 
     # 🔴 골든 근거 회수는 **코호트 전 행**으로 센다. §1 의 표는 그리드 기준이라
     #    밸류체인 코호트에서 분모가 0 이 되고, 그러면 그 코호트의 유일한 성공 축
@@ -1491,13 +1505,19 @@ def render_summary(summary: dict, meta: dict) -> str:
         base = summary["arms"].get("A8")
         for arm in diagnostic:
             row = summary["arms"][arm]
-            out.append(f'| {arm} | 검색을 골든으로 고정한 **생성 능력** '
+            out.append(f'| {arm} | 근거를 **골든만으로 교체**했을 때 답이 서는가 '
                        f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
                        f'| {_pp(base["rate"] if base else None, row["rate"])} '
                        f'| {row["golden_evidence_all"]}/{row["n_grid"]} |')
         out.append("\n> 🔴 평가 시점에 골든이 없다. 이 줄의 정답률은 **제출 성적이 아니라 "
-                   "진단값**이다. `Δ = 검색이 아직 못 가져온 몫` 이고, 잔여 오답은 "
-                   "`순수 생성 실패` 로 읽는다.\n")
+                   "진단값**이다. 🔴 **그리고 이 Δ 를 `검색이 아직 못 가져온 몫` 으로 "
+                   "읽으면 안 된다** (R2E 재측정에서 그 계약이 깨졌다) — 주입은 근거를 "
+                   "**골든만으로 교체**하므로 근거가 줄고, 정오가 갈린 문항에서 골든 "
+                   "회수는 A8 과 같은데 근거만 작았다. 즉 Δ 는 `검색 부족분`과 "
+                   "`비-골든 보조근거를 걷어낸 손실`의 **합**이다. 잔여 오답을 "
+                   "`순수 생성 실패` 로 읽을 수 있는 것은 근거가 A8 과 **바이트 동일**한 "
+                   "문항뿐이다. 살아 있는 판정은 하나다 — **골든을 전건 주입해도 정답이 "
+                   "안 늘면 남은 실패는 검색으로 살 수 없다.**\n")
 
     out.append("\n## 3. 축별 Δ 분해\n")
     # 🔴 `ladder[0]`·`base_name` 을 무방비로 쓰면 LOO 단독 실행에서 IndexError 로 죽는다 —
@@ -2049,14 +2069,17 @@ def render_gate(root: Path, budget_cap: float) -> str:
         o.append("|---|---|---|---|---|---|---|")
         for arm in diag:
             row = arms[arm]
-            o.append(f'| {arm} | 검색을 골든으로 고정한 **생성 능력** '
+            o.append(f'| {arm} | 근거를 **골든만으로 교체**했을 때 답이 서는가 '
                      f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
                      f'| {_pp(base["rate"], row["rate"])} '
                      f'| {_recall(row)} '
                      f'| {row["golden_evidence_all"]}/{row["n_grid"]} |')
         o.append("\n> 🔴 평가 시점에 골든 근거가 없다. 이 줄의 정답률은 **제출 성적이 "
-                 "아니라 진단값**이다. 읽는 법은 둘뿐이다 — `Δ` 는 **검색이 아직 못 "
-                 "가져온 몫**이고, 잔여 오답은 **순수 생성 실패**다.\n")
+                 "아니라 진단값**이다. 🔴 **R2E 재측정이 R1 의 읽는 법을 깼다** — `Δ` 는 "
+                 "**검색이 아직 못 가져온 몫이 아니다.** 주입은 근거를 골든만으로 "
+                 "**교체**하므로 근거가 줄고(실측 −47%), 정오가 갈린 문항 전수에서 골든 "
+                 "회수가 A8 과 **동일**했다. 잔여 오답을 **순수 생성 실패**로 읽을 수 "
+                 "있는 것은 근거가 A8 과 **바이트 동일**한 문항뿐이다.\n")
         o.append("| arm | " + " | ".join(ea.ALL_LABELS) + " |")
         o.append("|---|" + "---|" * len(ea.ALL_LABELS))
         for arm in [full] + diag:
@@ -2064,7 +2087,10 @@ def render_gate(root: Path, budget_cap: float) -> str:
             o.append(f'| {arm}{" 🔬" if arm in diag else ""} | '
                      + " | ".join(str(hist.get(s, 0)) for s in ea.ALL_LABELS) + " |")
         o.append("\n🔴 **이 두 줄을 나란히 읽는 것이 이 절의 전부다.** 골든 근거 적중이 "
-                 "최대치인데도 `GENERATION` 칸이 안 줄면, 남은 실패는 검색 몫이 아니다.\n")
+                 "최대치인데도 **정답이 안 늘면** 남은 실패는 검색 몫이 아니다. "
+                 "⚠️ **`GENERATION` 칸이 늘어난 것을 '생성이 더 나빠졌다' 로 읽지 마라** — "
+                 "근거를 골든만으로 교체하면 다른 단계의 실패가 `GENERATION` 으로 "
+                 "**이동**한다(실측: 밸류체인 `RETRIEVAL` 3건이 그 자리에서 내려앉았다).\n")
 
     # --- 6. A8 — 밸류체인 세 갈래 ---
     o.append("\n## 6. 🔴 A8 의 성공 기준은 정답률이 아니라 완결성이다\n")
@@ -2330,12 +2356,43 @@ def render_gate(root: Path, budget_cap: float) -> str:
              + f". 그럼에도 **다 넣는다**: {cost_note}"
              f"(A6·A7 은 LLM 0회, A8 은 발화 0건 → 토큰 0 증가). A8 은 밸류체인에서 "
              f"{vc_delta}.\n")
+    # 🔴 **위 블록만 고쳐서는 부족했다 (R2F).** 바로 위에서 밸류체인 정답률 Δ 를 계산으로
+    #    바꿨는데, 이 단락은 **같은 사실을 다시 문자열로** 들고 있었다 — 재생성된 v3 게이트가
+    #    §0(골든 34/46 · 계산) · §4(정답 7/12 · 계산) 과 이 단락(28/46 · 6/12 · 문자열)에서
+    #    서로를 반박했다. 하드코딩 사고의 **일곱 번째 얼굴**이고 기전은 ① 과 같다:
+    #    표는 계산, 본문은 문자열. 얼어붙게 둘 값은 **"옛 세대" 라고 라벨한 이력**뿐이다.
+    if vc.get("A8") and vc.get("L3"):
+        g8 = ea.golden_recall_denominators(vc["A8"]["rows"])
+        g3 = ea.golden_recall_denominators(vc["L3"]["rows"])
+        by_qid = {r["question_id"]: r for r in vc["A8"]["rows"]}
+        stable = " · ".join(
+            f'{qid} {len(by_qid[qid].get("golden_in_evidence") or [])}/'
+            f'{len(by_qid[qid].get("golden") or [])}'
+            for qid in sorted(VC_FAN_IN) if qid in by_qid)
+        recall = (f'밸류체인 골든 근거가 A8 **{g8["hit"]}/{g8["denominator_raw"]}** vs '
+                  f'L3 {g3["hit"]}/{g3["denominator_raw"]}')
+        fan_in = f'열거 문항의 회수는 {stable} 다' if stable else "열거 문항 목록이 비었다"
+    else:
+        recall = "밸류체인 골든 근거를 못 셌다 (산출물 없음)"
+        fan_in = "열거 문항의 회수도 못 셌다"
     o.append("🔴 **A8 의 정당화를 정답률에 싣지 않는다** — n=12 에서 Δ 가 문항 하나(Q-110)에 "
-             "매달리고, 실제로 두 라운드 연속 뒤집혔다(6→5→6/12, L3 도 4→5). 정본 축은 "
-             "**근거 완결성**이다(§6): 밸류체인 골든 근거가 A8 **28/46** vs L3 23/46 으로 "
-             "안정적이고, C1 수정에서 정답률이 내렸을 때도 Q-110 5/6 · Q-114 1/5 · Q-116 3/3 "
-             "이 한 건도 안 움직였다. 검색은 닿고 생성이 흔들리는 것이라 hop 의 기전은 "
-             "무손상이다.\n")
+             "매달리고, **옛 세대(v2)에서 두 라운드 연속 뒤집혔다**(6→5→6/12 · L3 도 4→5). "
+             f"정본 축은 **근거 완결성**이다(§6): {recall} 이고, {fan_in}. "
+             "검색은 닿고 생성이 흔들리는 것이라 hop 의 기전은 무손상이다.\n")
+    # 🔴 그리고 이 정답률에는 부풀림이 하나 들어 있다 — 계산으로 확인해서 쓴다.
+    if vc.get("A8"):
+        inflated = sorted(
+            r["question_id"] for r in vc["A8"]["rows"]
+            if r.get("correct") and r["question_id"] in ea.JUDGED_CORRECT_ARITHMETIC_WRONG)
+        if inflated:
+            r8v = ea._rate(vc["A8"]["rows"])
+            o.append(f'🔴 **그 정답률에는 부풀림 {len(inflated)}건이 들어 있다** '
+                     f'({" ".join(inflated)}) — judge 가 수치 자기일관성을 안 보므로 '
+                     f'답변 안의 자릿수 오류가 정답으로 통과한다. 수치 자기일관성을 '
+                     f'기준에 넣으면 밸류체인 12 의 A8 은 '
+                     f'{r8v["correct"]}/{r8v["n_scored"]} 가 아니라 '
+                     f'{r8v["correct"] - len(inflated)}/{r8v["n_scored"]} 다. '
+                     f'🔴 **그리드 72 · 전체 88 에는 이 결함이 0건이다.**\n')
     if vc.get("A8") and vc.get("L3"):
         c8 = vc["A8"]["totals"]["cost_won"]
         c3 = vc["L3"]["totals"]["cost_won"]

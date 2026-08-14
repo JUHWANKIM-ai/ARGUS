@@ -91,8 +91,10 @@ def test_query_events_limit_defaults_to_the_old_page_size():
     if not out["count"]:
         pytest.skip("artifacts/exchange_records.jsonl 없음")
     assert len(out["events"]) == min(out["count"], tools.EVENTS_PAGE)
-    assert tools.EVENTS_PAGE == 20
-    wide = tools.query_events(limit=200)
+    # 🔴 `assert tools.EVENTS_PAGE == 20` 을 뺐다 (R2F). 위 줄이 이미 파생으로 같은 성질을
+    #    재고, 리터럴은 페이지 크기를 바꾸려는 다음 사람을 **아무 신호 없이** 막는다 —
+    #    이 저장소가 `== 13` 세 곳에서 겪은 사고와 같은 모양이다.
+    wide = tools.query_events(limit=tools.EVENTS_PAGE * 10)
     assert wide["count"] == out["count"]          # count 는 필터 통과 전량이다
     assert len(wide["events"]) >= len(out["events"])
     assert len(tools.query_events(limit=0)["events"]) == 0
@@ -116,7 +118,14 @@ def test_q117_recovers_two_of_the_five_targeted_golden():
     evidence, trace = pipeline._gather_evidence(r, row["question"], Budget())
     if not evidence:
         pytest.skip("artifacts/exchange_records.jsonl 없음")
-    assert any("strat=enumerate" in line for line in trace)
+    enum = [line for line in trace if "strat=enumerate" in line]
+    assert enum
+    # 🔴 `tools.execute` 는 `fn(**args)` 이고 `TypeError` 를 `{"error": …}` 로 **삼킨다.**
+    #    그러면 이 hop 은 `skip=tool_error` 를 남기고 0건을 돌려주는데, 그 줄에도
+    #    `strat=enumerate` 가 들어 있어 발화 단언만으로는 인자명 오타가 통과한다.
+    #    `_enumerate_events` 가 넘기는 키 넷(`corp_name`·`is_latest`·`limit`·`doc_subtype`)
+    #    중 하나만 틀려도 Δ 가 **조용히 0** 이 되므로 여기서 함께 막는다.
+    assert not any("skip=tool_error" in line for line in enum), enum
     for rcept_no in ("20250729800143", "20251212801320"):
         assert rcept_no in evidence, rcept_no
 

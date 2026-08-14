@@ -23,6 +23,18 @@ V3 = Path(ea.ROOT) / "artifacts" / "ablation" / "v3"
 NON_ORACLE_ARMS = ("A8", "L1", "L2", "L3", "L4", "vc/A8", "vc/L3")
 
 
+def _stored_arm_dirs() -> tuple[str, ...]:
+    """저장된 v3 arm 산출물 **전수** — `V3/<arm>` 과 `V3/vc/<arm>`.
+
+    🔴 목록을 손으로 적지 않는다 (R2F). 이 파일에는 arm 이름 목록이 **둘** 있었고
+    (`NON_ORACLE_ARMS` 와 100% 초과 검사의 리터럴) 구성이 서로 달랐다 —
+    한쪽만 갱신되면 감사 범위가 조용히 좁아진다.
+    """
+    found = [p.parent.name for p in sorted(V3.glob("*/report.json"))]
+    found += [f"vc/{p.parent.name}" for p in sorted((V3 / "vc").glob("*/report.json"))]
+    return tuple(found)
+
+
 def _retrieved() -> dict[str, set]:
     out: dict[str, set] = {}
     for rel in NON_ORACLE_ARMS:
@@ -111,15 +123,36 @@ def test_a_marked_golden_that_this_arm_did_retrieve_is_not_taken_off_its_denomin
 @needs_artifacts
 def test_no_stored_arm_reports_a_recall_above_one_hundred_percent():
     """산출물 전수로 같은 불변을 건다 — 단위 테스트만으로는 렌더 경로를 못 잠근다."""
-    for rel in ("A8", "L1", "L2", "L3", "L4", "ORACLE", "vc/A8", "vc/ORACLE"):
+    checked = 0
+    for rel in _stored_arm_dirs():
         path = V3 / rel / "report.json"
-        if not path.exists():
-            continue
         rows = json.loads(path.read_text(encoding="utf-8"))["rows"]
+        checked += 1
         got = ea.golden_recall_denominators(rows)
         assert got["hit"] <= got["denominator_adjusted"], (
             f'{rel} 회수율이 100% 를 넘는다: '
             f'{got["hit"]}/{got["denominator_adjusted"]}')
+
+
+@needs_artifacts
+def test_every_stored_non_oracle_arm_is_counted_as_reachability_evidence():
+    """🔴 **좁히는 방향의 누락이 성적을 부풀린다** (R2F 신설).
+
+    `_retrieved()` 는 없는 보고서를 조용히 건너뛴다. 그래서 새 arm 을 재고
+    `NON_ORACLE_ARMS` 에 **안 넣으면** 회수 증거가 좁아지고, 관문 G2 가 덜 걸러
+    '도달 불가' 표시가 늘고, 조정 분모가 작아져 **회수율이 올라간다.** R2E 가
+    `L1`·`L2`·`L3`·`vc/L3` 를 손으로 넣어야 했던 자리다 — 그 손을 감시로 바꾼다.
+    """
+    from argus import ablation as arms
+
+    diagnostic = set(arms.DIAGNOSTIC_ARMS)
+    missing = [rel for rel in _stored_arm_dirs()
+               if rel.rsplit("/", 1)[-1] not in diagnostic
+               and rel not in NON_ORACLE_ARMS]
+    assert not missing, (
+        f"측정된 비-진단 arm 이 회수 증거 목록에 없다: {missing}. "
+        "빠뜨리면 '도달 불가' 표시가 늘어 회수율이 부풀려진다 — "
+        "`NON_ORACLE_ARMS` 에 넣고 표시 건수를 다시 확인하라.")
 
 
 def test_periodic_section_goldens_are_left_in_the_denominator():
