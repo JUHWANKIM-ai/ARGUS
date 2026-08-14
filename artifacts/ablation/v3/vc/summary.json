@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-08-14T11:56:36",
+  "generated": "2026-08-14T12:34:25",
   "cohort": "valuechain",
   "n_cases": 12,
   "question_ids": [
@@ -17,8 +17,8 @@
    "Q-117",
    "Q-118"
   ],
-  "budget_won": 12000.0,
-  "stop_won": 9600.0,
+  "budget_won": 600.0,
+  "stop_won": 480.0,
   "price_won_per_1k": 7.02,
   "index_snapshot": {
    "artifacts/exchange_bm25.json": "24d6e5c1009292ee:824984",
@@ -35,72 +35,86 @@
    "data/dart-disclosures/manifest.jsonl": "04750795e1a2d5c3:2419214",
    "data/dart-disclosures/universe.csv": "96560165c836b10e:10674"
   },
-  "spent_won": 216.7,
+  "spent_won": 461.7,
   "spent_won_source": "arm·코호트별 run.json 합 (하위 폴더 포함)",
   "spent_won_by_arm": {
+   "A8": 245.0,
    "ORACLE": 216.7
   },
-  "this_process_spent_won": 0.0,
-  "cache_hits": 0,
-  "cache_misses": 26,
-  "fresh_prompt_tokens": 27768,
-  "fresh_completion_tokens": 3095,
-  "cache_stats_are_this_process": false,
-  "cache_stats_carried_from": "2026-08-14T11:46:28",
+  "this_process_spent_won": 245.0,
+  "cache_hits": 17,
+  "cache_misses": 5,
+  "fresh_prompt_tokens": 34292,
+  "fresh_completion_tokens": 604,
+  "cache_stats_are_this_process": true,
   "this_run": {
-   "ORACLE": {
-    "arm": "ORACLE",
+   "A8": {
+    "arm": "A8",
     "n_run": 12,
     "stopped_at": null,
-    "spent_won": 216.7,
+    "spent_won": 245.0,
     "runs": [
      {
       "question_id": "Q-107",
-      "cached": false,
+      "cached": true,
       "judge_cached": null,
       "request_cache_hits": 0,
-      "spent_won": 17.37,
+      "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 2164,
-      "completion_tokens": 311,
+      "prompt_tokens": 4267,
+      "completion_tokens": 218,
       "judge_tokens": 0,
-      "latency_s": 7.657
+      "latency_s": 0.176
      },
      {
       "question_id": "Q-108",
-      "cached": false,
+      "cached": true,
       "judge_cached": false,
       "request_cache_hits": 0,
-      "spent_won": 27.24,
+      "spent_won": 62.06,
       "llm_calls": 2,
-      "prompt_tokens": 2213,
-      "completion_tokens": 371,
-      "judge_tokens": 1296,
-      "latency_s": 8.852
+      "prompt_tokens": 3987,
+      "completion_tokens": 422,
+      "judge_tokens": 2210,
+      "latency_s": 0.014,
+      "judge_repeat_verdicts": [
+       true,
+       true,
+       true
+      ],
+      "judge_repeat_agreed": true,
+      "judge_repeat_tokens": 6630
      },
      {
       "question_id": "Q-109",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 0,
-      "spent_won": 12.18,
+      "request_cache_hits": 2,
+      "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 1499,
-      "completion_tokens": 236,
+      "prompt_tokens": 3833,
+      "completion_tokens": 172,
       "judge_tokens": 0,
-      "latency_s": 5.815
+      "latency_s": 0.176
      },
      {
       "question_id": "Q-110",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 0,
-      "spent_won": 30.16,
+      "request_cache_hits": 2,
+      "spent_won": 60.48,
       "llm_calls": 2,
-      "prompt_tokens": 2569,
-      "completion_tokens": 226,
-      "judge_tokens": 1502,
-      "latency_s": 5.748
+      "prompt_tokens": 3901,
+      "completion_tokens": 261,
+      "judge_tokens": 2154,
+      "latency_s": 0.01,
+      "judge_repeat_verdicts": [
+       true,
+       true,
+       true
+      ],
+      "judge_repeat_agreed": true,
+      "judge_repeat_tokens": 6462
      },
      {
       "question_id": "Q-111",
@@ -118,93 +132,181 @@
       "question_id": "Q-112",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 0,
-      "spent_won": 19.5,
+      "request_cache_hits": 2,
+      "spent_won": 42.71,
       "llm_calls": 2,
-      "prompt_tokens": 1508,
-      "completion_tokens": 352,
-      "judge_tokens": 918,
-      "latency_s": 8.357
+      "prompt_tokens": 2711,
+      "completion_tokens": 356,
+      "judge_tokens": 1521,
+      "latency_s": 0.025,
+      "judge_repeat_verdicts": [
+       true,
+       true,
+       true
+      ],
+      "judge_repeat_agreed": true,
+      "judge_repeat_tokens": 4563
      },
      {
       "question_id": "Q-113",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 0,
-      "spent_won": 9.83,
-      "llm_calls": 1,
-      "prompt_tokens": 1153,
-      "completion_tokens": 247,
+      "request_cache_hits": 2,
+      "spent_won": 0.0,
+      "llm_calls": 2,
+      "prompt_tokens": 5324,
+      "completion_tokens": 434,
       "judge_tokens": 0,
-      "latency_s": 5.731
+      "latency_s": 0.03
      },
      {
       "question_id": "Q-114",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 0,
-      "spent_won": 25.89,
+      "request_cache_hits": 2,
+      "spent_won": 43.02,
       "llm_calls": 2,
-      "prompt_tokens": 2263,
-      "completion_tokens": 187,
-      "judge_tokens": 1238,
-      "latency_s": 5.935
+      "prompt_tokens": 2840,
+      "completion_tokens": 206,
+      "judge_tokens": 1532,
+      "latency_s": 0.01,
+      "judge_repeat_verdicts": [
+       true,
+       true,
+       true
+      ],
+      "judge_repeat_agreed": true,
+      "judge_repeat_tokens": 4596
      },
      {
       "question_id": "Q-115",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 0,
-      "spent_won": 16.59,
+      "request_cache_hits": 2,
+      "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 2076,
-      "completion_tokens": 287,
+      "prompt_tokens": 4125,
+      "completion_tokens": 356,
       "judge_tokens": 0,
-      "latency_s": 7.503
+      "latency_s": 0.027
      },
      {
       "question_id": "Q-116",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 0,
-      "spent_won": 11.5,
-      "llm_calls": 2,
-      "prompt_tokens": 1487,
-      "completion_tokens": 151,
+      "request_cache_hits": 1,
+      "spent_won": 0.0,
+      "llm_calls": 1,
+      "prompt_tokens": 1295,
+      "completion_tokens": 154,
       "judge_tokens": 0,
-      "latency_s": 4.999
+      "latency_s": 0.009
      },
      {
       "question_id": "Q-117",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 0,
-      "spent_won": 34.03,
+      "request_cache_hits": 2,
+      "spent_won": 36.7,
       "llm_calls": 2,
-      "prompt_tokens": 2911,
-      "completion_tokens": 300,
-      "judge_tokens": 1637,
-      "latency_s": 7.383
+      "prompt_tokens": 2031,
+      "completion_tokens": 307,
+      "judge_tokens": 1303,
+      "latency_s": 0.007,
+      "judge_repeat_verdicts": [
+       false,
+       false,
+       false
+      ],
+      "judge_repeat_agreed": true,
+      "judge_repeat_tokens": 3925
      },
      {
       "question_id": "Q-118",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 0,
-      "spent_won": 12.36,
+      "request_cache_hits": 2,
+      "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 1467,
-      "completion_tokens": 294,
+      "prompt_tokens": 4125,
+      "completion_tokens": 349,
       "judge_tokens": 0,
-      "latency_s": 7.095
+      "latency_s": 0.019
      }
-    ]
+    ],
+    "judge_repeat": 3
    }
-  },
-  "rescored_at": "2026-08-14T11:56:36"
+  }
  },
  "summary": {
   "arms": {
+   "A8": {
+    "correct": 0,
+    "n_scored": 0,
+    "rate": null,
+    "rate_reported": null,
+    "n_grid": 0,
+    "data_limit": 0,
+    "overall": 0.5,
+    "overall_correct": 6,
+    "overall_n_scored": 12,
+    "info_limit_correct": 0,
+    "info_limit_n": 0,
+    "hallucination": 0,
+    "tracks": {
+     "valuechain": {
+      "n": 12,
+      "n_scored": 12,
+      "correct": 6,
+      "rate": 0.5,
+      "data_limit": 0,
+      "stages": {
+       "ROUTING": 1,
+       "RETRIEVAL": 3,
+       "GENERATION": 2
+      }
+     }
+    },
+    "tokens": 50394,
+    "arm_cost_won": 353.8,
+    "llm_calls": 21,
+    "latency_s_mean_recorded": 0.04,
+    "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+    "failures": {
+     "RETRIEVAL": 3,
+     "GENERATION": 2,
+     "ROUTING": 1
+    },
+    "failures_all": {
+     "RETRIEVAL": 3,
+     "GENERATION": 2,
+     "ROUTING": 1
+    },
+    "root_causes": {
+     "RETRIEVAL/MULTI_POINT_QUERY": 2,
+     "GENERATION/INDEX_FIELD_MISSING": 2,
+     "ROUTING/ROUTING": 1,
+     "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1
+    },
+    "citation_rate": 0.25,
+    "flags": {
+     "name": "A8",
+     "retrieval": "all",
+     "schema_fields": true,
+     "dense": false,
+     "hop_ladder": true,
+     "chain_hop": true,
+     "counterparty_hop": true,
+     "split_query": true,
+     "calc_values": true,
+     "verifier": true,
+     "followup_hop": true,
+     "golden_oracle": false
+    },
+    "golden_evidence_all": 0,
+    "golden_evidence_hit": 0,
+    "golden_total": 0
+   },
    "ORACLE": {
     "correct": 0,
     "n_scored": 0,
@@ -272,6 +374,11 @@
   "axes": {
    "difficulty": {
     "하": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "ORACLE": {
       "correct": 0,
       "n": 0,
@@ -279,6 +386,11 @@
      }
     },
     "중": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "ORACLE": {
       "correct": 0,
       "n": 0,
@@ -286,6 +398,11 @@
      }
     },
     "상": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "ORACLE": {
       "correct": 0,
       "n": 0,
@@ -295,6 +412,11 @@
    },
    "answer_mode": {
     "closed": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "ORACLE": {
       "correct": 0,
       "n": 0,
@@ -302,6 +424,11 @@
      }
     },
     "open": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "ORACLE": {
       "correct": 0,
       "n": 0,
@@ -311,6 +438,11 @@
    },
    "task_type": {
     "search_extract": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "ORACLE": {
       "correct": 0,
       "n": 0,
@@ -318,6 +450,11 @@
      }
     },
     "multi_compare": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "ORACLE": {
       "correct": 0,
       "n": 0,
@@ -325,6 +462,11 @@
      }
     },
     "complex_reason": {
+     "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "ORACLE": {
       "correct": 0,
       "n": 0,
@@ -335,18 +477,30 @@
   },
   "cells": {
    "하": {
+    "A8": {
+     "correct": 0,
+     "n": 0
+    },
     "ORACLE": {
      "correct": 0,
      "n": 0
     }
    },
    "중": {
+    "A8": {
+     "correct": 0,
+     "n": 0
+    },
     "ORACLE": {
      "correct": 0,
      "n": 0
     }
    },
    "상": {
+    "A8": {
+     "correct": 0,
+     "n": 0
+    },
     "ORACLE": {
      "correct": 0,
      "n": 0

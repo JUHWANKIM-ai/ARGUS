@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-117",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제시된 답변에는 모범답안의 핵심인 '두 갈래 발주 구조'에 대한 언급이 없습니다. 대신 엉뚱하게 발전 자회사와 공공부문으로 나누어 설명하고 있어 질문에 부합하지 않습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 1236,
+   "completion_tokens": 67,
+   "latency_s": 1.884,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1236,
+ "completion_tokens": 67
+}

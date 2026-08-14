@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-117",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제시된 답변에는 모범답안의 핵심인 '두 갈래의 발주 구조'와 그에 대한 근거들이 누락되어 있습니다. 특히, 두산에너빌리티로의 부터의 재수주와 관련한 내용이 전혀 언급되지 않았습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 1236,
+   "completion_tokens": 72,
+   "latency_s": 2.448,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1236,
+ "completion_tokens": 72
+}
