@@ -6,10 +6,16 @@
 
 반대로 다 실으면 문항당 토큰이 그대로 비용이 된다. 그래서 값이 **있는 필드만**
 한 줄씩 쓰고, 필드 수와 값 길이는 normalize 단계에서 이미 잘라 둔다.
+
+R2C 가 같은 지점을 반대쪽에서 다시 만났다 — 정형 칸이 **하나도 안 채워진**
+서식(`schema_matched=False`)에서는 위 규칙이 곧 "아무것도 안 싣는다" 가 되어
+근거가 머리글뿐이 된다(실측 Q-101: 108자 · 숫자 0개). `_free_text_lines` 가
+그 경우에만 원문 서술 본문을 싣는다.
 """
 from __future__ import annotations
 
 from argus.corpus.dates import format_duration, parse_date
+from argus.corpus.normalize import free_text_items
 
 _SUBTYPE_LABEL = {
     "단일판매공급계약체결": "공급계약 체결",
@@ -83,7 +89,31 @@ def to_markdown(record: dict) -> str:
     for item, before, after in (record.get("corrections") or [])[:MAX_CORRECTION_LINES]:
         name = f"({_clip(item)})" if item and item.strip() not in {"-", ""} else ""
         lines.append(f"- 정정{name}: {_clip(before)} → {_clip(after)}")
+
+    lines += _free_text_lines(record, lines)
     return "\n".join(lines)
+
+
+def _free_text_lines(record: dict, lines: list[str]) -> list[str]:
+    """🔴 **`schema_matched=True` 경로는 한 바이트도 지나가지 않는다.**
+
+    그 경로가 근거의 대부분(3,150건 중 2,912건)이고, 한 글자라도 바뀌면 BM25 색인
+    문자열이 바뀌어 **측정된 arm 이 전부 무효**가 된다. 그래서 게이트는 하나다.
+
+    반대쪽(238건)에서는 정형 칸이 전부 비어 근거가 머리글뿐이다. 실측 v3/A8 의
+    근거 레코드 208건 중 10건이 이 상태이고 **10건 전부 원문에 금액이 있다.**
+    `_amount_line` 은 `amount is None` 이면 아무것도 쓰지 않으므로, 이 자리가
+    아니면 그 숫자가 LLM 에 닿는 경로가 **없다**.
+    """
+    if record.get("schema_matched"):
+        return []
+    head = "\n".join(lines)
+    out = []
+    for label, value in free_text_items(record.get("raw_rows") or []):
+        if value in head:                 # 제목이 머리글로 이미 올라간 서식
+            continue
+        out.append(f"- {label}: {value}")
+    return out
 
 
 def _fmt_date(raw: str | None) -> str:

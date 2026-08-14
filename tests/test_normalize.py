@@ -1,8 +1,11 @@
 from argus.corpus.manifest import filter_docs
 from argus.corpus.normalize import (
+    FREETEXT_MAX_CELLS,
+    FREETEXT_MAX_CHARS,
     correction_pairs,
     exchange_correction_span,
     free_text_amount,
+    free_text_items,
     holding_summary,
     major_form,
     normalize_doc,
@@ -542,3 +545,91 @@ def test_normalize_doc_dispatches_by_group():
     assert normalize_doc(_major("20250314000027"))["form"] == "유상증자결정"
     assert normalize_doc(_holding("20250310000839"))["ratio_current"] == 30.67
     assert normalize_doc(_doc("20230131800162"))["amount"] == 97_000_000_000
+
+
+# --- R2C 자유서술 회수 (schema_matched=False) ---------------------------------
+# 실측 v3/A8: 근거 레코드 208건 중 schema_matched=False 가 10건(그리드 72 안의 7문항)
+# 이고 10건 전부 원문에 금액이 있는데 근거에는 한 자리도 안 실렸다. 대표가 Q-101 —
+# 근거 108자 · 숫자 0개인데 원문 `2. 주요내용` 에 `○ 투자금액 : $58억` 이 있다.
+
+
+def test_free_text_items_reads_the_label_row_and_the_row_after_it():
+    """라벨행에 값이 붙은 것과 라벨만 있고 다음 행이 값인 것이 **둘 다** 온다.
+
+    실측 238건에서 앞엣것 389칸 · 뒤엣것 230칸이다. 한쪽만 받으면 절반을 놓친다.
+    """
+    items = dict(free_text_items([
+        ["1. 제목", "美 전기로 제철소 건설 추진"],
+        ["2. 주요내용", "○ 투자금액 : $58억"],
+        ["3. 이사회결의일(결정일) 또는 사실확인일", "2025-03-24"],
+        ["4. 기타 투자판단과 관련한 중요사항"],
+        ["원화 환산 시 8조 5,080억원"],
+    ]))
+    assert items["제목"] == "美 전기로 제철소 건설 추진"
+    assert items["주요내용"] == "○ 투자금액 : $58억"
+    assert items["기타 투자판단과 관련한 중요사항"] == "원화 환산 시 8조 5,080억원"
+    # 참석 이사 수·결의일 같은 정형 칸은 자유서술이 아니다. 근거만 길어진다.
+    assert "이사회결의일(결정일) 또는 사실확인일" not in items
+
+
+def test_free_text_items_never_carries_the_correction_table():
+    """🔴 정정 표 행은 `[항목, 정정전, 정정후]` 라 그대로 읽으면 **대체된 옛 값**이
+    근거에 실린다. `exchange_body_rows` 와 같은 이유로 먼저 떼어 낸다."""
+    items = dict(free_text_items([
+        ["정정일자", "2025-09-05"],
+        ["정정항목", "정정전", "정정후"],
+        ["9. 기타 투자판단과 관련한 중요사항", "옛 계약금액은 1,000원", "새 계약금액은 2,000원"],
+        ["1. 제목", "모바일 IP 5종의 글로벌 퍼블리싱 계약"],
+        ["2. 주요내용", "계약금액은 2,416,184,211,886원의 2.5% 이상"],
+    ]))
+    assert "옛 계약금액은 1,000원" not in items.values()
+    assert items["주요내용"] == "계약금액은 2,416,184,211,886원의 2.5% 이상"
+
+
+def test_free_text_items_clips_a_long_cell_but_keeps_the_cap_generous():
+    """상한은 필드값 상한(90)보다 **일부러 크다** — 겨냥한 금액이 칸 끝에 온다.
+
+    실측 20250325800001 의 `$58억` 은 240자 칸의 205번째 자리다. 90 으로 자르면
+    고치려는 값이 그대로 잘려 나간다.
+    """
+    tail = "가" * 204 + "○ 투자금액 : $58억"
+    items = dict(free_text_items([["2. 주요내용", tail]]))
+    assert "$58억" in items["주요내용"]
+
+    over = "나" * (FREETEXT_MAX_CHARS + 50)
+    clipped = dict(free_text_items([["2. 주요내용", over]]))["주요내용"]
+    assert len(clipped) == FREETEXT_MAX_CHARS + 1 and clipped.endswith("…")
+
+
+def test_free_text_items_caps_the_number_of_cells():
+    rows = [[f"{i}. 기타 사항", f"값{i}"] for i in range(1, FREETEXT_MAX_CELLS + 4)]
+    assert len(free_text_items(rows)) == FREETEXT_MAX_CELLS
+
+
+def test_investment_disclosure_free_text_carries_the_amount_the_schema_missed():
+    """Q-101 실측 문서. 정형 칸은 비어 있고 값은 서술문 안에만 있다."""
+    rows = normalize_exchange(_doc("20250325800001"))["raw_rows"]
+    items = dict(free_text_items(rows))
+    assert "$58억" in items["주요내용"]
+    assert "8조 5,080억원" in items["기타 투자판단과 관련한 중요사항"]
+    assert "1,466.9" in items["기타 투자판단과 관련한 중요사항"]
+
+
+def test_amount_type_is_empty_when_no_amount_was_found():
+    """🔴 금액을 못 찾았으면 레이블도 없다.
+
+    종전에는 루프 초기값 `계약금액` 이 남아 투자판단 서식이
+    `amount=None · amount_type="계약금액"` 이라는 없는 사실을 들고 있었다.
+    마크다운은 안 바뀐다 — `_amount_line` 이 `amount is None` 에서 먼저 빠진다.
+    """
+    rec = normalize_exchange(_doc("20250325800001"))
+    assert rec["amount"] is None
+    assert rec["amount_type"] is None
+    assert rec["schema_matched"] is False
+
+
+def test_foreign_currency_still_never_becomes_a_won_amount():
+    """`$58억` 은 USD 다. 원 단위 `amount` 에 넣으면 금액이 통째로 틀린다 —
+    값이 비는 것보다 나쁘다. 자유서술은 **원문 그대로** 근거에 싣고 파싱은 안 한다."""
+    assert free_text_amount(["○ 투자금액 : $58억"]) is None
+    assert normalize_exchange(_doc("20250325800001"))["amount"] is None

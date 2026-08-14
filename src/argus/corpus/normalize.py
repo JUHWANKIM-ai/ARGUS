@@ -354,6 +354,62 @@ def exchange_body_rows(rows: list[list[str]]) -> list[list[str]]:
     return rows if span is None else rows[:span[0]] + rows[span[1]:]
 
 
+# --- 자유서술 본문 (schema_matched=False 서식) ---------------------------------
+# 🔴 정형 칸이 비면 값이 **없는 게 아니라 서술문 안에** 있다. KIND 투자판단 서식에는
+# 금액 칸 자체가 없고, 계약 서식도 금액을 유보하면 `계약금액(원) | -` 이 되고 실제
+# 내용이 `9. 기타 …` 로 내려간다. 실측(현대제철 20250325800001): 정형 필드가 전부
+# 비어 근거가 108자 · 숫자 0개인데 원문 `2. 주요내용` 에 `○ 투자금액 : $58억` 이 있다.
+#
+# 세 라벨만 본다 — 이 서식이 서술문을 싣는 자리가 그 셋뿐이다. 나머지(참석 이사 수 ·
+# 관련공시 목록)는 근거를 늘리기만 한다.
+_FREETEXT_LABEL = re.compile(r"^\s*\d+\s*[.．]\s*(제\s*목|주요\s*내용|기타\s*\S*)")
+
+#: 자유서술 한 칸의 상한. 필드값 상한(`FIELD_MAX_CHARS` 90)보다 **일부러 크다** —
+#: 이 칸은 요약이 아니라 본문이고, 겨냥한 금액이 칸 **끝**에 오는 실측이 있다:
+#: 20250325800001 의 `$58억` 은 240자 칸의 205번째 자리, 원화환산 `8조 5,080억원` 은
+#: 501자 칸의 113번째 자리다. 90 으로 자르면 겨냥한 값이 그대로 잘려 나간다.
+FREETEXT_MAX_CHARS = 300
+#: 한 레코드가 실을 자유서술 칸 수 상한. 근거 폭주 방지.
+FREETEXT_MAX_CELLS = 4
+
+
+def free_text_items(rows: list[list[str]]) -> list[tuple[str, str]]:
+    """자유서술 본문 `(라벨, 값)` 목록. **정정 표는 뺀다.**
+
+    라벨행은 두 모양으로 온다 — 값이 같은 행에 있는 것(`['2. 주요내용', '○ …']`)과
+    라벨만 있고 다음 행이 값인 것(`['4. 기타 …']` + `['1) 본 건은 …']`). 실측
+    238건에서 앞엣것 389칸 · 뒤엣것 230칸이라 **둘 다** 받아야 한다.
+
+    정정 표를 `exchange_body_rows` 로 먼저 떼는 이유는 그 함수의 주석과 같다 —
+    정정 표 행은 `[항목, 정정전, 정정후]` 라 그대로 읽으면 **대체된 옛 값**이 근거에
+    실린다.
+    """
+    body = exchange_body_rows(rows)
+    items: list[tuple[str, str]] = []
+    used: set[int] = set()
+    for index, row in enumerate(body):
+        if len(items) >= FREETEXT_MAX_CELLS:
+            break
+        if index in used or not row or not _FREETEXT_LABEL.match(row[0]):
+            continue
+        label = _WS_ALL.sub(" ", _FREETEXT_LABEL.sub(r"\1", row[0])).strip()
+        values = [c for c in row[1:] if _clean(c)]
+        if not values:
+            nxt = body[index + 1] if index + 1 < len(body) else None
+            if not nxt or _FREETEXT_LABEL.match(nxt[0] or ""):
+                continue
+            values = [c for c in nxt if _clean(c)]
+            used.add(index + 1)
+        for value in values[:1]:            # 라벨 하나에 값 하나. 짝이 늘면 근거가 부푼다
+            items.append((label, _clip_free(value)))
+    return items
+
+
+def _clip_free(value: str) -> str:
+    text = _WS_ALL.sub(" ", value).strip()
+    return text if len(text) <= FREETEXT_MAX_CHARS else text[:FREETEXT_MAX_CHARS] + "…"
+
+
 def normalize_exchange(doc: dict) -> dict:
     html = read_document(_doc_path(doc))
     rows = extract_rows(html)
@@ -419,7 +475,13 @@ def normalize_exchange(doc: dict) -> dict:
         "title": clean_title,
         "form": doc["doc_subtype"],
         "amount": int(amount) if amount is not None else None,
-        "amount_type": amount_type,
+        # 🔴 금액을 못 찾았으면 레이블도 없다. 종전에는 루프 초기값 `"계약금액"` 이
+        # 그대로 남아, 금액 칸이 아예 없는 투자판단 서식이 `amount=None ·
+        # amount_type="계약금액"` 이라는 **없는 사실**을 들고 있었다(20250325800001).
+        # 마크다운은 한 글자도 안 바뀐다 — `_amount_line` 이 `amount is None` 에서
+        # 먼저 빠진다. `critic._says_amount` 도 두 호출부가 `amount is not None`
+        # 안에 있어 안 바뀐다.
+        "amount_type": amount_type if amount is not None else None,
         "ratio": ratio,
         "ratio_base": ratio_base,
         "counterparty": _find(body, "계약상대"),
