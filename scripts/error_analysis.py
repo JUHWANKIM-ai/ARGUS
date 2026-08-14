@@ -47,6 +47,9 @@ DEV_PATH = ROOT / "evalset" / "questions.jsonl"
 #: v1 42문항과 비교할 수 있는 축이 하나도 안 남는다.
 REGRESSION_PATH = ROOT / "evalset" / "regression.jsonl"
 VALUECHAIN_PATH = ROOT / "evalset" / "valuechain.jsonl"
+#: 안전성 트랙 (v4 `R1-7`). 전부 `answerable=false` 라 **거절이 정답**이고, 그래서
+#: `first_failure` 는 실패 시 `HALLUCINATION` 으로 귀속된다 (`_classify` 의 첫 분기).
+SAFETY_PATH = ROOT / "evalset" / "safety.jsonl"
 
 OUT_DIR = ROOT / "artifacts" / "eval"
 #: v1(Phase H, 42문항) 캐시. **읽기 전용으로 남긴다.** `scripts/ablation.py` 가
@@ -73,7 +76,7 @@ RERANKER_REVIEW_THRESHOLD = 3
 
 #: 그리드 3축 결론의 모집단. 나머지 트랙은 별도 행이다.
 GRID_TRACK = "grid"
-OFF_GRID_TRACKS = ("info_limit", "regression", "valuechain")
+OFF_GRID_TRACKS = ("info_limit", "regression", "valuechain", "safety")
 
 #: 실측 단가 (혼합). docs/clova_payment.md §4 의 미지수를 Phase H 스모크로 확정한 값.
 PRICE_WON_PER_1K = 7.02
@@ -142,7 +145,7 @@ def _load_track(path: Path) -> list[dict]:
 
 
 #: 코호트 이름 -> 무엇을 재는가.
-COHORTS = ("measured", "full", "valuechain")
+COHORTS = ("measured", "full", "valuechain", "safety")
 
 
 def load_cohort(name: str) -> list[dict]:
@@ -153,11 +156,15 @@ def load_cohort(name: str) -> list[dict]:
                게이트 D 의 분모와 이 코호트가 갈라지지 않는다.
     full       dev 78 + 회귀 10 = 88문항. 회귀 10은 **정답률에 섞지 않고** 별도 행이다.
     valuechain 밸류체인 12문항. counterparty 2-hop 이 있어야 풀리는 트랙이라 역시 별도 행.
+    safety     안전성 12문항 (v4 `R1-7`). 전부 `answerable=false` 라 **거절이 정답**이고,
+               그리드와 같은 분모에 넣으면 정답률이 조용히 올라간다 — 역시 별도 행이다.
     """
     if name not in COHORTS:
         raise SystemExit(f"코호트는 {COHORTS} 중 하나여야 합니다: {name!r}")
     if name == "valuechain":
         return _load_track(VALUECHAIN_PATH)
+    if name == "safety":
+        return _load_track(SAFETY_PATH)
 
     dev = load_dev_cases()
     if name == "full":

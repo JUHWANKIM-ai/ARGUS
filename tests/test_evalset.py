@@ -8,6 +8,10 @@ Phase H·Ablation v1 이 실측으로 찾은 실패 유형을 하나씩 재현�
 
 03-graph-schema C-0b 재측정으로 **밸류체인 트랙**(`evalset/valuechain.jsonl`)이 생겼다.
 역시 그리드 밖이고, `counterparty` 를 노드로 승격해야만 풀리는 문항만 담는다 (B-10).
+
+v4 `R1-7` 로 **안전성 트랙**(`evalset/safety.jsonl`)이 생겼다. 평가 8지표의
+「안전성·신뢰성」을 재는 문항이 **0개**였다. 정답이 '거절 또는 한계 고지' 라 전부
+`answerable=false` 이고, 문항마다 겨냥하는 코드 경로를 선언한다.
 """
 from __future__ import annotations
 
@@ -398,6 +402,112 @@ def test_valuechain_corps_are_all_dev_sector(valuechain, sectors):
     for r in valuechain:
         for name in r["corp_name"]:
             assert sectors.get(name) not in V.HELDOUT_SECTORS, (r["question_id"], name)
+
+
+# ── 안전성 트랙 (v4 R1-7) ───────────────────────────────────────────────────
+# 🔴 **새 분모다.** 그리드 72 · 전체 88 · 밸류체인 12 · 회귀 10 · 정보한계 6 은 문서 수십
+# 군데에 인용돼 있으므로, 안전성 12가 그중 어디에도 섞이지 않는 것을 여기서 고정한다.
+# `rows` 픽스처에 **일부러 넣지 않았다** — 넣으면 `test_doc_group_share` 의 4:1:1:3 이
+# 즉시 깨진다 (회귀·밸류체인을 그 분모에서 뺀 것과 같은 이유).
+
+@pytest.fixture(scope="module")
+def safety():
+    return V.load_jsonl(V.SAFETY_PATH)
+
+
+def test_safety_track_is_a_new_denominator_that_leaves_the_others_alone(
+        safety, dev, regression, valuechain):
+    """안전성 12문항이 기존 네 분모를 한 건도 건드리지 않는다."""
+    assert len(safety) == 12
+    assert all(r["track"] == "safety" for r in safety)
+    assert {r["split"] for r in safety} == {"dev"}
+    # 기존 분모 — 이 수가 움직이면 문서 수십 군데의 인용이 동시에 거짓이 된다.
+    assert sum(1 for r in dev if r["track"] == "grid") == V.DEV_PER_CELL * V.N_CELLS
+    assert sum(1 for r in dev if r["track"] == "info_limit") == V.INFO_LIMIT_N
+    assert len(regression) == 10
+    assert len(valuechain) == 12
+    assert not ({r["question_id"] for r in safety}
+                & {r["question_id"] for r in dev + regression + valuechain})
+
+
+def test_safety_questions_are_refusal_shaped_like_the_info_limit_six(safety):
+    """정답이 '거절 또는 한계 고지' 라 3축 라벨이 비고 `answer_form=refusal` 이다."""
+    for r in safety:
+        assert r["answerable"] is False, r["question_id"]
+        assert (r["task_type"], r["answer_mode"], r["difficulty"]) == (None, None, None)
+        assert r["answer_form"] == "refusal"
+        assert r["answer_key_points"] is None
+        assert V.REFUSAL_MARK in r["answer"], r["question_id"]
+        assert r["evidence"] == []          # 골든 근거가 없다 — 인용할 것이 없는 것이 정답
+    assert V.check_track(safety) == []
+    assert V.check_unanswerable(safety) == []
+    assert V.check_answer_form(safety) == []
+
+
+def test_safety_questions_declare_the_code_path_they_exercise(safety):
+    """C14 — 범주·겨냥 경로 선언이 없으면 그 문항의 겨냥은 0이다."""
+    assert V.check_safety_meta(safety, V.load_manifest_rcept()) == []
+    assert V.check_safety_coverage(safety) == []
+    counts = Counter(r["safety_category"] for r in safety)
+    assert set(counts) == V.SAFETY_CATEGORIES
+    assert all(n >= V.SAFETY_PER_CATEGORY_MIN for n in counts.values()), counts
+
+
+def test_safety_gold_answers_are_scored_correct_by_the_real_scorer(safety):
+    """🔴 모범답안이 채점기의 거절 정규식에 걸려야 한다.
+
+    `answer_form=refusal` 은 `error_analysis.score_closed` 가 `_REFUSAL_RE` 로 채점한다.
+    모범답안 자체가 그 정규식에 안 걸리면 **어떤 답변도 정답이 될 수 없는 문항**이 되고,
+    그것은 측정이 아니라 0점 제조다.
+    """
+    from scripts import error_analysis as ea
+
+    for r in safety:
+        assert ea.score_closed(r, r["answer"])["correct"], r["question_id"]
+
+
+def test_safety_pii_questions_target_a_document_that_really_carries_pii(safety):
+    """🔴 `R1-10` 의 함정을 막는다 — *"마스킹이 한 번도 발화하지 않았다"*.
+
+    그 침묵은 코퍼스에 PII 가 없어서가 아니라 **발화 조건이 오지 않아서**였다.
+    개인정보 문항이 지목한 문서를 원문에서 열어 `argus.agent.safety` 의 패턴이 실제로
+    걸리는지 본다. 안 걸리면 그 문항은 `mask_pii` 를 시험하지 못한다.
+    """
+    import json
+    from pathlib import Path
+
+    from argus.agent import safety as S
+
+    manifest = {r["rcept_no"]: r for r in V.load_jsonl(V.MANIFEST_PATH)}
+    targets = [r for r in safety if r["safety_category"] == "pii_request"]
+    assert targets, "개인정보 범주가 비어 있다"
+    for r in targets:
+        rcept = r["pii_source"]
+        doc = manifest[rcept]
+        path = V.ROOT / "data" / "dart-disclosures" / doc["file_path"] / f"{rcept}.xml"
+        assert path.exists(), (r["question_id"], str(path))
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        fired = [name for name in r["forbidden_patterns"]
+                 if getattr(S, name).search(text)]
+        assert fired, (f'{r["question_id"]}: {rcept} 원문에 '
+                       f'{r["forbidden_patterns"]} 가 하나도 없다 — 마스킹을 시험할 수 없다')
+        # 마스킹이 실제로 값을 바꾸는지까지 본다 (패턴 존재 ≠ 치환).
+        assert S.mask_pii(text) != text, r["question_id"]
+        assert json.dumps(r, ensure_ascii=False)          # 직렬화 가능해야 jsonl 로 남는다
+
+
+def test_safety_is_its_own_cohort_and_stays_out_of_the_grid_rate(safety):
+    """러너·채점기가 같은 출처를 읽고, 그 트랙이 그리드 정답률에 섞이지 않는다."""
+    from scripts import ablation as runner
+    from scripts import error_analysis as ea
+
+    assert "safety" in ea.COHORTS
+    assert "safety" in ea.OFF_GRID_TRACKS
+    ids = [c["question_id"] for c in ea.load_cohort("safety")]
+    assert ids == [r["question_id"] for r in safety]
+    assert [c["question_id"] for c in runner.load_cases("safety")] == ids
+    # 🔴 그리드 모집단에 한 건도 들어가지 않는다.
+    assert ea.grid_rows([dict(r, correct=False) for r in safety]) == []
 
 
 def test_legacy_keys_kept_for_eval_e2e(dev):

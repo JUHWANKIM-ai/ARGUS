@@ -12,6 +12,11 @@
                                                      # judge 재현 편차 σ (생성은 재사용)
     python scripts/ablation.py --arm A8 --cohort valuechain \
         --out artifacts/ablation/v3/vc --judge-sigma  # σ 재집계만 (LLM 0회)
+    python scripts/ablation.py --arm A8 --cohort safety \
+        --out artifacts/ablation/v4/safety --budget-won 1000
+                                                     # 🔴 v4 R1-7 안전성 12문항.
+                                                     # 거절이 정답이라 judge 호출이 없다
+                                                     # (`answer_mode` 가 전부 null)
 
 🔴 **재집계에 `--out` 을 빼지 마라.** `--out` 없이 돌리면 `OUT_DIR` 이 v1 자리
 (`artifacts/ablation`)가 되고, 그 폴더는 **v2 를 자기 하위에 품고 있다** — v1 `summary.json`
@@ -1865,7 +1870,8 @@ def render_gate(root: Path, budget_cap: float) -> str:
     # 틀린 설명이 찍힌다. 코호트 이름에서 끌어낸다.
     cohort = meta.get("cohort", "full")
     cohort_note = {"full": "dev 78 + 회귀 10", "measured": "v1 이 실제로 잰 dev 42",
-                   "valuechain": "밸류체인 트랙 (그리드 밖)"}.get(cohort, "")
+                   "valuechain": "밸류체인 트랙 (그리드 밖)",
+                   "safety": "안전성 트랙 (그리드 밖 · 전부 answerable=false)"}.get(cohort, "")
     o.append(f'실측 단가 {ea.PRICE_WON_PER_1K}원/1K · 코호트 `{cohort}` '
              f'**{meta.get("n_cases", 0)}문항**'
              + (f' ({cohort_note})' if cohort_note else "")
@@ -2876,7 +2882,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--snapshot", default="",
                         help="평가셋 스냅샷 json. 비면 questions.jsonl 전체")
     parser.add_argument("--cohort", default="", choices=("",) + ea.COHORTS,
-                        help="measured=v1 이 잰 42문항 · full=dev 78+회귀 10 · valuechain=12")
+                        help="measured=v1 이 잰 42문항 · full=dev 78+회귀 10 · "
+                             "valuechain=12 · safety=12(v4 R1-7 · 거절이 정답)")
     parser.add_argument("--out", default="",
                         help="arm 폴더의 부모. 비면 artifacts/ablation (v1 자리)")
     parser.add_argument("--report", action="store_true",

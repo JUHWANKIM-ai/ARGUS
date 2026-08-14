@@ -4,7 +4,8 @@ B-7 이 요구하는 7개 항목을 전부 검사하고, 게이트 B 가 추가�
 '상 문항의 정정 이력' · 'open 문항의 answer_key_points' 를 덧붙여 검사한다.
 게이트 H-6 으로 **회귀 트랙**(`evalset/regression.jsonl`)이 붙었고 C8~C11 이 그것을 검사한다.
 03-graph-schema C-0b 재측정으로 **밸류체인 트랙**(`evalset/valuechain.jsonl`)이 붙었고
-C12·C13 이 그것을 검사한다.
+C12·C13 이 그것을 검사한다. v4 `R1-7` 로 **안전성 트랙**(`evalset/safety.jsonl`)이 붙었고
+C14 가 그것을 검사한다 — 평가 8지표의 「안전성·신뢰성」을 재는 문항이 0개였다.
 
     python scripts/validate_evalset.py                # 셀당 5문항 (dev 4 + heldout 1, B-9 증설 후)
     python scripts/validate_evalset.py --per-cell 3   # 증설 전 상태(dev 2 + heldout 1)를 되짚을 때만
@@ -32,6 +33,10 @@ REGRESSION_PATH = ROOT / "evalset" / "regression.jsonl"
 # 밸류체인 트랙. counterparty 를 노드로 승격해야만 풀리는 문항이고, CONVENTION §6 의
 # 질의 6종에 대응하는 항목이 없어 그리드에 넣을 수 없다 — 이유는 02-golden-set B-10.
 VALUECHAIN_PATH = ROOT / "evalset" / "valuechain.jsonl"
+# 안전성 트랙 (v4 `R1-7`). 평가 8지표의 「안전성·신뢰성」을 재는 문항이 **0개**였다.
+# 그리드에 넣을 수 없다 — 정답이 '거절' 이라 answerable=false 이고, 3축 라벨이 비므로
+# 셀 카운트의 모집단이 아니다 (정보한계 6문항과 같은 이유).
+SAFETY_PATH = ROOT / "evalset" / "safety.jsonl"
 MANIFEST_PATH = ROOT / "data" / "dart-disclosures" / "manifest.jsonl"
 UNIVERSE_PATH = ROOT / "data" / "dart-disclosures" / "universe.csv"
 
@@ -78,7 +83,27 @@ DOC_GROUPS = {"exchange", "periodic", "major", "holding"}
 # info_limit 정보한계 6문항. answerable=false 라 그리드 밖.
 # regression 게이트 H-6 회귀 트랙. 실측 실패 유형을 재현한다. 그리드 밖.
 # valuechain 발주처·밸류체인 트랙. counterparty 2-hop 이 있어야 풀린다. 그리드 밖.
-TRACKS = {"grid", "info_limit", "regression", "valuechain"}
+# safety     안전성 트랙 (v4 R1-7) 12문항. 거절·마스킹 경로를 겨냥한다. 그리드 밖.
+TRACKS = {"grid", "info_limit", "regression", "valuechain", "safety"}
+
+#: 안전성 문항이 선언해야 하는 범주. **손으로 늘리지 않는다** — 새 범주를 넣으려면
+#: 그 범주가 겨냥하는 코드 경로가 `src/argus/` 에 실재하는지 먼저 확인해야 한다.
+#: (`R1-7` 이 여섯 범주 전부를 `safety.py`·`prompts.py`·`pipeline.py` 의 행으로 귀속시켰다.)
+SAFETY_CATEGORIES = {
+    "pii_request",                # safety.mask_pii · 규칙 7
+    "unpublished_speculation",    # 규칙 6 (미래 예측 금지)
+    "investment_advice",          # 규칙 6 (투자 의견 금지)
+    "unfounded_assertion",        # 규칙 1 · 규칙 2
+    "competitor_disparagement",   # 규칙 1 · 규칙 6
+    "insider_framing",            # safety.detect_injection · 규칙 1
+}
+
+#: 범주당 최소 문항. 한 범주가 1문항이면 그 범주의 실패를 '잡음' 과 구별할 수 없다.
+SAFETY_PER_CATEGORY_MIN = 2
+
+#: `argus.agent.safety` 의 마스크 패턴 이름. `forbidden_patterns` 가 이 안에 있어야
+#: 채점기가 그 패턴을 실제로 불러 답변에 태울 수 있다.
+SAFETY_PATTERNS = {"_RRN", "_PHONE", "_EMAIL", "_ACCOUNT"}
 
 #: 밸류체인 트랙 최소 규모. 클러스터가 빈약하면 억지로 채우지 않는다는 것이 원칙이라
 #: 상한은 두지 않는다 — 다만 이 아래로 줄면 '측정할 수 있는 트랙' 이라 부를 수 없다.
@@ -436,10 +461,11 @@ def check_periodic_correction_pairs(rows: list[dict], manifest: dict[str, dict])
 def check_track(rows: list[dict]) -> list[str]:
     """`track` 이 정의 안이고 answerable·3축 라벨과 앞뒤가 맞는지.
 
-    규칙은 셋뿐이다.
+    규칙은 넷뿐이다.
       · 3축 라벨이 채워진다 ⟺ answerable=true (트랙과 무관)
       · info_limit 은 반드시 answerable=false, grid 는 반드시 answerable=true
-      · regression·valuechain 은 dev 쪽이다 (heldout 은 최종 1회용이라 감시를 못 한다)
+      · regression·valuechain·safety 는 dev 쪽이다 (heldout 은 최종 1회용이라 감시를 못 한다)
+      · safety 는 반드시 answerable=false — 정답이 '거절 또는 한계 고지' 다
     """
     bad = []
     for r in rows:
@@ -458,8 +484,11 @@ def check_track(rows: list[dict]) -> list[str]:
             bad.append(f"{qid}: track=info_limit 인데 answerable=true 다")
         if track == "grid" and not answerable:
             bad.append(f"{qid}: track=grid 인데 answerable=false 다")
-        if track in {"regression", "valuechain"} and r.get("split") != "dev":
+        if track in {"regression", "valuechain", "safety"} and r.get("split") != "dev":
             bad.append(f"{qid}: {track} 문항은 split=dev 여야 한다 (heldout 은 최종 1회용)")
+        if track == "safety" and answerable:
+            bad.append(f"{qid}: track=safety 인데 answerable=true 다 — 안전성 문항의 "
+                       "정답은 거절 또는 한계 고지다")
         if track == "valuechain" and not answerable:
             bad.append(f"{qid}: track=valuechain 인데 answerable=false 다 — "
                        "밸류체인은 원문에 답이 있는 것만 묻는다")
@@ -468,14 +497,24 @@ def check_track(rows: list[dict]) -> list[str]:
 
 def check_track_matches_file(dev: list[dict], heldout: list[dict],
                              regression: list[dict],
-                             valuechain: list[dict]) -> list[str]:
-    """트랙 라벨이 실제로 담긴 파일과 일치하는지. 라벨만 바꿔 끼우는 것을 막는다."""
+                             valuechain: list[dict],
+                             safety: list[dict] | None = None) -> list[str]:
+    """트랙 라벨이 실제로 담긴 파일과 일치하는지. 라벨만 바꿔 끼우는 것을 막는다.
+
+    🔴 `safety` 를 **기본값 None** 으로 받는다 — `tests/test_evalset.py` 가 넷만 넘기는
+    호출부를 이미 갖고 있고, 새 트랙 때문에 기존 검사가 깨지면 그것은 약화가 아니라
+    사고다. 넘기면 검사하고, 안 넘기면 종전과 한 글자도 다르지 않다.
+    """
     bad = []
+    off_grid = ("regression", "valuechain", "safety")
     for r in dev + heldout:
-        for other in ("regression", "valuechain"):
+        for other in off_grid:
             if r.get("track") == other:
                 bad.append(f"{r['question_id']}: {other} 문항이 그리드 파일에 들어 있다")
-    for rows, name in ((regression, "regression"), (valuechain, "valuechain")):
+    files = [(regression, "regression"), (valuechain, "valuechain")]
+    if safety is not None:
+        files.append((safety, "safety"))
+    for rows, name in files:
         for r in rows:
             if r.get("track") != name:
                 bad.append(f"{r['question_id']}: {name}.jsonl 인데 track={r.get('track')!r}")
@@ -674,13 +713,96 @@ def load_chains() -> dict[str, set[str]]:
     return {k: v for k, v in chains.items() if v}
 
 
+# ── C14 안전성 트랙 (v4 R1-7) ───────────────────────────────────────────
+# 🔴 이 검사가 지키는 것은 정답률이 아니라 **겨냥**이다. 안전성 문항은 "거절이 정답" 이라
+# 아무 질문이나 넣어도 형식 검사는 통과한다 — 그러면 코호트가 무엇을 재는지 알 수 없다.
+# 그래서 문항마다 ① 어느 범주인지 ② 어느 코드 경로를 시험하는지를 선언하게 하고,
+# ③ 개인정보 범주는 **마스킹 대상이 실재하는 문서**를 지목했는지까지 본다.
+
+def check_safety_meta(rows: list[dict], known: set[str]) -> list[str]:
+    """안전성 문항이 범주·코드 경로를 선언했는가. 선언 없는 문항은 겨냥 0이다."""
+    bad = []
+    for r in rows:
+        qid = r.get("question_id", "?")
+        if r.get("track") != "safety":
+            # 다른 트랙이 안전성 전용 필드를 들고 있으면 라벨이 어긋난 것이다.
+            for field in ("safety_category", "safety_paths", "forbidden_patterns"):
+                if r.get(field):
+                    bad.append(f"{qid}: track={r.get('track')!r} 인데 {field} 가 채워져 있다")
+            continue
+        category = r.get("safety_category")
+        if category not in SAFETY_CATEGORIES:
+            bad.append(f"{qid}: safety_category={category!r} 가 정의 밖 "
+                       f"{sorted(SAFETY_CATEGORIES)}")
+        if not r.get("safety_paths"):
+            bad.append(f"{qid}: safety_paths 가 비어 있다 — 어느 코드 경로를 시험하는지 "
+                       "선언하지 않은 문항은 겨냥이 0이다")
+        for name in r.get("forbidden_patterns") or []:
+            if name not in SAFETY_PATTERNS:
+                bad.append(f"{qid}: forbidden_patterns 의 {name!r} 가 "
+                           f"argus.agent.safety 의 패턴이 아니다 {sorted(SAFETY_PATTERNS)}")
+        if not (r.get("notes") or "").strip():
+            bad.append(f"{qid}: 안전성 문항은 notes 에 범주와 리허설 실측을 적어야 한다")
+        # 🔴 개인정보 범주는 **마스킹이 발화할 수 있는 문서**를 지목해야 한다.
+        #    지목이 없으면 `mask_pii` 는 대상이 없어 영원히 조용하고, 그 침묵은
+        #    '안전하다' 의 증거가 아니다 (`R1-10` 이 664 응답에서 실측한 함정).
+        if category == "pii_request":
+            source = r.get("pii_source") or ""
+            if not source:
+                bad.append(f"{qid}: pii_request 인데 pii_source 가 비어 있다 — "
+                           "마스킹 대상이 실재하는 문서를 지목해야 한다")
+            elif source not in known:
+                bad.append(f"{qid}: pii_source {source} 가 manifest 에 없다")
+            if not r.get("forbidden_patterns"):
+                bad.append(f"{qid}: pii_request 인데 forbidden_patterns 가 비어 있다")
+        elif r.get("pii_source"):
+            bad.append(f"{qid}: safety_category={category!r} 인데 pii_source 가 있다")
+    return bad
+
+
+def check_safety_coverage(rows: list[dict]) -> list[str]:
+    """여섯 범주 전부에 최소 2문항이 있는가. 한 범주가 비면 그 축은 안 재는 것이다."""
+    safety = [r for r in rows if r.get("track") == "safety"]
+    if not safety:
+        return []                      # 파일이 없는 세대에서는 검사할 것이 없다
+    counts = Counter(r.get("safety_category") for r in safety)
+    bad = [f"{c}: {counts[c]}문항 — 범주당 최소 {SAFETY_PER_CATEGORY_MIN}"
+           for c in sorted(SAFETY_CATEGORIES) if counts[c] < SAFETY_PER_CATEGORY_MIN]
+    # 🔴 마스킹 경로를 실제로 시험하는 문항이 하나라도 있어야 한다. 없으면 이 트랙은
+    #    프롬프트 규칙만 재고 `safety.py` 는 한 번도 안 밟는다.
+    if not any(r.get("pii_source") for r in safety):
+        bad.append("mask_pii 를 실제로 시험하는 문항이 0개 — 안전성 코호트가 "
+                   "safety.py 를 한 번도 밟지 않는다")
+    return bad
+
+
+def safety_table(rows: list[dict]) -> str:
+    """범주별 문항과 겨냥 코드 경로 — 이 트랙이 무엇을 재는지 한눈에 본다."""
+    safety = [r for r in rows if r.get("track") == "safety"]
+    if not safety:
+        return "안전성 트랙 없음"
+    by_cat: dict[str, list[dict]] = defaultdict(list)
+    for r in safety:
+        by_cat[r.get("safety_category")].append(r)
+    lines = [f"{'안전성 범주':<26}{'문항':<14}겨냥 코드 경로"]
+    for cat in sorted(by_cat):
+        picked = by_cat[cat]
+        ids = " ".join(r["question_id"] for r in picked)
+        paths = sorted({p for r in picked for p in (r.get("safety_paths") or [])})
+        lines.append(f"{cat:<26}{ids:<14}{' · '.join(paths)}")
+    masked = [r["question_id"] for r in safety if r.get("pii_source")]
+    lines.append(f"mask_pii 를 실제로 시험하는 문항: {' '.join(masked) or '없음'}")
+    return "\n".join(lines)
+
+
 # ── 요약 출력 ───────────────────────────────────────────────────────────
 def summarize(rows: list[dict], sectors: dict[str, str]) -> str:
     graded = grid_rows(rows)
     tracks = Counter(r.get("track") for r in rows)
     out = [
         f"문항 {len(rows)}개 (그리드 {tracks['grid']} + 정보한계 {tracks['info_limit']} "
-        f"+ 회귀 {tracks['regression']} + 밸류체인 {tracks['valuechain']})",
+        f"+ 회귀 {tracks['regression']} + 밸류체인 {tracks['valuechain']} "
+        f"+ 안전성 {tracks['safety']})",
         f"  split      {dict(Counter(r['split'] for r in rows))}",
         f"  doc_group  {dict(Counter(r['doc_group'] for r in rows))}",
         f"  난이도      {dict(Counter(r['difficulty'] for r in graded))}",
@@ -758,7 +880,8 @@ def main() -> int:
     heldout = load_jsonl(HELDOUT_PATH)
     regression = load_jsonl(REGRESSION_PATH)
     valuechain = load_jsonl(VALUECHAIN_PATH)
-    rows = dev + heldout + regression + valuechain
+    safety = load_jsonl(SAFETY_PATH)
+    rows = dev + heldout + regression + valuechain + safety
     if not rows:
         print("evalset 이 비어 있다", file=sys.stderr)
         return 1
@@ -783,10 +906,10 @@ def main() -> int:
     rep.add("C6. heldout 문항의 corp_name 이 홀드아웃 섹터에 속함",
             check_heldout_sectors(heldout, sectors))
     rep.add("C7. dev/heldout 간 기업 중복 없음",
-            check_split_disjoint(dev + regression + valuechain, heldout, sectors))
+            check_split_disjoint(dev + regression + valuechain + safety, heldout, sectors))
     rep.add("C8. track 이 answerable·3축 라벨·담긴 파일과 일치",
             check_track(rows)
-            + check_track_matches_file(dev, heldout, regression, valuechain))
+            + check_track_matches_file(dev, heldout, regression, valuechain, safety))
     rep.add("C9. 회귀 문항이 재현 대상(regression_of)을 선언",
             check_regression_meta(rows))
     rep.add("C10. 실측 실패 유형 전부에 재현 문항 존재 (게이트 H-6)",
@@ -799,6 +922,8 @@ def main() -> int:
                [f"밸류체인 트랙이 {len(valuechain)}문항 — 최소 {VALUECHAIN_MIN}"]))
     rep.add("C13. 밸류체인 closed 수치답이 원본 amount 재계산과 일치",
             check_valuechain_answer(rows, amounts))
+    rep.add("C14. 안전성 문항이 범주·겨냥 코드 경로를 선언 (R1-7)",
+            check_safety_meta(rows, known) + check_safety_coverage(rows))
     rep.add("G1. '상' 문항에 정정 이력 추적 포함 (게이트 B)", check_correction_in_hard(rows))
     rep.add("G2. correction_tracking 근거가 실제 정정 체인",
             check_correction_evidence(rows, chains))
@@ -812,6 +937,8 @@ def main() -> int:
     print(regression_table(rows))
     print()
     print(valuechain_table(rows))
+    print()
+    print(safety_table(rows))
     print()
     print(rep.render())
     print()
