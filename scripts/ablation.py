@@ -2275,12 +2275,17 @@ def render_gate(root: Path, budget_cap: float) -> str:
     o.append("\n## 10. 부록 D 대조 — 우리 Δ 가 타당한 크기인가\n")
     ours: dict[str, float | None] = {}
     prev = None
+    # 🔴 `rate` 는 **그리드 기준**이라 밸류체인 코호트에서는 `None` 이다 (그 폴더에
+    #    grid 행이 없다). 무방비로 빼면 `TypeError` 로 죽고, 그러면 그 코호트의
+    #    `gate_I.md` 를 **다시 만들 수 없다** — 실측으로 그랬고, 그래서 v3/vc 의 게이트가
+    #    R1 시점 렌더로 얼어붙어 하드코딩된 옛 값을 계속 싣고 있었다 (R2F 가 잡았다).
+    #    `render_summary` 가 LOO 단독 실행에서 `IndexError` 로 죽던 것과 같은 가족이다.
     for arm in ladder:
         r = arms[arm]["rate"]
-        ours[arm] = None if prev is None else (r - prev) * 100
+        ours[arm] = None if prev is None or r is None else (r - prev) * 100
         prev = r
     for arm in loo:
-        if full:
+        if full and arms[arm]["rate"] is not None and arms[full]["rate"] is not None:
             ours[arm] = (arms[arm]["rate"] - arms[full]["rate"]) * 100
     o.append("| 우리 arm | 우리 Δ | 논문 | 논문 보고값 | 방식 |")
     o.append("|---|---|---|---|---|")
@@ -2361,10 +2366,14 @@ def render_gate(root: Path, budget_cap: float) -> str:
     #    §0(골든 34/46 · 계산) · §4(정답 7/12 · 계산) 과 이 단락(28/46 · 6/12 · 문자열)에서
     #    서로를 반박했다. 하드코딩 사고의 **일곱 번째 얼굴**이고 기전은 ① 과 같다:
     #    표는 계산, 본문은 문자열. 얼어붙게 둘 값은 **"옛 세대" 라고 라벨한 이력**뿐이다.
-    if vc.get("A8") and vc.get("L3"):
-        g8 = ea.golden_recall_denominators(vc["A8"]["rows"])
-        g3 = ea.golden_recall_denominators(vc["L3"]["rows"])
-        by_qid = {r["question_id"]: r for r in vc["A8"]["rows"]}
+    # 🔴 하위 `vc/` 가 없으면(= 이 폴더가 곧 밸류체인이면) 자기 보고서를 본다.
+    #    한쪽만 보면 `--out …/vc` 로 렌더한 게이트에서 이 절이 "못 셌다" 로 비어 버리고,
+    #    비어 있는 자리에 다음 사람이 다시 문자열을 박게 된다.
+    vc_src = vc if vc else {k: v for k, v in reports.items() if k in ("A8", "L3")}
+    if vc_src.get("A8") and vc_src.get("L3"):
+        g8 = ea.golden_recall_denominators(vc_src["A8"]["rows"])
+        g3 = ea.golden_recall_denominators(vc_src["L3"]["rows"])
+        by_qid = {r["question_id"]: r for r in vc_src["A8"]["rows"]}
         stable = " · ".join(
             f'{qid} {len(by_qid[qid].get("golden_in_evidence") or [])}/'
             f'{len(by_qid[qid].get("golden") or [])}'
@@ -2380,12 +2389,15 @@ def render_gate(root: Path, budget_cap: float) -> str:
              f"정본 축은 **근거 완결성**이다(§6): {recall} 이고, {fan_in}. "
              "검색은 닿고 생성이 흔들리는 것이라 hop 의 기전은 무손상이다.\n")
     # 🔴 그리고 이 정답률에는 부풀림이 하나 들어 있다 — 계산으로 확인해서 쓴다.
-    if vc.get("A8"):
+    #    🔴 하위 `vc/` 폴더가 있으면 그것을, 없으면(= 이 폴더가 곧 밸류체인이면) 자기
+    #    보고서를 본다. 한쪽만 보면 `--out …/vc` 로 렌더한 게이트에서 이 경고가 사라진다.
+    inflation_source = vc.get("A8") or (reports.get("A8") if not vc else None)
+    if inflation_source:
         inflated = sorted(
-            r["question_id"] for r in vc["A8"]["rows"]
+            r["question_id"] for r in inflation_source["rows"]
             if r.get("correct") and r["question_id"] in ea.JUDGED_CORRECT_ARITHMETIC_WRONG)
         if inflated:
-            r8v = ea._rate(vc["A8"]["rows"])
+            r8v = ea._rate(inflation_source["rows"])
             o.append(f'🔴 **그 정답률에는 부풀림 {len(inflated)}건이 들어 있다** '
                      f'({" ".join(inflated)}) — judge 가 수치 자기일관성을 안 보므로 '
                      f'답변 안의 자릿수 오류가 정답으로 통과한다. 수치 자기일관성을 '
