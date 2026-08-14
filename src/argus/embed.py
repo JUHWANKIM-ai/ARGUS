@@ -308,6 +308,23 @@ class VectorStore:
         배치로 끊어 담고 배치마다 `on_batch` 를 부른다. 3,150건을 한 덩어리로 돌리다
         429 하나로 죽으면 **이미 지불한 토큰이 통째로 날아간다** — 실측으로 그 사고를 냈다.
         예외는 삼키지 않는다. 그때까지 담긴 것은 저장소에 남는다.
+
+        🔴 **키가 `doc_id` 뿐이고 내용 해시가 없다 — 텍스트가 바뀌면 벡터가 조용히 낡는다.**
+        `missing` 은 "저장소에 그 id 가 없는가" 만 보므로, 같은 id 의 본문이 재빌드로
+        바뀌어도 **옛 텍스트의 벡터가 그대로 남고 아무 신호도 안 난다.**
+
+        R2D(2026-08-14)의 색인 재빌드가 그 조건을 실제로 만들었다. `9c4fbcf` 가
+        `schema_matched=false` 서식에 자유 텍스트를 실으면서 exchange **233건**의
+        `markdown` 이 바뀌었는데, 그 233건은 **233/233 전부** 이미
+        `artifacts/embeddings/exchange_dense.npz` 에 벡터가 있다. 즉 지금 이 저장소의
+        exchange dense 벡터 233건은 **출하된 색인 문자열과 다른 텍스트의 벡터**다.
+
+        지금은 안 밟는다 — **측정되어 저장된** 산출물 중 `dense=true` 인 것이 한 건도
+        없다(`artifacts/ablation/**/report.json` 29개 전수 · `arm_config.dense` 전부 거짓).
+        정의만 남아 있다(`ablation.ARMS` 의 `A2` · `A2F`). **그 둘을 다시 세우면 밟는다.**
+        되살릴 때 할 일: 그 233건 id 를 `npz` 에서 지우고 다시 임베딩한다(크레딧이 든다).
+        근본 처방은 키에 본문 해시를 더해 `missing` 판정을 내용 기반으로 바꾸는 것이고,
+        그러면 재빌드가 재임베딩 대상을 **스스로 신고**한다.
         """
         missing = [d for d in dict.fromkeys(ids) if d not in self._pos]
         if not missing:
