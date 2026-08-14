@@ -20,7 +20,7 @@ V3 = Path(ea.ROOT) / "artifacts" / "ablation" / "v3"
 #: 더 많이 걸러 표시는 **줄어들 수만 있다** — 실측 결과는 3건 불변이었다(감도 곡선 ⑤).
 #: 반대로 증거를 줄이면 표시가 늘어난다(`vc/A8` 하나만 쓰면 4건 — `Q-064` 가 붙는다).
 #: 그래서 이 목록은 **가능한 만큼 넓어야** 하고, 좁히는 방향의 수정은 성적을 부풀린다.
-NON_ORACLE_ARMS = ("A8", "L1", "L2", "L3", "L4", "vc/A8")
+NON_ORACLE_ARMS = ("A8", "L1", "L2", "L3", "L4", "vc/A8", "vc/L3")
 
 
 def _retrieved() -> dict[str, set]:

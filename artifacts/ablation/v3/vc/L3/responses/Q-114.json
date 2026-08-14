@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-114",
+ "response": {
+  "question_id": "Q-114",
+  "question": "삼성전자를 계약상대로 하는 공급계약을 공시한 상장사는 어디이며, 평택·기흥 반도체 공장 건설에서 두 회사의 공정 분담은 어떻게 나뉘는가?",
+  "retrieved_context": "## [공급계약 체결] 삼성전자 – 단일판매ㆍ공급계약체결 — 반도체 위탁생산 공급계약\n- 공시일: 2025-07-28 (접수번호 20250728800035)\n- 섹터: 반도체·전자부품\n- 계약금액: 22,764,764,160,000원 (227,648억원)\n- 매출액 대비: 7.6%\n- 계약상대: 글로벌 대형기업\n- 기간: 2025-07-24 ~ 2033-12-31 (8년 5개월)\n- 확정일: 2025-07-26\n- 공시유보: 경영상 비밀유지\n\n## [기재정정] [공급계약 체결] 삼성전자 – 단일판매ㆍ공급계약체결 — 반도체 위탁생산 공급계약\n- 공시일: 2025-07-31 (접수번호 20250731800028)\n- 섹터: 반도체·전자부품\n- 계약금액: 22,764,764,160,000원 (227,648억원)\n- 매출액 대비: 7.6%\n- 계약상대: 테슬라(Tesla, Inc.)\n- 기간: 2025-07-24 ~ 2033-12-31 (8년 5개월)\n- 확정일: 2025-07-26\n- 공시유보: 경영상 비밀유지",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성전자\" period=none top_k=5 q=\"삼성전자 하는 공시한 상장사 어디이며 평택 기흥 반도체 공장 건설 회사 공정 분담 어떻게 나뉘는\" n=2 top_score=32.455 ids=exchange_20250728800035,exchange_20250731800028 | hop=0 verdict=sufficient evidence=2 | generate tokens=868+62 | 근거 표기 누락 — critic 호출 | critic supported=False reason= | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1447",
+  "answer": "삼성전자를 계약상대로 하는 공급계약을 공시한 상장사는 테슬라(Tesla, Inc.)입니다. \n\n평택·기흥 반도체 공장 건설에서 삼성전자와 테슬라의 공정 분담에 대한 내용은 공시에서 확인되지 않습니다. 추가적인 정보가 필요합니다.\n\n(주의: 근거 검증을 통과하지 못했습니다 — )"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 868,
+   "completion_tokens": 62,
+   "latency_s": 1.652,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 497,
+   "completion_tokens": 20,
+   "latency_s": 0.759,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1365,
+ "completion_tokens": 82,
+ "llm_calls": 2,
+ "latency_s": 0.01,
+ "ts": "2026-08-14T18:13:33"
+}

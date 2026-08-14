@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-08-14T18:06:30",
+  "generated": "2026-08-14T18:13:41",
   "cohort": "valuechain",
   "n_cases": 12,
   "question_ids": [
@@ -35,26 +35,26 @@
    "data/dart-disclosures/manifest.jsonl": "04750795e1a2d5c3:2419214",
    "data/dart-disclosures/universe.csv": "96560165c836b10e:10674"
   },
-  "spent_won": 207.4,
+  "spent_won": 259.3,
   "spent_won_source": "arm·코호트별 run.json 합 (하위 폴더 포함)",
   "spent_won_by_arm": {
    "A8": 196.6,
+   "L3": 51.9,
    "ORACLE": 10.8
   },
-  "this_process_spent_won": 0.0,
-  "cache_hits": 26,
-  "cache_misses": 2,
+  "this_process_spent_won": 51.9,
+  "cache_hits": 23,
+  "cache_misses": 6,
   "cache_bypassed": 0,
-  "fresh_prompt_tokens": 1389,
-  "fresh_completion_tokens": 146,
-  "cache_stats_are_this_process": false,
-  "cache_stats_carried_from": "2026-08-14T17:08:00",
+  "fresh_prompt_tokens": 6781,
+  "fresh_completion_tokens": 610,
+  "cache_stats_are_this_process": true,
   "this_run": {
-   "ORACLE": {
-    "arm": "ORACLE",
+   "L3": {
+    "arm": "L3",
     "n_run": 12,
     "stopped_at": null,
-    "spent_won": 10.8,
+    "spent_won": 51.9,
     "runs": [
      {
       "question_id": "Q-107",
@@ -63,10 +63,10 @@
       "request_cache_hits": 2,
       "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 2164,
-      "completion_tokens": 311,
+      "prompt_tokens": 2374,
+      "completion_tokens": 218,
       "judge_tokens": 0,
-      "latency_s": 0.11
+      "latency_s": 0.182
      },
      {
       "question_id": "Q-108",
@@ -75,10 +75,10 @@
       "request_cache_hits": 3,
       "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 2213,
-      "completion_tokens": 371,
-      "judge_tokens": 1296,
-      "latency_s": 0.001
+      "prompt_tokens": 3987,
+      "completion_tokens": 422,
+      "judge_tokens": 2210,
+      "latency_s": 0.017
      },
      {
       "question_id": "Q-109",
@@ -87,34 +87,34 @@
       "request_cache_hits": 2,
       "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 1499,
-      "completion_tokens": 236,
+      "prompt_tokens": 2339,
+      "completion_tokens": 200,
       "judge_tokens": 0,
-      "latency_s": 0.001
+      "latency_s": 0.01
      },
      {
       "question_id": "Q-110",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 3,
-      "spent_won": 0.0,
+      "request_cache_hits": 0,
+      "spent_won": 30.6,
       "llm_calls": 2,
-      "prompt_tokens": 2569,
-      "completion_tokens": 226,
-      "judge_tokens": 1502,
-      "latency_s": 0.002
+      "prompt_tokens": 2470,
+      "completion_tokens": 367,
+      "judge_tokens": 1522,
+      "latency_s": 8.882
      },
      {
       "question_id": "Q-111",
       "cached": false,
       "judge_cached": null,
       "request_cache_hits": 0,
-      "spent_won": 10.78,
+      "spent_won": 15.83,
       "llm_calls": 2,
-      "prompt_tokens": 1389,
-      "completion_tokens": 146,
+      "prompt_tokens": 2116,
+      "completion_tokens": 139,
       "judge_tokens": 0,
-      "latency_s": 4.471
+      "latency_s": 3.905
      },
      {
       "question_id": "Q-112",
@@ -123,34 +123,34 @@
       "request_cache_hits": 3,
       "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 1508,
-      "completion_tokens": 352,
-      "judge_tokens": 918,
-      "latency_s": 0.001
+      "prompt_tokens": 2711,
+      "completion_tokens": 356,
+      "judge_tokens": 1521,
+      "latency_s": 0.025
      },
      {
       "question_id": "Q-113",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 1,
+      "request_cache_hits": 2,
       "spent_won": 0.0,
-      "llm_calls": 1,
-      "prompt_tokens": 1153,
-      "completion_tokens": 247,
+      "llm_calls": 2,
+      "prompt_tokens": 3945,
+      "completion_tokens": 383,
       "judge_tokens": 0,
-      "latency_s": 0.001
+      "latency_s": 0.029
      },
      {
       "question_id": "Q-114",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 3,
-      "spent_won": 0.0,
+      "request_cache_hits": 2,
+      "spent_won": 5.45,
       "llm_calls": 2,
-      "prompt_tokens": 2263,
-      "completion_tokens": 187,
-      "judge_tokens": 1238,
-      "latency_s": 0.001
+      "prompt_tokens": 1365,
+      "completion_tokens": 82,
+      "judge_tokens": 777,
+      "latency_s": 0.01
      },
      {
       "question_id": "Q-115",
@@ -159,10 +159,10 @@
       "request_cache_hits": 2,
       "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 2076,
-      "completion_tokens": 287,
+      "prompt_tokens": 3729,
+      "completion_tokens": 288,
       "judge_tokens": 0,
-      "latency_s": 0.002
+      "latency_s": 0.024
      },
      {
       "question_id": "Q-116",
@@ -171,10 +171,10 @@
       "request_cache_hits": 2,
       "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 1487,
-      "completion_tokens": 151,
+      "prompt_tokens": 2076,
+      "completion_tokens": 201,
       "judge_tokens": 0,
-      "latency_s": 0.001
+      "latency_s": 0.009
      },
      {
       "question_id": "Q-117",
@@ -183,10 +183,10 @@
       "request_cache_hits": 3,
       "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 2911,
-      "completion_tokens": 300,
-      "judge_tokens": 1637,
-      "latency_s": 0.001
+      "prompt_tokens": 3603,
+      "completion_tokens": 290,
+      "judge_tokens": 2003,
+      "latency_s": 0.009
      },
      {
       "question_id": "Q-118",
@@ -195,17 +195,14 @@
       "request_cache_hits": 2,
       "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 1467,
-      "completion_tokens": 294,
+      "prompt_tokens": 3741,
+      "completion_tokens": 319,
       "judge_tokens": 0,
-      "latency_s": 0.001
+      "latency_s": 0.019
      }
-    ],
-    "spent_won_previous": 216.7,
-    "spent_won_source": "이번 실행 기록. 🔴 앞선 실행이 216.7원을 결제했고 그것은 이 값에 안 들어 있다 — 누계는 두 값을 더해야 한다."
+    ]
    }
-  },
-  "rescored_at": "2026-08-14T18:06:30"
+  }
  },
  "summary": {
   "arms": {
@@ -274,6 +271,86 @@
     "golden_unreachable": 0,
     "golden_recall": {
      "hit": 34,
+     "denominator_raw": 46,
+     "unreachable": 3,
+     "unreachable_missed": 3,
+     "denominator_adjusted": 43,
+     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
+    }
+   },
+   "L3": {
+    "correct": 0,
+    "n_scored": 0,
+    "rate": null,
+    "rate_reported": null,
+    "n_grid": 0,
+    "data_limit": 0,
+    "overall": 0.417,
+    "overall_correct": 5,
+    "overall_n_scored": 12,
+    "info_limit_correct": 0,
+    "info_limit_n": 0,
+    "hallucination": 0,
+    "tracks": {
+     "valuechain": {
+      "n": 12,
+      "n_scored": 12,
+      "correct": 5,
+      "rate": 0.417,
+      "data_limit": 0,
+      "stages": {
+       "ROUTING": 1,
+       "RETRIEVAL": 4,
+       "TOOL": 1,
+       "GENERATION": 1
+      }
+     }
+    },
+    "tokens": 45754,
+    "arm_cost_won": 321.2,
+    "llm_calls": 24,
+    "latency_s_mean_recorded": 1.09,
+    "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+    "failures": {
+     "RETRIEVAL": 4,
+     "GENERATION": 1,
+     "ROUTING": 1,
+     "TOOL": 1
+    },
+    "failures_all": {
+     "RETRIEVAL": 4,
+     "GENERATION": 1,
+     "ROUTING": 1,
+     "TOOL": 1
+    },
+    "root_causes": {
+     "RETRIEVAL/MULTI_POINT_QUERY": 3,
+     "GENERATION/INDEX_FIELD_MISSING": 1,
+     "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1,
+     "ROUTING/ROUTING": 1,
+     "TOOL/TOOL": 1
+    },
+    "citation_rate": 0.167,
+    "flags": {
+     "name": "L3",
+     "retrieval": "all",
+     "schema_fields": true,
+     "dense": false,
+     "hop_ladder": true,
+     "chain_hop": true,
+     "counterparty_hop": false,
+     "split_query": true,
+     "calc_values": true,
+     "verifier": true,
+     "followup_hop": true,
+     "golden_oracle": false
+    },
+    "golden_evidence_all": 0,
+    "golden_evidence_hit": 0,
+    "golden_total": 0,
+    "golden_unreachable": 0,
+    "golden_recall": {
+     "hit": 27,
      "denominator_raw": 46,
      "unreachable": 3,
      "unreachable_missed": 3,
@@ -362,6 +439,11 @@
       "n": 0,
       "rate": null
      },
+     "L3": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "ORACLE": {
       "correct": 0,
       "n": 0,
@@ -374,6 +456,11 @@
       "n": 0,
       "rate": null
      },
+     "L3": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "ORACLE": {
       "correct": 0,
       "n": 0,
@@ -382,6 +469,11 @@
     },
     "상": {
      "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "L3": {
       "correct": 0,
       "n": 0,
       "rate": null
@@ -400,6 +492,11 @@
       "n": 0,
       "rate": null
      },
+     "L3": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "ORACLE": {
       "correct": 0,
       "n": 0,
@@ -408,6 +505,11 @@
     },
     "open": {
      "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "L3": {
       "correct": 0,
       "n": 0,
       "rate": null
@@ -426,6 +528,11 @@
       "n": 0,
       "rate": null
      },
+     "L3": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "ORACLE": {
       "correct": 0,
       "n": 0,
@@ -438,6 +545,11 @@
       "n": 0,
       "rate": null
      },
+     "L3": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "ORACLE": {
       "correct": 0,
       "n": 0,
@@ -446,6 +558,11 @@
     },
     "complex_reason": {
      "A8": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "L3": {
       "correct": 0,
       "n": 0,
       "rate": null
@@ -464,6 +581,10 @@
      "correct": 0,
      "n": 0
     },
+    "L3": {
+     "correct": 0,
+     "n": 0
+    },
     "ORACLE": {
      "correct": 0,
      "n": 0
@@ -474,6 +595,10 @@
      "correct": 0,
      "n": 0
     },
+    "L3": {
+     "correct": 0,
+     "n": 0
+    },
     "ORACLE": {
      "correct": 0,
      "n": 0
@@ -481,6 +606,10 @@
    },
    "상": {
     "A8": {
+     "correct": 0,
+     "n": 0
+    },
+    "L3": {
      "correct": 0,
      "n": 0
     },
