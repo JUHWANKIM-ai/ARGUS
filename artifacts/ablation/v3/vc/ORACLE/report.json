@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-14T20:01:29",
+ "generated": "2026-08-14T20:54:35",
  "split": "dev",
  "cohort": "valuechain",
  "n_cases": 12,
@@ -1707,6 +1707,7 @@
   "calc_values": true,
   "verifier": true,
   "followup_hop": true,
-  "golden_oracle": true
+  "golden_oracle": true,
+  "lean_rules": false
  }
 }

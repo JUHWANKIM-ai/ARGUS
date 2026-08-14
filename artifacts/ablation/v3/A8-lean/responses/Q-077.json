@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-077",
+ "response": {
+  "question_id": "Q-077",
+  "question": "NC가 2024년 2월에 공시한 글로벌 RDI센터(가칭) 건립 신규시설투자의 투자금액을 근거와 함께 알려줘.",
+  "retrieved_context": "## [신규 시설투자] NC – 신규시설투자등 — 글로벌 RDI센터(가칭) 건립\n- 공시일: 2024-02-07 (접수번호 20240207801456)\n- 섹터: 게임\n- 투자금액: 580,000,000,000원 (5,800억원)\n- 자기자본 대비: 18.1%\n- 기간: 2024-04-01 ~ 2027-09-30 (3년 5개월)\n- 확정일: 2024-02-07\n\n## [공급계약 체결] NC – 단일판매ㆍ공급계약체결 — THRONE AND LIBERTY 글로벌 퍼블리싱 계약 체결\n- 공시일: 2023-02-22 (접수번호 20230222800834)\n- 섹터: 게임\n- 계약상대: Amazon Games\n- 확정일: 2023-02-22\n- 공시유보: 경영상 비밀유지\n- 기타 투자판단과 관련한 중요사항: - 계약금액은 제25기(2021년) 연결매출액의(2,308,817,408,865원) 2.5% 이상입니다.\n\n## [기재정정] [공급계약 체결] NC – 단일판매ㆍ공급계약체결 — 모바일 IP 5종의 글로벌 퍼블리싱 계약\n- 공시일: 2025-09-05 (접수번호 20250905800516)\n- 섹터: 게임\n- 계약상대: - Shenzhen Tencent Computer Systems Company Limited - Hainan Tencent Network Information Technology Company Limited\n- 확정일: 2021-09-09\n- 공시유보: 경영상 비밀유지\n- 기타 투자판단과 관련한 중요사항: - 최근매출액(원)은 제24기 사업연도(2020년) 연결재무제표 기준입니다. - 계약금액은 2020년도 연결매출액의(2,416,184,211,886원) 2.5% 이상입니다. - 계약기간은 각 IP별 출시일로부터 3년으로 종료일은 미확정입니다.",
+  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"NC\" period=ym:202402 top_k=5 q=\"NC 2024 월에 공시한 글로벌 RDI 센터 가칭 건립 투자금액 근거 함께\" n=1 top_score=70.771 ids=exchange_20240207801456 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"NC\" period=year:2024 top_k=8 q=\"NC 2024 월에 공시한 글로벌 RDI 센터 가칭 건립 투자금액 근거 함께\" n=1 top_score=70.771 ids=exchange_20240207801456 | hop=1 verdict=insufficient evidence=1 reason=few:1<2 | hop=2 strat=corp_only tool=search_chunks corp=\"NC\" period=none top_k=10 q=\"NC 월에 글로벌 RDI 센터 가칭 건립 투자금액 근거 함께\" n=3 top_score=68.070 ids=exchange_20240207801456,exchange_20230222800834,exchange_20250905800516 | hop=2 verdict=sufficient evidence=3 | generate tokens=914+73 | 근거 표기 누락 — critic 호출 | critic supported=True reason=투자 금액과 관련된 정보가 정확하게 인용되었습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=3 hops=2 llm=2 tokens=1697",
+  "answer": "NC가 2024년 2월에 공시한 글로벌 RDI 센터(가칭) 건립 신규 시설 투자의 투자 금액은 **580,000,000,000원**(5,800억 원)입니다.\n\n(근거: 신규 시설투자 등, 2024-02-07, 20240207801456)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 914,
+   "completion_tokens": 73,
+   "latency_s": 2.008,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 674,
+   "completion_tokens": 36,
+   "latency_s": 1.103,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1588,
+ "completion_tokens": 109,
+ "llm_calls": 2,
+ "latency_s": 0.01,
+ "ts": "2026-08-14T20:50:41"
+}

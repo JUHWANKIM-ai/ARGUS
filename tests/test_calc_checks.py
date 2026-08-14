@@ -174,6 +174,20 @@ ARITHMETIC_SNAPSHOTS = {
                   "artifacts/ablation/v3/L4/report.json", {"Q-018", "Q-044"}),
     "v3/ORACLE(88)": ("artifacts/ablation/v3/ORACLE/responses",
                       "artifacts/ablation/v3/ORACLE/report.json", set()),
+    # 🔴 R2G 신설 — `A8-lean`(규칙 8·9 를 뺀 arm). 발화 집합이 `A8` 과 **같다**
+    #    (`Q-018`·`Q-044`) 는 사실이 이 arm 의 판정에서 값을 한다: 답변 16건이 전부
+    #    바뀌었는데도 산술 결함의 자리가 안 옮겨갔다. 🔴 다만 `Q-018` 은 **결함의 성질이
+    #    바뀌었다** — `restatement`(13자리 중 한 자리) → `equation`+`amount`(10배 자릿수
+    #    셋 + 뺄셈). 발화 집합만 보면 그 변화가 안 보인다.
+    "v3/A8-lean(88)": ("artifacts/ablation/v3/A8-lean/responses",
+                       "artifacts/ablation/v3/A8-lean/report.json",
+                       {"Q-018", "Q-044"}),
+    # 🔴 밸류체인은 발화가 **줄었다** (3 → 1). 개선이 아니다 — `Q-110`·`Q-115` 의 새
+    #    답변이 금액·계산식을 **아예 쓰지 않아** `checked` 가 빈 목록이 됐다. 오답
+    #    `Q-115` 는 여전히 오답인데 이제 검사가 볼 것이 없다. 부풀림 1 → 0 도 같은
+    #    까닭이고, 그것을 성적 개선으로 읽으면 안 된다 (`A8lean-report.md` §4).
+    "v3/vc/A8-lean(12)": ("artifacts/ablation/v3/vc/A8-lean/responses",
+                          "artifacts/ablation/v3/vc/A8-lean/report.json", {"Q-109"}),
     # 🔴 R2D 재측정으로 `Q-110` 이 추가됐다 — 새 답변이 `590,947,351,842원 (591억원)`
     #    이라는 10배 어긋난 재기술쌍을 만들었고 judge 는 통과시켰다
     #    (`JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG` 참조).

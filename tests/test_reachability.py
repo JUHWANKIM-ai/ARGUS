@@ -20,7 +20,13 @@ V3 = Path(ea.ROOT) / "artifacts" / "ablation" / "v3"
 #: 더 많이 걸러 표시는 **줄어들 수만 있다** — 실측 결과는 3건 불변이었다(감도 곡선 ⑤).
 #: 반대로 증거를 줄이면 표시가 늘어난다(`vc/A8` 하나만 쓰면 4건 — `Q-064` 가 붙는다).
 #: 그래서 이 목록은 **가능한 만큼 넓어야** 하고, 좁히는 방향의 수정은 성적을 부풀린다.
-NON_ORACLE_ARMS = ("A8", "L1", "L2", "L3", "L4", "vc/A8", "vc/L3")
+#: 🔴 R2G 에서 `A8-lean`·`vc/A8-lean` 이 측정됐으므로 증거에 **더한다.** 이 arm 은
+#: 검색 플래그가 `A8` 과 같고 프롬프트만 다르므로 회수 합집합이 **바뀔 수 없고**, 실제로
+#: 표시는 3건 불변이었다 (`test_the_frozen_marking_is_exactly_what_the_criterion_produces`
+#: 가 그것을 매 실행 재확인한다). 그래도 목록에 넣는 이유는 위 규율이다 — 넓히는 것은
+#: 언제나 안전하고, 빠뜨리면 다음 세대에서 조용히 성적이 부풀려진다.
+NON_ORACLE_ARMS = ("A8", "L1", "L2", "L3", "L4", "A8-lean",
+                   "vc/A8", "vc/L3", "vc/A8-lean")
 
 
 def _stored_arm_dirs() -> tuple[str, ...]:

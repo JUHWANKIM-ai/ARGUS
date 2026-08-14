@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-14T20:01:20",
+ "generated": "2026-08-14T20:56:18",
  "split": "dev",
  "cohort": "full",
  "n_cases": 88,
@@ -8117,6 +8117,7 @@
   "calc_values": true,
   "verifier": true,
   "followup_hop": false,
-  "golden_oracle": false
+  "golden_oracle": false,
+  "lean_rules": false
  }
 }
