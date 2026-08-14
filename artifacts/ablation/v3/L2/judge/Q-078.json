@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-078",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출 답변에는 정확한 보유 비율이 명시되어 있지 않으며, '5% 이상 10% 이하'라는 불확실한 정보를 제공하고 있습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 620,
+   "completion_tokens": 53,
+   "latency_s": 1.541,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 620,
+ "completion_tokens": 53
+}

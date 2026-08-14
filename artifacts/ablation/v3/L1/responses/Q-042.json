@@ -1,0 +1,16 @@
+{
+ "question_id": "Q-042",
+ "response": {
+  "question_id": "Q-042",
+  "question": "SK하이닉스가 사업보고서에서 제시한 2027년 예상 영업이익은 얼마인가?",
+  "retrieved_context": "",
+  "think_trace": "route=unanswerable difficulty=low cot=False sc=False | 범위 밖 — LLM 호출 없이 한계 고지 | budget steps=0 hops=0 llm=0 tokens=0",
+  "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다."
+ },
+ "calls": [],
+ "prompt_tokens": 0,
+ "completion_tokens": 0,
+ "llm_calls": 0,
+ "latency_s": 0.0,
+ "ts": "2026-08-14T17:37:39"
+}

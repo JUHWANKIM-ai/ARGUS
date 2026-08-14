@@ -1,6 +1,6 @@
 # Phase H — 3축 교차집계 (dev)
 
-생성 2026-08-14 16:18 · 자동 생성물 (`scripts/error_analysis.py`)
+생성 2026-08-14 17:08 · 자동 생성물 (`scripts/error_analysis.py`)
 
 셀 표기 = `정답/채점대상` + 실패단계. **채점 대상에서 DATA_LIMIT 은 뺐다.**
 
@@ -46,7 +46,6 @@
 
 | 단계 | 건수 | 비고 |
 |---|---|---|
-| ROUTING | 1 |  |
 | TOOL | 1 |  |
 | GENERATION | 4 |  |
 
@@ -63,7 +62,6 @@
 | GENERATION/INDEX_FIELD_MISSING | 1 | Q-107 | valuechain |
 | TOOL/TOOL | 1 | Q-109 | valuechain |
 | GENERATION/REASONING | 1 | Q-110 | valuechain |
-| ROUTING/ROUTING | 1 | Q-111 | valuechain |
 | GENERATION/INDEX_FIELD_MISSING | 1 | Q-113 | valuechain |
 | GENERATION/INDEX_FIELD_MISSING | 1 | Q-115 | valuechain |
 
@@ -71,25 +69,23 @@
 
 자동 분류기는 A5 를 구조적으로 못 본다 — `verify_calculation` 이 답변 수치 중 최유리 값을 골라 비교하므로 10× 단위환산 오류가 `mismatch=False` 로 통과하고, TOOL 버킷이 그리드에서 0건이 된다. arm 확정은 원문 대조(`TARGETED_BY_MANUAL_REVIEW`)의 몫이다.
 
-분모가 다르다: 자동 = 그리드만 0건 · 수동 = 전 트랙 11건. arm 별 건수를 나란히 읽을 때 그 자체로 어긋나므로 두 축을 다 낸다.
+분모가 다르다: 자동 = 그리드만 0건 · 수동 = 전 트랙 6건. arm 별 건수를 나란히 읽을 때 그 자체로 어긋나므로 두 축을 다 낸다.
 
 | arm | 자동(그리드) | 자동(전 트랙) | **수동 정본(전 트랙)** |
 |---|---|---|---|
-| A1b | 0 | 3 | **1** |
-| A4 | 0 | 1 | **4** |
-| A5 | 0 | 1 | **3** |
+| A1b | 0 | 3 | **0** |
+| A4 | 0 | 1 | **1** |
+| A5 | 0 | 1 | **2** |
 | A6 | 0 | 0 | **2** |
 | — | 0 | 0 | **1** |
-| 미분류 | 0 | 1 | **0** |
 
-**불일치 6/6건** — 문항 단위로 적는다. 사람이 기억으로 잇던 자리이고, 그 기억이 두 번 틀렸다.
+**불일치 5/5건** — 문항 단위로 적는다. 사람이 기억으로 잇던 자리이고, 그 기억이 두 번 틀렸다.
 
 | 문항 | track | 자동 버킷 | 자동 arm | **수동 정본 arm** |
 |---|---|---|---|---|
 | Q-107 | valuechain | `GENERATION/INDEX_FIELD_MISSING` | A1b | **—** |
 | Q-109 | valuechain | `TOOL/TOOL` | A5 | **—** |
 | Q-110 | valuechain | `GENERATION/REASONING` | A4 | **—** |
-| Q-111 | valuechain | `ROUTING/ROUTING` | 미분류 | **—** |
 | Q-113 | valuechain | `GENERATION/INDEX_FIELD_MISSING` | A1b | **—** |
 | Q-115 | valuechain | `GENERATION/INDEX_FIELD_MISSING` | A1b | **—** |
 
@@ -100,7 +96,7 @@ critic 이 오답을 통과시킨 문항 (귀속 단계와 무관하게 센다):
 
 | track | 정답/채점대상 | 정답률 | DATA_LIMIT | 비고 |
 |---|---|---|---|---|
-| valuechain | 6/12 | 0.500 | 0 | 현재 시스템이 원리상 못 푸는 문항 포함 (Q-117) |
+| valuechain | 7/12 | 0.583 | 0 | 현재 시스템이 원리상 못 푸는 문항 포함 (Q-117) |
 
 ## 정보한계 문항 (answerable=false)
 
@@ -119,12 +115,12 @@ RETRIEVAL 실패 **0건** (문턱 3) → 미발동 — 보류 유지
 | 항목 | 값 |
 |---|---|
 | questions | 12 |
-| llm_calls | 21 |
-| prompt_tokens | 21310 |
-| completion_tokens | 2962 |
+| llm_calls | 23 |
+| prompt_tokens | 22699 |
+| completion_tokens | 3108 |
 | judge_tokens | 6591 |
-| total_tokens | 30863 |
-| cost_won | 216.7 |
-| latency_s_mean | 6.26 |
+| total_tokens | 32398 |
+| cost_won | 227.4 |
+| latency_s_mean | 0.38 |
 | hops_total | 0 |
 | steps_max | 0 |

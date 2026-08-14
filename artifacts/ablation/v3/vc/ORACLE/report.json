@@ -1,21 +1,21 @@
 {
- "generated": "2026-08-14T16:18:51",
+ "generated": "2026-08-14T17:08:00",
  "split": "dev",
  "cohort": "valuechain",
  "n_cases": 12,
  "n_analysed": 12,
  "totals": {
   "questions": 12,
-  "llm_calls": 21,
-  "prompt_tokens": 21310,
-  "completion_tokens": 2962,
+  "llm_calls": 23,
+  "prompt_tokens": 22699,
+  "completion_tokens": 3108,
   "judge_tokens": 6591,
-  "total_tokens": 30863,
-  "cost_won": 216.7,
+  "total_tokens": 32398,
+  "cost_won": 227.4,
   "cost_won_scope": "코호트 전 행(캐시 재생 포함)의 누적 재생 비용 — 이번 실행의 신규 지출이 아니다. 신규 지출은 report.this_run.spent_won",
   "price_won_per_1k": 7.02,
-  "latency_s_total": 75.1,
-  "latency_s_mean": 6.26,
+  "latency_s_total": 4.6,
+  "latency_s_mean": 0.38,
   "hops_total": 0,
   "steps_max": 0
  },
@@ -258,11 +258,10 @@
    "valuechain": {
     "n": 12,
     "n_scored": 12,
-    "correct": 6,
-    "rate": 0.5,
+    "correct": 7,
+    "rate": 0.583,
     "data_limit": 0,
     "stages": {
-     "ROUTING": 1,
      "TOOL": 1,
      "GENERATION": 4
     }
@@ -271,11 +270,10 @@
   "overall": {
    "n": 12,
    "n_scored": 12,
-   "correct": 6,
-   "rate": 0.5,
+   "correct": 7,
+   "rate": 0.583,
    "data_limit": 0,
    "stages": {
-    "ROUTING": 1,
     "TOOL": 1,
     "GENERATION": 4
    }
@@ -301,46 +299,43 @@
  "difficulty_audit": [],
  "failure_histogram": {
   "GENERATION": 4,
-  "TOOL": 1,
-  "ROUTING": 1
+  "TOOL": 1
  },
  "failure_histogram_grid": {},
  "by_track_failures": {
   "valuechain": {
    "GENERATION": 4,
-   "TOOL": 1,
-   "ROUTING": 1
+   "TOOL": 1
   }
  },
  "root_cause_histogram": {
   "GENERATION/INDEX_FIELD_MISSING": 3,
   "TOOL/TOOL": 1,
-  "GENERATION/REASONING": 1,
-  "ROUTING/ROUTING": 1
+  "GENERATION/REASONING": 1
  },
  "root_cause_histogram_grid": {},
  "arm_allocation_reconciliation": {
   "authoritative": "manual",
   "note": "자동 분류기는 A5 를 구조적으로 못 본다 — `verify_calculation` 이 답변 수치 중 최유리 값을 골라 비교하므로 10× 단위환산 오류가 `mismatch=False` 로 통과하고, TOOL 버킷이 그리드에서 0건이 된다. arm 확정은 원문 대조(`TARGETED_BY_MANUAL_REVIEW`)의 몫이다.",
-  "denominator_note": "자동 = 그리드만 0건 · 수동 = 전 트랙 11건",
+  "denominator_note": "자동 = 그리드만 0건 · 수동 = 전 트랙 6건",
   "by_arm": [
    {
     "arm": "A1b",
     "auto_grid": 0,
     "auto_all_tracks": 3,
-    "manual_all_tracks": 1
+    "manual_all_tracks": 0
    },
    {
     "arm": "A4",
     "auto_grid": 0,
     "auto_all_tracks": 1,
-    "manual_all_tracks": 4
+    "manual_all_tracks": 1
    },
    {
     "arm": "A5",
     "auto_grid": 0,
     "auto_all_tracks": 1,
-    "manual_all_tracks": 3
+    "manual_all_tracks": 2
    },
    {
     "arm": "A6",
@@ -353,12 +348,6 @@
     "auto_grid": 0,
     "auto_all_tracks": 0,
     "manual_all_tracks": 1
-   },
-   {
-    "arm": "미분류",
-    "auto_grid": 0,
-    "auto_all_tracks": 1,
-    "manual_all_tracks": 0
    }
   ],
   "disagreements": [
@@ -390,15 +379,6 @@
     "critic_passed_wrong_answer": true
    },
    {
-    "question_id": "Q-111",
-    "track": "valuechain",
-    "bucket": "ROUTING/ROUTING",
-    "auto_arm": "미분류",
-    "manual_arm": "—",
-    "agree": false,
-    "critic_passed_wrong_answer": false
-   },
-   {
     "question_id": "Q-113",
     "track": "valuechain",
     "bucket": "GENERATION/INDEX_FIELD_MISSING",
@@ -417,8 +397,8 @@
     "critic_passed_wrong_answer": true
    }
   ],
-  "n_disagreements": 6,
-  "n_compared": 6,
+  "n_disagreements": 5,
+  "n_compared": 5,
   "critic_passed_wrong_answer": [
    "Q-107",
    "Q-109",
@@ -454,15 +434,6 @@
     "critic_passed_wrong_answer": true
    },
    {
-    "question_id": "Q-111",
-    "track": "valuechain",
-    "bucket": "ROUTING/ROUTING",
-    "auto_arm": "미분류",
-    "manual_arm": "—",
-    "agree": false,
-    "critic_passed_wrong_answer": false
-   },
-   {
     "question_id": "Q-113",
     "track": "valuechain",
     "bucket": "GENERATION/INDEX_FIELD_MISSING",
@@ -488,11 +459,10 @@
   "exchange": {
    "n": 12,
    "n_scored": 12,
-   "correct": 6,
-   "rate": 0.5,
+   "correct": 7,
+   "rate": 0.583,
    "data_limit": 0,
    "stages": {
-    "ROUTING": 1,
     "TOOL": 1,
     "GENERATION": 4
    }
@@ -535,7 +505,7 @@
    "prompt_tokens": 2164,
    "completion_tokens": 311,
    "judge_tokens": 0,
-   "latency_s": 7.657,
+   "latency_s": 0.11,
    "calls": [
     {
      "tag": "answer",
@@ -643,7 +613,7 @@
    "prompt_tokens": 2213,
    "completion_tokens": 371,
    "judge_tokens": 1296,
-   "latency_s": 8.852,
+   "latency_s": 0.001,
    "calls": [
     {
      "tag": "answer",
@@ -742,7 +712,7 @@
    "prompt_tokens": 1499,
    "completion_tokens": 236,
    "judge_tokens": 0,
-   "latency_s": 5.815,
+   "latency_s": 0.001,
    "calls": [
     {
      "tag": "answer",
@@ -845,7 +815,7 @@
    "prompt_tokens": 2569,
    "completion_tokens": 226,
    "judge_tokens": 1502,
-   "latency_s": 5.748,
+   "latency_s": 0.002,
    "calls": [
     {
      "tag": "answer",
@@ -931,47 +901,79 @@
    ],
    "answerable": true,
    "answer_form": "number_won",
-   "correct": false,
+   "correct": true,
    "scored_by": "em:number_won",
    "judge": null,
-   "first_failure": "ROUTING",
-   "root_cause": "ROUTING",
-   "failure_why": "답할 수 있는 질문을 unanswerable 로 단락시켰다",
-   "critic_supported": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
    "critic_passed_wrong_answer": false,
    "gold_value_in_evidence": false,
    "has_citation": false,
-   "route": "unanswerable",
-   "route_group": "",
-   "route_corps": [],
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "대우건설,효성중공업"
+   ],
    "n_hops": 0,
    "n_steps": 0,
-   "n_llm_calls": 0,
-   "prompt_tokens": 0,
-   "completion_tokens": 0,
+   "n_llm_calls": 2,
+   "prompt_tokens": 1389,
+   "completion_tokens": 146,
    "judge_tokens": 0,
-   "latency_s": 0.0,
-   "calls": [],
+   "latency_s": 4.471,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 809,
+     "completion_tokens": 107,
+     "latency_s": 2.775,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 580,
+     "completion_tokens": 39,
+     "latency_s": 1.693,
+     "finish": "stop"
+    }
+   ],
    "golden": [
     "20230228801277",
     "20241115800529",
     "20241115800378"
    ],
-   "golden_rank": {},
-   "golden_in_candidates": [],
-   "golden_in_evidence": [],
-   "golden_evidence_all": false,
+   "golden_rank": {
+    "20230228801277": 1,
+    "20241115800529": 2,
+    "20241115800378": 3
+   },
+   "golden_in_candidates": [
+    "20230228801277",
+    "20241115800378",
+    "20241115800529"
+   ],
+   "golden_in_evidence": [
+    "20230228801277",
+    "20241115800529",
+    "20241115800378"
+   ],
+   "golden_evidence_all": true,
    "golden_unreachable": [],
-   "calc_checked": [],
+   "calc_checked": [
+    "amount"
+   ],
    "calc_skipped": [
-    "amount",
     "equation",
     "restatement",
     "share"
    ],
-   "calc_gated_records": 3,
+   "calc_gated_records": 0,
    "calc_mismatch": false,
-   "calc_reasons": [],
+   "calc_reasons": [
+    "amount: 답변 354,725,410,000원 vs 재계산 351,882,914,000"
+   ],
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -979,8 +981,8 @@
     "asks_value": true,
     "blocking": false
    },
-   "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다.",
-   "think_trace": "route=unanswerable difficulty=low cot=False sc=False | 범위 밖 — LLM 호출 없이 한계 고지 | budget steps=0 hops=0 llm=0 tokens=0"
+   "answer": "새로 체결된 계약 금액과 해지된 계약 금액의 차이는 다음과 같습니다.\n\n- 차이 = 해지 금액 - 신규 계약 금액 = 362,307,038,000원 - 354,725,410,000원 = 7,581,628,000원\n\n따라서, 새로 체결된 계약 금액은 해지 금액보다 **781억 6천2백80만 원** 적습니다. \n\n(근거: 공급계약 체결 및 해지 보고서들, 2024-11-15)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 수치가 근거에서 확인되며, 계산식도 정확합니다.)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | oracle=golden n_golden=3 🔴 진단 전용 — 검색을 골든으로 대체했다 (제출 구성이 될 수 없다) | hop=7 strat=oracle tool=golden_evidence corp=\"대우건설,효성중공업\" period=none n=3 top_score=- ids=exchange_20230228801277,exchange_20241115800529,exchange_20241115800378 | hop=7 verdict=sufficient evidence=3 | generate tokens=809+107 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인되며, 계산식도 정확합니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=0 hops=0 llm=2 tokens=1535"
   },
   {
    "question_id": "Q-112",
@@ -1022,7 +1024,7 @@
    "prompt_tokens": 1508,
    "completion_tokens": 352,
    "judge_tokens": 918,
-   "latency_s": 8.357,
+   "latency_s": 0.001,
    "calls": [
     {
      "tag": "answer",
@@ -1112,7 +1114,7 @@
    "prompt_tokens": 1153,
    "completion_tokens": 247,
    "judge_tokens": 0,
-   "latency_s": 5.731,
+   "latency_s": 0.001,
    "calls": [
     {
      "tag": "answer",
@@ -1210,7 +1212,7 @@
    "prompt_tokens": 2263,
    "completion_tokens": 187,
    "judge_tokens": 1238,
-   "latency_s": 5.935,
+   "latency_s": 0.001,
    "calls": [
     {
      "tag": "answer",
@@ -1317,7 +1319,7 @@
    "prompt_tokens": 2076,
    "completion_tokens": 287,
    "judge_tokens": 0,
-   "latency_s": 7.503,
+   "latency_s": 0.002,
    "calls": [
     {
      "tag": "answer",
@@ -1420,7 +1422,7 @@
    "prompt_tokens": 1487,
    "completion_tokens": 151,
    "judge_tokens": 0,
-   "latency_s": 4.999,
+   "latency_s": 0.001,
    "calls": [
     {
      "tag": "answer",
@@ -1523,7 +1525,7 @@
    "prompt_tokens": 2911,
    "completion_tokens": 300,
    "judge_tokens": 1637,
-   "latency_s": 7.383,
+   "latency_s": 0.001,
    "calls": [
     {
      "tag": "answer",
@@ -1634,7 +1636,7 @@
    "prompt_tokens": 1467,
    "completion_tokens": 294,
    "judge_tokens": 0,
-   "latency_s": 7.095,
+   "latency_s": 0.001,
    "calls": [
     {
      "tag": "answer",

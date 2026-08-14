@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-012",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출답변에는 모범답안의 핵심 내용이 포함되어 있지 않으며, 주어진 근거를 통해 지분 변동에 관한 정보를 제공하지 못했습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 709,
+   "completion_tokens": 54,
+   "latency_s": 2.199,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 709,
+ "completion_tokens": 54
+}
