@@ -156,6 +156,15 @@ ROW_FIELDS_BLOCKED: frozenset[str] = frozenset({
     # 원문 그대로 들고 있다. 특히 `covers_key_amounts_reason` 은 **골든이 명시한
     # 금액**을 싣는다. 실으면 화이트리스트의 취지(평가셋 부분 복원 방지)가 무너진다.
     "numeric_reason", "covers_key_amounts_reason",
+    # ── v4 A1 (2026-08-16) ──
+    # 🔴 **유출이라서가 아니라 모양 때문에 막는다.** `upstream_failure` 는
+    # `{stage, status, retryable, marked}` 중첩 객체이고 골든·답변·문서 식별자를 한
+    # 글자도 안 들고 있다. 그런데 이 화이트리스트가 내보내는 행은 정적 필터가 그리는
+    # **스칼라 표**이고(`FILTER_ROW_FIELDS`), 중첩 객체를 그릴 자리가 없다.
+    # 🔴 이 신호의 정본은 `report.json > upstream_failures` 와 `error_matrix.md` 머리의
+    # 경고표다 — 거기서는 실제로 찍힌다. 사이트에도 싣기로 판단하면 **스칼라로 펴서**
+    # (예: `upstream_stage`) 화이트리스트로 옮겨라. 객체째로 올리지 마라.
+    "upstream_failure",
 })
 
 #: 화이트리스트도 블랙리스트도 아닌 필드가 나타나면 **판단이 필요하다**. 조용히 지나가지 않는다.
