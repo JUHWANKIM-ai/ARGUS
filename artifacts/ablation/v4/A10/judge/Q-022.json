@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-022",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출답변은 모범답안의 정보를 반영하지 않고 있습니다. 최신본을 기준으로 하여도 자금조달 목적별 금액의 합계가 잘못되었으며, 총 조달 규모의 최종 금액이 잘못되었습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 2493,
+   "completion_tokens": 71,
+   "latency_s": 2.115,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 2493,
+ "completion_tokens": 71
+}

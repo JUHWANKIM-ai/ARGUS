@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-15T17:18:20",
+ "generated": "2026-08-15T18:02:52",
  "split": "dev",
  "cohort": "full",
  "n_cases": 88,
@@ -8852,6 +8852,8 @@
   "provenance_gate": false,
   "regenerate_on_verify": false,
   "nary": false,
-  "multi_hub": false
+  "multi_hub": false,
+  "sc_k": 1,
+  "temperature": 0.0
  }
 }

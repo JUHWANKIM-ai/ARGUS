@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-15T17:11:56",
+ "generated": "2026-08-15T17:41:36",
  "split": "dev",
  "cohort": "valuechain",
  "n_cases": 12,
@@ -1895,6 +1895,8 @@
   "provenance_gate": false,
   "regenerate_on_verify": false,
   "nary": false,
-  "multi_hub": true
+  "multi_hub": true,
+  "sc_k": 1,
+  "temperature": 0.0
  }
 }

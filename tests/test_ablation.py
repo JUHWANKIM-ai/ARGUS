@@ -2525,3 +2525,152 @@ def test_w1_arms_call_the_counterparty_hop_with_the_old_arguments():
     assert len(seen) == 1, seen
     assert seen[0] == ("한국수력원자력", {"limit": pipeline.MAX_COUNTERPARTY_EVIDENCE,
                                         "prefer": ()})
+
+
+# --- A10 — 자기일관성 k=3 (🔴 온도 통제 변수를 깨는 유일한 arm) ---------------------
+# 09-ablation §I-3 이 "온도 0.0" 을 고정으로 못박았고 v3 까지 그 값은 파이프라인에
+# **하드코딩**돼 있었다. `Arm` 으로 옮기는 조작의 위험은 하나다 — **기본값이 0.0 이
+# 아니면 v1~v4 측정이 전부 무효가 된다.** 아래 첫 두 검사가 그것만 본다.
+
+def test_temperature_moved_to_the_arm_but_the_default_is_still_zero():
+    assert "temperature" in FLAGS and "sc_k" in FLAGS
+    for name, arm in ablation.ARMS.items():
+        if name == "A10":
+            continue
+        assert arm.temperature == 0.0, f"{name} 의 온도가 0.0 이 아니다 — 통제가 깨졌다"
+        assert arm.sc_k == 1, f"{name} 이 표본을 둘 이상 뽑는다"
+    assert ablation.current().temperature == 0.0        # 스위치를 안 건드린 운영 경로
+
+
+def test_a10_is_the_only_arm_that_moves_the_temperature():
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["A10"], f) != getattr(ablation.A8, f)]
+    assert sorted(diff) == ["sc_k", "temperature"], diff
+    assert ablation.ARMS["A10"].sc_k == 3
+    assert ablation.ARMS["A10"].temperature > 0.0
+    assert "A10" in ablation.SIDE_ARMS
+    assert "A10" not in ablation.LADDER and "A10" not in ablation.LOO_REMOVED
+
+
+def test_self_consistency_at_temperature_zero_is_rejected():
+    """🔴 온도 0 에서 k 를 올리면 표본이 전부 같아 다수결이 정의상 만장일치가 된다 —
+    그 0 을 "SC 는 효과가 없다" 로 읽는 것이 이 저장소가 막으려는 사고다."""
+    with pytest.raises(ValueError):
+        replace(ablation.A8, name="A8-sc0", sc_k=3)
+    with pytest.raises(ValueError):
+        replace(ablation.A8, name="A8-sc-", sc_k=0)
+
+
+def test_the_answer_call_uses_the_arm_temperature(monkeypatch):
+    """🔴 배선 검사. 하드코딩이 남아 있으면 `A10` 이 조용한 no-op 이 된다."""
+    seen = []
+
+    class _R:
+        text = "답변입니다 [접수번호 20250101000001]"
+        prompt_tokens = completion_tokens = 1
+        latency_s = 0.0
+        finish = "stop"
+        tool_calls = None
+        tag = "answer"
+
+    def _chat(messages, max_tokens=512, temperature=0.0, tag="", **kw):
+        seen.append((tag, temperature))
+        return _R()
+
+    monkeypatch.setattr(pipeline, "chat", _chat)
+    monkeypatch.setattr(pipeline, "_gather_evidence",
+                        lambda r, q, b: ("## 접수번호 20250101000001\n- 계약금액: 1원", []))
+    monkeypatch.setattr(pipeline, "_verify", lambda *a, **kw: a[1])
+    # critic 은 이 검사의 축이 아니다 — 근거 표기가 있다고 보고 건너뛴다.
+    monkeypatch.setattr(pipeline, "quick_check", lambda answer: {"has_citation": True})
+
+    for arm, want_calls, want_temp in (("A8", 1, 0.0), ("A10", 3, 0.7)):
+        seen.clear()
+        with ablation.use(arm):
+            pipeline.answer_question("Q-001", "삼성전자의 2025년 계약금액은 얼마인가?")
+        answers = [t for t in seen if t[0].startswith("answer")]
+        assert len(answers) == want_calls, (arm, seen)
+        assert all(temp == want_temp for _, temp in answers), (arm, seen)
+
+
+def test_self_consistency_picks_the_majority_and_falls_back_to_the_first_sample():
+    """다수결의 두 갈래를 다 본다 — 다수가 있으면 그것, 동수면 **먼저 나온 것**."""
+    from argus.agent.budget import Budget as _B
+
+    class _Arm:
+        sc_k = 3
+        temperature = 0.7
+
+    def _run(texts):
+        trace = []
+        pool = list(texts[1:])
+
+        class _R:
+            prompt_tokens = completion_tokens = 1
+
+            def __init__(self, text):
+                self.text = text
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(pipeline, "chat",
+                       lambda *a, **kw: _R(pool.pop(0)))
+            picked = pipeline._self_consistent([], 300, _Arm(), texts[0], _B(), trace)
+        return picked, " | ".join(trace)
+
+    # ① 2:1 다수결 — 소수인 첫 표본을 버린다.
+    picked, trace = _run(["금액은 1,000원입니다.", "금액은 2,000원입니다.",
+                          "총 2,000원이었습니다."])
+    assert "2,000" in picked and "votes=2" in trace and "k=3/3" in trace
+    # ② 전부 다르면 첫 표본 (동수 → 먼저 나온 키).
+    picked, trace = _run(["금액은 1,000원입니다.", "금액은 2,000원입니다.",
+                          "금액은 3,000원입니다."])
+    assert picked == "금액은 1,000원입니다." and "keys=3" in trace and "picked=0" in trace
+
+
+def test_self_consistency_keeps_the_first_answer_when_the_budget_runs_out():
+    """🔴 예산이 끊겼다고 이미 받아 둔 정답을 버리면 안 된다 — 긴 근거 문항에서
+    토큰 상한 20,000 이 3회차에 실제로 물린다."""
+    from argus.agent.budget import Budget as _B
+
+    class _Arm:
+        sc_k = 3
+        temperature = 0.7
+
+    budget = _B()
+    budget.spend_llm(19_999, 0)                     # 다음 호출은 토큰 상한을 넘는다
+    trace = []
+
+    class _R:
+        text = "다른 답 2,000원"
+        prompt_tokens = 500
+        completion_tokens = 10
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(pipeline, "chat", lambda *a, **kw: _R())
+        picked = pipeline._self_consistent([], 300, _Arm(), "첫 답 1,000원", budget, trace)
+    assert picked == "첫 답 1,000원"
+    assert "sc stop=budget" in " | ".join(trace)
+
+
+def test_sc_samples_after_the_first_bypass_the_request_cache():
+    """🔴 프롬프트도 온도도 같아 **캐시 키가 하나**다. 우회하지 않으면 표본이 전부
+    같아지고 다수결이 공짜 만장일치가 된다 — `A10` 의 Δ 가 조용히 0 이 된다."""
+    from argus import clova
+    from argus.agent.budget import Budget as _B
+
+    class _Arm:
+        sc_k = 3
+        temperature = 0.7
+
+    bypassed = []
+
+    class _R:
+        text = "답 1,000원"
+        prompt_tokens = completion_tokens = 1
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(pipeline, "chat",
+                   lambda *a, **kw: (bypassed.append(clova.cache_bypassed()), _R())[1])
+        pipeline._self_consistent([], 300, _Arm(), "답 1,000원", _B(), [])
+    assert bypassed == [True, True], bypassed        # 2·3회차만 부른다 — 둘 다 우회
+    assert not clova.cache_bypassed(), "블록을 나온 뒤에도 우회가 켜져 있다"

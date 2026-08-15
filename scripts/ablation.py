@@ -159,8 +159,13 @@ class RequestCache:
         original = clova._post
 
         def cached(url, headers, body, timeout=60):
+            # 🔴 우회 신호가 둘이다. `self.bypass` 는 **러너가** 켜는 것(judge 재현 편차)이고
+            #    `clova.cache_bypassed()` 는 **파이프라인이** 켜는 것(`A10` 의 SC 표본
+            #    2·3회차)이다. 온도를 올려도 프롬프트가 같으면 키가 하나라 표본이 전부
+            #    같아지므로, 파이프라인 쪽에서도 이 우회를 켤 수 있어야 한다.
+            bypass = self.bypass or clova.cache_bypassed()
             path = self.root / f"{self._key(url, body)}.json"
-            if path.exists() and not self.bypass:
+            if path.exists() and not bypass:
                 saved = json.loads(path.read_text(encoding="utf-8"))
                 self.hits += 1
                 return saved["status"], saved["payload"], saved["latency_s"]
@@ -168,7 +173,7 @@ class RequestCache:
                 raise RuntimeError("요청 캐시 미적중인데 --offline 입니다 (호출 금지)")
             status, payload, latency = original(url, headers, body, timeout)
             if status == 200:
-                if self.bypass:
+                if bypass:
                     self.bypassed += 1
                 else:
                     self.root.mkdir(parents=True, exist_ok=True)

@@ -468,6 +468,22 @@ class Arm:
     #: 🔴 `ORACLE_UNREACHABLE_FLAGS` 에 **넣는다** — `_gather_golden` 은 발주처 차선을
     #: 아예 안 탄다.
     multi_hub: bool = False
+    #: 🔴 **`A10` 전용 — 자기일관성(Self-Consistency) 표본 수 `k`.** 1이 종전 동작이고,
+    #: 스위치를 안 건드린 운영 경로는 답변 생성 호출이 **정확히 한 번**이다.
+    sc_k: int = 1
+    #: 🔴 **온도. 이 모듈의 머리말이 "고정" 이라고 적어 둔 통제 변수다** (§I-3).
+    #: v3 까지 온도 0.0 은 `pipeline.answer_question` 에 **직접 하드코딩**돼 있었고
+    #: `Arm` 에 표현할 자리가 없었다 (`R0-5` 실측: 저장소 전체 `.py` 에 `A10` 문자열이
+    #: 없었다). 여기로 옮기되 **기본값이 0.0 이어야** v1~v4 측정이 전부 유효하게 남는다.
+    #:
+    #: 🔴 **`A10` 이 이 통제 변수를 깨는 유일한 arm 이다.** 그러니 단독으로 재고 다른
+    #: arm 과 섞지 않는다. `A20r`(사유 주입 재생성)은 **온도 0.0 그대로**이고, 그래서
+    #: 둘은 같은 축의 변형이 아니라 서로 다른 기전이다.
+    #:
+    #: 🔴 **요청 캐시가 온도를 키에 넣는다** (`RequestCache._key` = url + body 해시).
+    #: 그래서 `A10` 은 재실행마다 전액 재결제이고, 나아가 **k 개 표본이 같은 키를 쓰므로**
+    #: 2회차부터는 `clova.no_cache()` 로 캐시를 우회해야 다양성이 생긴다.
+    temperature: float = 0.0
 
     def __post_init__(self) -> None:
         if self.retrieval not in RETRIEVAL_MODES:
@@ -505,6 +521,16 @@ class Arm:
                     f"golden_oracle=True 는 검색 차선을 골든 주입으로 갈아치우므로 {moved} "
                     f"를 기본값에서 움직여도 근거가 안 바뀝니다 — Δ 가 조용히 0 이 됩니다 "
                     f"(arm {self.name!r}). 검색 LOO 는 오라클 없이 재십시오.")
+        if self.sc_k < 1:
+            raise ValueError(f"sc_k 는 1 이상이어야 합니다: {self.sc_k} (arm {self.name!r})")
+        # 🔴 온도 0.0 에서 같은 프롬프트를 k 번 부르면 **표본이 전부 같다.** 다수결이
+        #    항상 만장일치가 되어 자기일관성이 no-op 이 되고, 우리는 그 0 을 "SC 는
+        #    효과가 없다" 로 읽는다. 값을 치른 만장일치와 공짜 만장일치는 다르다.
+        if self.sc_k > 1 and self.temperature <= 0.0:
+            raise ValueError(
+                f"sc_k={self.sc_k} 인데 temperature={self.temperature} 입니다 — 온도 0 에서는 "
+                f"표본이 전부 같아 다수결이 정의상 만장일치가 되고 Δ 가 조용히 0 이 됩니다 "
+                f"(arm {self.name!r}).")
 
     @property
     def uses_bm25(self) -> bool:
@@ -646,6 +672,22 @@ A18 = replace(A8, name="A18", nary=True)
 #:   `Q-117`  열거 hop(`strat=enumerate`)이 서는데 갈래가 계약상대별이라 허브가 더 필요하다
 A22 = replace(A8, name="A22", multi_hub=True)
 
+# --- A10 — 자기일관성 `k=3` (사다리 밖 곁가지 · v4 신설) --------------------------
+#: 🔴 **이 저장소에서 통제 변수(온도 0.0)를 깨는 유일한 arm 이다** (§I-3 · 머리말).
+#: 그래서 **단독으로 재고 다른 arm 과 섞지 않는다.** `A20r`(사유 주입 재생성)이 가장
+#: 가까운 이웃인데 그쪽은 온도 0.0 이라 **기전이 다르다** — 저쪽은 진단을 되먹이고
+#: 이쪽은 다양성을 사서 다수결한다. 나란히 놓아야 v3 의 미검증 주장이 닫힌다.
+#:
+#: `k=3` · `temperature=0.7` 은 Self-Consistency 논문(2023)의 기본 설정이다. 🔴 우리
+#: 코퍼스로 재본 적이 없으므로 **그 값 자체가 측정 대상**이고, 채택 여부와 무관하게
+#: "논문의 전제를 우리 데이터에서 재고 판정했다" 가 이 arm 의 산출물이다.
+#:
+#: 🔴 **겨냥 5건 중 둘(`Q-044`·`Q-097`)은 `A20` 이 이미 고쳤다 — 순증만 센다.**
+#: 남는 순증 겨냥은 `Q-018`(그리드) · `Q-109`·`Q-115`(밸류체인) 셋이다.
+#:
+#: 🔴 `LADDER`·`LOO_REMOVED` 에 넣지 않는다 — `A20`·`A21`·`A22` 와 같은 곁가지다.
+A10 = replace(A8, name="A10", sc_k=3, temperature=0.7)
+
 #: 실행 순서는 **A8 부터 역순**이다 (§I-4b) — 가장 비싼 구성을 먼저 확보해야
 #: 중간에 예산이 끊겨도 최신 성능을 안다. A2 계열은 사다리를 다 확보한 뒤 맨 끝이다 —
 #: G1 불허로 A2 를 버려도 앞의 여덟 칸이 그대로 남아야 한다.
@@ -667,7 +709,7 @@ A22 = replace(A8, name="A22", multi_hub=True)
 #: 겨냥 0 인 `A18` 보다 앞에 서야 정지선에 걸릴 때 잃는 것이 적다.
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
-             "A8-lean", "A20", "A20r", "A21", "A22", "A18", "A2F", "A2", "ORACLE")
+             "A8-lean", "A20", "A20r", "A21", "A22", "A10", "A18", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
 LADDER = ("A0", "A1", "A1b", "A4", "A5", "A6", "A7", "A8")
@@ -701,7 +743,7 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, L6, L7, L8,
-                         A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22)}
+                         A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은

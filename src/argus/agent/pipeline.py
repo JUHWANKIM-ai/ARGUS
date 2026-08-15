@@ -17,7 +17,7 @@ from argus.agent.query import (SPLIT_TOP_K, STRATEGIES, path_hints, plan_hops,
 from argus.agent import router as router_module
 from argus.agent.router import route
 from argus.agent.safety import mask_pii, sanitize_question
-from argus.clova import chat
+from argus.clova import chat, no_cache
 from argus.corpus.manifest import filter_docs
 from argus.retrieve import bm25 as bm25_module
 
@@ -1972,6 +1972,79 @@ def _gather_golden(question_id: str, question: str,
     return "\n\n".join(p for p in parts if p), trace
 
 
+# --- A10 — 자기일관성 `k=3` (🔴 온도 통제 변수를 깨는 유일한 arm) ------------------
+# 표본을 뽑고 **다수결**한다. 논문(Self-Consistency, 2023)의 전제는 *"여러 갈래로 추론해도
+# 옳은 답으로 수렴한다"* 이고, 그 전제가 **우리 코퍼스에서 성립하는가**가 이 arm 의 측정
+# 대상이다. 채택 여부와 무관하게 그 판정이 산출물이다.
+#
+# 🔴 **두 함정을 먼저 닫는다 — 둘 다 Δ 를 조용히 0 으로 만든다.**
+#   ① 요청 캐시    프롬프트도 온도도 같아 k 개 표본의 **캐시 키가 하나**다. 2회차부터
+#                 `clova.no_cache()` 로 우회하지 않으면 표본이 전부 같아진다
+#   ② 온도 0.0     `Arm.__post_init__` 이 `sc_k>1 && temperature==0` 을 예외로 막는다
+
+
+def _sc_key(answer: str) -> str:
+    """표본을 묶는 키 — 자기일관성의 '최종 답' 에 해당하는 것.
+
+    우리 답변에서 그것은 **금액과 비율**이다: 닫힌 문항의 채점 축이
+    `em:number_won`(원 단위 완전일치)이고, 열린 문항의 judge 도 수치 일치를 먼저 본다.
+    🔴 **정규식을 새로 쓰지 않는다** — `critic._money_spans` 와 `critic._PCT_RE` 가
+    이 저장소의 단일 원천이고, 여기 사본을 두면 한쪽만 고쳐진다(이미 다섯 번 겪은 실패).
+
+    🔴 **수치가 없는 답변은 다수결이 성립하지 않는다.** 그 경우 공백만 정규화한 원문을
+    키로 쓰는데, 온도 0.7 에서 서술문이 글자까지 같을 확률은 낮다 — 즉 표본이 전부
+    다른 키가 되고 **첫 표본이 선택된다.** 이것은 결함이 아니라 이 조작의 한계이고,
+    트레이스의 `keys=` 가 그 사실을 문항마다 남긴다.
+    """
+    from argus.agent import critic
+
+    text = answer or ""
+    values = [f"{value:.10g}" for _, _, value, _, _ in critic._money_spans(text)]
+    values += [f'{m.group(1).replace(",", "")}%' for m in critic._PCT_RE.finditer(text)]
+    return "|".join(values) if values else " ".join(text.split())
+
+
+def _self_consistent(messages: list[dict], max_tokens: int, arm, first: str,
+                     budget: Budget, trace: list[str]) -> str:
+    """표본 `k` 개 중 다수결로 고른 답변. 첫 표본은 이미 뽑혀 있으므로 `k-1` 번 더 부른다.
+
+    🔴 **예산이 끊기거나 상류가 죽으면 그때까지의 표본으로 다수결한다.** 여기서
+    `BudgetExceeded` 를 위로 던지면 호출부가 `UNANSWERABLE` 로 빠져 **이미 받아 둔
+    정답을 버린다** — 토큰 상한 20,000 은 긴 근거 문항에서 3회차에 실제로 물린다
+    (실측: 프롬프트 6,800 토큰 문항이 3회차에서 20,400).
+
+    🔴 동수면 **먼저 나온 키**가 이긴다. 그래야 `k` 를 늘려도 1회차가 기준선으로 남는다.
+    """
+    samples = [first]
+    for index in range(1, arm.sc_k):
+        try:
+            # 🔴 캐시 우회는 **2회차부터**다. 1회차를 캐시에 남겨야 재실행이 그만큼 싸고,
+            #    `--offline` 재집계가 최소한 그 한 벌은 되읽을 수 있다.
+            with no_cache():
+                result = chat(messages, max_tokens=max_tokens,
+                              temperature=arm.temperature, tag="answer_sc")
+            budget.spend_llm(result.prompt_tokens, result.completion_tokens)
+        except BudgetExceeded as exc:
+            trace.append(f"sc stop=budget k={len(samples)}/{arm.sc_k} ({exc})")
+            break
+        except RuntimeError as exc:
+            trace.append(f"sc skip=upstream k={len(samples)}/{arm.sc_k} ({exc})")
+            break
+        samples.append(result.text)
+        trace.append(f"generate sc={index} "
+                     f"tokens={result.prompt_tokens}+{result.completion_tokens}")
+
+    keys = [_sc_key(s) for s in samples]
+    counts: dict[str, int] = {}
+    for key in keys:
+        counts[key] = counts.get(key, 0) + 1
+    best = max(counts, key=lambda k: (counts[k], -keys.index(k)))
+    picked = keys.index(best)
+    trace.append(f"sc k={len(samples)}/{arm.sc_k} temp={arm.temperature} "
+                 f"keys={len(counts)} votes={counts[best]} picked={picked}")
+    return samples[picked]
+
+
 def answer_question(question_id: str, question: str) -> dict:
     budget = Budget()
     clean, warnings = sanitize_question(question)
@@ -2006,13 +2079,19 @@ def answer_question(question_id: str, question: str) -> dict:
         # 🔴 `A8-lean` 은 여기서 갈린다. `enabled()` 로 읽는 이유는 오타가 조용히
         #    False 가 되지 않게 하기 위해서다 — 없는 플래그 이름은 `KeyError` 다.
         #    기본값(False)에서는 아래 두 줄이 종전과 글자 하나 다르지 않다.
-        result = chat(build_answer_messages(clean, evidence, r.use_cot,
-                                           lean_rules=ablation.enabled("lean_rules")),
-                      max_tokens=800 if r.use_cot else 300,
-                      temperature=0.0, tag="answer")
+        messages = build_answer_messages(clean, evidence, r.use_cot,
+                                         lean_rules=ablation.enabled("lean_rules"))
+        max_tokens = 800 if r.use_cot else 300
+        arm = ablation.current()
+        # 🔴 온도는 이제 `Arm` 이 들고 있다. **기본값이 0.0** 이라 `A10` 이외의 arm 에서
+        #    이 호출은 종전과 본문이 바이트 동일이고, 요청 캐시 키도 그대로다.
+        result = chat(messages, max_tokens=max_tokens,
+                      temperature=arm.temperature, tag="answer")
         budget.spend_llm(result.prompt_tokens, result.completion_tokens)
         answer = result.text
         trace.append(f"generate tokens={result.prompt_tokens}+{result.completion_tokens}")
+        if arm.sc_k > 1:
+            answer = _self_consistent(messages, max_tokens, arm, answer, budget, trace)
     except BudgetExceeded as exc:
         trace.append(f"예산 초과: {exc}")
         return _respond(question_id, question, evidence, trace, UNANSWERABLE, budget)
@@ -2188,6 +2267,9 @@ def _regenerate_once(question: str, answer: str, evidence: str, records: list[di
                           use_cot=use_cot, lean_rules=ablation.enabled("lean_rules")),
                       max_tokens=800 if use_cot else 300,
                       # 🔴 온도 0.0 을 유지한다 — 다양성을 사는 것은 `A10` 의 조작이다.
+                      #    `Arm.temperature` 가 생긴 뒤에도 **여기서는 읽지 않는다**:
+                      #    `A20r` 이 재는 것은 진단 주입이고, 온도를 함께 올리면 그 Δ 에
+                      #    다양성의 몫이 섞여 두 arm 을 나란히 비교할 수 없게 된다.
                       temperature=0.0, tag="regenerate")
         budget.spend_llm(result.prompt_tokens, result.completion_tokens)
     except BudgetExceeded as exc:

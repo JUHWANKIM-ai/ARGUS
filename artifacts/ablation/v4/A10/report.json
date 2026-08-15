@@ -1,0 +1,4481 @@
+{
+ "generated": "2026-08-15T18:02:53",
+ "split": "dev",
+ "cohort": "full",
+ "n_cases": 88,
+ "n_analysed": 37,
+ "totals": {
+  "questions": 37,
+  "llm_calls": 113,
+  "prompt_tokens": 230206,
+  "completion_tokens": 17406,
+  "judge_tokens": 26993,
+  "total_tokens": 274605,
+  "cost_won": 1927.7,
+  "cost_won_scope": "코호트 전 행(캐시 재생 포함)의 누적 재생 비용 — 이번 실행의 신규 지출이 아니다. 신규 지출은 report.this_run.spent_won",
+  "price_won_per_1k": 7.02,
+  "latency_s_total": 462.7,
+  "latency_s_mean": 12.5,
+  "hops_total": 6,
+  "steps_max": 5
+ },
+ "crosstab": {
+  "cells": {
+   "search_extract|closed|하": {
+    "n": 2,
+    "n_scored": 2,
+    "correct": 2,
+    "rate": 1.0,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "search_extract|closed|중": {
+    "n": 2,
+    "n_scored": 2,
+    "correct": 1,
+    "rate": 0.5,
+    "data_limit": 0,
+    "stages": {
+     "TOOL": 1
+    }
+   },
+   "search_extract|closed|상": {
+    "n": 2,
+    "n_scored": 2,
+    "correct": 2,
+    "rate": 1.0,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "search_extract|open|하": {
+    "n": 2,
+    "n_scored": 2,
+    "correct": 2,
+    "rate": 1.0,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "search_extract|open|중": {
+    "n": 2,
+    "n_scored": 2,
+    "correct": 2,
+    "rate": 1.0,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "search_extract|open|상": {
+    "n": 2,
+    "n_scored": 2,
+    "correct": 2,
+    "rate": 1.0,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "multi_compare|closed|하": {
+    "n": 2,
+    "n_scored": 2,
+    "correct": 1,
+    "rate": 0.5,
+    "data_limit": 0,
+    "stages": {
+     "GENERATION": 1
+    }
+   },
+   "multi_compare|closed|중": {
+    "n": 2,
+    "n_scored": 2,
+    "correct": 2,
+    "rate": 1.0,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "multi_compare|closed|상": {
+    "n": 2,
+    "n_scored": 2,
+    "correct": 1,
+    "rate": 0.5,
+    "data_limit": 0,
+    "stages": {
+     "GENERATION": 1
+    }
+   },
+   "multi_compare|open|하": {
+    "n": 2,
+    "n_scored": 2,
+    "correct": 2,
+    "rate": 1.0,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "multi_compare|open|중": {
+    "n": 1,
+    "n_scored": 1,
+    "correct": 0,
+    "rate": 0.0,
+    "data_limit": 0,
+    "stages": {
+     "GENERATION": 1
+    }
+   },
+   "multi_compare|open|상": {
+    "n": 2,
+    "n_scored": 2,
+    "correct": 1,
+    "rate": 0.5,
+    "data_limit": 0,
+    "stages": {
+     "GENERATION": 1
+    }
+   },
+   "complex_reason|closed|하": {
+    "n": 2,
+    "n_scored": 2,
+    "correct": 2,
+    "rate": 1.0,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "complex_reason|closed|중": {
+    "n": 1,
+    "n_scored": 1,
+    "correct": 1,
+    "rate": 1.0,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "complex_reason|closed|상": {
+    "n": 1,
+    "n_scored": 1,
+    "correct": 1,
+    "rate": 1.0,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "complex_reason|open|하": {
+    "n": 1,
+    "n_scored": 1,
+    "correct": 1,
+    "rate": 1.0,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "complex_reason|open|중": {
+    "n": 2,
+    "n_scored": 2,
+    "correct": 1,
+    "rate": 0.5,
+    "data_limit": 0,
+    "stages": {
+     "GENERATION": 1
+    }
+   },
+   "complex_reason|open|상": {
+    "n": 1,
+    "n_scored": 1,
+    "correct": 1,
+    "rate": 1.0,
+    "data_limit": 0,
+    "stages": {}
+   }
+  },
+  "marginals": {
+   "task_type": {
+    "search_extract": {
+     "n": 12,
+     "n_scored": 12,
+     "correct": 11,
+     "rate": 0.917,
+     "data_limit": 0,
+     "stages": {
+      "TOOL": 1
+     }
+    },
+    "multi_compare": {
+     "n": 11,
+     "n_scored": 11,
+     "correct": 7,
+     "rate": 0.636,
+     "data_limit": 0,
+     "stages": {
+      "GENERATION": 4
+     }
+    },
+    "complex_reason": {
+     "n": 8,
+     "n_scored": 8,
+     "correct": 7,
+     "rate": 0.875,
+     "data_limit": 0,
+     "stages": {
+      "GENERATION": 1
+     }
+    }
+   },
+   "answer_mode": {
+    "closed": {
+     "n": 16,
+     "n_scored": 16,
+     "correct": 13,
+     "rate": 0.812,
+     "data_limit": 0,
+     "stages": {
+      "TOOL": 1,
+      "GENERATION": 2
+     }
+    },
+    "open": {
+     "n": 15,
+     "n_scored": 15,
+     "correct": 12,
+     "rate": 0.8,
+     "data_limit": 0,
+     "stages": {
+      "GENERATION": 3
+     }
+    }
+   },
+   "difficulty": {
+    "하": {
+     "n": 11,
+     "n_scored": 11,
+     "correct": 10,
+     "rate": 0.909,
+     "data_limit": 0,
+     "stages": {
+      "GENERATION": 1
+     }
+    },
+    "중": {
+     "n": 10,
+     "n_scored": 10,
+     "correct": 7,
+     "rate": 0.7,
+     "data_limit": 0,
+     "stages": {
+      "TOOL": 1,
+      "GENERATION": 2
+     }
+    },
+    "상": {
+     "n": 10,
+     "n_scored": 10,
+     "correct": 8,
+     "rate": 0.8,
+     "data_limit": 0,
+     "stages": {
+      "GENERATION": 2
+     }
+    }
+   }
+  },
+  "grid_overall": {
+   "n": 31,
+   "n_scored": 31,
+   "correct": 25,
+   "rate": 0.806,
+   "data_limit": 0,
+   "stages": {
+    "TOOL": 1,
+    "GENERATION": 5
+   }
+  },
+  "info_limit": {
+   "n": 6,
+   "n_scored": 6,
+   "correct": 6,
+   "rate": 1.0,
+   "data_limit": 0,
+   "stages": {}
+  },
+  "by_track": {
+   "grid": {
+    "n": 31,
+    "n_scored": 31,
+    "correct": 25,
+    "rate": 0.806,
+    "data_limit": 0,
+    "stages": {
+     "TOOL": 1,
+     "GENERATION": 5
+    }
+   },
+   "info_limit": {
+    "n": 6,
+    "n_scored": 6,
+    "correct": 6,
+    "rate": 1.0,
+    "data_limit": 0,
+    "stages": {}
+   }
+  },
+  "overall": {
+   "n": 37,
+   "n_scored": 37,
+   "correct": 31,
+   "rate": 0.838,
+   "data_limit": 0,
+   "stages": {
+    "TOOL": 1,
+    "GENERATION": 5
+   }
+  }
+ },
+ "new_sector_retrieval": {
+  "n": 0,
+  "threshold": 3,
+  "triggers_reranker_review": false,
+  "sectors": [
+   "게임",
+   "로봇",
+   "소비재·유통",
+   "자동차·모빌리티",
+   "철강",
+   "통신"
+  ],
+  "by_sector": {},
+  "question_ids": [],
+  "off_grid_n": 0,
+  "off_grid_question_ids": []
+ },
+ "difficulty_audit": [],
+ "failure_histogram": {
+  "GENERATION": 5,
+  "TOOL": 1
+ },
+ "failure_histogram_grid": {
+  "GENERATION": 5,
+  "TOOL": 1
+ },
+ "by_track_failures": {
+  "grid": {
+   "GENERATION": 5,
+   "TOOL": 1
+  },
+  "info_limit": {}
+ },
+ "scorer_r3": {
+  "a19_overridden": [
+   "Q-034"
+  ],
+  "a19_failed_kinds": {
+   "provenance": 1
+  },
+  "r3b_overridden": [],
+  "r3b_premise": 10,
+  "calc_checked_empty": 19,
+  "r32_candidates": [],
+  "safety": {}
+ },
+ "root_cause_histogram": {
+  "GENERATION/INDEX_FIELD_MISSING": 1,
+  "GENERATION/REASONING": 3,
+  "TOOL/TOOL": 1,
+  "GENERATION/UNVERIFIED": 1
+ },
+ "root_cause_histogram_grid": {
+  "GENERATION/INDEX_FIELD_MISSING": 1,
+  "GENERATION/REASONING": 3,
+  "TOOL/TOOL": 1,
+  "GENERATION/UNVERIFIED": 1
+ },
+ "arm_allocation_reconciliation": {
+  "authoritative": "manual",
+  "note": "자동 분류기는 A5 를 구조적으로 못 본다 — `verify_calculation` 이 답변 수치 중 최유리 값을 골라 비교하므로 10× 단위환산 오류가 `mismatch=False` 로 통과하고, TOOL 버킷이 그리드에서 0건이 된다. arm 확정은 원문 대조(`TARGETED_BY_MANUAL_REVIEW`)의 몫이다.",
+  "denominator_note": "자동 = 그리드만 6건 · 수동 = 전 트랙 7건",
+  "by_arm": [
+   {
+    "arm": "A1b",
+    "auto_grid": 1,
+    "auto_all_tracks": 1,
+    "manual_all_tracks": 0
+   },
+   {
+    "arm": "A4",
+    "auto_grid": 3,
+    "auto_all_tracks": 3,
+    "manual_all_tracks": 1
+   },
+   {
+    "arm": "A5",
+    "auto_grid": 1,
+    "auto_all_tracks": 1,
+    "manual_all_tracks": 3
+   },
+   {
+    "arm": "A6",
+    "auto_grid": 0,
+    "auto_all_tracks": 0,
+    "manual_all_tracks": 2
+   },
+   {
+    "arm": "—",
+    "auto_grid": 0,
+    "auto_all_tracks": 0,
+    "manual_all_tracks": 1
+   },
+   {
+    "arm": "미분류",
+    "auto_grid": 1,
+    "auto_all_tracks": 1,
+    "manual_all_tracks": 0
+   }
+  ],
+  "disagreements": [
+   {
+    "question_id": "Q-018",
+    "track": "grid",
+    "bucket": "GENERATION/INDEX_FIELD_MISSING",
+    "auto_arm": "A1b",
+    "manual_arm": "A6",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-022",
+    "track": "grid",
+    "bucket": "GENERATION/REASONING",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": false
+   },
+   {
+    "question_id": "Q-034",
+    "track": "grid",
+    "bucket": "GENERATION/REASONING",
+    "auto_arm": "A4",
+    "manual_arm": "A5",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-047",
+    "track": "grid",
+    "bucket": "GENERATION/UNVERIFIED",
+    "auto_arm": "미분류",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": false
+   }
+  ],
+  "n_disagreements": 4,
+  "n_compared": 6,
+  "critic_passed_wrong_answer": [
+   "Q-018",
+   "Q-023",
+   "Q-034"
+  ],
+  "per_question": [
+   {
+    "question_id": "Q-018",
+    "track": "grid",
+    "bucket": "GENERATION/INDEX_FIELD_MISSING",
+    "auto_arm": "A1b",
+    "manual_arm": "A6",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-022",
+    "track": "grid",
+    "bucket": "GENERATION/REASONING",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": false
+   },
+   {
+    "question_id": "Q-023",
+    "track": "grid",
+    "bucket": "GENERATION/REASONING",
+    "auto_arm": "A4",
+    "manual_arm": "A4",
+    "agree": true,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-034",
+    "track": "grid",
+    "bucket": "GENERATION/REASONING",
+    "auto_arm": "A4",
+    "manual_arm": "A5",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-044",
+    "track": "grid",
+    "bucket": "TOOL/TOOL",
+    "auto_arm": "A5",
+    "manual_arm": "A5",
+    "agree": true,
+    "critic_passed_wrong_answer": false
+   },
+   {
+    "question_id": "Q-047",
+    "track": "grid",
+    "bucket": "GENERATION/UNVERIFIED",
+    "auto_arm": "미분류",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": false
+   }
+  ]
+ },
+ "citation_rate": 0.806,
+ "citation_rate_grid": 0.806,
+ "by_doc_group": {
+  "exchange": {
+   "n": 16,
+   "n_scored": 16,
+   "correct": 13,
+   "rate": 0.812,
+   "data_limit": 0,
+   "stages": {
+    "GENERATION": 3
+   }
+  },
+  "holding": {
+   "n": 4,
+   "n_scored": 4,
+   "correct": 4,
+   "rate": 1.0,
+   "data_limit": 0,
+   "stages": {}
+  },
+  "major": {
+   "n": 4,
+   "n_scored": 4,
+   "correct": 3,
+   "rate": 0.75,
+   "data_limit": 0,
+   "stages": {
+    "GENERATION": 1
+   }
+  },
+  "periodic": {
+   "n": 13,
+   "n_scored": 13,
+   "correct": 11,
+   "rate": 0.846,
+   "data_limit": 0,
+   "stages": {
+    "TOOL": 1,
+    "GENERATION": 1
+   }
+  }
+ },
+ "by_doc_group_grid": {
+  "exchange": {
+   "n": 16,
+   "n_scored": 16,
+   "correct": 13,
+   "rate": 0.812,
+   "data_limit": 0,
+   "stages": {
+    "GENERATION": 3
+   }
+  },
+  "holding": {
+   "n": 4,
+   "n_scored": 4,
+   "correct": 4,
+   "rate": 1.0,
+   "data_limit": 0,
+   "stages": {}
+  },
+  "major": {
+   "n": 4,
+   "n_scored": 4,
+   "correct": 3,
+   "rate": 0.75,
+   "data_limit": 0,
+   "stages": {
+    "GENERATION": 1
+   }
+  },
+  "periodic": {
+   "n": 7,
+   "n_scored": 7,
+   "correct": 5,
+   "rate": 0.714,
+   "data_limit": 0,
+   "stages": {
+    "TOOL": 1,
+    "GENERATION": 1
+   }
+  }
+ },
+ "rows": [
+  {
+   "question_id": "Q-001",
+   "task_type": "search_extract",
+   "answer_mode": "closed",
+   "difficulty": "하",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "전력기기",
+   "corp_name": [
+    "HD현대일렉트릭"
+   ],
+   "answerable": true,
+   "answer_form": "number_won",
+   "correct": true,
+   "scored_by": "em:number_won",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "HD현대일렉트릭"
+   ],
+   "n_hops": 0,
+   "n_steps": 1,
+   "n_llm_calls": 4,
+   "prompt_tokens": 2112,
+   "completion_tokens": 294,
+   "judge_tokens": 0,
+   "latency_s": 6.914,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 584,
+     "completion_tokens": 82,
+     "latency_s": 2.323,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 584,
+     "completion_tokens": 82,
+     "latency_s": 2.179,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 584,
+     "completion_tokens": 81,
+     "latency_s": 2.226,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 360,
+     "completion_tokens": 49,
+     "latency_s": 1.311,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20230131800162"
+   ],
+   "golden_rank": {
+    "20230131800162": 1
+   },
+   "golden_in_candidates": [
+    "20230131800162"
+   ],
+   "golden_in_evidence": [
+    "20230131800162"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "HD현대일렉트릭이 2023년 1월에 체결한 2500kVA 배전변압기 등 3,500대 공급계약의 계약금액은 **97,000,000,000원**(970억 원)입니다. \n\n(근거: 단일판매ㆍ공급계약체결, 2023-01-31, 20230131800162)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202301 top_k=5 q=\"HD 현대일렉트릭 2023 월에 체결한 2500 kVA 배전변압기 3,500 얼마인\" n=1 top_score=85.251 ids=exchange_20230131800162 | hop=0 verdict=sufficient evidence=1 | generate tokens=584+82 | generate sc=1 tokens=584+82 | generate sc=2 tokens=584+81 | sc k=3/3 temp=0.7 keys=1 votes=3 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 계약 금액과 관련된 정보가 정확하게 포함되어 있으며, 접수번호를 포함한 근거 표기도 존재합니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=4 tokens=2406"
+  },
+  {
+   "question_id": "Q-003",
+   "task_type": "search_extract",
+   "answer_mode": "closed",
+   "difficulty": "중",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "전력기기",
+   "corp_name": [
+    "HD현대일렉트릭"
+   ],
+   "answerable": true,
+   "answer_form": "duration",
+   "correct": true,
+   "scored_by": "em:duration",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "HD현대일렉트릭"
+   ],
+   "n_hops": 0,
+   "n_steps": 1,
+   "n_llm_calls": 4,
+   "prompt_tokens": 2117,
+   "completion_tokens": 269,
+   "judge_tokens": 0,
+   "latency_s": 7.804,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 588,
+     "completion_tokens": 75,
+     "latency_s": 2.278,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 588,
+     "completion_tokens": 75,
+     "latency_s": 1.931,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 588,
+     "completion_tokens": 75,
+     "latency_s": 2.181,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 353,
+     "completion_tokens": 44,
+     "latency_s": 1.405,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20230131800162"
+   ],
+   "golden_rank": {
+    "20230131800162": 1
+   },
+   "golden_in_candidates": [
+    "20230131800162"
+   ],
+   "golden_in_evidence": [
+    "20230131800162"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "period"
+   ],
+   "calc_skipped": [
+    "amount",
+    "equation",
+    "restatement",
+    "share"
+   ],
+   "calc_gated_records": 1,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "HD현대일렉트릭이 2023년 1월에 체결한 2500kVA 배전변압기 등 3,500대 공급계약의 계약기간은 **1년 9개월**입니다. \n(근거: 단일판매ㆍ공급계약체결, 2023-01-31, 20230131800162)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202301 top_k=5 q=\"HD 현대일렉트릭 2023 월에 체결한 2500 kVA 배전변압기 3,500 개월인\" n=1 top_score=87.049 ids=exchange_20230131800162 | hop=0 verdict=sufficient evidence=1 | generate tokens=588+75 | generate sc=1 tokens=588+75 | generate sc=2 tokens=588+75 | sc k=3/3 temp=0.7 keys=1 votes=3 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=period complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=4 tokens=2386"
+  },
+  {
+   "question_id": "Q-005",
+   "task_type": "search_extract",
+   "answer_mode": "closed",
+   "difficulty": "상",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "조선",
+   "corp_name": [
+    "삼성중공업"
+   ],
+   "answerable": true,
+   "answer_form": "number_won",
+   "correct": true,
+   "scored_by": "em:number_won",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "삼성중공업"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 4,
+   "prompt_tokens": 3224,
+   "completion_tokens": 387,
+   "judge_tokens": 0,
+   "latency_s": 9.913,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 851,
+     "completion_tokens": 125,
+     "latency_s": 3.046,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 851,
+     "completion_tokens": 94,
+     "latency_s": 2.407,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 851,
+     "completion_tokens": 123,
+     "latency_s": 3.058,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 671,
+     "completion_tokens": 45,
+     "latency_s": 1.393,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20230602800079",
+    "20260203800709"
+   ],
+   "golden_rank": {
+    "20230602800079": 1,
+    "20260203800709": 1
+   },
+   "golden_in_candidates": [
+    "20230602800079",
+    "20260203800709"
+   ],
+   "golden_in_evidence": [
+    "20230602800079",
+    "20260203800709"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "restatement",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "삼성중공업이 2023년 6월에 최초 공시한 원유운반선 2척 공급계약의 계약금액은 이후 정정공시에서 **1,148억 원**으로 변경되었습니다. 이는 기존 금액인 2,275억 원에서 절반가량 줄어든 금액입니다. \n\n(근거: [기재정정] [공급계약 체결] 삼성중공업 – 단일판매ㆍ공급계약체결 — 원유운반선 1척, 2026-02-03, 20260203800709)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성중공업\" period=ym:202306 top_k=5 q=\"삼성중공업 2023 월에 공시한 원유운반선 이후 정정공시 바뀌었는\" n=2 top_score=43.193 ids=exchange_20230602800079,exchange_20230613800116 | hop=5 strat=chain tool=get_history corp=\"삼성중공업\" rcept=20230602800079 latest=20260203800709 chain_length=2 n=1 top_score=- ids=exchange_20260203800709 | hop=0 verdict=sufficient evidence=3 | generate tokens=851+125 | generate sc=1 tokens=851+94 | generate sc=2 tokens=851+123 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변 내용은 제공된 근거에 기반하여 작성되었으며, 필요한 정보도 정확하게 포함하고 있습니다. | verify calc_checked=amount complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=2 hops=0 llm=4 tokens=3611"
+  },
+  {
+   "question_id": "Q-006",
+   "task_type": "search_extract",
+   "answer_mode": "closed",
+   "difficulty": "상",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "전력기기",
+   "corp_name": [
+    "HD현대일렉트릭"
+   ],
+   "answerable": true,
+   "answer_form": "number_won",
+   "correct": true,
+   "scored_by": "em:number_won",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "HD현대일렉트릭"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 3,
+   "prompt_tokens": 2316,
+   "completion_tokens": 353,
+   "judge_tokens": 0,
+   "latency_s": 9.126,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 772,
+     "completion_tokens": 119,
+     "latency_s": 2.966,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 772,
+     "completion_tokens": 116,
+     "latency_s": 3.154,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 772,
+     "completion_tokens": 118,
+     "latency_s": 2.997,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20240130800387",
+    "20250225800764"
+   ],
+   "golden_rank": {
+    "20240130800387": 1,
+    "20250225800764": 1
+   },
+   "golden_in_candidates": [
+    "20240130800387",
+    "20250225800764"
+   ],
+   "golden_in_evidence": [
+    "20240130800387",
+    "20250225800764"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [
+    "amount: 답변 64,400,000,000원 vs 재계산 58,300,000,000"
+   ],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "HD현대일렉트릭이 2024년 1월에 공시한 362kV 및 170kV 고압차단기 등 공급계약의 계약금액은 정정공시 반영 후 **64,400,000,000원**(644억원)입니다. \n\n(근거: [기재정정] [공급계약 체결] HD현대일렉트릭 – 단일판매ㆍ공급계약체결 — 362kV 및 170kV 고압차단기 등, 2025-02-25, 접수번호 20250225800764)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202401 top_k=5 q=\"HD 현대일렉트릭 2024 월에 공시한 362 kV 170 고압차단기 정정공시 반영 얼마인\" n=1 top_score=75.915 ids=exchange_20240130800387 | hop=5 strat=chain tool=get_history corp=\"HD현대일렉트릭\" rcept=20240130800387 latest=20250225800764 chain_length=2 n=1 top_score=- ids=exchange_20250225800764 | hop=0 verdict=sufficient evidence=2 | generate tokens=772+119 | generate sc=1 tokens=772+116 | generate sc=2 tokens=772+118 | sc k=3/3 temp=0.7 keys=1 votes=3 picked=0 | verify calc_checked=amount complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=2 hops=0 llm=3 tokens=2669"
+  },
+  {
+   "question_id": "Q-007",
+   "task_type": "search_extract",
+   "answer_mode": "open",
+   "difficulty": "하",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "반도체·전자부품",
+   "corp_name": [
+    "SK하이닉스"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "SK하이닉스"
+   ],
+   "n_hops": 1,
+   "n_steps": 2,
+   "n_llm_calls": 3,
+   "prompt_tokens": 2790,
+   "completion_tokens": 399,
+   "judge_tokens": 833,
+   "latency_s": 9.952,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 930,
+     "completion_tokens": 250,
+     "latency_s": 5.935,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 930,
+     "completion_tokens": 70,
+     "latency_s": 1.92,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 930,
+     "completion_tokens": 79,
+     "latency_s": 2.086,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20240424800596"
+   ],
+   "golden_rank": {
+    "20240424800596": 1
+   },
+   "golden_in_candidates": [
+    "20240424800596"
+   ],
+   "golden_in_evidence": [
+    "20240424800596"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "period",
+    "restatement",
+    "share"
+   ],
+   "calc_skipped": [
+    "equation"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "SK하이닉스는 2024년 4월 24일에 공시한 신규 시설 투자의 대상으로 '**청주 M15X 건설**'을 명시하였습니다. 이는 해당 공시의 본문에 '투자금액', '자기자본대비 비율', '기간', 그리고 '**투자 대상인 청주 M15X 건설**'이라고 명시되어 있습니다.\n\n따라서 SK하이닉스의 2024년 4월 24일 자 신규 시설투자는 '**청주 M15X 건설**'이며, 이와 관련된 자세한 정보는 다음과 같습니다.\n- **투자금액**: 5,296,200,000,000원 (5조 2,962억원)\n- **자기자본 대비**: 9.9%\n- **기간**: 2024년 4월 24일부터 2026년 10월 30일까지 (총 2년 6개월)\n\n이와 같이 해당 공시는 SK하이닉스의 새로운 시설 투자 계획을 구체적으로 나타내고 있으며, 이를 통해 회사의 생산 능력 확장 및 경쟁력 강화를 기대할 수 있습니다. \n\n(근거: 신규 시설투자등 — 청주 M15X 건설, 2024-04-24, 접수번호 20240424800596)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"SK하이닉스\" period=ym:202404 top_k=5 q=\"SK 하이닉스 2024 24 공시한 신규 시설투자 투자 대상 무엇인지 근거 함께\" n=1 top_score=58.790 ids=exchange_20240424800596 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"SK하이닉스\" period=year:2024 top_k=8 q=\"SK 하이닉스 2024 24 공시한 신규 시설투자 투자 대상 무엇인지 근거 함께\" n=3 top_score=58.790 ids=exchange_20240424800596,exchange_20240726800615,exchange_20241220800005 | hop=1 verdict=sufficient evidence=3 | generate tokens=930+250 | generate sc=1 tokens=930+70 | generate sc=2 tokens=930+79 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | verify calc_checked=amount,period,share complete_checked=- ok=True kinds=- | budget steps=2 hops=1 llm=3 tokens=3189"
+  },
+  {
+   "question_id": "Q-008",
+   "task_type": "search_extract",
+   "answer_mode": "open",
+   "difficulty": "하",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "신재생에너지",
+   "corp_name": [
+    "두산퓨얼셀"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "두산퓨얼셀"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 4,
+   "prompt_tokens": 3195,
+   "completion_tokens": 410,
+   "judge_tokens": 747,
+   "latency_s": 10.692,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 851,
+     "completion_tokens": 104,
+     "latency_s": 2.612,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 851,
+     "completion_tokens": 89,
+     "latency_s": 2.308,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 851,
+     "completion_tokens": 171,
+     "latency_s": 4.117,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 642,
+     "completion_tokens": 46,
+     "latency_s": 1.646,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20240603800359"
+   ],
+   "golden_rank": {
+    "20240603800359": 1
+   },
+   "golden_in_candidates": [
+    "20240603800359"
+   ],
+   "golden_in_evidence": [
+    "20240603800359"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "amount",
+    "equation",
+    "restatement",
+    "share"
+   ],
+   "calc_gated_records": 1,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "두산퓨얼셀이 2024년 6월에 공시한 연료전지 시스템 공급계약 해지의 계약상대는 '**Zhejiang Beisen Hydrogen Science & Technology Co., Ltd.'** 입니다.\n\n- (근거: [공급계약 해지] 두산퓨얼셀 – 단일판매ㆍ공급계약 해지 — 연료전지 시스템 공급 계약, 2024-06-03, 20240603800359)\n\n위 내용은 '공급계약 해지' 관련 공시에서 확인할 수 있습니다.",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산퓨얼셀\" period=ym:202406 top_k=5 q=\"두산퓨얼셀 2024 월에 공시한 연료전지 시스템 해지 어디인지 근거 함께\" n=2 top_score=48.830 ids=exchange_20240603800359,exchange_20240628800803 | hop=5 strat=chain tool=get_history corp=\"두산퓨얼셀\" rcept=20240628800803 latest=20240903800382 chain_length=2 n=1 top_score=- ids=exchange_20240903800382 | hop=0 verdict=sufficient evidence=3 | generate tokens=851+104 | generate sc=1 tokens=851+89 | generate sc=2 tokens=851+171 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거와 일치하며, 접수번호를 포함한 정확한 출처가 명시되어 있다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=4 tokens=3605"
+  },
+  {
+   "question_id": "Q-010",
+   "task_type": "search_extract",
+   "answer_mode": "open",
+   "difficulty": "중",
+   "doc_group": "major",
+   "track": "grid",
+   "sector": "AI소프트웨어·플랫폼",
+   "corp_name": [
+    "카카오"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": false,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "카카오"
+   ],
+   "n_hops": 0,
+   "n_steps": 1,
+   "n_llm_calls": 4,
+   "prompt_tokens": 5256,
+   "completion_tokens": 1017,
+   "judge_tokens": 1497,
+   "latency_s": 24.392,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1308,
+     "completion_tokens": 296,
+     "latency_s": 6.905,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1308,
+     "completion_tokens": 330,
+     "latency_s": 7.686,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1308,
+     "completion_tokens": 348,
+     "latency_s": 8.361,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 1332,
+     "completion_tokens": 43,
+     "latency_s": 1.408,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20250522000332"
+   ],
+   "golden_rank": {
+    "20250522000332": 1
+   },
+   "golden_in_candidates": [
+    "20250522000332"
+   ],
+   "golden_in_evidence": [
+    "20250522000332"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "period",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "equation"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "카카오가 2025년 5월에 결의한 제14회 전환사채 발행의 주요 조건은 다음과 같습니다.\n\n1. **권면(전자등록) 총액**: 50,182,840,320원 (502억 원)\n2. **사채의 종류**: 무기명식 무보증 사모 전환사채\n3. **타 법인 증권 취득 자금**: 50,182,840,320원\n4. **표면이자율 및 만기이자율**: 각각 0%\n5. **사채 만기일**: 2028년 05월 30일\n6. **사채 발행 방법**: 사모 방식\n7. **전환 비율**: 100\n8. **전환 가액**: 37,527원\n9. **전환에 따라 발행할 주식 수**: 1,337,246주\n10. **기간**: 2026년 05월 30일부터 2028년 05월 23일까지 (1년 11개월)\n11. **확정일**: 2025년 05월 22일\n12. **전환 청구 기간 변경**: 최초에는 2028년 5월 29일이었지만, 이후 정정공시로 인해 2028년 5월 23일로 변경됨\n\n(근거: [전환사채권발행결정] 카카오 – 주요사항보고서(전환사채권발행결정), 기정정본 포함, 각 보고서 접수번호 참조)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"카카오\" period=ym:202505 top_k=5 q=\"카카오 2025 월에 결의한 14 전환사채 발행 주요 조건\" n=3 top_score=28.252 ids=major_20250522000332,major_20250523000639,major_20250527000422 | hop=0 verdict=sufficient evidence=3 | generate tokens=1308+296 | generate sc=1 tokens=1308+330 | generate sc=2 tokens=1308+348 | sc k=3/3 temp=0.7 keys=2 votes=2 picked=1 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거 문서들과 일치하며, 정정에 대한 내용도 포함되어 있습니다. | verify calc_checked=amount,period complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=4 tokens=6273"
+  },
+  {
+   "question_id": "Q-012",
+   "task_type": "search_extract",
+   "answer_mode": "open",
+   "difficulty": "상",
+   "doc_group": "holding",
+   "track": "grid",
+   "sector": "원전",
+   "corp_name": [
+    "두산에너빌리티"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
+   "route": "complex_reason",
+   "route_group": "exchange",
+   "route_corps": [
+    "두산에너빌리티"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 4,
+   "prompt_tokens": 3699,
+   "completion_tokens": 1110,
+   "judge_tokens": 1103,
+   "latency_s": 25.942,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 921,
+     "completion_tokens": 339,
+     "latency_s": 7.807,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 921,
+     "completion_tokens": 310,
+     "latency_s": 7.263,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 921,
+     "completion_tokens": 415,
+     "latency_s": 9.452,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 936,
+     "completion_tokens": 46,
+     "latency_s": 1.363,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20250310000839",
+    "20260305001006"
+   ],
+   "golden_rank": {
+    "20250310000839": 1,
+    "20260305001006": 2
+   },
+   "golden_in_candidates": [
+    "20250310000839",
+    "20260305001006"
+   ],
+   "golden_in_evidence": [
+    "20250310000839",
+    "20260305001006"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [
+     "20250310000839",
+     "20260305001006"
+    ],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "㈜두산이 두산에너빌리티에 대한 지분 보유 상황 변화를 비교하면 다음과 같습니다.\n\n1. **보유주식 등의 수 변화**\n   - 2025년 3월의 보유주식 등은 196,452,737주에서 196,488,145주로 증가했습니다.\n   - 이는 35,408주가 증가한 것입니다.\n   \n2. **보유비율 변화**\n   - 2025년 3월의 보유 비율은 30.67%였고, 2026년 3월에는 30.68%로 약간 상승했습니다.\n   - 이는 약 0.01%p 증가한 수치입니다.\n\n3. **주요 계약 체결 주식 등의 수 및 비율 변화**\n   - 2025년 3월의 주요 계약 체결 주식은 84,634,380주였으며, 비율은 13.21%였습니다.\n   - 2026년 3월에는 주요 계약 체결 주식이 동일하게 유지되었으나 비율이 14.40%로 변경되었습니다.\n   - 이는 이전 보고서와 비교했을 때 11,636,544주와 1.19%p가 증가한 것을 의미합니다.\n\n이와 같이 ㈜두산은 2025년 3월부터 2026년 3월까지 지속적으로 두산에너빌리티의 주식을 추가로 취득하여 지분을 늘리고 있으며, 주요 계약 체결 물량도 확대되어 가고 있습니다. \n\n(근거: 각 공시별 대량보유상황보고서, 기준연월 2025년 3월 및 2026년 3월, 접수번호 각각 20250310000839, 20260305001006)",
+   "think_trace": "route=complex_reason difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202503 top_k=3 q=\"두산 두산에너빌리티 대해 2025 월과 2026 월에 제출한 대량보유상황보고서 비교해 지분 보유 상황 어떻게 달라졌는지\" n=1 top_score=65.882 ids=holding_20250310000839 | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202603 top_k=3 q=\"두산 두산에너빌리티 대해 2025 월과 2026 월에 제출한 대량보유상황보고서 비교해 지분 보유 상황 어떻게 달라졌는지\" n=1 top_score=68.755 ids=holding_20260305001006 | hop=0 verdict=sufficient evidence=2 | generate tokens=921+339 | generate sc=1 tokens=921+310 | generate sc=2 tokens=921+415 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치와 사실이 근거에서 확인되며, 접수번호를 포함한 근거 표기가 명확히 되어 있다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=4 tokens=4809"
+  },
+  {
+   "question_id": "Q-014",
+   "task_type": "multi_compare",
+   "answer_mode": "closed",
+   "difficulty": "하",
+   "doc_group": "major",
+   "track": "grid",
+   "sector": "2차전지",
+   "corp_name": [
+    "삼성SDI",
+    "고려아연"
+   ],
+   "answerable": true,
+   "answer_form": "boolean",
+   "correct": true,
+   "scored_by": "boolean",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": true,
+   "route": "multi_compare",
+   "route_group": "exchange",
+   "route_corps": [
+    "고려아연",
+    "삼성SDI"
+   ],
+   "n_hops": 0,
+   "n_steps": 5,
+   "n_llm_calls": 3,
+   "prompt_tokens": 9660,
+   "completion_tokens": 740,
+   "judge_tokens": 0,
+   "latency_s": 19.131,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 3220,
+     "completion_tokens": 269,
+     "latency_s": 6.754,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 3220,
+     "completion_tokens": 226,
+     "latency_s": 6.248,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 3220,
+     "completion_tokens": 245,
+     "latency_s": 6.119,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20250314000027",
+    "20241030000098"
+   ],
+   "golden_rank": {
+    "20250314000027": 1,
+    "20241030000098": 4
+   },
+   "golden_in_candidates": [
+    "20241030000098",
+    "20250314000027"
+   ],
+   "golden_in_evidence": [
+    "20250314000027",
+    "20241030000098"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "amount",
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 2,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "삼성SDI의 2025년 3월 유상증자의 시설자금 조달액은 '**354,100,000,000원**'이고, 고려아연의 2024년 10월 유상증자의 시설자금 조달액은 '**135,052,488,000원**'이므로, 삼성SDI의 시설자금 조달액이 고려아연보다 큽니다.\n\n- 삼성SDI 2025년 3월 시설자금: 354,100,000,000원 (최신본)\n- 고려아연 2024년 10월 시설자금: 135,052,488,000원 (원공시)\n\n따라서 질문에 대한 답변은 다음과 같습니다.\n- 삼성SDI의 시설자금 조달액이 고려아연의 그것보다 큽니다.\n\n근거:\n- 삼성SDI 2025년 3월: (유상증자결정), 2025-05-19, 접수번호 20250519000120, https://dart.fss.or.kr/dsaf001/main.do\n- 고려아연 2024년 10월: (유상증자결정), 2024-10-30, 접수번호 20241030000098, https://dart.fss.or.kr/dsaf001/main.do",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202503 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=2 top_score=33.747 ids=major_20250314000027,major_20250324000773 | hop=0 strat=narrow tool=search_chunks corp=\"고려아연\" period=ym:202503 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=1 top_score=14.330 ids=major_20250313000896 | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202410 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=0 top_score=- ids=- | hop=0 strat=narrow tool=search_chunks corp=\"고려아연\" period=ym:202410 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=3 top_score=41.565 ids=major_20241030000098,major_20241002000155,major_20241011000053 | hop=5 strat=chain tool=get_history corp=\"삼성SDI\" rcept=20250314000027 latest=20250519000120 chain_length=5 n=3 top_score=- ids=major_20250409001154,major_20250430001398,major_20250519000120 | hop=0 verdict=sufficient evidence=8 | generate tokens=3220+269 | generate sc=1 tokens=3220+226 | generate sc=2 tokens=3220+245 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | verify calc_checked=- complete_checked=missing_corp ok=True kinds=- | budget steps=5 hops=0 llm=3 tokens=10400"
+  },
+  {
+   "question_id": "Q-015",
+   "task_type": "multi_compare",
+   "answer_mode": "closed",
+   "difficulty": "중",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "전력기기",
+   "corp_name": [
+    "HD현대일렉트릭"
+   ],
+   "answerable": true,
+   "answer_form": "number_won",
+   "correct": true,
+   "scored_by": "em:number_won",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": false,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "HD현대일렉트릭"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 3,
+   "prompt_tokens": 2613,
+   "completion_tokens": 443,
+   "judge_tokens": 0,
+   "latency_s": 10.915,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 871,
+     "completion_tokens": 158,
+     "latency_s": 3.778,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 871,
+     "completion_tokens": 109,
+     "latency_s": 2.746,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 871,
+     "completion_tokens": 176,
+     "latency_s": 4.379,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20250731800031",
+    "20240529800105"
+   ],
+   "golden_rank": {
+    "20250731800031": 1,
+    "20240529800105": 2
+   },
+   "golden_in_candidates": [
+    "20240529800105",
+    "20250731800031"
+   ],
+   "golden_in_evidence": [
+    "20250731800031",
+    "20240529800105"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "HD현대일렉트릭이 2025년 7월에 영국 National Grid와 체결한 변압기 공급계약 금액은 140,400,000,000원이고, 2024년 5월에 체결한 계약 금액은 82,100,000,000원으로, 둘의 차이는 **58,300,000,000원**(583억 원)입니다.\n(근거: [단일판매ㆍ공급계약 체결] HD현대일렉트릭, 기준연월 2025/07/31, 접수번호 20250731800031; [단일판매ㆍ공급계약 체결] HD현대일렉트릭, 기준연월 2024/05/29, 접수번호 20240529800105)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202507 top_k=3 q=\"HD 현대일렉트릭 2025 영국 National Grid 체결한 변압기 2024 같은 상대 계약보다 얼마나 큰가\" n=1 top_score=65.822 ids=exchange_20250731800031 | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202405 top_k=3 q=\"HD 현대일렉트릭 2025 영국 National Grid 체결한 변압기 2024 같은 상대 계약보다 얼마나 큰가\" n=2 top_score=65.837 ids=exchange_20240529800105,exchange_20240531801074 | hop=0 verdict=sufficient evidence=3 | generate tokens=871+158 | generate sc=1 tokens=871+109 | generate sc=2 tokens=871+176 | sc k=3/3 temp=0.7 keys=2 votes=2 picked=0 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=3 tokens=3056"
+  },
+  {
+   "question_id": "Q-016",
+   "task_type": "multi_compare",
+   "answer_mode": "closed",
+   "difficulty": "중",
+   "doc_group": "holding",
+   "track": "grid",
+   "sector": "운송·물류",
+   "corp_name": [
+    "HMM"
+   ],
+   "answerable": true,
+   "answer_form": "number_pct",
+   "correct": true,
+   "scored_by": "em:number_pct",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
+   "route": "multi_compare",
+   "route_group": "exchange",
+   "route_corps": [
+    "HMM"
+   ],
+   "n_hops": 0,
+   "n_steps": 1,
+   "n_llm_calls": 3,
+   "prompt_tokens": 3960,
+   "completion_tokens": 532,
+   "judge_tokens": 0,
+   "latency_s": 12.837,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1320,
+     "completion_tokens": 180,
+     "latency_s": 4.392,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1320,
+     "completion_tokens": 185,
+     "latency_s": 4.453,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1320,
+     "completion_tokens": 167,
+     "latency_s": 3.984,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20250918000358"
+   ],
+   "golden_rank": {
+    "20250918000358": 1
+   },
+   "golden_in_candidates": [
+    "20250918000358"
+   ],
+   "golden_in_evidence": [
+    "20250918000358"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [
+     "20250918000358"
+    ],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "한국산업은행이 2025년 9월 18일에 제출한 HMM 대량보유상황보고서에 따르면, 보유비율이 직전 보고서 대비 몇 %p 낮아졌는지 다음과 같이 계산할 수 있습니다.\n\n- 직전 보유비율: 36.02%\n- 이번 보유비율: 32.60%\n\n따라서 감소분은 아래와 같습니다.\n- 36.02% - 32.60% = 3.42%p\n\n따라서 한국산업은행의 HMM 보유비율은 직전 보고서 대비 **3.42%p** 낮아졌습니다.\n(근거: [대량보유상황보고서] HMM – 주식등의대량보유상황보고서(일반) · 보고자 한국산업은행, 기준연월 2025-09-18, 접수번호 20250918000358)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"HMM\" period=ym:202509 top_k=5 q=\"한국산업은행 2025 18 제출한 HMM 대량보유상황보고서 보유비율 직전 대비 낮아졌는\" n=3 top_score=61.805 ids=holding_20250918000358,holding_20250918000280,holding_20250919000067 | hop=0 verdict=sufficient evidence=3 | generate tokens=1320+180 | generate sc=1 tokens=1320+185 | generate sc=2 tokens=1320+167 | sc k=3/3 temp=0.7 keys=2 votes=2 picked=0 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=3 tokens=4492"
+  },
+  {
+   "question_id": "Q-018",
+   "task_type": "multi_compare",
+   "answer_mode": "closed",
+   "difficulty": "상",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "조선",
+   "corp_name": [
+    "HD현대중공업"
+   ],
+   "answerable": true,
+   "answer_form": "number_won",
+   "correct": false,
+   "scored_by": "em:number_won",
+   "judge": null,
+   "first_failure": "GENERATION",
+   "root_cause": "INDEX_FIELD_MISSING",
+   "failure_why": "provenance: 답변 276,900,000,000원 이 근거에 없다",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": true,
+   "gold_value_in_evidence": false,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "HD현대중공업"
+   ],
+   "n_hops": 0,
+   "n_steps": 3,
+   "n_llm_calls": 4,
+   "prompt_tokens": 4392,
+   "completion_tokens": 532,
+   "judge_tokens": 0,
+   "latency_s": 13.262,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1169,
+     "completion_tokens": 145,
+     "latency_s": 3.502,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1169,
+     "completion_tokens": 183,
+     "latency_s": 4.494,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1169,
+     "completion_tokens": 150,
+     "latency_s": 3.761,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 885,
+     "completion_tokens": 54,
+     "latency_s": 1.497,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20230703800173",
+    "20241223800052"
+   ],
+   "golden_rank": {
+    "20230703800173": 1,
+    "20241223800052": 1
+   },
+   "golden_in_candidates": [
+    "20230703800173",
+    "20241223800052"
+   ],
+   "golden_in_evidence": [
+    "20230703800173",
+    "20241223800052"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "restatement"
+   ],
+   "calc_skipped": [
+    "amount",
+    "equation",
+    "period",
+    "share"
+   ],
+   "calc_gated_records": 2,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "provenance"
+   ],
+   "numeric_reason": "provenance: 답변 276,900,000,000원 이 근거에 없다",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "HD현대중공업이 2023년 7월에 공시한 FPU 1기 공급계약의 경우, 최초 공시 금액은 **1,566,300,000,000원**(1조 5,663억원), 최종 변경된 금액은 **1,842,200,000,000원**(1조 8,422억원)이므로, **276,900,000,000원**(2,769억원) 만큼 증가했습니다.\n\n(근거: 정정 후 [공급계약 체결] HD현대중공업 – 단일판매ㆍ공급계약체결 — FPU 1기, 2024-12-23, 20241223800052)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대중공업\" period=ym:202307 top_k=5 q=\"HD 현대중공업 2023 월에 공시한 FPU 정정공시 얼마나 증가했는\" n=2 top_score=29.477 ids=exchange_20230703800173,exchange_20230707800096 | hop=5 strat=chain tool=get_history corp=\"HD현대중공업\" rcept=20230703800173 latest=20241223800052 chain_length=2 n=1 top_score=- ids=exchange_20241223800052 | hop=5 strat=chain tool=get_history corp=\"HD현대중공업\" rcept=20230707800096 latest=20231117800436 chain_length=2 n=1 top_score=- ids=exchange_20231117800436 | hop=0 verdict=sufficient evidence=4 | generate tokens=1169+145 | generate sc=1 tokens=1169+183 | generate sc=2 tokens=1169+150 | sc k=3/3 temp=0.7 keys=2 votes=2 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 최초 및 최종 계약 금액과 그 차액이 정확히 기재되어 있으며, 이는 제공된 근거 자료에서 확인할 수 있습니다. | verify calc_checked=- complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=3 hops=0 llm=4 tokens=4924"
+  },
+  {
+   "question_id": "Q-020",
+   "task_type": "multi_compare",
+   "answer_mode": "open",
+   "difficulty": "하",
+   "doc_group": "holding",
+   "track": "grid",
+   "sector": "원전",
+   "corp_name": [
+    "두산에너빌리티"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "두산에너빌리티"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 3,
+   "prompt_tokens": 3468,
+   "completion_tokens": 704,
+   "judge_tokens": 1275,
+   "latency_s": 19.344,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1156,
+     "completion_tokens": 308,
+     "latency_s": 7.445,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1156,
+     "completion_tokens": 208,
+     "latency_s": 7.046,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1156,
+     "completion_tokens": 188,
+     "latency_s": 4.842,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20250310000839",
+    "20250514001078"
+   ],
+   "golden_rank": {
+    "20250310000839": 1,
+    "20250514001078": 2
+   },
+   "golden_in_candidates": [
+    "20250310000839",
+    "20250514001078"
+   ],
+   "golden_in_evidence": [
+    "20250310000839",
+    "20250514001078"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [
+     "20250310000839",
+     "20250514001078"
+    ],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "2025년 3월 10일과 2025년 5월 14일에 ㈜두산이 제출한 두 대량보유상황보고서를 확인해 보면 다음과 같습니다:\n\n1. **2025년 3월 10일 보고서**\n    - 보유주식등의 수: 196,452,737주 → 196,488,145주\n    - 보유비율 변화: 30.67%(변동 없음)\n\n2. **2025년 5월 14일 보고서**\n    - 보유주식등의 수: 196,488,145주 → 196,488,145주 (변화 없음)\n    - 보유비율 변화: 30.67%(변동 없음)\n\n두 날짜의 보고서 모두에서 보유비율은 변동이 없습니다. 즉, 30.67%로 동일하게 유지되었습니다. 따라서, 두 보고서 간 보유비율에는 차이가 없음을 알 수 있습니다.\n\n따라서, 질문에 대한 답변은 다음과 같습니다:\n- 2025년 3월 10일과 2025년 5월 14일의 대량보유상황보고서에서 ㈜두산의 두산에너빌리티에 대한 보유 비율은 각각 30.67%이며, 이는 두 보고서 간에 변화가 없는 상태입니다.\n(근거: 대량보유상황보고서 (2025.03.10), 접수번호 20250310000839; 대량보유상황보고서 (2025.05.14), 접수번호 20250514001078)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202503 top_k=3 q=\"두산 두산에너빌리티 대해 2025 10 일과 14 일에 제출한 대량보유상황보고서 보유비율 달라졌는지 근거 함께\" n=1 top_score=71.378 ids=holding_20250310000839 | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202505 top_k=3 q=\"두산 두산에너빌리티 대해 2025 10 일과 14 일에 제출한 대량보유상황보고서 보유비율 달라졌는지 근거 함께\" n=2 top_score=74.203 ids=holding_20250514001078,holding_20250526000405 | hop=0 verdict=sufficient evidence=3 | generate tokens=1156+308 | generate sc=1 tokens=1156+208 | generate sc=2 tokens=1156+188 | sc k=3/3 temp=0.7 keys=2 votes=2 picked=0 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=3 tokens=4172"
+  },
+  {
+   "question_id": "Q-022",
+   "task_type": "multi_compare",
+   "answer_mode": "open",
+   "difficulty": "중",
+   "doc_group": "major",
+   "track": "grid",
+   "sector": "2차전지",
+   "corp_name": [
+    "삼성SDI"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": false,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": false,
+    "grounded": false,
+    "no_fabrication": false,
+    "reason": "제출답변은 모범답안의 정보를 반영하지 않고 있습니다. 최신본을 기준으로 하여도 자금조달 목적별 금액의 합계가 잘못되었으며, 총 조달 규모의 최종 금액이 잘못되었습니다."
+   },
+   "first_failure": "GENERATION",
+   "root_cause": "REASONING",
+   "failure_why": "provenance: 답변 454,940,000,000원 이 근거에 없다",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": false,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "삼성SDI"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 3,
+   "prompt_tokens": 7857,
+   "completion_tokens": 646,
+   "judge_tokens": 2564,
+   "latency_s": 15.637,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 2619,
+     "completion_tokens": 206,
+     "latency_s": 5.212,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 2619,
+     "completion_tokens": 161,
+     "latency_s": 3.828,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 2619,
+     "completion_tokens": 279,
+     "latency_s": 6.592,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20250314000027"
+   ],
+   "golden_rank": {
+    "20250314000027": 1
+   },
+   "golden_in_candidates": [
+    "20250314000027"
+   ],
+   "golden_in_evidence": [
+    "20250314000027"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "restatement"
+   ],
+   "calc_skipped": [
+    "amount",
+    "equation"
+   ],
+   "calc_gated_records": 1,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "provenance"
+   ],
+   "numeric_reason": "provenance: 답변 454,940,000,000원 이 근거에 없다",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "삼성SDI가 2025년 3월에 결의한 유상증자의 자금조달 목적별 금액과 총 조달 규모는 다음과 같습니다.\n\n1. 자금조달 목적별 금액(최신본 기준):\n   - 시설자금: 354,100,000,000원\n   - 타법인 증권 취득자금: 1,300,840,000,000원\n   - 합계: 454,940,000,000원\n\n2. 총 조달 규모:\n   - 최초 공시 당시에는 2조 1억원(2,000,113,200,000원)이었으나 여러 차례의 정정을 거쳐 최종적으로 1조 6,549억원(1,654,940,000,000원)으로 변경되었습니다.\n\n(근거: [유상증자결정] 삼성SDI 주요사항보고서(유상증자결정), 최신본, 접수번호 20250519000120)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202503 top_k=5 q=\"삼성 SDI 2025 월에 결의한 유상증자 자금조달 목적별 금액 조달 규모\" n=2 top_score=25.787 ids=major_20250314000027,major_20250324000773 | hop=5 strat=chain tool=get_history corp=\"삼성SDI\" rcept=20250314000027 latest=20250519000120 chain_length=5 n=3 top_score=- ids=major_20250409001154,major_20250430001398,major_20250519000120 | hop=0 verdict=sufficient evidence=5 | generate tokens=2619+206 | generate sc=1 tokens=2619+161 | generate sc=2 tokens=2619+279 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=3 tokens=8503"
+  },
+  {
+   "question_id": "Q-023",
+   "task_type": "multi_compare",
+   "answer_mode": "open",
+   "difficulty": "상",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "조선",
+   "corp_name": [
+    "한화오션"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": false,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": false,
+    "grounded": false,
+    "no_fabrication": false,
+    "reason": "제출 답변에는 모범답안의 핵심 요소들이 누락되어 있으며, 특히 계약 금액의 변화와 관련된 중요한 정보들이 포함되어 있지 않습니다."
+   },
+   "first_failure": "GENERATION",
+   "root_cause": "REASONING",
+   "failure_why": "골든 근거가 프롬프트에 실렸는데 답이 틀렸다 (critic 이 supported=True 로 통과시켰다)",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": true,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "한화오션"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 4,
+   "prompt_tokens": 7721,
+   "completion_tokens": 607,
+   "judge_tokens": 1990,
+   "latency_s": 15.428,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1994,
+     "completion_tokens": 195,
+     "latency_s": 4.804,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1994,
+     "completion_tokens": 183,
+     "latency_s": 4.546,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1994,
+     "completion_tokens": 177,
+     "latency_s": 4.29,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 1739,
+     "completion_tokens": 52,
+     "latency_s": 1.778,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20231222800809",
+    "20240322800822",
+    "20250605800294",
+    "20251030800728",
+    "20251204800395"
+   ],
+   "golden_rank": {
+    "20231222800809": 1,
+    "20240322800822": 1,
+    "20250605800294": 4,
+    "20251030800728": 5,
+    "20251204800395": 6
+   },
+   "golden_in_candidates": [
+    "20231222800809",
+    "20240322800822",
+    "20250605800294",
+    "20251030800728",
+    "20251204800395"
+   ],
+   "golden_in_evidence": [
+    "20231222800809",
+    "20240322800822",
+    "20250605800294",
+    "20251030800728",
+    "20251204800395"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [
+    "amount: 답변 1,102,000,000,000원 vs 재계산 443,500,000,000",
+    "amount: 답변 1,102,000,000,000원 vs 재계산 905,200,000,000",
+    "amount: 답변 1,102,000,000,000원 vs 재계산 912,000,000,000"
+   ],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "한화오션의 2023년 12월 잠수함 1척 공급계약 관련 정정 과정에서의 계약금액 변화를 시간순으로 정리하면 다음과 같습니다:\n\n1. **원공시**: 2023년 12월 22일에 최초 공시되었으며, 이때 계약금액은 **1,102,000,000,000원**(1조 1,020억원)였습니다.\n2. **정정 후**: 동일 날짜인 2023년 12월 22일에 정정되어 계약금액은 변경 없이 동일한 **1,102,000,000,000원**(1조 1,020억원)으로 유지되었습니다.\n\n따라서, 본 건에 대해서는 추가적인 변동 사항이 없으므로 처음 공시된 계약금액 그대로 유지되었음을 알 수 있습니다.\n\n(근거: 단일판매ㆍ공급계약체결, 2023-12-22, 20231222800809)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — stale_value: 근거에 최신본이 있는데 답이 대체본 값 1,102,000,000,000 을 썼다)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한화오션\" period=ym:202312 top_k=5 q=\"한화오션 2023 12 월에 공시한 잠수함 이후 여러 차례 정정됐다 정정 과정 어떻게 바뀌었는지 시간순\" n=5 top_score=37.754 ids=exchange_20231222800809,exchange_20231229800466,exchange_20231222800421,exchange_20231211800451,exchange_20231221800398 | hop=5 strat=chain tool=get_history corp=\"한화오션\" rcept=20231222800809 latest=20251204800395 chain_length=7 n=6 top_score=- ids=exchange_20240322800822,exchange_20240607800418,exchange_20241029800530,exchange_20250605800294,exchange_20251030800728,exchange_20251204800395 | hop=0 verdict=sufficient evidence=11 | generate tokens=1994+195 | generate sc=1 tokens=1994+183 | generate sc=2 tokens=1994+177 | sc k=3/3 temp=0.7 keys=2 votes=2 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 원공시와 정정 후의 계약 금액 및 일자가 정확하게 기재되어 있으며, 이는 제공된 근거와 일치합니다. | verify calc_checked=amount complete_checked=evidence_gap,stale_value ok=False kinds=stale_value | budget steps=2 hops=0 llm=4 tokens=8328"
+  },
+  {
+   "question_id": "Q-024",
+   "task_type": "multi_compare",
+   "answer_mode": "open",
+   "difficulty": "상",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "원전",
+   "corp_name": [
+    "한전기술"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "한전기술"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 4,
+   "prompt_tokens": 3726,
+   "completion_tokens": 713,
+   "judge_tokens": 1039,
+   "latency_s": 17.961,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 962,
+     "completion_tokens": 199,
+     "latency_s": 4.94,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 962,
+     "completion_tokens": 196,
+     "latency_s": 5.074,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 962,
+     "completion_tokens": 277,
+     "latency_s": 6.753,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 840,
+     "completion_tokens": 41,
+     "latency_s": 1.184,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20240531800927",
+    "20240703800584",
+    "20250102800164"
+   ],
+   "golden_rank": {
+    "20240531800927": 1,
+    "20240703800584": 1,
+    "20250102800164": 2
+   },
+   "golden_in_candidates": [
+    "20240531800927",
+    "20240703800584",
+    "20250102800164"
+   ],
+   "golden_in_evidence": [
+    "20240531800927",
+    "20240703800584",
+    "20250102800164"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "한전기술이 2024년 5월에 공시한 EUR Rev.E 인증 관련 APR1000 설계용역 계약 금액 변화는 다음과 같습니다:\n\n1. 최초 공시 (2024년 5월): 53,618,694,910원 (536억 원)\n2. 중간 공시 (2024년 7월): 53,579,286,750원 (536억 원), 약 39백만원 감소\n3. 최종 공시 (2025년 1월): 71,596,206,330원 (716억 원), 약 18억 원 증가\n\n따라서 초기 계약 금액보다 최종적으로 약 180억 원 증가한 것을 알 수 있습니다.\n\n(근거: 각 정정본 보고서들, 기준연월 2024년 5월~2025년 1월, 접수번호 각각 20240531800927, 20240703800584, 20250102800164)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한전기술\" period=ym:202405 top_k=5 q=\"한전기술 2024 월에 공시한 EUR Rev 인증 관련 APR 1000 설계용역 계약 차례 공시됐다 어떻게 변해 왔는지\" n=1 top_score=61.439 ids=exchange_20240531800927 | hop=5 strat=chain tool=get_history corp=\"한전기술\" rcept=20240531800927 latest=20250102800164 chain_length=3 n=2 top_score=- ids=exchange_20240703800584,exchange_20250102800164 | hop=0 verdict=sufficient evidence=3 | generate tokens=962+199 | generate sc=1 tokens=962+196 | generate sc=2 tokens=962+277 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치와 사실이 근거에서 확인되며, 접수번호도 명시되어 있다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=4 tokens=4439"
+  },
+  {
+   "question_id": "Q-025",
+   "task_type": "complex_reason",
+   "answer_mode": "closed",
+   "difficulty": "하",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "반도체·전자부품",
+   "corp_name": [
+    "삼성전자"
+   ],
+   "answerable": true,
+   "answer_form": "boolean",
+   "correct": true,
+   "scored_by": "boolean",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "삼성전자"
+   ],
+   "n_hops": 0,
+   "n_steps": 1,
+   "n_llm_calls": 4,
+   "prompt_tokens": 3158,
+   "completion_tokens": 462,
+   "judge_tokens": 0,
+   "latency_s": 13.022,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 860,
+     "completion_tokens": 143,
+     "latency_s": 3.386,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 860,
+     "completion_tokens": 133,
+     "latency_s": 3.244,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 860,
+     "completion_tokens": 145,
+     "latency_s": 3.506,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 578,
+     "completion_tokens": 41,
+     "latency_s": 2.878,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20250728800035"
+   ],
+   "golden_rank": {
+    "20250728800035": 1
+   },
+   "golden_in_candidates": [
+    "20250728800035"
+   ],
+   "golden_in_evidence": [
+    "20250728800035"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "amount",
+    "equation",
+    "period",
+    "restatement",
+    "share"
+   ],
+   "calc_gated_records": 1,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "네, 삼성전자가 2025년 7월 28일에 최초 공시한 반도체 위탁생산 공급계약에 대해 이후 정정공시가 있었습니다.\n\n- 최초 공시: 2025년 7월 28일, 계약 상대방 '글로벌 대형 기업'\n- 정정 후 : 2025년 7월 31일, 계약 상대방 '테슬라(Tesla, Inc.)'\n\n두 공시의 내용은 대부분 동일하나, 계약 상대가 누구인지에 대한 정보가 달라졌습니다.(근거: 단일판매ㆍ공급계약 체결(20250728800035), 단일판매ㆍ공급계약 체결(20250731800028))",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성전자\" period=ym:202507 top_k=5 q=\"삼성전자 2025 28 공시한 반도체 위탁생산 이후 정정공시 있었는\" n=2 top_score=54.708 ids=exchange_20250728800035,exchange_20250731800028 | hop=0 verdict=sufficient evidence=2 | generate tokens=860+143 | generate sc=1 tokens=860+133 | generate sc=2 tokens=860+145 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보들이 근거에서 확인할 수 있으며, 접수번호도 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=4 tokens=3620"
+  },
+  {
+   "question_id": "Q-026",
+   "task_type": "complex_reason",
+   "answer_mode": "closed",
+   "difficulty": "하",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "전력기기",
+   "corp_name": [
+    "HD현대일렉트릭"
+   ],
+   "answerable": true,
+   "answer_form": "boolean",
+   "correct": true,
+   "scored_by": "boolean",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "HD현대일렉트릭"
+   ],
+   "n_hops": 0,
+   "n_steps": 1,
+   "n_llm_calls": 4,
+   "prompt_tokens": 2128,
+   "completion_tokens": 212,
+   "judge_tokens": 0,
+   "latency_s": 6.529,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 588,
+     "completion_tokens": 86,
+     "latency_s": 2.223,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 588,
+     "completion_tokens": 36,
+     "latency_s": 1.361,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 588,
+     "completion_tokens": 46,
+     "latency_s": 1.691,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 364,
+     "completion_tokens": 44,
+     "latency_s": 1.244,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20230131800162"
+   ],
+   "golden_rank": {
+    "20230131800162": 1
+   },
+   "golden_in_candidates": [
+    "20230131800162"
+   ],
+   "golden_in_evidence": [
+    "20230131800162"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "amount",
+    "equation",
+    "period",
+    "restatement",
+    "share"
+   ],
+   "calc_gated_records": 1,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "공시된 자료에 따르면, HD현대일렉트릭이 2023년 1월 31일에 공시한 내용에 대한 정정공시는 없습니다. 따라서 본 공시는 최초 공시 상태 그대로 유효하며, 추가적인 정정사항은 존재하지 않습니다.\n\n(근거: 단일판매ㆍ공급계약체결, 2023-01-31, 20230131800162)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202301 top_k=5 q=\"HD 현대일렉트릭 2023 31 공시한 2500 kVA 배전변압기 3,500 이후 정정공시 있었는\" n=1 top_score=87.687 ids=exchange_20230131800162 | hop=0 verdict=sufficient evidence=1 | generate tokens=588+86 | generate sc=1 tokens=588+36 | generate sc=2 tokens=588+46 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 근거에 있는 정보가 정확하게 반영되어 있으며, 접수번호도 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=4 tokens=2340"
+  },
+  {
+   "question_id": "Q-028",
+   "task_type": "complex_reason",
+   "answer_mode": "closed",
+   "difficulty": "중",
+   "doc_group": "holding",
+   "track": "grid",
+   "sector": "운송·물류",
+   "corp_name": [
+    "HMM"
+   ],
+   "answerable": true,
+   "answer_form": "number_pct",
+   "correct": true,
+   "scored_by": "em:number_pct",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
+   "route": "multi_compare",
+   "route_group": "exchange",
+   "route_corps": [
+    "HMM"
+   ],
+   "n_hops": 1,
+   "n_steps": 2,
+   "n_llm_calls": 4,
+   "prompt_tokens": 8310,
+   "completion_tokens": 830,
+   "judge_tokens": 0,
+   "latency_s": 20.583,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 2129,
+     "completion_tokens": 138,
+     "latency_s": 3.531,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 2129,
+     "completion_tokens": 322,
+     "latency_s": 7.756,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 2129,
+     "completion_tokens": 313,
+     "latency_s": 7.492,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 1923,
+     "completion_tokens": 57,
+     "latency_s": 1.791,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20240108000164"
+   ],
+   "golden_rank": {
+    "20240108000164": 1
+   },
+   "golden_in_candidates": [
+    "20240108000164"
+   ],
+   "golden_in_evidence": [
+    "20240108000164"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [
+     "20240108000164"
+    ],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "국민연금공단이 2024년 1월 8일에 제출한 HMM 대량보유상황보고서에 따르면, 보유주식 등의 수가 20,929,483주에서 25,151,114주로 증가하면서 보유비율이 5.16%에서 **3.65**%로 감소하였습니다.\n\n따라서, 질문에 대한 답변 '3.65%'는 위 내용을 토대로 도출되었습니다.\n(근거: [대량보유상황보고서] HMM – 주식등의대량보유상황보고서(약식) · 보고자 국민연금공단, 2024-01-08, 20240108000164)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"HMM\" period=ym:202401 top_k=5 q=\"국민연금공단 2024 제출한 HMM 대량보유상황보고서 보유주식등 수는 20,929,483 25,151,114 주로 늘었는데 보유비율 5.16 에서 낮아졌는\" n=1 top_score=69.162 ids=holding_20240108000164 | hop=0 verdict=insufficient evidence=1 reason=few:1<2 | hop=1 strat=relax_period tool=search_chunks corp=\"HMM\" period=year:2024 top_k=8 q=\"국민연금공단 2024 제출한 HMM 대량보유상황보고서 보유주식등 수는 20,929,483 25,151,114 주로 늘었는데 보유비율 5.16 에서 낮아졌는\" n=8 top_score=69.162 ids=holding_20240108000164,holding_20240402000612,holding_20241024000130,holding_20240624000232,holding_20240624000214,holding_20241023000284,holding_20240214002751,holding_20240214002069 | hop=1 verdict=sufficient evidence=8 | generate tokens=2129+138 | generate sc=1 tokens=2129+322 | generate sc=2 tokens=2129+313 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 국민연금공단의 HMM 대량보유상황보고서의 날짜, 보고서 종류, 그리고 보유비율 변화에 대한 정보가 정확하게 반영되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=1 llm=4 tokens=9140"
+  },
+  {
+   "question_id": "Q-030",
+   "task_type": "complex_reason",
+   "answer_mode": "closed",
+   "difficulty": "상",
+   "doc_group": "major",
+   "track": "grid",
+   "sector": "비철금속",
+   "corp_name": [
+    "고려아연"
+   ],
+   "answerable": true,
+   "answer_form": "boolean",
+   "correct": true,
+   "scored_by": "boolean",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": false,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "고려아연"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 4,
+   "prompt_tokens": 8717,
+   "completion_tokens": 418,
+   "judge_tokens": 0,
+   "latency_s": 11.563,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 2256,
+     "completion_tokens": 130,
+     "latency_s": 3.391,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 2256,
+     "completion_tokens": 154,
+     "latency_s": 4.028,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 2256,
+     "completion_tokens": 78,
+     "latency_s": 2.314,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 1949,
+     "completion_tokens": 56,
+     "latency_s": 1.823,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20241030000098",
+    "20241113000148"
+   ],
+   "golden_rank": {
+    "20241030000098": 1,
+    "20241113000148": 1
+   },
+   "golden_in_candidates": [
+    "20241030000098",
+    "20241113000148"
+   ],
+   "golden_in_evidence": [
+    "20241030000098",
+    "20241113000148"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "amount",
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 1,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [
+     "20241113000148"
+    ],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "네, 고려아연은 2024년 10월 30일 이사회에서 결의한 일반 공모 유상증자를 철회하였습니다.\n\n최신본인 \"[기정정] [유상증자결정] 고려아연 – 주요사항보고서(유상증자결정)\"에 따르면, 기존의 유상증자 결정이 철회되어 있음을 알 수 있습니다.(근거: [기정정] [유상증자결정] 고려아연 – 주요사항보고서(유상증자결정), 2024-11-14, 20241114000001)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"고려아연\" period=ym:202410 top_k=5 q=\"고려아연 2024 10 30 이사회 결의한 일반공모 유상증자 이후 철회되었는\" n=5 top_score=37.410 ids=major_20241030000098,major_20241002000155,major_20241011000053,major_20241002000553,major_20241004000001 | hop=5 strat=chain tool=get_history corp=\"고려아연\" rcept=20241030000098 latest=20241114000001 chain_length=3 n=2 top_score=- ids=major_20241113000148,major_20241114000001 | hop=0 verdict=sufficient evidence=7 | generate tokens=2256+130 | generate sc=1 tokens=2256+154 | generate sc=2 tokens=2256+78 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 최신 공시된 유상증자 철회 내용을 정확하게 반영하고 있으며, 해당 공시의 접수번호와 날짜도 명시되어 있다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=4 tokens=9135"
+  },
+  {
+   "question_id": "Q-031",
+   "task_type": "complex_reason",
+   "answer_mode": "open",
+   "difficulty": "하",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "2차전지",
+   "corp_name": [
+    "LG에너지솔루션"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "LG에너지솔루션"
+   ],
+   "n_hops": 0,
+   "n_steps": 1,
+   "n_llm_calls": 3,
+   "prompt_tokens": 3822,
+   "completion_tokens": 325,
+   "judge_tokens": 1031,
+   "latency_s": 8.415,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1274,
+     "completion_tokens": 95,
+     "latency_s": 2.459,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1274,
+     "completion_tokens": 143,
+     "latency_s": 3.673,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1274,
+     "completion_tokens": 87,
+     "latency_s": 2.275,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20251217800800"
+   ],
+   "golden_rank": {
+    "20251217800800": 1
+   },
+   "golden_in_candidates": [
+    "20251217800800"
+   ],
+   "golden_in_evidence": [
+    "20251217800800"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "LG에너지솔루션이 2025년 12월 17일에 공시한 전기차 배터리 공급계약 해지의 해지 금액은 **9,603,075,000,000원**(9조 6,031억 원)입니다.\n\n(근거: [공급계약 해지] LG에너지솔루션 – 단일판매ㆍ공급계약 해지 — 전기차 배터리 공급계약, 2025-12-17, 접수번호 20251217800800)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG에너지솔루션\" period=ym:202512 top_k=5 q=\"LG 에너지솔루션 2025 12 17 공시한 전기차 배터리 해지 금액 얼마인지 근거 함께\" n=5 top_score=72.097 ids=exchange_20251217800800,exchange_20251226800706,exchange_20251217800853,exchange_20251208800031,exchange_20251226800767 | hop=0 verdict=sufficient evidence=5 | generate tokens=1274+95 | generate sc=1 tokens=1274+143 | generate sc=2 tokens=1274+87 | sc k=3/3 temp=0.7 keys=2 votes=2 picked=0 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=3 tokens=4147"
+  },
+  {
+   "question_id": "Q-033",
+   "task_type": "complex_reason",
+   "answer_mode": "open",
+   "difficulty": "중",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "건설",
+   "corp_name": [
+    "삼성E&A"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "삼성E&A"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 4,
+   "prompt_tokens": 4517,
+   "completion_tokens": 496,
+   "judge_tokens": 1039,
+   "latency_s": 12.376,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1203,
+     "completion_tokens": 154,
+     "latency_s": 3.711,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1203,
+     "completion_tokens": 135,
+     "latency_s": 3.305,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1203,
+     "completion_tokens": 159,
+     "latency_s": 3.875,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 908,
+     "completion_tokens": 48,
+     "latency_s": 1.477,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20241128800504"
+   ],
+   "golden_rank": {
+    "20241128800504": 1
+   },
+   "golden_in_candidates": [
+    "20241128800504"
+   ],
+   "golden_in_evidence": [
+    "20241128800504"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "period",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "equation",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "삼성E&A가 2024년 11월에 공시한 알제리 Hassi Messaoud 정유 프로젝트 계약 해지에 대한 정보는 다음과 같습니다.\n\n- **해지 금액**: 1,937,231,667,470원 (1조 9,372억원)\n- **계약 상대방**: SONATRACH (알제리 국영석유회사)\n- **원래 계약 기간**: 2020-02-25부터 2024-12-21까지 (총 4년 9개월)\n\n이 내용은 최신 공시인 '공급계약 해지' 보고서에 기반하여 작성되었습니다.\n(근거: 공급계약 해지, 2024-11-28, 20241128800504)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성E&A\" period=ym:202411 top_k=5 q=\"삼성 2024 11 월에 공시한 알제리 Hassi Messaoud 정유 프로젝트 계약 해지 금액 원래\" n=3 top_score=80.500 ids=exchange_20241128800504,exchange_20241115800040,exchange_20241129800158 | hop=5 strat=chain tool=get_history corp=\"삼성E&A\" rcept=20241128800504 latest=20241128800504 chain_length=1 n=1 top_score=- ids=exchange_20240618800188 | hop=0 verdict=sufficient evidence=4 | generate tokens=1203+154 | generate sc=1 tokens=1203+135 | generate sc=2 tokens=1203+159 | sc k=3/3 temp=0.7 keys=1 votes=3 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제공된 근거의 정보를 정확하게 반영하고 있으며, 관련 공시 번호와 날짜도 명시되어 있습니다. | verify calc_checked=amount,period complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=4 tokens=5013"
+  },
+  {
+   "question_id": "Q-034",
+   "task_type": "complex_reason",
+   "answer_mode": "open",
+   "difficulty": "중",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "신재생에너지",
+   "corp_name": [
+    "두산퓨얼셀"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": false,
+   "scored_by": "judge+numeric",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": "GENERATION",
+   "root_cause": "REASONING",
+   "failure_why": "provenance: 답변 757,100,000,000원 이 근거에 없다",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": true,
+   "gold_value_in_evidence": true,
+   "has_citation": false,
+   "route": "multi_compare",
+   "route_group": "exchange",
+   "route_corps": [
+    "두산퓨얼셀"
+   ],
+   "n_hops": 0,
+   "n_steps": 1,
+   "n_llm_calls": 4,
+   "prompt_tokens": 4104,
+   "completion_tokens": 909,
+   "judge_tokens": 1100,
+   "latency_s": 21.529,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1055,
+     "completion_tokens": 199,
+     "latency_s": 4.811,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1055,
+     "completion_tokens": 391,
+     "latency_s": 9.006,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1055,
+     "completion_tokens": 268,
+     "latency_s": 6.26,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 939,
+     "completion_tokens": 51,
+     "latency_s": 1.444,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20250331802527",
+    "20250402800768",
+    "20250402800874"
+   ],
+   "golden_rank": {
+    "20250402800768": 1,
+    "20250331802527": 2,
+    "20250402800874": 3
+   },
+   "golden_in_candidates": [
+    "20250331802527",
+    "20250402800768",
+    "20250402800874"
+   ],
+   "golden_in_evidence": [
+    "20250331802527",
+    "20250402800768",
+    "20250402800874"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "provenance"
+   ],
+   "numeric_reason": "provenance: 답변 757,100,000,000원 이 근거에 없다",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "두산퓨얼셀이 2025년 3~4월에 공시한 계약 해지 3건은 다음과 같습니다:\n\n1. **㈜태영건설과의 계약**\n   - 해지 금액: 72,200,000,000원 (722억 원)\n\n2. **한국전력기술㈜, 금호건설㈜, LS일렉트릭㈜와의 계약**\n   - 해지 금액: 398,800,000,000원 (3,988억 원)\n\n3. **ZKRG Smart Energy Technology (Foshan) Co. Ltd.(이하 \"ZKRG\")와의 계약**\n   - 해지 금액: 346,900,000,000 (3,469억 원)\n\n따라서 세 건의 계약 해지 금액 합계는 **757,100,000,000원**(7,571억 원)입니다.\n(근거: 각 개별 공급계약 해지 보고서들, 2025년 3월 및 4월 기준)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 세 건의 계약 해지 정보는 모두 제공된 근거에서 확인할 수 있으며, 이를 바탕으로 총합계도 정확히 계산되었습니다.)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산퓨얼셀\" period=year:2025 top_k=5 q=\"두산퓨얼셀 2025 월에 공시한 계약 해지 건의 금액 정리하고 합계\" n=5 top_score=30.250 ids=exchange_20250402800768,exchange_20250331802527,exchange_20250402800874,exchange_20250424800733,exchange_20250903800038 | hop=0 verdict=sufficient evidence=5 | generate tokens=1055+199 | generate sc=1 tokens=1055+391 | generate sc=2 tokens=1055+268 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=세 건의 계약 해지 정보는 모두 제공된 근거에서 확인할 수 있으며, 이를 바탕으로 총합계도 정확히 계산되었습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=4 tokens=5013"
+  },
+  {
+   "question_id": "Q-035",
+   "task_type": "complex_reason",
+   "answer_mode": "open",
+   "difficulty": "상",
+   "doc_group": "exchange",
+   "track": "grid",
+   "sector": "2차전지",
+   "corp_name": [
+    "LG에너지솔루션"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": false,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "LG에너지솔루션"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 4,
+   "prompt_tokens": 6631,
+   "completion_tokens": 957,
+   "judge_tokens": 1710,
+   "latency_s": 23.125,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1690,
+     "completion_tokens": 318,
+     "latency_s": 7.54,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1690,
+     "completion_tokens": 311,
+     "latency_s": 7.33,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 1690,
+     "completion_tokens": 283,
+     "latency_s": 6.753,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 1561,
+     "completion_tokens": 45,
+     "latency_s": 1.491,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20241015800258",
+    "20251217800853",
+    "20251217800800"
+   ],
+   "golden_rank": {
+    "20241015800258": 2,
+    "20251217800853": 1,
+    "20251217800800": 2
+   },
+   "golden_in_candidates": [
+    "20241015800258",
+    "20251217800800",
+    "20251217800853"
+   ],
+   "golden_in_evidence": [
+    "20241015800258",
+    "20251217800853",
+    "20251217800800"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "share"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [
+     "20241015800258"
+    ],
+    "no_amount": [
+     "20241015800258"
+    ],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "LG에너지솔루션이 2024년 10월에 공시한 Ford Motor Company와의 전기차 배터리 공급계약의 정정 및 해지 이력은 다음과 같습니다:\n\n1. **최초 공시**: 2024년 10월 15일에 최초로 공시된 내용은 Ford Motor Company와 2027년 1월 1일부터 2032년 12월 31일까지 약 75GWh 규모의 전기차 배터리 공급계약을 체결했다는 것입니다. 이때 계약 금액은 확정되지 않았으며 추후 공시될 예정이었습니다.\n\n2. **정정 공지**: 이후 2025년 12월 17일 자로 정정 공시가 이루어졌습니다. 정정된 내용에 따르면, 계약 금액은 **9,603,075,000,000원**(약 9조 6,031억 원)이며 매출액 대비 28.5%였습니다.\n\n3. **해지 공시**: 같은 날짜인 2025년 12월 17일에 해지 공시도 있었습니다. 이는 앞서 체결된 Ford Motor Company와의 공급계약이 해지되었음을 나타내며, 해지금액은 이전의 계약 금액과 동일한 **9,603,075,000,000원**(약 9조 6,031억 원), 매출액 대비 비율 또한 28.5%로 동일했습니다.\n\n따라서, 요약하면 2024년에 체결되었던 Ford Motor Company와의 전기차 배터리 공급계약은 2025년에 계약 금액이 확정되었지만 결국 해지되었습니다.\n\n(근거: 각 공시별 상세내용 참조)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 주요 정보가 근거에서 확인되며, 추가적인 출처 없이 자체적으로 내용을 정리하고 있습니다.)",
+   "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG에너지솔루션\" period=ym:202410 top_k=5 q=\"LG 에너지솔루션 2024 10 월에 공시한 Ford Motor Company 와의 전기차 배터리 이후 어떻게 처리되었는지 정정 해지 이력 함께\" n=3 top_score=60.750 ids=exchange_20241015800261,exchange_20241015800258,exchange_20241008800163 | hop=5 strat=chain tool=get_history corp=\"LG에너지솔루션\" rcept=20241015800258 latest=20251217800853 chain_length=2 n=2 top_score=- ids=exchange_20251217800853,exchange_20251217800800 | hop=0 verdict=sufficient evidence=5 | generate tokens=1690+318 | generate sc=1 tokens=1690+311 | generate sc=2 tokens=1690+283 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 주요 정보가 근거에서 확인되며, 추가적인 출처 없이 자체적으로 내용을 정리하고 있습니다. | verify calc_checked=amount,share complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=2 hops=0 llm=4 tokens=7588"
+  },
+  {
+   "question_id": "Q-037",
+   "task_type": null,
+   "answer_mode": null,
+   "difficulty": null,
+   "doc_group": "periodic",
+   "track": "info_limit",
+   "sector": "",
+   "corp_name": [],
+   "answerable": false,
+   "answer_form": "refusal",
+   "correct": true,
+   "scored_by": "refusal_phrase",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": false,
+   "route": "unanswerable",
+   "route_group": "",
+   "route_corps": [],
+   "n_hops": 0,
+   "n_steps": 0,
+   "n_llm_calls": 0,
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "judge_tokens": 0,
+   "latency_s": 0.0,
+   "calls": [],
+   "golden": [],
+   "golden_rank": {},
+   "golden_in_candidates": [],
+   "golden_in_evidence": [],
+   "golden_evidence_all": false,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다.",
+   "think_trace": "route=unanswerable difficulty=low cot=False sc=False | 범위 밖 — LLM 호출 없이 한계 고지 | budget steps=0 hops=0 llm=0 tokens=0"
+  },
+  {
+   "question_id": "Q-038",
+   "task_type": null,
+   "answer_mode": null,
+   "difficulty": null,
+   "doc_group": "periodic",
+   "track": "info_limit",
+   "sector": "",
+   "corp_name": [],
+   "answerable": false,
+   "answer_form": "refusal",
+   "correct": true,
+   "scored_by": "refusal_phrase",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": false,
+   "route": "unanswerable",
+   "route_group": "",
+   "route_corps": [],
+   "n_hops": 0,
+   "n_steps": 0,
+   "n_llm_calls": 0,
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "judge_tokens": 0,
+   "latency_s": 0.0,
+   "calls": [],
+   "golden": [],
+   "golden_rank": {},
+   "golden_in_candidates": [],
+   "golden_in_evidence": [],
+   "golden_evidence_all": false,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다.",
+   "think_trace": "route=unanswerable difficulty=low cot=False sc=False | 범위 밖 — LLM 호출 없이 한계 고지 | budget steps=0 hops=0 llm=0 tokens=0"
+  },
+  {
+   "question_id": "Q-039",
+   "task_type": null,
+   "answer_mode": null,
+   "difficulty": null,
+   "doc_group": "periodic",
+   "track": "info_limit",
+   "sector": "반도체·전자부품",
+   "corp_name": [
+    "삼성전자"
+   ],
+   "answerable": false,
+   "answer_form": "refusal",
+   "correct": true,
+   "scored_by": "refusal_phrase",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": false,
+   "route": "unanswerable",
+   "route_group": "",
+   "route_corps": [],
+   "n_hops": 0,
+   "n_steps": 0,
+   "n_llm_calls": 0,
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "judge_tokens": 0,
+   "latency_s": 0.0,
+   "calls": [],
+   "golden": [],
+   "golden_rank": {},
+   "golden_in_candidates": [],
+   "golden_in_evidence": [],
+   "golden_evidence_all": false,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다.",
+   "think_trace": "route=unanswerable difficulty=low cot=False sc=False | 범위 밖 — LLM 호출 없이 한계 고지 | budget steps=0 hops=0 llm=0 tokens=0"
+  },
+  {
+   "question_id": "Q-040",
+   "task_type": null,
+   "answer_mode": null,
+   "difficulty": null,
+   "doc_group": "periodic",
+   "track": "info_limit",
+   "sector": "원전",
+   "corp_name": [
+    "두산에너빌리티"
+   ],
+   "answerable": false,
+   "answer_form": "refusal",
+   "correct": true,
+   "scored_by": "refusal_phrase",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": false,
+   "route": "unanswerable",
+   "route_group": "",
+   "route_corps": [],
+   "n_hops": 0,
+   "n_steps": 0,
+   "n_llm_calls": 0,
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "judge_tokens": 0,
+   "latency_s": 0.019,
+   "calls": [],
+   "golden": [],
+   "golden_rank": {},
+   "golden_in_candidates": [],
+   "golden_in_evidence": [],
+   "golden_evidence_all": false,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "공시에서 확인되지 않습니다. 질문이 지목한 보고서가 제공 코퍼스(70개사 · 2023.01~2026.03 접수분)에 없습니다. 어느 사업연도·보고서 종류를 확인해 드릴지 알려주시면 실재하는 공시로 답해 드리겠습니다.",
+   "think_trace": "route=unanswerable difficulty=low cot=False sc=False | no_such_report:half:base_year=2026 — 지목한 보고서가 목록에 없다 (LLM 호출 없이 한계 고지) | budget steps=0 hops=0 llm=0 tokens=0"
+  },
+  {
+   "question_id": "Q-041",
+   "task_type": null,
+   "answer_mode": null,
+   "difficulty": null,
+   "doc_group": "periodic",
+   "track": "info_limit",
+   "sector": "건설",
+   "corp_name": [
+    "대우건설"
+   ],
+   "answerable": false,
+   "answer_form": "refusal",
+   "correct": true,
+   "scored_by": "refusal_phrase",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": false,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "대우건설"
+   ],
+   "n_hops": 0,
+   "n_steps": 1,
+   "n_llm_calls": 4,
+   "prompt_tokens": 3474,
+   "completion_tokens": 239,
+   "judge_tokens": 0,
+   "latency_s": 16.849,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 922,
+     "completion_tokens": 69,
+     "latency_s": 11.901,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 922,
+     "completion_tokens": 96,
+     "latency_s": 2.575,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 922,
+     "completion_tokens": 29,
+     "latency_s": 1.005,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 708,
+     "completion_tokens": 45,
+     "latency_s": 1.362,
+     "finish": "stop"
+    }
+   ],
+   "golden": [],
+   "golden_rank": {},
+   "golden_in_candidates": [],
+   "golden_in_evidence": [],
+   "golden_evidence_all": false,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "공시에서 대우건설의 2026년 하반기 신규 수주 전망치에 대한 정보는 확인되지 않습니다. \n\n제공된 공시들은 과거 또는 현재까지의 수주 실적에 관한 것이며, 미래 예측이나 전망치를 포함하고 있지 않습니다. 추가적인 정보가 필요하시면 회사 측의 공식 발표나 시장 분석 보고서를 참고하시기 바랍니다.",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"대우건설\" period=year:2026 top_k=5 q=\"대우건설 2026 하반기 신규 수주 전망치 얼마인\" n=5 top_score=13.906 ids=exchange_20260119800228,exchange_20260202800101,exchange_20260316800085,exchange_20260128800877,exchange_20260206800121 | hop=0 verdict=sufficient evidence=5 | generate tokens=922+69 | generate sc=1 tokens=922+96 | generate sc=2 tokens=922+29 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 답변은 제공된 공시 내용을 바탕으로 하고 있으며, 공시에 포함된 정보를 정확히 반영하고 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=4 tokens=3713"
+  },
+  {
+   "question_id": "Q-042",
+   "task_type": null,
+   "answer_mode": null,
+   "difficulty": null,
+   "doc_group": "periodic",
+   "track": "info_limit",
+   "sector": "반도체·전자부품",
+   "corp_name": [
+    "SK하이닉스"
+   ],
+   "answerable": false,
+   "answer_form": "refusal",
+   "correct": true,
+   "scored_by": "refusal_phrase",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": false,
+   "route": "unanswerable",
+   "route_group": "",
+   "route_corps": [],
+   "n_hops": 0,
+   "n_steps": 0,
+   "n_llm_calls": 0,
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "judge_tokens": 0,
+   "latency_s": 0.0,
+   "calls": [],
+   "golden": [],
+   "golden_rank": {},
+   "golden_in_candidates": [],
+   "golden_in_evidence": [],
+   "golden_evidence_all": false,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다.",
+   "think_trace": "route=unanswerable difficulty=low cot=False sc=False | 범위 밖 — LLM 호출 없이 한계 고지 | budget steps=0 hops=0 llm=0 tokens=0"
+  },
+  {
+   "question_id": "Q-043",
+   "task_type": "search_extract",
+   "answer_mode": "closed",
+   "difficulty": "하",
+   "doc_group": "periodic",
+   "track": "grid",
+   "sector": "2차전지",
+   "corp_name": [
+    "LG에너지솔루션"
+   ],
+   "answerable": true,
+   "answer_form": "number_pct",
+   "correct": true,
+   "scored_by": "em:number_pct",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": true,
+   "route": "multi_compare",
+   "route_group": "periodic",
+   "route_corps": [
+    "LG에너지솔루션"
+   ],
+   "n_hops": 1,
+   "n_steps": 3,
+   "n_llm_calls": 3,
+   "prompt_tokens": 9576,
+   "completion_tokens": 247,
+   "judge_tokens": 0,
+   "latency_s": 8.069,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 3192,
+     "completion_tokens": 84,
+     "latency_s": 2.497,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 3192,
+     "completion_tokens": 81,
+     "latency_s": 2.596,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 3192,
+     "completion_tokens": 82,
+     "latency_s": 2.532,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20260312000217"
+   ],
+   "golden_rank": {
+    "20260312000217": 1
+   },
+   "golden_in_candidates": [
+    "20260312000217"
+   ],
+   "golden_in_evidence": [
+    "20260312000217"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "2025년 사업보고서에 따르면, LG에너지솔루션의 주요 5대 매출처에 대한 매출 비중은 **약 63**%입니다. \n(근거: [사업보고서 2025] LG에너지솔루션 – II. 사업의 내용 > 4. 매출 및 수주상황, 접수번호 20260312000217, 공시일 20260312)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"LG에너지솔루션\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"LG 에너지솔루션 2025 사업보고서 밝힌 주요 매출처 대한 매출 비중\" n=1 top_score=57.599 ids=periodic_20260312000217 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"LG에너지솔루션\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 2. 주요 제품 및 서비스\" top_k=8 q=\"LG 에너지솔루션 2025 사업보고서 밝힌 주요 매출처 대한 매출 비중\" n=1 top_score=48.516 ids=periodic_20260312000217 | hop=1 strat=toc_corp tool=search_chunks group=periodic corp=\"LG에너지솔루션\" filters=- path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=10 q=\"LG 에너지솔루션 2025 사업보고서 밝힌 주요 매출처 대한 매출 비중\" n=10 top_score=57.599 ids=periodic_20240314001110,periodic_20250312000405,periodic_20260312000217,periodic_20250814001590,periodic_20240814001471,periodic_20251114000625,periodic_20241114000371,periodic_20231114001430,periodic_20260514001046,periodic_20250515000407 | hop=4 verdict=sufficient evidence=4 | generate tokens=3192+84 | generate sc=1 tokens=3192+81 | generate sc=2 tokens=3192+82 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=3 hops=1 llm=3 tokens=9823"
+  },
+  {
+   "question_id": "Q-044",
+   "task_type": "search_extract",
+   "answer_mode": "closed",
+   "difficulty": "중",
+   "doc_group": "periodic",
+   "track": "grid",
+   "sector": "반도체·전자부품",
+   "corp_name": [
+    "삼성전자"
+   ],
+   "answerable": true,
+   "answer_form": "number_won",
+   "correct": false,
+   "scored_by": "em:number_won",
+   "judge": null,
+   "first_failure": "TOOL",
+   "root_cause": "TOOL",
+   "failure_why": "equation: 답변 1,699,923 + 665,945 = 1,365,868 vs 재계산 2,365,868",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": false,
+   "has_citation": true,
+   "route": "multi_compare",
+   "route_group": "periodic",
+   "route_corps": [
+    "삼성전자"
+   ],
+   "n_hops": 1,
+   "n_steps": 3,
+   "n_llm_calls": 3,
+   "prompt_tokens": 17949,
+   "completion_tokens": 457,
+   "judge_tokens": 0,
+   "latency_s": 13.534,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 5983,
+     "completion_tokens": 178,
+     "latency_s": 5.089,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 5983,
+     "completion_tokens": 138,
+     "latency_s": 4.144,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 5983,
+     "completion_tokens": 141,
+     "latency_s": 4.248,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20240312000736"
+   ],
+   "golden_rank": {
+    "20240312000736": 1
+   },
+   "golden_in_candidates": [
+    "20240312000736"
+   ],
+   "golden_in_evidence": [
+    "20240312000736"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "equation"
+   ],
+   "calc_skipped": [
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": true,
+   "calc_reasons": [
+    "equation: 답변 1,699,923 + 665,945 = 1,365,868 vs 재계산 2,365,868"
+   ],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "equation"
+   ],
+   "numeric_reason": "equation: 답변 1,699,923 + 665,945 = 1,365,868 vs 재계산 2,365,868",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "삼성전자 2023년 사업보고서(제55기) 기준으로 DX 부문과 DS 부문의 매출액을 찾아보면 다음과 같습니다.\n\n- DX 부문 매출액: 1,699,923억 원\n- DS 부문 매출액: 665,945억 원\n\n따라서, DX 부문과 DS 부문의 매출액 합계는 **1,699,923 + 665,945 = 1,365,868억 원**입니다.\n\n(근거: [사업보고서 2023] 삼성전자 – II. 사업의 내용 > 4. 매출 및 수주상황, 접수번호 20240312000736, 20240312)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2023,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"삼성전자 2023 사업보고서 55 기준 DX 부문 DS 합계 억원 단위 얼마인\" n=1 top_score=52.220 ids=periodic_20240312000736 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2023,doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"삼성전자 2023 사업보고서 55 기준 DX 부문 DS 합계 억원 단위 얼마인\" n=1 top_score=23.937 ids=periodic_20240312000736 | hop=1 strat=toc_corp tool=search_chunks group=periodic corp=\"삼성전자\" filters=- path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=10 q=\"삼성전자 2023 사업보고서 55 기준 DX 부문 DS 합계 억원 단위 얼마인\" n=10 top_score=52.605 ids=periodic_20230814002534,periodic_20230515002335,periodic_20240312000736,periodic_20231114002109,periodic_20250311001085,periodic_20260310002820,periodic_20250515001922,periodic_20241114002642,periodic_20250814003156,periodic_20240814003284 | hop=4 verdict=sufficient evidence=4 | generate tokens=5983+178 | generate sc=1 tokens=5983+138 | generate sc=2 tokens=5983+141 | sc k=3/3 temp=0.7 keys=2 votes=2 picked=1 | verify calc_checked=- complete_checked=interim_source ok=True kinds=- | budget steps=3 hops=1 llm=3 tokens=18406"
+  },
+  {
+   "question_id": "Q-045",
+   "task_type": "search_extract",
+   "answer_mode": "open",
+   "difficulty": "중",
+   "doc_group": "periodic",
+   "track": "grid",
+   "sector": "반도체·전자부품",
+   "corp_name": [
+    "삼성전자"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
+   "route": "multi_compare",
+   "route_group": "periodic",
+   "route_corps": [
+    "삼성전자"
+   ],
+   "n_hops": 1,
+   "n_steps": 3,
+   "n_llm_calls": 3,
+   "prompt_tokens": 18429,
+   "completion_tokens": 539,
+   "judge_tokens": 3735,
+   "latency_s": 15.405,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 6143,
+     "completion_tokens": 195,
+     "latency_s": 5.466,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 6143,
+     "completion_tokens": 142,
+     "latency_s": 4.261,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 6143,
+     "completion_tokens": 202,
+     "latency_s": 5.63,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20260310002820"
+   ],
+   "golden_rank": {
+    "20260310002820": 1
+   },
+   "golden_in_candidates": [
+    "20260310002820"
+   ],
+   "golden_in_evidence": [
+    "20260310002820"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "삼성전자의 2025년 사업보고서에 기재된 수주 계약 정보는 다음과 같습니다:\n\n- **DS부문 Foundry 사업부**\n  - 발주처: Tesla, Inc.\n  - 품목: 반도체 위탁생산\n  - 계약 체결일: 2025년 7월 26일\n  - 계약 종료일: 2033년 12월 31일\n  - 수주 총액: 16,544백만 달러\n\n또한, 본 문서에서는 수량, 금액, 기납품액, 수주 잔고와 같은 정보가 누락되어 있으며, 제시된 수주 총액과 계약 종료일은 고객사 수요 및 사업 진행 상황에 따라 변경될 가능성이 있음을 알립니다.\n\n(근거: [사업보고서 2025] 삼성전자 – II. 사업의 내용 > 4. 매출 및 수주상황, 접수번호 20260310002820, 공시일 20260310)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"삼성전자 2025 사업보고서 매출 수주상황 기재한 수주 계약 발주처 품목 수주총액\" n=1 top_score=49.597 ids=periodic_20260310002820 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2025,doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"삼성전자 2025 사업보고서 매출 수주상황 기재한 수주 계약 발주처 품목 수주총액\" n=1 top_score=18.254 ids=periodic_20260310002820 | hop=1 strat=toc_corp tool=search_chunks group=periodic corp=\"삼성전자\" filters=- path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=10 q=\"삼성전자 2025 사업보고서 매출 수주상황 기재한 수주 계약 발주처 품목 수주총액\" n=10 top_score=49.597 ids=periodic_20260310002820,periodic_20250515001922,periodic_20250814003156,periodic_20251114002447,periodic_20250311001085,periodic_20241114002642,periodic_20240814003284,periodic_20260515002181,periodic_20230814002534,periodic_20240516001421 | hop=4 verdict=sufficient evidence=4 | generate tokens=6143+195 | generate sc=1 tokens=6143+142 | generate sc=2 tokens=6143+202 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | verify calc_checked=- complete_checked=interim_source ok=True kinds=- | budget steps=3 hops=1 llm=3 tokens=18968"
+  },
+  {
+   "question_id": "Q-046",
+   "task_type": "search_extract",
+   "answer_mode": "open",
+   "difficulty": "상",
+   "doc_group": "periodic",
+   "track": "grid",
+   "sector": "반도체·전자부품",
+   "corp_name": [
+    "삼성전자"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": false,
+   "route": "complex_reason",
+   "route_group": "periodic",
+   "route_corps": [
+    "삼성전자"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 4,
+   "prompt_tokens": 23201,
+   "completion_tokens": 503,
+   "judge_tokens": 3656,
+   "latency_s": 15.315,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 5838,
+     "completion_tokens": 149,
+     "latency_s": 4.241,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 5838,
+     "completion_tokens": 170,
+     "latency_s": 4.865,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 5838,
+     "completion_tokens": 148,
+     "latency_s": 4.399,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 5687,
+     "completion_tokens": 36,
+     "latency_s": 1.78,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20240312000736",
+    "20260310002820"
+   ],
+   "golden_rank": {
+    "20240312000736": 1,
+    "20260310002820": 2
+   },
+   "golden_in_candidates": [
+    "20240312000736",
+    "20260310002820"
+   ],
+   "golden_in_evidence": [
+    "20240312000736",
+    "20260310002820"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "equation"
+   ],
+   "calc_skipped": [
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "삼성전자 DS 부문 매출액은 다음과 같이 변화했습니다:\n\n- 제53기(2021년): 953,872억 원\n- 제57기(2025년): 1,301,282억 원\n\n이는 각각 최초 공시된 2023년도 사업보고서와 2025년도 사업보고서를 통해 확인할 수 있습니다.\n\n- 953,872억 원 (제53기): (근거: [사업보고서 2023], 20240312)\n- 1,301,282억 원 (제57기): (근거: [사업보고서 2025], 20260310)\n\n따라서 이 기간 동안 DS 부문 매출액은 **347410억 원** 증가하였습니다. \n\n(계산 과정: 1301282 - 953872 = 347410)",
+   "think_trace": "route=complex_reason difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"삼성전자 DS 부문 53 2021 57 2025 사이 어떻게 달라졌는지 값을 어느 확인했는지 함께\" n=3 top_score=35.267 ids=periodic_20240312000736,periodic_20260310002820,periodic_20250311001085 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"삼성전자 DS 부문 53 2021 57 2025 사이 어떻게 달라졌는지 값을 어느 확인했는지 함께\" n=3 top_score=22.560 ids=periodic_20240312000736,periodic_20260310002820,periodic_20250311001085 | hop=4 verdict=sufficient evidence=4 | generate tokens=5838+149 | generate sc=1 tokens=5838+170 | generate sc=2 tokens=5838+148 | sc k=3/3 temp=0.7 keys=2 votes=2 picked=1 | 근거 표기 누락 — critic 호출 | critic 생략: 토큰 상한 20000 초과 (23704) | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=3 tokens=17981"
+  },
+  {
+   "question_id": "Q-047",
+   "task_type": "multi_compare",
+   "answer_mode": "closed",
+   "difficulty": "하",
+   "doc_group": "periodic",
+   "track": "grid",
+   "sector": "반도체·전자부품",
+   "corp_name": [
+    "SK하이닉스",
+    "삼성전자"
+   ],
+   "answerable": true,
+   "answer_form": "boolean",
+   "correct": false,
+   "scored_by": "boolean",
+   "judge": null,
+   "first_failure": "GENERATION",
+   "root_cause": "UNVERIFIED",
+   "failure_why": "골든 근거가 프롬프트에 실렸는데 답이 틀렸다",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": true,
+   "route": "multi_compare",
+   "route_group": "periodic",
+   "route_corps": [
+    "SK하이닉스",
+    "삼성전자"
+   ],
+   "n_hops": 0,
+   "n_steps": 4,
+   "n_llm_calls": 3,
+   "prompt_tokens": 15591,
+   "completion_tokens": 705,
+   "judge_tokens": 0,
+   "latency_s": 18.712,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 5197,
+     "completion_tokens": 234,
+     "latency_s": 6.253,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 5197,
+     "completion_tokens": 216,
+     "latency_s": 5.803,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 5197,
+     "completion_tokens": 255,
+     "latency_s": 6.592,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20260317000635",
+    "20260310002820"
+   ],
+   "golden_rank": {
+    "20260317000635": 1,
+    "20260310002820": 2
+   },
+   "golden_in_candidates": [
+    "20260310002820",
+    "20260317000635"
+   ],
+   "golden_in_evidence": [
+    "20260317000635",
+    "20260310002820"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "SK하이닉스와 삼성전자의 2025년도 연결 매출액을 비교해 보겠습니다.\n\n1. SK하이닉스의 2025년 연결 매출액\n   - 97,146,675백만 원\n2. 삼성전자의 2025년 연결 매출액\n   - 33,360,59억 원 (1,000백만 원 = 1억 원이므로, 33,360,59 * 1,000 = 33,360,59000백만 원)\n\n따라서 SK하이닉스의 2025년 연결 매출액이 삼성전자의 동일 연도 매출액보다 **크다**고 할 수 있습니다.\n\n- 결론: SK하이닉스의 2025년 사업보고서에 기재된 제78기(2025년) 연결 매출액이 삼성전자가 2025년 사업보고서에 기재한 제57기(2025년) 연결 매출액보다 큽니다.\n(근거: SK하이닉스 [사업보고서 2025], 접수번호 20260317000635; 삼성전자 [사업보고서 2025], 접수번호 20260310002820)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"SK하이닉스\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"SK 하이닉스 2025 사업보고서 기재한 78 연결 삼성전자 57 매출액보다 큰가\" n=1 top_score=24.672 ids=periodic_20260317000635 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"SK 하이닉스 2025 사업보고서 기재한 78 연결 삼성전자 57 매출액보다 큰가\" n=1 top_score=25.676 ids=periodic_20260310002820 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"SK하이닉스\" filters=base_year=2025,doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"SK 하이닉스 2025 사업보고서 기재한 78 연결 삼성전자 57 매출액보다 큰가\" n=1 top_score=31.594 ids=periodic_20260317000635 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2025,doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"SK 하이닉스 2025 사업보고서 기재한 78 연결 삼성전자 57 매출액보다 큰가\" n=1 top_score=24.023 ids=periodic_20260310002820 | hop=4 verdict=sufficient evidence=4 | generate tokens=5197+234 | generate sc=1 tokens=5197+216 | generate sc=2 tokens=5197+255 | sc k=3/3 temp=0.7 keys=3 votes=1 picked=0 | verify calc_checked=- complete_checked=missing_corp ok=True kinds=- | budget steps=4 hops=0 llm=3 tokens=16296"
+  },
+  {
+   "question_id": "Q-048",
+   "task_type": "multi_compare",
+   "answer_mode": "closed",
+   "difficulty": "상",
+   "doc_group": "periodic",
+   "track": "grid",
+   "sector": "비철금속",
+   "corp_name": [
+    "고려아연"
+   ],
+   "answerable": true,
+   "answer_form": "number_won",
+   "correct": true,
+   "scored_by": "em:number_won",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": false,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "periodic",
+   "route_corps": [
+    "고려아연"
+   ],
+   "n_hops": 1,
+   "n_steps": 3,
+   "n_llm_calls": 3,
+   "prompt_tokens": 19881,
+   "completion_tokens": 454,
+   "judge_tokens": 0,
+   "latency_s": 14.661,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 6627,
+     "completion_tokens": 157,
+     "latency_s": 4.715,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 6627,
+     "completion_tokens": 137,
+     "latency_s": 5.094,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 6627,
+     "completion_tokens": 160,
+     "latency_s": 4.792,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20230515001843",
+    "20230518000337"
+   ],
+   "golden_rank": {
+    "20230515001843": 1,
+    "20230518000337": 2
+   },
+   "golden_in_candidates": [
+    "20230515001843",
+    "20230518000337"
+   ],
+   "golden_in_evidence": [
+    "20230515001843",
+    "20230518000337"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "equation"
+   ],
+   "calc_skipped": [
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "연결 요약재무정보의 제50기 1분기 지배주주순이익은 정정으로 **76,557,171,145원** 만큼 줄었습니다.\n\n- 정전 전: 216,407,387,195원\n- 정정 후: 139,850,216,050원\n\n따라서 차이는 다음과 같습니다.\n- 216,407,387,195 - 139,850,216,050 = 76,557,171,145원\n\n(근거: [분기보고서 2023] 고려아연 – III. 재무에 관한 사항 > 1. 요약재무정보, 접수번호 20230515001843, 20230518)\n(정정본)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"고려아연\" filters=- path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"고려아연 2023 15 제출한 50 분기 분기보고서 사흘 정정됐다 연결 요약재무정보 지배주주순이익 정정 얼마나 줄었는\" n=2 top_score=71.700 ids=periodic_20230515001843,periodic_20230518000337 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"고려아연\" filters=- path=\"정 정 신 고 (보고)\" top_k=8 q=\"고려아연 2023 15 제출한 50 분기 분기보고서 사흘 정정됐다 연결 요약재무정보 지배주주순이익 정정 얼마나 줄었는\" n=1 top_score=134.904 ids=periodic_20230518000337 | hop=1 strat=toc_corp tool=search_chunks group=periodic corp=\"고려아연\" filters=- path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=10 q=\"고려아연 2023 15 제출한 50 분기 분기보고서 사흘 정정됐다 연결 요약재무정보 지배주주순이익 정정 얼마나 줄었는\" n=10 top_score=71.700 ids=periodic_20230515001843,periodic_20230518000337,periodic_20231114002871,periodic_20250320001542,periodic_20250331003521,periodic_20250515001780,periodic_20250814002321,periodic_20260316000929,periodic_20260325000008,periodic_20251113000491 | hop=4 verdict=sufficient evidence=4 | generate tokens=6627+157 | generate sc=1 tokens=6627+137 | sc stop=budget k=2/3 (토큰 상한 20000 초과 (20335)) | sc k=2/3 temp=0.7 keys=2 votes=1 picked=0 | verify calc_checked=- complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=3 hops=1 llm=2 tokens=13548"
+  },
+  {
+   "question_id": "Q-049",
+   "task_type": "multi_compare",
+   "answer_mode": "open",
+   "difficulty": "하",
+   "doc_group": "periodic",
+   "track": "grid",
+   "sector": "2차전지",
+   "corp_name": [
+    "LG에너지솔루션",
+    "두산에너빌리티"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": true,
+   "route": "multi_compare",
+   "route_group": "periodic",
+   "route_corps": [
+    "LG에너지솔루션",
+    "두산에너빌리티"
+   ],
+   "n_hops": 0,
+   "n_steps": 4,
+   "n_llm_calls": 2,
+   "prompt_tokens": 12612,
+   "completion_tokens": 497,
+   "judge_tokens": 3674,
+   "latency_s": 13.703,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 6306,
+     "completion_tokens": 338,
+     "latency_s": 8.745,
+     "finish": "stop"
+    },
+    {
+     "tag": "answer_sc",
+     "prompt_tokens": 6306,
+     "completion_tokens": 159,
+     "latency_s": 4.676,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20260312000217",
+    "20260320001246"
+   ],
+   "golden_rank": {
+    "20260312000217": 1,
+    "20260320001246": 2
+   },
+   "golden_in_candidates": [
+    "20260312000217",
+    "20260320001246"
+   ],
+   "golden_in_evidence": [
+    "20260312000217",
+    "20260320001246"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "LG에너지솔루션의 제6기(2025년) 연결 매출액과 두산에너빌리티의 제63기(2025년) 연결 매출액을 비교해 보겠습니다.\n\n- **LG에너지솔루션의 제6기(2025년) 연결 매출액**: 23,671,759백만 원 (공시 근거: [사업보고서 2025] LG에너지솔루션, 접수번호 20260312000217, 섹션 4. 매출 및 수주 상황)\n- **두산에너빌리티의 제63기(2025년) 연결 매출액**: 17,057,876백만 원 (공시 근거: [사업보고서 2025] 두산에너빌리티, 접수번호 20260320001246, 섹션 4. 매출 및 수주 상황)\n\n따라서, **LG에너지솔루션의 제6기(2025년) 연결 매출액이 두산에너빌리티의 제63기(2025년) 연결 매출액보다 큽니다**. \n\n이는 제시된 수치들을 비교했을 때 명확히 알 수 있으며, LG에너지솔루션의 매출액이 두산에너빌리티의 매출액보다 약 6,614,883백만 원 더 높습니다.\n(근거: [사업보고서 2025] LG에너지솔루션, 접수번호 20260312000217, 섹션 4. 매출 및 수주 상황; [사업보고서 2025] 두산에너빌리티, 접수번호 20260320001246, 섹션 4. 매출 및 수주 상황)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"LG에너지솔루션\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"LG 에너지솔루션 2025 연결 두산에너빌리티 63 어느 쪽이 큰지 근거 함께\" n=1 top_score=42.747 ids=periodic_20260312000217 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"두산에너빌리티\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"LG 에너지솔루션 2025 연결 두산에너빌리티 63 어느 쪽이 큰지 근거 함께\" n=2 top_score=54.479 ids=periodic_20260320001246,periodic_20260320001246 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"LG에너지솔루션\" filters=base_year=2025,doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"LG 에너지솔루션 2025 연결 두산에너빌리티 63 어느 쪽이 큰지 근거 함께\" n=1 top_score=30.733 ids=periodic_20260312000217 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"두산에너빌리티\" filters=base_year=2025,doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"LG 에너지솔루션 2025 연결 두산에너빌리티 63 어느 쪽이 큰지 근거 함께\" n=1 top_score=40.449 ids=periodic_20260320001246 | hop=4 verdict=sufficient evidence=4 | generate tokens=6306+338 | generate sc=1 tokens=6306+159 | sc skip=upstream k=2/3 (CLOVA 호출 실패 429: {'status': {'code': '42901', 'message': 'Too many requests: rate exceeded. Check response headers for current limits and retry information.'}, 'result': None}) | sc k=2/3 temp=0.7 keys=2 votes=1 picked=0 | verify calc_checked=- complete_checked=missing_corp ok=True kinds=- | budget steps=4 hops=0 llm=2 tokens=13109"
+  }
+ ],
+ "arm": "A10",
+ "arm_config": {
+  "name": "A10",
+  "retrieval": "all",
+  "schema_fields": true,
+  "dense": false,
+  "hop_ladder": true,
+  "chain_hop": true,
+  "counterparty_hop": true,
+  "split_query": true,
+  "calc_values": true,
+  "verifier": true,
+  "followup_hop": true,
+  "meta_corp": true,
+  "meta_date": true,
+  "meta_group": true,
+  "golden_oracle": false,
+  "lean_rules": false,
+  "substitute_verified": false,
+  "provenance_gate": false,
+  "regenerate_on_verify": false,
+  "nary": false,
+  "multi_hub": false,
+  "sc_k": 3,
+  "temperature": 0.7
+ }
+}
