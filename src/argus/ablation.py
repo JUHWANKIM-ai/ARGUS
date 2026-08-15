@@ -257,9 +257,12 @@ META_UNREACHABLE_FLAGS = ("hop_ladder", "chain_hop", "split_query", "counterpart
 #: 🔴 `verifier -> substitute_verified` 는 **구조적 의존**이다. `pipeline._verify` 가
 #: `if not ablation.current().verifier: return answer` 로 첫 줄에서 나가므로 검증 단계가
 #: 꺼진 arm 에서 치환 플래그를 켜면 코드가 도달하지 않는다.
-FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {"chain_hop": ("followup_hop",),
-                                                 "calc_values": ("lean_rules",),
-                                                 "verifier": ("substitute_verified",)}
+#: 🔴 `verifier -> provenance_gate` 도 같은 구조적 의존이다 — `A21` 의 게이트가
+#: `_verify` 안에 있으므로 검증 단계가 꺼진 arm 에서는 코드가 도달하지 않는다.
+FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
+    "chain_hop": ("followup_hop",),
+    "calc_values": ("lean_rules",),
+    "verifier": ("substitute_verified", "provenance_gate")}
 
 #: 🔴 `golden_oracle=True` 에서 **읽히지 않는** 축. 검색 차선을 통째로 골든 주입으로
 #: 갈아치우므로 이 플래그들을 건드려도 근거가 한 글자도 안 바뀐다 —
@@ -328,6 +331,19 @@ class Arm:
     #: `ORACLE_UNREACHABLE_FLAGS` 에는 **넣지 않는다** — `_verify` 는 `_gather_evidence`
     #: 뒤에 있고 골든 주입 위에서도 그대로 돈다.
     substitute_verified: bool = False
+    #: 🔴 **`A21` 전용.** 참이면 `pipeline._verify` 가 `critic.verify_number_provenance`
+    #: 를 라이브 경로에 배선한다 — 답변의 12자리 이상 금액이 근거에 완전일치로 있는지
+    #: 본다. 기본값 `False` 가 종전 동작이다 (게이트 자체가 v4 신설이다).
+    #:
+    #: 🔴 **`substitute_verified`(A20)와 묻는 것이 다르다.** 저쪽은 *"계산이 맞는가"* 고
+    #: 이쪽은 *"이 숫자가 근거에 있는가"* 다. 그래서 `A15`(`_says_amount` 게이트)의
+    #: 대체 후보이지 `A20` 의 변형이 아니다. 두 플래그는 서로 독립이다.
+    #:
+    #: 🔴 `verifier=False` 와는 함께 켤 수 없다 (`FLAG_DEPENDENCIES` — `_verify` 가
+    #: 첫 줄에서 나가므로 Δ 가 조용히 0 이 된다). `ORACLE_UNREACHABLE_FLAGS` 에는
+    #: **넣지 않는다** — 골든 주입 위에서도 `_verify` 는 그대로 돌고, 실제로 현 세대
+    #: `ORACLE` 에서 이 게이트가 한 건 발화한다(`Q-023`).
+    provenance_gate: bool = False
 
     def __post_init__(self) -> None:
         if self.retrieval not in RETRIEVAL_MODES:
@@ -427,6 +443,15 @@ A8_LEAN = replace(A8, name="A8-lean", lean_rules=True)
 #: `_verify` 가 첫 줄에서 나가므로 Δ 가 조용히 0 이 된다.
 A20 = replace(A8, name="A20", substitute_verified=True)
 
+# --- A21 — 수치 출처 게이트 (사다리 밖 곁가지 · v4 신설) --------------------------
+#: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 답변의 12자리 이상 금액이 근거에
+#: 완전일치로 있는지 묻는다. 🔴 **`A15` 의 대체 후보**이지 `A20` 의 변형이 아니다:
+#: `A15`·`A20` 은 *"계산이 맞는가"* 를 묻고 이 arm 은 *"이 숫자가 근거에 있는가"* 를
+#: 묻는다. 겨냥 3건(`Q-018` 그리드 · `Q-109`·`Q-113` 밸류체인)을 v3 세대 664 답변
+#: 전수 재채점으로 확인했다 (`R1-9` 보고서).
+#: 🔴 `LADDER`·`LOO_REMOVED` 에 넣지 않는다 — `A8-lean`·`A20` 과 같은 곁가지다.
+A21 = replace(A8, name="A21", provenance_gate=True)
+
 #: 실행 순서는 **A8 부터 역순**이다 (§I-4b) — 가장 비싼 구성을 먼저 확보해야
 #: 중간에 예산이 끊겨도 최신 성능을 안다. A2 계열은 사다리를 다 확보한 뒤 맨 끝이다 —
 #: G1 불허로 A2 를 버려도 앞의 여덟 칸이 그대로 남아야 한다.
@@ -438,7 +463,7 @@ A20 = replace(A8, name="A20", substitute_verified=True)
 #: 🔴 `A20` 은 `A8-lean` 바로 뒤다 — 같은 이유로 **채택 후보**이고, G1 미확정인 dense
 #: arm 과 진단 arm 보다 먼저 확보해야 한다.
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
-             "A8-lean", "A20", "A2F", "A2", "ORACLE")
+             "A8-lean", "A20", "A21", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
 LADDER = ("A0", "A1", "A1b", "A4", "A5", "A6", "A7", "A8")
@@ -465,7 +490,7 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, A2, A2F,
-                         ORACLE, A8_LEAN, A20)}
+                         ORACLE, A8_LEAN, A20, A21)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은

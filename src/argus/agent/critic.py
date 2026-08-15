@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import itertools
 import json
 import math
 import re
@@ -798,6 +799,167 @@ def _rendered(target: str, expected: float) -> str | None:
     value = round(expected / scale, decimals)
     text = f"{value:,.{decimals}f}" if decimals else compute.fmt_num(value)
     return target.replace(numbers[0], text, 1)
+
+
+# --- F2. 수치 출처 게이트 (A21 · LLM 0회) --------------------------------------
+# 🔴 **`A15` 와 묻는 것이 다르다.** `verify_calculation`·`verify_answer_arithmetic` 은
+# *"계산이 맞는가"* 를 묻고 이 검사는 *"이 숫자가 근거에 있는가"* 를 묻는다. 실측
+# `Q-018` 은 근거에 없는 13자리 수(`1,843,200,000,000`)를 답에 썼고 — 근거의 값은
+# `1,842,200,000,000` 이다 — 그 한 자리는 계산이 아니라 **옮겨 적기**가 틀린 것이다.
+#
+# 🔴 **`verify_calculation` 안에 넣지 않았다.** `verify_answer_arithmetic` 과 같은
+# 이유다 (그 머리말 참조): 그쪽은 근거 레코드마다 한 번 도는데 이 검사는 답변당 한 번이고,
+# 안에 넣으면 `aggregate_calculation` 의 '레코드 하나라도 설명하면 통과' 관용이 뒤집힌다.
+#
+# 🔴 **`skipped` 판별이 이 검사의 절반이다.** 우리가 계산해서 낸 수(`A20` 의 재계산값
+# 포함)는 근거에 없는 것이 **정상**이다. 그것을 위반으로 세면 `A20` 과 정면으로 싸운다 —
+# `A20` 은 재계산값을 답변에 **집어넣는** arm 이고 이 게이트는 그 값을 근거에서 못 찾는다.
+# 그래서 계산으로 설명되는 수는 위반이 아니라 `skipped` 로 뺀다.
+
+#: 게이트가 보는 자릿수 하한. **12자리 미만은 검사하지 않는다** — 연도(`2024`)·건수
+#: (`3건`)·비율(`7.6%`)은 근거에 없는 것이 정상이고, 그것을 세면 오탐만 는다.
+#: 우리 도메인의 계약금액은 원 단위라 11~13자리다 (`1,842,200,000,000` = 13자리).
+PROVENANCE_MIN_DIGITS = 12
+
+PROVENANCE_KIND = "provenance"
+
+#: 🔴 출처 결함은 **생성 단계**에 귀속한다. `verify_calculation`(`TOOL`)과 다른 갈래다 —
+#: 계산기가 대신했어야 할 일이 아니라 근거에 있는 수를 옮겨 적는 데 실패한 것이고,
+#: `COMPLETENESS_STAGES["stale_value"]`(`GENERATION`)와 같은 종류의 실패다.
+PROVENANCE_FAILURE_STAGE = "GENERATION"
+
+#: 답변이 **그 줄에서 나눗셈을 말한** 자리. 걸리면 그 수는 우리가 나눠서 낸 값이므로
+#: 근거에 없는 것이 정상이다 (`verify_calculation` 의 `per_unit` 재계산값이 정확히 이것).
+#: 🔴 `_PER_UNIT_KW` 와 달리 앞의 `1` 을 요구하지 않는다 — 실측 답변은 `1척 당`(Q-097)과
+#: `척당`(A20 치환 후) 둘 다 쓴다. 대신 **같은 줄의 수치 앞쪽**으로 범위를 좁힌다:
+#: 답변 전체에서 찾으면 문단 하나만 나눗셈이어도 답변의 모든 수가 조용히 면제된다.
+_QUOTIENT_LEAD = re.compile(rf"({_UNITS})\s*당")
+
+#: 재계산으로 설명할 때 허용하는 항 수. 실측 답변의 합산은 최대 3항이다
+#: (`v3/ORACLE` Q-034 = 해지 3건의 금액 합). 4항 이상으로 넓히면 조합이 폭증하면서
+#: **우연한 설명**이 늘어 게이트가 조용히 무력해진다.
+PROVENANCE_MAX_TERMS = 3
+
+#: 재계산 일치의 허용 오차(원). 답변도 근거도 정수 원 단위라 0 이면 충분하지만 부동소수
+#: 잔차만 흡수한다. 🔴 **넓히면 안 된다** — 실측 겨냥 `Q-109` 의 덧셈 오차는 998,000원
+#: (상대 3.6e-7)이고, 거짓 경보로 남은 `Q-034`(6e10)·`Q-023`(1e10)보다 **더 작다.**
+#: 즉 겨냥을 지키면서 그 둘을 관용으로 지울 수 있는 창은 존재하지 않는다.
+PROVENANCE_TOLERANCE = 1.0
+
+#: 재계산의 재료로 쓸 최소 금액. `_scale_exponent` 가 `SCALE_MIN_VALUE` 를 쓰는 것과
+#: 같은 이유다 — `8원`·`1원` 같은 파싱 잔재가 조합에 끼면 아무 값이나 설명된다.
+PROVENANCE_MIN_OPERAND = SCALE_MIN_VALUE
+
+_ANY_NUMBER = re.compile(r"\d[\d,]*")
+
+
+def _digits(text) -> str:
+    return re.sub(r"\D", "", str(text or ""))
+
+
+def _evidence_digits(evidence) -> set[str]:
+    """근거에 실린 수의 **자릿수 문자열** 집합. 콤마를 지워 표기 차이를 흡수한다.
+
+    수 하나를 통째로 비교한다 — 부분문자열로 찾으면 13자리 금액이 14자리 접수번호
+    안에서 우연히 발견돼 게이트가 조용히 열린다.
+    """
+    text = evidence if isinstance(evidence, str) else str(evidence or "")
+    return {_digits(m.group(0)) for m in _ANY_NUMBER.finditer(text)}
+
+
+def _provenance_operands(spans, evidence_digits: set[str]) -> list[float]:
+    """재계산의 재료 — 답변이 말한 금액 중 **근거에 그대로 있는** 값만.
+
+    🔴 **근거에 없는 값을 재료로 쓰면 겨냥이 조용히 사라진다.** 실측 `Q-018` 은
+    `1,566,300,000,000 + 276,900,000,000 = 1,843,200,000,000` 이 산술로는 정확히
+    맞는데, 두 항 중 `276,900,000,000` 이 이미 근거 밖이다. 재료를 근거 있는 값으로
+    제한하는 것이 그 자기참조를 끊는다.
+    """
+    out = {value for _, _, value, _, literal in spans
+           if value >= PROVENANCE_MIN_OPERAND and _digits(literal) in evidence_digits}
+    return sorted(out)
+
+
+def _explained_by_arithmetic(value: float, operands: Sequence[float]) -> bool:
+    """근거 있는 금액 2~3개의 덧셈·뺄셈으로 이 값이 나오는가. 나오면 우리가 낸 수다."""
+    for size in range(2, PROVENANCE_MAX_TERMS + 1):
+        if size > len(operands):
+            break
+        for combo in itertools.combinations(operands, size):
+            for signs in itertools.product((1, -1), repeat=size):
+                total = sum(sign * term for sign, term in zip(signs, combo))
+                if abs(total - value) <= PROVENANCE_TOLERANCE:
+                    return True
+    return False
+
+
+def _line_before(text: str, pos: int) -> str:
+    return text[text.rfind("\n", 0, pos) + 1:pos]
+
+
+def verify_number_provenance(answer: str, evidence) -> dict:
+    """답변의 **긴 수치가 근거에 있는가**. 근거를 읽지만 재계산은 안 한다. LLM 0회.
+
+    `verify_calculation`·`verify_answer_arithmetic` 과 같은 반환 규격이다.
+    검사할 수치가 하나도 안 남으면(짧거나 전부 우리가 계산해서 낸 수) `skipped` 다 —
+    검사 대상이 없는 것과 결함을 섞으면 Phase H 의 귀속이 오염된다.
+
+    한 수치가 통과하는 길이 셋이다.
+      ① 근거에 **완전일치**로 있다 (콤마 정규화 후 자릿수 문자열 동일)
+      ② 답변이 그 줄에서 **나눗셈**을 말했다 (`1척 당 … = X`) — 우리가 낸 몫이다
+      ③ 근거에 있는 금액 2~3개의 **덧셈·뺄셈**으로 정확히 나온다 — 우리가 낸 합/차다
+
+    ②·③ 은 `skipped` 쪽이다. 🔴 **`recomputed` 는 항상 비어 있다** — 이 검사는 옳은
+    수가 무엇인지 모른다(근거의 어느 수를 말하려던 것인지 정할 수 없다). 그래서
+    `A20` 의 치환에 재료를 대지 않는다. 두 arm 은 판정만 OR 로 합쳐야 한다.
+    """
+    text = answer or ""
+    evidence_digits = _evidence_digits(evidence)
+    spans = _money_spans(text)
+    operands = _provenance_operands(spans, evidence_digits)
+
+    gated: list[str] = []
+    mismatches: list[dict] = []
+    for start, _end, value, _tol, literal in spans:
+        digits = _digits(literal)
+        if len(digits) < PROVENANCE_MIN_DIGITS:
+            continue
+        if digits in evidence_digits:
+            gated.append(literal)                      # 검사했고 통과했다
+            continue
+        if _QUOTIENT_LEAD.search(_line_before(text, start)):
+            continue                                   # ② 우리가 나눠서 낸 몫
+        if _explained_by_arithmetic(value, operands):
+            continue                                   # ③ 우리가 더해서 낸 합·차
+        gated.append(literal)
+        mismatches.append({
+            "kind": PROVENANCE_KIND,
+            "claimed": literal,
+            "claimed_value": value,
+            # 🔴 기대값이 없다. 근거의 어느 수를 말하려던 것인지 이 검사는 모른다 —
+            #    그래서 `targets` 도 비운다 (`_recomputed` 가 그것으로 치환을 막는다).
+            "expected": None,
+            "tolerance": 0.0,
+            "detail": "근거에 없는 수치",
+            "hard": True,
+            "targets": [],
+        })
+
+    failed = sorted({m["kind"] for m in mismatches})
+    return {
+        "ok": not mismatches,
+        "llm_calls": 0,
+        "checked": [PROVENANCE_KIND] if gated else [],
+        "skipped": [] if gated else [PROVENANCE_KIND],
+        "mismatches": mismatches,
+        "failed_kinds": failed,
+        "hard_kinds": failed,
+        "failure_stage": PROVENANCE_FAILURE_STAGE if mismatches else None,
+        "reason": "; ".join(f"{PROVENANCE_KIND}: 답변 {m['claimed']} 이 근거에 없다"
+                            for m in mismatches),
+        # 🔴 항상 비어 있다 — 위 독스트링 참조. `A20` 과 재료를 나눠 갖지 않는다.
+        "recomputed": {},
+    }
 
 
 # --- G. 완전성 검증 (LLM 0회) ------------------------------------------------

@@ -20,6 +20,7 @@ import pytest
 
 from argus import ablation
 from argus.agent import critic, pipeline
+from argus.agent.critic import verify_number_provenance
 from scripts import error_analysis as ea
 
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -571,7 +572,10 @@ def test_the_substitution_flag_is_off_by_default_and_depends_on_the_verifier():
     """🔴 기본값을 바꾸지 않는 것이 이 arm 의 전부다 — 현 동작은 명시적 설계다."""
     assert "substitute_verified" in ablation.FLAG_NAMES
     assert ablation.A8.substitute_verified is False
-    assert ablation.FLAG_DEPENDENCIES["verifier"] == ("substitute_verified",)
+    # 🔴 `R1-9` 가 `provenance_gate` 를 같은 부모 밑에 넣었다 — 목록 동치가 아니라
+    #    **포함**으로 본다. 동치로 박아 두면 `verifier` 밑에 자식이 하나 늘 때마다
+    #    이 단언이 이유 없이 깨지고, 깨진 김에 통째로 지우는 사고가 난다.
+    assert "substitute_verified" in ablation.FLAG_DEPENDENCIES["verifier"]
     with pytest.raises(ValueError, match="substitute_verified"):
         replace(ablation.A0, name="bad", substitute_verified=True)
 
@@ -676,3 +680,240 @@ def test_no_correct_answer_is_rewritten_on_the_current_generation():
             checked += 1
     if not checked:
         pytest.skip("현 세대 전체 88 산출물이 없다")
+
+
+# --- ⑦ A21 — 수치 출처 게이트 (`R1-9`) ------------------------------------------
+# 🔴 `A15` 는 *"계산이 맞는가"* 를 묻고 `A21` 은 *"이 숫자가 근거에 있는가"* 를 묻는다.
+# `Q-018` 은 근거에 없는 13자리 수를 답에 썼으므로 **후자가 직접 겨냥한다.**
+#
+# 🔴 `skipped` 판별이 이 검사의 절반이다. 우리가 계산해서 낸 수(`A20` 의 재계산값
+# 포함)는 근거에 없는 것이 **정상**이고, 그것을 위반으로 세면 `A20` 과 정면으로 싸운다.
+
+def test_long_numbers_must_appear_in_the_evidence_verbatim():
+    """🔴 12자리 이상 숫자는 근거에 완전일치로 존재해야 한다."""
+    evidence = "접수번호 20240312000736\n계약금액(원): 1,842,200,000,000"
+    ok = "계약금액은 1,842,200,000,000원입니다."
+    bad = "계약금액은 1,843,200,000,000원입니다."          # 근거에 없는 13자리
+    assert verify_number_provenance(ok, evidence)["ok"] is True
+    assert verify_number_provenance(bad, evidence)["ok"] is False
+
+
+def test_short_numbers_are_not_gated():
+    """🔴 연도·건수·비율은 근거에 없어도 정상이다. 12자리 미만은 검사하지 않는다."""
+    assert verify_number_provenance("2024년 3건, 약 7.6% 입니다.", "접수번호 1")["ok"] is True
+
+
+def test_computed_numbers_are_skipped_not_failed():
+    """🔴 우리가 계산해서 낸 수는 근거에 없다 — 그건 위반이 아니라 skipped 다.
+    verify_calculation 의 skipped 설계와 같은 이유다 (귀속 오염 방지)."""
+    evidence = "접수번호 1\n총액: 2,492,215,574,520\n척수: 12"
+    out = verify_number_provenance("척당 207,684,631,210원입니다.", evidence)
+    assert out["ok"] is True
+    assert "provenance" in out["skipped"]
+
+
+def test_provenance_matches_the_other_verifiers_contract():
+    """Phase I 는 네 판정을 같은 모양으로 집계한다."""
+    out = verify_number_provenance("계약금액은 1,842,200,000,000원입니다.",
+                                   "계약금액(원): 1,842,200,000,000")
+    for key in ("ok", "llm_calls", "checked", "skipped", "mismatches", "failed_kinds",
+                "hard_kinds", "failure_stage", "reason", "recomputed"):
+        assert key in out, key
+    assert out["llm_calls"] == 0
+
+
+def test_provenance_never_feeds_the_a20_substitution():
+    """🔴 이 검사는 **옳은 수가 무엇인지 모른다** — 근거의 어느 수를 말하려던 것인지
+    정할 수 없다. `recomputed` 가 비어 있어야 `A20` 이 이 판정으로 답변을 갈아엎지
+    않는다. 두 arm 은 판정만 OR 로 합쳐야 한다."""
+    out = verify_number_provenance("계약금액은 1,843,200,000,000원입니다.",
+                                   "계약금액(원): 1,842,200,000,000")
+    assert out["ok"] is False
+    assert out["recomputed"] == {}
+    assert out["mismatches"][0]["targets"] == []
+    assert critic.unique_recomputed([out]) is None
+    assert out["failure_stage"] == "GENERATION"      # TOOL 이 아니다 — 옮겨 적기다
+
+
+def test_a_correct_difference_the_answer_derived_is_skipped_not_failed():
+    """🔴 실측 Q-065(**정답**). `4,928,968,079,043 - 2,338,117,950,000` 의 차는 근거에
+    없다 — 우리가 뺀 값이다. 등식으로 적지 않아도 재계산으로 설명된다."""
+    evidence = "계약금액(원): 4,928,968,079,043\n계약금액(원): 2,338,117,950,000"
+    answer = ("Dukovany 계약금액은 4,928,968,079,043원이고 신한울은 2,338,117,950,000원"
+              "이므로, 차이는 **2,590,850,129,043원**입니다.")
+    assert verify_number_provenance(answer, evidence)["ok"] is True
+
+
+def test_a_derivation_that_leans_on_an_ungrounded_term_is_not_an_excuse():
+    """🔴 **겨냥 Q-018 이 여기에 달려 있다.**
+
+    `1,566,300,000,000 + 276,900,000,000 = 1,843,200,000,000` 은 산술로는 정확히
+    맞지만 `276,900,000,000` 이 이미 근거 밖이다. 재계산의 재료를 근거 있는 값으로
+    제한하지 않으면 답변이 **자기 오류로 자기 오류를 설명하고** 게이트가 조용히 열린다.
+    """
+    evidence = "계약금액(원): 1,566,300,000,000\n계약금액(원): 1,842,200,000,000"
+    answer = ("- 최초 공시 금액: 1,566,300,000,000원\n"
+              "- 최종 정정 금액: 1,843,200,000,000원\n"
+              "- 1,843,200,000,000 - 1,566,300,000,000 = 276,900,000,000원")
+    out = verify_number_provenance(answer, evidence)
+    assert out["ok"] is False
+    assert "1,843,200,000,000원" in out["reason"]
+
+
+def test_a_number_inside_a_longer_evidence_run_does_not_count_as_present():
+    """접수번호 14자리 안에서 12자리가 우연히 발견되면 게이트가 조용히 열린다 —
+    수 하나를 통째로 비교한다."""
+    assert verify_number_provenance("계약금액은 202412230000원입니다.",
+                                    "접수번호 20241223000052")["ok"] is False
+
+
+@pytest.mark.parametrize("answer", ["", None])
+def test_provenance_survives_an_empty_answer(answer):
+    out = verify_number_provenance(answer, "접수번호 1")
+    assert out["ok"] is True and out["mismatches"] == []
+
+
+# --- ⑧ A21 Step 6 — v3 세대 664 답변 전수 재채점 -------------------------------
+# 🔴 **이것이 `R1-9` 의 판정이다.** 겨냥이 잡히는지와 정답 문항에서 서는지를 한 단언
+# 안에서 고정한다. 한쪽만 보면 규칙이 낡는다 (`test_arithmetic_firing_…` 과 같은 구조).
+
+#: 🔴 `A21` 이 정답 판정 문항에서 서는 자리 — **거짓 경보가 아니라 채점 결함이다.**
+#: 둘 다 답변의 산술이 실제로 틀렸고 판정기가 통과시켰다. 손으로 확인한 산수:
+#:   Q-034  72,200,000,000 + 398,800,000,000 + 346,900,000,000 = 817,900,000,000
+#:          인데 답변은 757,900,000,000 이라 적었다 (`ea.JUDGED_CORRECT_ARITHMETIC_WRONG`
+#:          가 이미 들고 있는 문항이다)
+#:   Q-023  1,102,000,000,000 - 899,400,000,000 = 202,600,000,000 인데 답변은
+#:          212,600,000,000 이라 적었다. 🔴 **v4 R1-9 가 새로 찾았다** — 근거의
+#:          9자리+ 수 10개 중 차가 212,600,000,000 인 쌍은 없다(전수 확인).
+#:
+#: 🔴 **관용으로 지울 수 없다.** 겨냥 `Q-109` 의 덧셈 오차는 998,000원(상대 3.6e-7)이고
+#: 위 둘(6e10 · 1e10)보다 **더 작다.** 겨냥을 지키면서 이 둘만 빼는 창은 존재하지 않는다.
+PROVENANCE_JUDGED_CORRECT_BUT_WRONG = {"Q-034", "Q-023"}
+
+#: 스냅샷별 발화 문항. v3 세대 전량(그리드 88 × 7 arm + 밸류체인 12 × 4 arm = 664 답변).
+#: 🔴 겨냥 3건은 `Q-018`(그리드) · `Q-109`·`Q-113`(밸류체인)이고 셋 다 여기 들어 있다.
+PROVENANCE_FIRING = {
+    "v3/A8(88)": {"Q-018", "Q-034"},
+    "v3/L1(88)": {"Q-034"},                       # L1 은 Q-018 답변이 아예 다르다
+    "v3/L2(88)": {"Q-018", "Q-034", "Q-062"},
+    "v3/L3(88)": {"Q-018", "Q-034"},
+    "v3/L4(88)": {"Q-018", "Q-034"},
+    "v3/A8-lean(88)": {"Q-018", "Q-034"},
+    "v3/ORACLE(88)": {"Q-023"},
+    "v3/vc/A8(12)": {"Q-107", "Q-109", "Q-113"},
+    "v3/vc/A8-lean(12)": {"Q-107", "Q-109", "Q-113"},
+    "v3/vc/OR(12)": {"Q-109", "Q-113", "Q-115"},
+}
+
+
+@pytest.mark.parametrize("snapshot", sorted(PROVENANCE_FIRING))
+def test_provenance_firing_on_the_stored_responses(snapshot):
+    """🔴 겨냥과 거짓 경보를 **한 단언 안에서** 고정한다. LLM 0회 · 지출 0원."""
+    loaded = _snapshot(snapshot)
+    if loaded is None:
+        pytest.skip(f"{snapshot} 산출물이 없다")
+    responses, rows = loaded
+
+    fired, false_alarms = set(), []
+    for qid, resp in sorted(responses.items()):
+        body = ea.strip_verify_tail(resp.get("answer") or "")
+        out = verify_number_provenance(body, resp.get("retrieved_context") or "")
+        if out["ok"]:
+            continue
+        fired.add(qid)
+        if rows.get(qid, {}).get("correct") \
+                and qid not in PROVENANCE_JUDGED_CORRECT_BUT_WRONG:
+            false_alarms.append((qid, out["reason"]))
+
+    assert false_alarms == [], f"{snapshot} 정답 문항 거짓 경보: {false_alarms}"
+    assert fired == PROVENANCE_FIRING[snapshot], \
+        f"{snapshot} 발화가 달라졌다: {sorted(fired)}"
+
+
+def test_provenance_catches_all_three_targets():
+    """🔴 `R1-9` 의 겨냥 3건. 하나라도 빠지면 이 arm 은 기각이고 `A15` 를 되살려야 한다."""
+    hit = set()
+    for snapshot in PROVENANCE_FIRING:
+        loaded = _snapshot(snapshot)
+        if loaded is None:
+            continue
+        responses, _ = loaded
+        for qid, resp in responses.items():
+            body = ea.strip_verify_tail(resp.get("answer") or "")
+            if not verify_number_provenance(body, resp.get("retrieved_context") or "")["ok"]:
+                hit.add(qid)
+    if not hit:
+        pytest.skip("v3 세대 산출물이 없다")
+    assert {"Q-018", "Q-109", "Q-113"} <= hit, f"겨냥을 놓쳤다: {sorted(hit)}"
+
+
+def test_the_provenance_gate_is_not_wired_in_until_the_flag_is_on(monkeypatch):
+    """🔴 배선만으로 각주가 늘어나면 그 자체가 답변 변화이고 `A21` 의 Δ 와 섞인다.
+
+    v3 세대 664 답변 중 23건이 발화하므로 무조건 배선하면 그만큼 답변이 달라진다.
+    """
+    calls = []
+    monkeypatch.setattr(pipeline, "verify_number_provenance",
+                        lambda answer, evidence: calls.append(answer) or {
+                            "ok": True, "checked": [], "skipped": [], "failed_kinds": [],
+                            "hard_kinds": [], "reason": "", "mismatches": [],
+                            "recomputed": {}, "failure_stage": None, "llm_calls": 0})
+    _verify_stored("v3/A8(88)", "Q-018", ablation.A8)
+    assert calls == [], "플래그가 꺼져 있는데 출처 게이트가 불렸다"
+    _verify_stored("v3/A8(88)", "Q-018", ablation.ARMS["A21"])
+    assert len(calls) == 1
+
+
+def test_the_gate_flag_is_off_by_default_and_depends_on_the_verifier():
+    """🔴 기본값이 곧 운영 경로다. 참이면 제출 구성이 게이트를 켠 채로 답한다."""
+    assert "provenance_gate" in ablation.FLAG_NAMES
+    assert ablation.A8.provenance_gate is False
+    assert ablation.current().provenance_gate is False
+    assert "provenance_gate" in ablation.FLAG_DEPENDENCIES["verifier"]
+    with pytest.raises(ValueError, match="provenance_gate"):
+        replace(ablation.A0, name="bad", provenance_gate=True)
+
+
+def test_a21_is_registered_as_a_side_branch_arm():
+    """`A8-lean`·`A20` 과 같은 곁가지다 — 사다리의 칸도 LOO 도 아니다."""
+    assert "A21" in ablation.ARMS and "A21" in ablation.RUN_ORDER
+    assert "A21" not in ablation.LADDER and "A21" not in ablation.LOO_REMOVED
+    assert "A21" not in ablation.DIAGNOSTIC_ARMS
+    assert "A21" in ablation.SIDE_ARMS
+    a8, a21 = ablation.flags("A8"), ablation.flags("A21")
+    assert {k for k in a21 if a21[k] != a8[k]} == {"provenance_gate"}
+    # 🔴 `A20` 과 **다른 축**이다. 두 플래그가 겹치면 Δ 가 섞인다.
+    assert a21["substitute_verified"] is False
+    assert ablation.flags("A20")["provenance_gate"] is False
+
+
+def test_the_gate_footnotes_q018_without_touching_the_body():
+    """🔴 `A21` 은 답변을 고치지 않는다 — 판정만 한다 (`A20` 과 갈리는 자리)."""
+    body, out, trace = _verify_stored("v3/A8(88)", "Q-018", ablation.ARMS["A21"])
+    assert ea.strip_verify_tail(out) == body, "출처 게이트가 본문을 건드렸다"
+    assert "provenance" in trace[0]
+    assert "1,843,200,000,000원 이 근거에 없다" in out
+    assert not any("substituted" in t for t in trace)
+
+
+def test_no_correct_answer_gets_a_new_footnote_from_the_gate():
+    """🔴 현 세대 전체 88 × 7 arm 전수. 정답 문항에서 게이트가 서는 것은 위 명시된
+    채점 결함 둘뿐이고, 그 둘은 답변의 산술이 실제로 틀렸다."""
+    assert CURRENT_GENERATION_FULL, "현 세대 전체 88 스냅샷이 표에서 사라졌다"
+    checked, fired = 0, []
+    for snapshot in CURRENT_GENERATION_FULL:
+        loaded = _snapshot(snapshot)
+        if loaded is None:
+            continue
+        responses, rows = loaded
+        for qid, resp in sorted(responses.items()):
+            if not rows.get(qid, {}).get("correct"):
+                continue
+            body = ea.strip_verify_tail(resp["answer"])
+            out = verify_number_provenance(body, resp["retrieved_context"])
+            checked += 1
+            if not out["ok"] and qid not in PROVENANCE_JUDGED_CORRECT_BUT_WRONG:
+                fired.append((snapshot, qid, out["reason"]))
+    if not checked:
+        pytest.skip("현 세대 전체 88 산출물이 없다")
+    assert fired == [], f"정답 문항 거짓 경보: {fired}"

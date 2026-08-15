@@ -10,7 +10,7 @@ from argus.agent.budget import Budget, BudgetExceeded
 from argus.agent.critic import (aggregate_calculation, judge, quick_check,
                                 substitute_recomputed, unique_recomputed,
                                 verify_answer_arithmetic, verify_calculation,
-                                verify_completeness)
+                                verify_completeness, verify_number_provenance)
 from argus.agent.prompts import build_answer_messages
 from argus.agent.query import (SPLIT_TOP_K, STRATEGIES, path_hints, plan_hops,
                                plan_section_hops, report_hints, time_points)
@@ -1968,12 +1968,25 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str]) -> s
         checked = sorted({*checked, *arith["checked"]})
         calc_failed = calc_failed or not arith["ok"]
 
+    # 🔴 A21 — 수치 출처 게이트. **`calc_failed` 에 합치지 않는다.** 이 검사는 *"이 숫자가
+    # 근거에 있는가"* 를 묻고 계산 판정과 축이 다르다 — 합치면 ① `A20` 의 치환이 이 게이트
+    # 때문에 발화하고(이 검사는 `recomputed` 가 항상 비어 있어 치환할 값이 없다) ② Δ 가
+    # `calculation` 으로 귀속돼 두 arm 의 사유가 섞인다. 별개 `kind` 로 세운다.
+    #
+    # 🔴 배선을 플래그 뒤에 둔 것은 `A20` 과 같은 이유다 — 무조건 배선하면 플래그를 끈
+    # arm 에서도 각주가 늘어나고 그 자체가 답변 변화다 (v3 세대 664 답변 중 23건 발화).
+    provenance = verify_number_provenance(answer, evidence) if arm.provenance_gate else None
+
     complete = verify_completeness(question, answer, evidence, companies=r.companies)
 
-    kinds = sorted({*(["calculation"] if calc_failed else []), *complete["failed_kinds"]})
+    kinds = sorted({*(["calculation"] if calc_failed else []), *complete["failed_kinds"],
+                    *(provenance["failed_kinds"] if provenance else [])})
+    # 🔴 게이트가 꺼진 arm 의 트레이스는 **바이트 동일**이어야 한다 — 필드를 무조건 찍으면
+    #    v3 세대 전 arm 의 `think_trace` 가 달라지고 저장 산출물과 대조가 안 된다.
+    gate = f'provenance_checked={",".join(provenance["checked"]) or "-"} ' if provenance else ""
     trace.append(f'verify calc_checked={",".join(checked) or "-"} '
                  f'complete_checked={",".join(complete["checked"]) or "-"} '
-                 f'ok={not kinds} kinds={",".join(kinds) or "-"}')
+                 f'{gate}ok={not kinds} kinds={",".join(kinds) or "-"}')
     if not kinds:
         return answer
 
@@ -1994,6 +2007,8 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str]) -> s
         reasons = [arith_reports[0]["reason"]]      # 레코드가 0건인 문항 (실측 Q-044)
     if complete["reason"]:
         reasons.append(complete["reason"])
+    if provenance and provenance["reason"]:
+        reasons.append(provenance["reason"])
     # 🔴 치환했으면 그렇게 적는다. 고쳐 놓고 "결함이 발견되었습니다" 라고만 쓰면 각주가
     # 본문과 어긋난다. 접두사 `(주의:` 는 유지한다 — `strip_verify_tail` 이 그것을 읽는다.
     head = ("자동 검증에서 결함이 발견되어 재계산값으로 정정했습니다" if substituted
