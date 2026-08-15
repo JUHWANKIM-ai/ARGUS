@@ -275,9 +275,19 @@ def data_limit_flags(case: dict, records: dict[str, dict]) -> dict:
 # --- 채점 (closed = EM · open = judge) ---------------------------------------
 # policy §5 — 두 축을 합산한 단일 점수를 만들지 않는다. 합치면 어느 쪽이 나쁜지 사라진다.
 
-_MONEY_RE = re.compile(r"(-?\d[\d,]*(?:\.\d+)?)\s*(조원|억원|백만원|만원|천원|조|억|원)?")
-_SCALE = {"원": 1.0, "천원": 1e3, "만원": 1e4, "백만원": 1e6, "억": 1e8,
-          "억원": 1e8, "조": 1e12, "조원": 1e12, None: 1.0, "": 1.0}
+#: 🔴 **배율 표지의 정본은 `critic._SCALE_ALT` 하나다** (v4 `R3b`). 종전에는 여기에
+#: 두 번째 목록이 있었고 `천억원`·`백억원`·`십억원` 이 빠져 있었다 — `5천억원` 은 어느
+#: 대안에도 안 걸려 **단위 없는 `5`** 로 채점됐다. 표지 안의 공백(`백만 원`)도 같은
+#: 이유로 통째로 안 보였다. 목록을 지우고 critic 을 가리킨다.
+#:
+#: 🔴 **성적은 한 칸도 안 움직인다** — 저장 답변 2,449건 전수 재채점으로 확인했다
+#: (뒤집힌 칸 0). `_numbers` 는 스케일값과 무단위값을 **둘 다** 후보로 담으므로 표지가
+#: 늘어나면 후보가 늘기만 하고 줄지 않는다. 즉 `_num_hit` 은 False→True 로만 갈 수 있다.
+from argus.agent.critic import _SCALE as _CRITIC_SCALE  # noqa: E402
+from argus.agent.critic import _SCALE_ALT as _CRITIC_SCALE_ALT  # noqa: E402
+
+_MONEY_RE = re.compile(rf"(-?\d[\d,]*(?:\.\d+)?)\s*({_CRITIC_SCALE_ALT})?")
+_SCALE = {**_CRITIC_SCALE, None: 1.0, "": 1.0}
 #: boolean 판정. **결론은 마지막에 온다** — 모델은 "A가 B보다 큽니다 … 따라서 B는
 #: A보다 작습니다" 처럼 두 극성을 다 쓴다(실측 Q-047). 전체 텍스트에 둘 다 있다고
 #: '판정 불가'로 버리면 맞은 답을 틀렸다고 세게 된다. 첫 문장이 네/아니오면 그것이
@@ -350,7 +360,8 @@ def _numbers(text: str) -> list[float]:
             value = float(raw.replace(",", ""))
         except ValueError:
             continue
-        out.append(value * _SCALE.get(m.group(2), 1.0))
+        # 표지 안의 공백을 지우고 배율을 찾는다 (`백만 원` → `백만원`).
+        out.append(value * _SCALE.get("".join((m.group(2) or "").split()), 1.0))
         if m.group(2):                      # 단위 없이 쓴 값도 후보로 남긴다
             out.append(value)
     return out
@@ -507,11 +518,19 @@ def score_answer(case: dict, answer: str) -> dict:
 # open 문항만 *"수치가 스스로/근거와 어긋나는데 통과"* 가 가능하다. 실측으로도
 # 저장 답변 2,449건 중 이 축이 뒤집는 **정답 판정 34건이 전부 open** 이다.
 #
-# 🔴 **알려진 눈먼 구간 — 이 라운드의 하락은 하한이다.** `critic._MONEY_RE` 의 배율
-# 표지가 `백만원`(붙임)뿐이라 **`백만 원`(공백)을 못 본다.** 저장 답변 2,485건 중
-# 공백형이 **240건** · 붙임형이 44건이다. 그 240건에서는 두 검사의 전제가 아예 안 서고
-# `checked` 가 빈 목록이 된다. 정규식을 고치면 파이프라인(`A20` 치환 자리)이 함께
-# 바뀌므로 **채점기 라운드에서는 손대지 않는다** — R3-2 판정과 함께 보고한다.
+# 🔴 **그 눈먼 구간은 v4 `R3b` 에서 닫았다 — 그런데 성적은 한 칸도 안 움직였다.**
+# `critic._MONEY_RE` 가 표지 안의 공백(`백만 원`·`억 원`)을 못 읽던 것을 고치고 저장 답변
+# 2,449건을 전수로 다시 태운 결과다.
+#
+#     금액 스팬        4,684 → 5,358   (답변 1,228 → 1,455)
+#     재기술 짝          478 →   961   (답변   304 →   603)
+#     A15·A21 전제 선 답변  909 → 1,031
+#     🔴 **신규 발화 0 · 발화 상실 0 · 정답 판정 변화 0**
+#
+# 즉 `R3` 가 *"이번 하락은 하한이다"* 라고 적은 그 하한은 **실제로는 닿아 있었다.**
+# 검사가 새로 본 122개 답변은 전부 자기일관적이다. `checked=[]` 는 1,322 → 1,316 으로
+# 6칸만 줄었다 — 그 1,322건의 원인은 표지 공백이 아니라 **레코드가 없거나 레이블
+# 게이트가 닫힌 것**이었다.
 
 
 def numeric_self_consistency(answer: str, retrieved_context: str) -> dict:
@@ -555,6 +574,81 @@ def amount_asked_but_absent(case: dict, answer: str, calc: dict) -> bool:
     if _REFUSAL_RE.search(text):
         return False
     return not _gold_numbers({"answer": text})
+
+
+# --- R3b. judge 의 비대칭 — **말하면 감점, 침묵하면 무사** ----------------------
+# 🔴 `R3` 실측이 그 비대칭을 숫자로 냈다. v3 밸류체인에서 **기각된 arm 인 `A8-lean`(7/12)이
+# `A8`(6/12)보다 높아졌다.** 기전은 이렇다.
+#
+#     금액을 말하면      A19(수치 자기일관성)가 걸릴 기회가 생긴다
+#     금액을 안 말하면   검사의 **전제가 아예 안 서서** 통과한다
+#     ∴ 답변이 부실할수록 유리하다
+#
+# 고칠 자리는 judge 의 `covers_key_points` 인데 그 값은 **LLM 판정 하나**다
+# (`prompts.SYSTEM_OPEN_JUDGE` 가 골든 key point 를 프롬프트로 주고 0/1 을 받는다 —
+# 대조를 기계로 하는 부분이 한 줄도 없다). 프롬프트를 고치면 전 세대 judge **재호출**이
+# 붙어 유료다. 그래서 **저장된 judge 판정 위에 결정적 게이트를 얹는다** — LLM 0회.
+#
+# 🔴 **`R3-2` 와 다른 축이다.** 그쪽은 *"금액을 물었는데 금액이 없다"* 였고 후보 16건 중
+# 13건이 옳은 답이라 기각됐다. 이쪽은 *"골든 key point 가 금액을 명시하는데 답변이 금액을
+# 한 번도 말하지 않았다"* 다.
+#
+# 🔴 **좁힌 과정을 남긴다** (저장 답변 2,449건 · 그중 open 1,048칸 전수 · LLM 0회).
+#
+#   ① 골든 금액을 **값으로 하나도 안 덮었다**       후보 86 · 현재 정답 25   🔴 기각
+#      Q-094 19건이 전부 거짓 경보다 — 그 문항의 **정답이** *"금액은 하나도 바뀌지
+#      않았다"* 라서, 답변이 골든의 배당금 수치를 옮겨 적지 않아도 옳다.
+#   ② ① + **답변에 금액 표기가 아예 없다**          후보 59 · 현재 정답 6    🟢 채택
+#   ③ ② 를 '1e9 이상 금액이 없다' 로 넓힌다         후보 78 · 현재 정답 25   🔴 기각
+#      Q-094 가 그대로 다시 들어온다.
+#
+# 🔴 **②의 6건은 전부 원문으로 열어 확인했다. 거짓 경보 0건.**
+#
+#   v2/A8[vc] Q-110        골든이 여섯 곳인데 **다섯 곳만** 셌다 (두산퓨얼셀 누락) · 금액 0
+#   v2/L3[vc] Q-110        여섯 곳 중 **세 곳만** 셌다 · 금액 0
+#   v3/A8-lean[vc] Q-110   금액 0 · 골든 key point 의 2,338,117,950,000원·25,605,030,000원
+#                          이 하나도 없다 (`R3` 가 지목한 그 칸이다)
+#   v3/ORACLE[vc] Q-108    한전기술의 원자로계통설계용역을 **한수원 발주**라고 썼다 —
+#                          골든의 알맹이인 한수원→두산→한전 **2단 구조를 뒤집었다**
+#   v3/ORACLE[vc] Q-117    둘째 갈래를 '기타 발전사' 라고 썼다 — 골든은 **두산에너빌리티
+#                          로부터의 재수주**다. 갈래 판정 자체가 틀렸다
+#   v2/A0 Q-049            answerable=True 인데 *"확인할 수 없습니다"* 로 **거절**했다.
+#                          judge 가 그것을 정답으로 통과시켰다
+#
+# 🔴 **`answerable=False` 는 전제에서 뺀다** — 거절이 정답인 문항에서 금액 침묵은 결함이
+# 아니다. 현 코퍼스에는 그런 칸이 0건이지만 게이트는 코퍼스가 아니라 정의를 따른다.
+
+#: 골든 key point 가 요구하는 금액의 하한. 우리 도메인의 계약금액은 원 단위라 10자리
+#: 이상이다. 주당배당금(`3,130원`)처럼 작은 값까지 요구하면 Q-094 류가 걸린다.
+KEY_POINT_MIN_AMOUNT = 1e9
+
+
+def key_point_amounts(case: dict) -> list[float]:
+    """골든 `answer_key_points` 가 **명시한** 금액. 파싱은 `critic` 것을 그대로 쓴다."""
+    from argus.agent.critic import money_values
+
+    return sorted({v for point in (case.get("answer_key_points") or ())
+                   for v in money_values(str(point)) if abs(v) >= KEY_POINT_MIN_AMOUNT})
+
+
+def covers_key_amounts(case: dict, answer: str) -> dict:
+    """골든 요점이 금액을 명시하는데 답변이 금액을 **한 번도** 말하지 않았는가. LLM 0회.
+
+    전제가 안 서면(`premise=False`) 항상 통과다 — 검사 대상이 없는 것과 결함을 섞지
+    않는다는 이 파일의 다른 검사들과 같은 규율이다.
+    """
+    from argus.agent.critic import money_values
+
+    if case.get("answerable") is False:
+        return {"ok": True, "premise": False, "golden": [], "why": ""}
+    golden = key_point_amounts(case)
+    if not golden:
+        return {"ok": True, "premise": False, "golden": [], "why": ""}
+    if money_values(strip_verify_tail(answer)):
+        return {"ok": True, "premise": True, "golden": golden, "why": ""}
+    return {"ok": False, "premise": True, "golden": golden,
+            "why": f"골든 요점이 금액 {len(golden)}건을 명시하는데 "
+                   f"답변에 금액 표기가 하나도 없다"}
 
 
 def has_citation(answer: str, case: dict) -> bool:
@@ -1250,8 +1344,14 @@ def run_judge(case: dict, response: dict, force: bool = False,
     괄호 환산값이 10배 어긋나도 통과시킨다. 현 세대 전수 집계는 **1건**
     (`Q-110` · 밸류체인 12)이고 `tests/test_calc_checks.py` 의
     `JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG` 이 그것을 명시로 들고 있다.
-    **이번 라운드에서 고치지 않았다** — 채점기를 바꾸면 전 세대 성적의 정의가 바뀌어
-    이번 재측정과의 비교가 깨진다. 다음 라운드 후보다.
+    v4 `R3`(`A19`)이 **저장 판정 위에 결정적 게이트를 얹어** 닫았다 — 프롬프트를 안 바꿔
+    재호출이 0회다.
+
+    🔴 **세 번째 결함도 같은 방식으로 닫았다** (v4 `R3b`). `covers_key_points` 는 골든
+    key point 를 프롬프트로 받기만 하고 **대조를 기계로 하는 부분이 한 줄도 없어서**,
+    골든이 명시한 금액을 하나도 안 담은 답변을 통과시켰다(`Q-110`/`A8-lean`). 그래서
+    *"말하면 감점되고 침묵하면 무사하다"* 는 비대칭이 생겼다. `covers_key_amounts` 가
+    그 게이트다 — **judge 프롬프트는 한 글자도 안 바뀌었고 재호출도 0회다.**
     """
     path = Path(path) if path else JUDGE_DIR / f'{case["question_id"]}.json'
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -1313,11 +1413,17 @@ def analyse(cases: list[dict], records: dict[str, dict]) -> list[dict]:
         #    다시 본다. 판정을 **뒤집기만 한다** (`and`) — 오답을 정답으로 올리지 않는다.
         #    실측으로 이 축이 뒤집는 것은 저장 답변 2,449건 중 34건이고 전부 open 이다.
         numeric = numeric_self_consistency(answer, response.get("retrieved_context", ""))
+        # 🔴 R3b — judge 의 `covers_key_points` 는 LLM 판정 하나뿐이라 **금액을 통째로
+        #    빼먹은 답변을 통과시킨다.** 골든 요점이 금액을 명시했는데 답변이 금액을 한
+        #    번도 말하지 않았으면 그 축은 설 수 없다. 결정적 · LLM 0회.
+        coverage = covers_key_amounts(case, answer)
         if case.get("answer_mode") == "open":
             judged_correct = bool(judged and judged["correct"])
-            correct = judged_correct and numeric["ok"]
-            scored = {"by": "judge+numeric" if judged_correct and not numeric["ok"]
-                      else "judge", "judged": judged is not None}
+            correct = judged_correct and numeric["ok"] and coverage["ok"]
+            overrode = [name for name, ok in (("numeric", numeric["ok"]),
+                                              ("coverage", coverage["ok"]))
+                        if judged_correct and not ok]
+            scored = {"by": "+".join(["judge"] + overrode), "judged": judged is not None}
         else:
             scored = score_answer(case, answer)
             correct = scored["correct"]
@@ -1386,6 +1492,11 @@ def analyse(cases: list[dict], records: dict[str, dict]) -> list[dict]:
             "numeric_ok": numeric["ok"],
             "numeric_failed_kinds": numeric["failed_kinds"],
             "numeric_reason": numeric["reason"],
+            # 🔴 R3b. `covers_key_amounts_ok=False` 이고 `scored_by` 에 `coverage` 가
+            #    있으면 **judge 는 통과시켰는데 금액 침묵 게이트가 뒤집은** 칸이다.
+            "covers_key_amounts_ok": coverage["ok"],
+            "covers_key_amounts_premise": coverage["premise"],
+            "covers_key_amounts_reason": coverage["why"],
             # 🔴 R3-2 — **세기만 하고 채점하지 않는다.** 판정 근거는 R3 보고서에 있다.
             "calc_checked_empty": not calc["checked"],
             "amount_asked_but_absent": amount_asked_but_absent(case, answer, calc),
@@ -1454,6 +1565,11 @@ def crosstab(rows: list[dict]) -> dict:
             "overall": _rate(rows)}
 
 
+def _scored_axes(row: dict) -> set[str]:
+    """`scored_by` 가 실은 축의 목록이다 — `judge+numeric+coverage`."""
+    return set(str(row.get("scored_by") or "").split("+"))
+
+
 def scorer_r3_summary(rows: list[dict]) -> dict:
     """v4 `R3` 이 더한 축들의 산출. **채택한 것과 세기만 한 것을 한 자리에 낸다.**
 
@@ -1463,11 +1579,17 @@ def scorer_r3_summary(rows: list[dict]) -> dict:
     """
     safety = [r for r in rows if r.get("track") == SAFETY_TRACK]
     return {
+        # 🔴 `scored_by` 는 이제 `judge+numeric+coverage` 처럼 축이 겹칠 수 있다.
+        #    **완전일치로 세면 겹친 칸이 조용히 빠진다** — 조각으로 본다.
         "a19_overridden": sorted(r["question_id"] for r in rows
-                                 if r.get("scored_by") == "judge+numeric"),
+                                 if "numeric" in _scored_axes(r)),
         "a19_failed_kinds": dict(Counter(
-            k for r in rows if r.get("scored_by") == "judge+numeric"
+            k for r in rows if "numeric" in _scored_axes(r)
             for k in (r.get("numeric_failed_kinds") or []))),
+        # 🔴 R3b — judge 가 통과시킨 답변을 **금액 침묵** 게이트가 뒤집은 칸.
+        "r3b_overridden": sorted(r["question_id"] for r in rows
+                                 if "coverage" in _scored_axes(r)),
+        "r3b_premise": sum(1 for r in rows if r.get("covers_key_amounts_premise")),
         "calc_checked_empty": sum(1 for r in rows if r.get("calc_checked_empty")),
         # 🔴 **채점에 반영하지 않은 수다.** 이름에 `candidates` 를 남겨 둔다.
         "r32_candidates": sorted(r["question_id"] for r in rows

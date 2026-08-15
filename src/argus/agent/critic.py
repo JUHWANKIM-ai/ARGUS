@@ -64,7 +64,38 @@ _DUR_RE = re.compile(r"(\d+)\s*년\s*(\d+)\s*개월")
 #: 같은 목록이 두 곳에 있으면 한쪽만 고쳐진다(이 저장소가 이미 다섯 번 겪은 실패 양식).
 #: 🔴 **긴 표지가 앞에 와야 한다.** `만원` 이 `백만원` 앞에 있으면 `백|만원` 으로 갈려
 #: 배율이 1e4 로 잡히고 100배를 놓친다. 같은 이유로 `천억원`·`백억원` 이 `억원` 앞이다.
-_SCALE_ALT = "조원|천억원|백억원|억원|백만원|만원|천원|조|억|원"
+#: **`_SCALE_UNITS` 의 순서가 그 규율의 정본이다** — 아래 `_SCALE_ALT` 는 이 순서를
+#: 그대로 이어 붙인다.
+#:
+#: 🔴 **`천만원` 은 일부러 빼 뒀다 — 넣으면 거짓 경보가 난다.** 저장 답변 2,449건에서
+#: `천만 원`·`천만원` 은 13회 쓰이는데 **13회 전부 복합 수사의 꼬리**다
+#: (`33조 3,605억 9천만 원` 10회 · `1조 8,287억 5천만 원` · `5,157억 5천만 원` ·
+#: `75억 8천만원`). 단독 금액으로 쓰인 예가 **0건**이다. 표지를 넣으면 `_COMPOUND_MONEY_RE`
+#: 가 `조…억` 까지만 묶고 남은 꼬리가 **별개의 5천만원(5e7)** 이 되어, 실측 `Q-113`
+#: (`v3/ORACLE` 밸류체인)에서 `amount: 답변 5천만 원 vs 재계산 499,950,000,000
+#: (10^-4 배 자릿수 오류)` 라는 **거짓 경보 1건**이 새로 났다. 그 답변의 금액은 옳다.
+_SCALE_UNITS = ("조원", "천억원", "백억원", "십억원", "억원",
+                "백만원", "만원", "천원", "조", "억", "원")
+
+#: 🔴 **표지 **안**의 공백을 허용한다** (v4 `R3b`). 종전에는 수와 표지 **사이**만
+#: `\s*` 였고 표지 자체는 붙임형뿐이라, 정기공시가 흔히 쓰는 띄어쓰기 표기를 금액으로
+#: **아예 못 봤다.** 저장 답변 2,449건 전수 실측(공백형 대 붙임형):
+#:
+#:     억 원      1,307 :   526      ← 붙임 `억` 대체 경로가 있어 값은 맞았다
+#:     백만 원      608 :    86      🔴 대체 경로가 없다 — 통째로 안 보였다
+#:     십억 원       36 :     0      🔴 표지 자체가 목록에 없었다
+#:     천 원         19 :     0      🔴
+#:     만 원         11 :     0      🔴
+#:     천만 원       12 :     1      ⬜ 표지를 **일부러 안 넣는다** (`_SCALE_UNITS` 주석)
+#:
+#: `억 원`·`조 원` 은 붙임 `억`·`조` 가 같은 배율로 받아 값은 맞았지만 **표지가 원문에서
+#: 잘려** 재기술 짝(`X원 (Y억 원)`)의 괄호 닫힘 판정이 서지 못했다 —
+#: `_restatement_pairs` 가 `억` 다음의 ` 원)` 을 닫는 괄호로 읽지 못한다.
+#:
+#: 공백은 **가로 공백만** 허용한다. `\s` 로 넓히면 표 안에서 줄이 갈린 `1,000\n원` 이
+#: 하나의 금액이 되어 없던 금액이 생긴다.
+_SCALE_SP = "[ \t\u00a0]*"
+_SCALE_ALT = "|".join(_SCALE_SP.join(unit) for unit in _SCALE_UNITS)
 _MONEY_RE = re.compile(rf"(-?\d[\d,]*(?:\.\d+)?)\s*({_SCALE_ALT})")
 _BARE_RE = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
 _NUMERIC_CELL = re.compile(r"^-?[\d,]+(?:\.\d+)?$")
@@ -84,9 +115,23 @@ _COUNT_KW = re.compile(rf"(\d[\d,]*)\s*({_UNITS})")
 #: 빠진 동안 정기공시의 백만원 표가 파서에서 통째로 사라졌다 — SK 의
 #: `97,146,675백만원` 이 `_MONEY_RE` 에 안 걸려 Q-047 의 검증이 아예 서지 못했다
 #: (A8 88문항 중 답변 12건·근거 21건이 백만원을 쓴다).
+#: 🔴 `십억원` 이 빠져 있었다 (v4 `R3b` 실측으로 보강). 저장 답변 2,449건에서 `십억 원`
+#: 이 36회 쓰이는데(붙임형 0회) **표지 자체가 목록에 없어서** 대체 경로도 없이 통째로
+#: 안 보였다 — `454십억 원` 은 `십원` 도 `억원` 도 매치하지 않아 아무것도 안 걸린다.
+#: 실측 용례는 전부 단독 금액이다(`시설자금 454십억 원` · `2,990십억 원`).
+#: **`천만원` 은 넣지 않았다** — 사유는 `_SCALE_UNITS` 주석에 있다.
 _SCALE = {"원": 1.0, "천원": 1e3, "만원": 1e4, "백만원": 1e6,
-          "억": 1e8, "억원": 1e8, "백억원": 1e10, "천억원": 1e11,
+          "억": 1e8, "억원": 1e8, "십억원": 1e9, "백억원": 1e10, "천억원": 1e11,
           "조": 1e12, "조원": 1e12}
+
+#: 🔴 **`_SCALE_UNITS` 와 `_SCALE` 이 같은 목록을 말해야 한다.** 한쪽만 늘리면
+#: `_money_spans` 가 `KeyError` 로 죽거나(표지만 늘린 경우) 새 표지가 조용히 안 보인다.
+assert set(_SCALE_UNITS) == set(_SCALE), sorted(set(_SCALE_UNITS) ^ set(_SCALE))
+
+
+def _scale_of(marker: str) -> float:
+    """표지의 배율. **표지 안의 공백을 지우고** 찾는다 (`백만 원` → `백만원`)."""
+    return _SCALE["".join(marker.split())]
 
 #: 반올림 1자리까지 허용한다 (docs/pipeline/07-verifier.md G-2).
 ROUND_TOLERANCE = 0.05
@@ -213,7 +258,7 @@ def _money_spans(answer: str) -> list[tuple[int, int, float, float, str]]:
             continue
         value = _to_float(m.group(1))
         if value is not None:
-            scale = _SCALE[m.group(2)]
+            scale = _scale_of(m.group(2))
             out.append((m.start(), m.end(), value * scale,
                         _half_ulp(m.group(1), scale), m.group(0)))
     return sorted(out)
@@ -221,6 +266,15 @@ def _money_spans(answer: str) -> list[tuple[int, int, float, float, str]]:
 
 def _money_claims(answer: str) -> list[tuple[float, float, str]]:
     return [(value, tol, literal) for _, _, value, tol, literal in _money_spans(answer)]
+
+
+def money_values(text: str) -> list[float]:
+    """텍스트가 말한 금액의 **값만**. `_money_spans` 의 공개 창구다.
+
+    🔴 채점기(`scripts/error_analysis.py`)가 `_money_spans` 를 직접 부르면 금액 파싱
+    규칙을 읽는 자리가 둘이 된다. 표지 목록과 마찬가지로 창구를 하나로 둔다.
+    """
+    return [value for _, _, value, _, _ in _money_spans(text or "")]
 
 
 def _bare_claims(answer: str) -> list[tuple[float, float, str]]:
@@ -631,8 +685,11 @@ ARITHMETIC_KINDS = ("equation", "restatement")
 
 
 def _unit_at(text: str, pos: int) -> str:
+    """수 뒤의 배율 표지. **공백을 지운 정규형**으로 돌려준다 — 같은 등식이 한쪽은
+    `817,100백만원`, 다른 쪽은 `817,100백만 원` 이면 종전에는 *단위가 섞였다* 로 읽혀
+    검사가 조용히 통과했다 (`_equation_mismatches` 의 `units` 비교)."""
     match = _UNIT_AT.match(text, pos)
-    return match.group(1) if match else ""
+    return "".join(match.group(1).split()) if match else ""
 
 
 def _equation_mismatches(text: str) -> list[dict]:
@@ -794,7 +851,7 @@ def _rendered(target: str, expected: float) -> str | None:
     if _to_float(numbers[0]) is None:
         return None
     money = _MONEY_RE.fullmatch((target or "").strip())
-    scale = _SCALE[money.group(2)] if money else 1.0
+    scale = _scale_of(money.group(2)) if money else 1.0
     decimals = len(numbers[0].split(".")[1]) if "." in numbers[0] else 0
     value = round(expected / scale, decimals)
     text = f"{value:,.{decimals}f}" if decimals else compute.fmt_num(value)

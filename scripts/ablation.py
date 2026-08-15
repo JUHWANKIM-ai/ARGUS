@@ -1916,6 +1916,11 @@ def render_rescore(rows: list[dict]) -> str:
     flipped = sorted({q for row in rows for q in row["scorer_r3"]["a19_overridden"]})
     out += ["", "## `A19` 가 뒤집은 문항 (judge 통과 → 결정적 검사가 기각)", "",
             ("· ".join(f"`{q}`" for q in flipped) if flipped else "없다"), ""]
+    # 🔴 R3b — 금액 침묵 게이트. `A19` 와 **따로** 낸다: 축이 다르면 표도 달라야 한다.
+    silent = sorted({q for row in rows
+                     for q in row["scorer_r3"].get("r3b_overridden") or ()})
+    out += ["## `R3b` 가 뒤집은 문항 (골든 요점이 금액을 명시하는데 답변이 침묵)", "",
+            ("· ".join(f"`{q}`" for q in silent) if silent else "없다"), ""]
     return "\n".join(out) + "\n"
 
 

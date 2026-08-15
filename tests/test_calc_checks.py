@@ -476,9 +476,10 @@ def test_verify_calculation_exports_the_value_it_already_recomputed():
     """실측 Q-097. `reason` 문장에 박혀 있던 값을 **구조화된 필드로** 함께 낸다."""
     out = critic.verify_calculation(Q097_ANSWER, Q097_RECORD)
     assert out["recomputed"] == {"per_unit": 207_684_631_210.0}
-    # 🔴 `reason` 의 형식은 한 글자도 바뀌지 않는다 — `scripts/error_analysis.py` 와
-    #    게이트 문서가 그것을 읽는다.
-    assert out["reason"] == "per_unit: 답변 2,078억 vs 재계산 207,684,631,210"
+    # 🔴 `reason` 의 **형식**은 한 글자도 바뀌지 않는다 — `scripts/error_analysis.py` 와
+    #    게이트 문서가 그것을 읽는다. v4 `R3b` 이후 `claimed` 만 원문 표지를 끝까지
+    #    담는다 (`2,078억` → `2,078억 원`) — 답변이 쓴 그대로다.
+    assert out["reason"] == "per_unit: 답변 2,078억 원 vs 재계산 207,684,631,210"
 
 
 def test_recomputed_omits_period_because_its_expected_value_is_text():

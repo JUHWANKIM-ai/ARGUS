@@ -203,7 +203,9 @@ def test_unit_error_is_reported_even_when_another_figure_matches():
     assert out["hard_kinds"] == ["amount"]
     bad = [m for m in out["mismatches"] if m.get("scale")]
     assert len(bad) == 1
-    assert bad[0]["claimed"] == "492,909억" and bad[0]["scale"] == 1
+    # 🔴 v4 `R3b` 이후 원문 표지가 **끝까지** 잡힌다 (`492,909억` → `492,909억 원`).
+    #    값도 판정도 그대로고, 치환은 표지를 포함한 자리를 통째로 갈아 끼운다.
+    assert bad[0]["claimed"] == "492,909억 원" and bad[0]["scale"] == 1
     assert "자릿수" in out["reason"]
 
 
@@ -211,7 +213,7 @@ def test_a_derived_difference_is_not_a_unit_error():
     """`469,528억`(차이)은 원값의 9.53배다. 10배 창 밖이므로 자릿수 오류가 아니다."""
     bad = [m for m in critic.verify_calculation(Q065_ANSWER, DUKOVANY)["mismatches"]
            if m.get("scale")]
-    assert [m["claimed"] for m in bad] == ["492,909억"]
+    assert [m["claimed"] for m in bad] == ["492,909억 원"]
 
 
 def test_unit_error_does_not_fire_on_a_record_the_answer_quoted_correctly():
