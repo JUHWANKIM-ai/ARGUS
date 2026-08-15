@@ -206,7 +206,7 @@ python scripts/ablation.py --arm A8 --dry   # arm 별 기여도 측정. --dry �
 | # | 제출물 | 소재 | 상태 |
 |---|---|---|---|
 | 1 | 소스코드 + 환경 구성 정보 + `README.md` | 이 저장소 · 이 파일 · `requirements.txt` | ✅ **완비** (2026-08-15) |
-| 2 | 기술 제안서 (자유 양식 · 분량 제한 없음) | [`docs/proposal/technical-proposal.md`](docs/proposal/technical-proposal.md) | 초안 |
+| 2 | 기술 제안서 (자유 양식 · 분량 제한 없음) | [`docs/proposal/technical-proposal.md`](docs/proposal/technical-proposal.md) | 🟡 **초안 — 본문 완결 (2026-08-15 · v4 성적·판정 전량 반영).** 🔴 **남은 빈칸 둘은 08-25 이후에만 채울 수 있다**: 새 heldout 18 성적(`R4`) · 배포 완주 기록(`R4-2` = `TBD-1`·`TBD-3`) |
 | 3 | End-point URL + API 명세서 | **이 파일 §1 · §2** | 명세 있음 / **URL 은 `TBD-1`** |
 | 4 | 전처리 산출물 (대용량은 스토리지 링크) | `artifacts/` · `evalset/` | 저장소에 있음 / **대용량 링크는 `TBD-3`** |
 
@@ -223,3 +223,16 @@ python scripts/ablation.py --arm A8 --dry   # arm 별 기여도 측정. --dry �
 | `TBD-5` | 평가 서버 운영 일자·시간대 (§1) | **주최측 공지 대기** | 09-07 ~ 09-20 중 |
 
 **공인 IP 는 한 번 받으면 09-20 까지 반납하지 않는다** — 반납 후 재획득하면 제출한 URL 이 죽는다.
+
+> 🔴 **자리표시자가 아닌 "빈칸" 둘이 제안서 쪽에 더 있다** (2026-08-15 · v4 `R5` 확인).
+> 이 대장의 `TBD-*` 는 **값을 적을 칸**이고, 아래 둘은 **아직 측정·실행되지 않은 것**이라
+> 성격이 다르다. 섞어 세지 않는다.
+>
+> | 빈칸 | 무엇 | 채우는 주체 | 시점 |
+> |---|---|---|---|
+> | 새 heldout 18 성적 | `evalset/heldout.jsonl` 은 **2회 소진**이라 새로 18문항을 만들어야 한다 (`evalset/heldout_v2.jsonl`) | 개발 담당 | **08-25 코드 동결 직후** — 동결 전에 만들면 지금 heldout 을 태운 것과 같아진다 |
+> | 배포 완주 기록 | NCP 콘솔 로그인 · SSH 키 · `.env` 전송이 필요해 자동화 구간 밖이다. 절차서는 [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md) 에 완비 | **배포 담당(사용자)** | 08-25 ~ 08-31 · 완주하면 `TBD-1`·`TBD-3` 이 함께 닫힌다 |
+>
+> 그리고 🔴 **`A18`·`A10`·`A22` 세 arm 은 계획에 있었으나 재지 않았다** — *"측정 예정"* 이
+> 아니라 **미측정**이고, 동결 전에 **잴지 말지를 판정**해야 한다
+> ([`docs/total_plan.md`](docs/total_plan.md) §5-19).

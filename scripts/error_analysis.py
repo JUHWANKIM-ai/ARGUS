@@ -811,7 +811,14 @@ UNREACHABLE_GOLDEN: dict[str, tuple[str, ...]] = {
 #: 세대를 갈라 읽어야 한다 (R2E 전수 집계 · 552 답변):
 #:     현 세대(v3) 전체 88     0건   🔴 그리드·회귀·정보한계 성적은 이 결함에 안 물렸다
 #:     현 세대(v3) 밸류체인 12  1건   `Q-110` — `vc/A8` 에서만
-#:     옛 세대(42문항)         1건   `Q-034` — `phase_h(42)`·`A6(42)`. v3 에는 없다
+#:     옛 세대(42문항)         1건   `Q-034` — `phase_h(42)`·`A6(42)`
+#: 🔴 **정정 (v4 `R5` · 2026-08-15) — 위 마지막 줄의 *"v3 에는 없다"* 는 틀렸다.**
+#: `R3` 의 `A19` 축이 전 세대를 재채점한 결과 `Q-034` 는 **v2·v3·v4 를 포함해 29 arm**
+#: 에 걸쳐 있었다. 위 표는 *"이 상수(`JUDGED_CORRECT_ARITHMETIC_WRONG`)로 세었을 때"* 의
+#: 분포이고, 그 상수는 **`Q-110` 형(괄호 재진술 10×)만 겨냥**한다. `Q-034` 는
+#: `provenance` 형(합계가 근거 어디에도 없다)이라 이 상수의 세는 방식으로는 현 세대에서
+#: 안 잡혔던 것이다. 🔴 **`A19` 는 그것을 잡는다** — 정본은
+#: `artifacts/ablation/v4/rescore_r3b/rescore.md` 다.
 #: 두 건의 성질도 다르다 — `Q-034` 는 합계 자체가 틀렸고(817,100 vs 817,900),
 #: `Q-110` 은 `answer_key_points` 를 전부 충족하는데 덤으로 붙인 괄호 환산이 10배
 #: 틀렸다(`590,947,351,842원 (591억원)` — 실제 5,909억원). 상세는
@@ -1796,7 +1803,9 @@ ARM_BY_ROOT_CAUSE = {
 #: 🔴 **상수만 먼저 고치면 `test_manual_targeting_matches_the_current_wrong_set` 이
 #: 그 자리에서 깨진다.** 그 테스트는 `artifacts/ablation/v*/A8/report.json` 의 오답
 #: 집합과 이 상수를 대조하는데, 그 보고서는 `R2` 의 물증이라 `R3` 이 덮지 않았다
-#: (재채점 결과는 `artifacts/ablation/v4/rescore.json` 에 따로 냈다).
+#: (재채점 결과는 `artifacts/ablation/v4/rescore.json` 에 따로 냈다 — 🔴 **그 뒤 `R3b` 가
+#: `artifacts/ablation/v4/rescore_r3b/rescore.json` 을 냈고 그쪽이 정본이다.** 두 파일은
+#: 얼린 세대 6칸이 다르고 **v4 네 arm 은 같다**).
 #: **상수와 arm 보고서는 함께 움직여야 한다** — `score_arm` 을 다시 도는 라운드(`R4`)에서
 #: `Q-034` 를 `A5`(계산·단위) 쪽에 넣고 같은 커밋에서 보고서를 다시 낸다.
 TARGETED_BY_MANUAL_REVIEW = (
