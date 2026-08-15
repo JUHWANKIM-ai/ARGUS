@@ -858,6 +858,96 @@ def _rendered(target: str, expected: float) -> str | None:
     return target.replace(numbers[0], text, 1)
 
 
+# --- F1b. 도구 결과 치환 (A24b · LLM 0회) --------------------------------------
+# 🔴 **`A24` 의 기각 사유 ①을 정면으로 겨냥한다.** 그 arm 은 `calc_total` 이 골든과
+# 바이트까지 같은 `2,365,868` 을 돌려줬는데 모델이 답변에 `2,366,968` 을 썼다 (독립
+# 스모크에서는 `2,366,868` — **두 번 다 틀리고 틀린 자리가 다르다**). 도구는 계산을
+# 대신해 줄 수 있지만 **옮겨 적기를 대신해 주지는 못한다.**
+#
+# 🔴 **`A20` 과 같은 기전이다 — 값을 코드가 문자열에 박는다.** 그래서 원천만 다르고
+# 규율·코드는 그대로 쓴다:
+#
+#     A20   `verify_calculation`·`verify_answer_arithmetic` 의 재계산값으로 치환
+#     A24b  🔴 **도구가 돌려준 값**으로 치환
+#
+# 두 arm 이 `_targets` · `_recomputed` · `unique_recomputed` · `substitute_recomputed` ·
+# `_rendered` 를 **공유한다.** 같은 일을 두 곳에 따로 만들면 유일성 규칙이 갈리고, 그것이
+# 이 저장소가 여러 번 겪은 실패 양식이다 (`unique_recomputed` 머리말).
+#
+# 🔴 **치환 조건 셋** (하나라도 어긋나면 손대지 않는다):
+#   ① 도구 값이 답변에 **이미 실려 있으면** 아무것도 안 한다 — 모델이 제대로 옮겨 적었다.
+#   ② 같은 자릿수 후보(`_targets`)의 **값이 정확히 하나**여야 한다. 둘 이상이면 어느
+#      쪽을 말하려 한 것인지 정해지지 않는다.
+#      🔴 *literal* 이 아니라 *값* 을 센다 — 실측 Q-097 처럼 같은 값이 두 표기로 실리면
+#      (`207,848,465,710원` · `약 2,078억 원`) **둘 다 바꿔야** 답변이 스스로 모순되지
+#      않는다 (`SUBSTITUTE_LOG_TOLERANCE` 주석).
+#   ③ 같은 도구를 여러 번 불러 값이 갈리면 `unique_recomputed` 가 `None` 을 내고
+#      **아무것도 치환되지 않는다** — 정정 체인 관용과 같은 이유다.
+
+#: 도구 결과 검사의 종류 접두. 뒤에 도구 이름이 붙는다 (`tool_result:calc_total`) —
+#: 🔴 도구별로 갈라야 `unique_recomputed` 가 *"같은 도구를 두 번 불러 값이 갈렸다"* 를
+#: 볼 수 있다. 하나로 뭉치면 서로 다른 도구의 정당한 두 값이 충돌로 읽힌다.
+TOOL_RESULT_KIND = "tool_result"
+
+
+def tool_result_reports(answer: str, results: Sequence[tuple[str, float]]) -> list[dict]:
+    """도구 호출 **하나당 판정 레코드 하나.** `verify_calculation` 과 같은 반환 규격이라
+    `unique_recomputed`·`substitute_recomputed` 를 그대로 먹인다. LLM 0회.
+
+    `results` 는 `(도구 이름, 수치 결과)` 의 나열이다. **무엇이 수치인가를 여기서 정하지
+    않는다** — 호출부(`pipeline._numeric_tool_results`)가 계산 도구의 `value` 만 골라
+    넘긴다. `calc_compare` 의 `value` 는 `"a"`/`"b"`/`"tie"` 문자열이고 `calc_period` 의
+    `value` 는 `"8년 5개월"` 이라 갈아 끼울 자리가 없다.
+
+    🔴 **레코드를 호출마다 따로 두는 것이 조건 ③이다.** 한 레코드에 뭉치면
+    `_recomputed` 가 갈린 종류만 조용히 빼고 나머지를 치환하는데, 도구 결과는 그
+    관용을 쓸 근거가 없다 (정정 체인처럼 '같은 값의 다른 시점' 이 아니다).
+
+    🔴 **갈림 판정은 값 자체로 한다 — 불일치가 났는지로 하면 안 된다.** `calc_total` 을
+    두 번 불러 `2,365,868` 과 `3` 이 나왔는데 뒤엣것이 답변의 어느 수와도 자릿수가 안
+    맞으면 그 레코드는 불일치가 **없고**, `unique_recomputed` 는 갈림을 못 본다.
+    그러면 갈린 도구의 앞엣값이 그대로 답변에 박힌다. 여기서 먼저 막는다.
+    """
+    rows = list(results or ())
+    values: dict[str, set[float]] = {}
+    for name, value in rows:
+        values.setdefault(name, set()).add(float(value))
+    split = {name for name, seen in values.items() if len(seen) > 1}
+    return [_tool_result_report(answer, name, value, name in split)
+            for name, value in rows]
+
+
+def _tool_result_report(answer: str, name: str, value: float,
+                        split: bool = False) -> dict:
+    kind = f"{TOOL_RESULT_KIND}:{name}"
+    text = answer or ""
+    claims = [] if split else _bare_claims(text)
+    expected = float(value)
+    # ① 이미 옮겨 적었다 — 반올림 창(`_bare_claims` 의 허용오차) 안이면 맞는 것이다.
+    stated = any(abs(claimed - expected) <= tol + 1e-9 for claimed, tol, _ in claims)
+    targets = [] if stated else _targets(expected, claims)
+    values = {v for v in (_to_float(t) for t in targets) if v is not None}
+    mismatches: list[dict] = []
+    # ② 후보의 **값**이 정확히 하나일 때만 손댄다.
+    if targets and len(values) == 1:
+        mismatches.append({
+            "kind": kind, "claimed": targets[0], "claimed_value": next(iter(values)),
+            "expected": expected, "tolerance": 0.0, "hard": True,
+            "detail": f"{name} 이 돌려준 값", "targets": targets})
+    failed = [kind] if mismatches else []
+    # 🔴 갈린 도구·수치 없는 답변은 **검사한 적이 없다** — `skipped` 다. 그것을
+    # `checked` 로 세면 게이트 F 의 `calc_checked` 가 거짓을 말한다.
+    return {
+        "ok": not mismatches, "llm_calls": 0,
+        "checked": [] if split or not claims else [kind],
+        "skipped": [kind] if split or not claims else [],
+        "mismatches": mismatches, "failed_kinds": failed, "hard_kinds": failed,
+        "failure_stage": FAILURE_STAGE if mismatches else None,
+        "reason": "; ".join(_mismatch_reason(m) for m in mismatches),
+        "recomputed": _recomputed(mismatches),
+    }
+
+
 # --- F2. 수치 출처 게이트 (A21 · LLM 0회) --------------------------------------
 # 🔴 **`A15` 와 묻는 것이 다르다.** `verify_calculation`·`verify_answer_arithmetic` 은
 # *"계산이 맞는가"* 를 묻고 이 검사는 *"이 숫자가 근거에 있는가"* 를 묻는다. 실측

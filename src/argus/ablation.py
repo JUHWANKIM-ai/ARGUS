@@ -305,10 +305,15 @@ META_UNREACHABLE_AXES = ("meta_corp", "meta_date", "meta_group")
 #: 🔴 `counterparty_hop -> multi_hub` 도 구조적 의존이다 — `A22` 의 추가 허브는
 #: `_gather_evidence` 의 **발주처 차선 안**에서만 결속되므로, 그 hop 이 꺼진 arm
 #: (`A0`~`A7`·`L3`)에서 켜면 코드가 도달하지 않는다.
+#: 🔴 `function_calling -> calc_tools_only`·`calc_queries_only`·`substitute_tool_results`
+#: 도 구조적 의존이다 — 셋 다 `_answer_with_tools`/`_offer_tools` **안에서만** 읽히므로
+#: 도구를 안 내미는 arm 에서 켜면 코드가 도달하지 않는다 (`A24b` 의 하위 옵션들).
 FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     "chain_hop": ("followup_hop",),
     "calc_values": ("lean_rules",),
     "counterparty_hop": ("multi_hub",),
+    "function_calling": ("calc_tools_only", "calc_queries_only",
+                         "substitute_tool_results"),
     "verifier": ("substitute_verified", "provenance_gate", "regenerate_on_verify")}
 
 #: 🔴 `golden_oracle=True` 에서 **읽히지 않는** 축. 검색 차선을 통째로 골든 주입으로
@@ -499,6 +504,28 @@ class Arm:
     #: (`max_tokens=300`, CoT 800)이 **사라진다.** 단일 변수 조작이 아니라는 뜻이 아니라,
     #: **API 가 그 둘을 묶어 놨다**는 뜻이다. Δ 를 읽을 때 이 사실을 반드시 함께 읽는다.
     function_calling: bool = False
+    #: 🔴 **`A24b` — 계산 도구 7종만 내민다.** `function_calling` 의 하위 옵션이라
+    #: `FLAG_DEPENDENCIES` 로 묶어 뒀다 (부모가 꺼지면 코드가 도달하지 않는다).
+    #:
+    #: 근거는 `A24` 실측이다 — 모델이 부른 47건 중 **26건이 검색**이었고
+    #: (`read_section` 16 · `get_history` 10) 이미 프롬프트에 실린 근거를 다시 읽어
+    #: **희석시켰다.** 회귀 8건 중 7건이 도구 호출 문항이다. 그 차선을 아예 닫는다.
+    calc_tools_only: bool = False
+    #: 🔴 **`A24b` — 계산 질의에만 도구를 연다** (`router.needs_calculation`).
+    #: `tools` 와 `maxTokens` 가 배타(40001)라 도구를 내미는 문항은 길이 상한을 잃는데,
+    #: `A24` 는 그 대가를 **88문항 전부에** 물렸고 도구를 한 번도 안 부른 `Q-106` 까지
+    #: 회귀했다. 겨냥이 계산 문항이므로 전 문항에 열 이유가 없다 — 실측으로 전체 88 중
+    #: 38문항 · 밸류체인 12 중 6문항만 열린다.
+    calc_queries_only: bool = False
+    #: 🔴 **`A24b` 의 알맹이 — 도구가 돌려준 값으로 답변의 수치를 치환한다.**
+    #: `A24` 기각 사유 ①이 *"도구가 정답을 줘도 모델이 옮겨 적지 못한다"* 였다
+    #: (`calc_total` → `2,365,868` / 답변 `2,366,968`). 치환에는 **옮겨 적는 단계가
+    #: 아예 없다** — `A20`(`substitute_verified`)이 이미 실측으로 이겨 둔 기전이고,
+    #: 유일성 조건과 치환 코드를 `critic` 에서 **그대로 재사용**한다.
+    #:
+    #: 🔴 `substitute_verified`(A20)와 **배타가 아니다.** 원천이 다르다(도구 결과 대
+    #: 재계산값) — `A24b+A20` 이 그 결합을 재는 arm 이다.
+    substitute_tool_results: bool = False
     #: 🔴 **`A10` 전용 — 자기일관성(Self-Consistency) 표본 수 `k`.** 1이 종전 동작이고,
     #: 스위치를 안 건드린 운영 경로는 답변 생성 호출이 **정확히 한 번**이다.
     sc_k: int = 1
@@ -765,7 +792,38 @@ A10 = replace(A8, name="A10", sc_k=3, temperature=0.7)
 #:
 #: 🔴 **`_CALC_SPECS` 만 내밀면 ②는 줄지만 ①·③은 그대로다.** 그리고 ①이 유일한 겨냥
 #: (`Q-044`)을 이미 죽였으므로 그 변형의 상한은 0 이다 — 그래서 재시도를 세우지 않는다.
+#: 🔴 **그 추론은 ①을 고칠 수 없다고 가정한 것이었고, 고칠 수 있다** — `A20` 과 같은
+#: 기전(값을 코드가 문자열에 박는다)을 도구 결과에 걸면 된다. `A24b` 가 그것이다.
 A24 = replace(A8, name="A24", function_calling=True)
+
+# --- A24b — 🔴 도구 결과를 모델이 옮겨 적게 하지 않는다 (v4 신설) ------------------
+#: 🔴 **`A24` 를 지우지 않는다** — 그 arm 은 기각 판정의 물증이다. `A24b` 는 그 위에
+#: 기각 사유 셋을 **하나씩 겨냥한** 재시도이고, 셋 다 실측에 대응한다:
+#:
+#:     ① 전사 오류      `substitute_tool_results` — 도구 결과로 답변의 수를 갈아 끼운다
+#:     ② 근거 희석      `calc_tools_only`         — 계산 7종만 내민다 (검색 8종을 뺀다)
+#:     ③ 길이 상한 소실  `calc_queries_only`       — 계산 질의에만 도구를 연다
+#:
+#: 🔴 **`A24` 의 §9 ③이 *"그 변형의 상한은 0"* 이라고 적어 뒀고, 그 추론은 ①을
+#: 고칠 수 있다는 것을 몰랐다.** ②만 고치면 상한이 0 인 것이 맞다 — ①이 유일한 겨냥
+#: (`Q-044`)을 죽이기 때문이다. `A24b` 가 재는 것은 **①을 고쳤을 때도 그런가** 이다.
+#:
+#: 🔴 **순증 겨냥이 얇다.** 겨냥 셋 중 `Q-044`·`Q-097` 은 `A20`(0원 치환)이 이미
+#: 고쳤고, `Q-018` 은 계산이 아니라 **근거에서 옮겨 적기**라 계산 도구가 낼 값이
+#: 없다. 그래서 `A24b` 단독의 상한은 사실상 `A8` 회복(Δ 0)이고, 볼 만한 것은 아래
+#: 결합 arm 이다.
+A24B = replace(A8, name="A24b", function_calling=True, calc_tools_only=True,
+               calc_queries_only=True, substitute_tool_results=True)
+
+# --- A24b+A20 — 두 치환의 결합 (v4 신설) -----------------------------------------
+#: 🔴 **원천이 다른 두 치환을 함께 켠다.** `A24b` 는 *도구가 돌려준 값*으로,
+#: `A20` 은 *검사가 재계산한 값*으로 답변의 수를 갈아 끼운다. 배타가 아니고, 순서는
+#: **도구 치환이 먼저**다 (`pipeline._answer_with_tools` → `_verify`) — 도구 값이
+#: 더 이른 원천이고, 치환된 뒤의 답변을 `_verify` 가 다시 본다.
+#:
+#: 🔴 **`A24b` 와 플래그가 하나만 다르다**(`substitute_verified`). 그래야
+#: `Δ(A24b → A24b+A20)` 이 `A20` 의 몫으로 읽힌다.
+A24BS = replace(A24B, name="A24b+A20", substitute_verified=True)
 
 #: 실행 순서는 **A8 부터 역순**이다 (§I-4b) — 가장 비싼 구성을 먼저 확보해야
 #: 중간에 예산이 끊겨도 최신 성능을 안다. A2 계열은 사다리를 다 확보한 뒤 맨 끝이다 —
@@ -789,10 +847,14 @@ A24 = replace(A8, name="A24", function_calling=True)
 #: 🔴 `A24` 는 `A18` 뒤 · dense 앞이다 — `A18` 과 같은 **기각 예정 arm**(순증 겨냥 0)이라
 #: 채택 후보들 뒤에 서지만, **게이트 F 의 유일한 미완을 닫는 arm** 이라 G1 미확정인
 #: dense·진단 arm 보다는 앞이다.
+#: 🔴 `A24b`·`A24b+A20` 은 `A24` 바로 뒤다 — **나란히 재는 짝**이라(`A20`/`A20r` 과
+#: 같은 이유) 사이를 다른 arm 이 갈라 놓으면 정지선이 하나만 확보하고 끊길 때 그 비교가
+#: 통째로 사라진다. 결합 arm 이 뒤인 것은 단독 Δ 를 먼저 확보해야 결합의 몫을 귀속할 수
+#: 있어서다.
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
              "A8-lean", "A20", "A20r", "A21", "A22", "A10", "A18", "A24",
-             "A2F", "A2", "ORACLE")
+             "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
 LADDER = ("A0", "A1", "A1b", "A4", "A5", "A6", "A7", "A8")
@@ -826,7 +888,8 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, L6, L7, L8,
-                         A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24)}
+                         A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
+                         A24B, A24BS)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은

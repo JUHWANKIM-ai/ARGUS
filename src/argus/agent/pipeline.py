@@ -9,9 +9,10 @@ from argus import ablation
 from argus.agent import tools
 from argus.agent.budget import Budget, BudgetExceeded
 from argus.agent.critic import (aggregate_calculation, judge, quick_check,
-                                substitute_recomputed, unique_recomputed,
-                                verify_answer_arithmetic, verify_calculation,
-                                verify_completeness, verify_number_provenance)
+                                substitute_recomputed, tool_result_reports,
+                                unique_recomputed, verify_answer_arithmetic,
+                                verify_calculation, verify_completeness,
+                                verify_number_provenance)
 from argus.agent.prompts import build_answer_messages, build_regeneration_messages
 from argus.agent.query import (SPLIT_TOP_K, STRATEGIES, path_hints, plan_hops,
                                plan_section_hops, report_hints, time_points)
@@ -2092,14 +2093,81 @@ def _tool_arguments(call: dict) -> dict:
     return args if isinstance(args, dict) else {}
 
 
+# --- A24b — 🔴 도구 결과를 모델이 옮겨 적게 하지 않는다 ---------------------------
+# `A24` 는 **도구를 안 불러서** 진 것이 아니다 (37/88 이 불렀다). 진 이유 셋 중 첫째가
+# 이것이다 — `calc_total` 이 골든과 바이트까지 같은 `2,365,868` 을 돌려줬는데 답변은
+# `2,366,968` 을 썼다. **우리 도메인의 병목은 산술이 아니라 전사(轉寫)** 이고,
+# function calling 은 그 축을 건드리지 않는다.
+#
+# 🔴 처방은 `A20` 이 이미 실측으로 이겨 둔 것과 같다 — **값을 코드가 문자열에 박는다.**
+# 규율도 코드도 `critic` 것을 그대로 쓴다 (`critic.tool_result_reports` 머리말).
+
+
+def _numeric_tool_results(results: list[tuple[str, dict]]) -> list[tuple[str, float]]:
+    """치환에 쓸 수 있는 `(도구, 값)` 만. **계산 도구의 수치 `value` 뿐이다.**
+
+    `tools._num_result` 를 쓰는 5종(`calc_pct_change`·`calc_share`·`calc_total`·
+    `calc_mean`·`calc_cagr`)만 `value` 가 수치다. `calc_compare` 는 `"a"`/`"b"`/`"tie"`,
+    `calc_period` 는 `"8년 5개월"` 이고 검색 도구에는 `value` 키가 아예 없다.
+
+    🔴 **`CALC_TOOLS` 로 한 번 더 거른다.** 검색 도구가 언젠가 `value` 키를 갖게 되면
+    (`_num_result` 를 안 쓰는 자유형 반환이다) 그 값이 조용히 답변에 박힌다.
+    """
+    out: list[tuple[str, float]] = []
+    for name, payload in results or ():
+        if name not in tools.CALC_TOOLS:
+            continue
+        value = (payload or {}).get("value")
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        out.append((name, float(value)))
+    return out
+
+
+def _substitute_tool_results(answer: str, results: list[tuple[str, dict]],
+                             trace: list[str]) -> str:
+    """도구가 돌려준 값으로 답변의 그 수치를 갈아 끼운다. LLM 0회.
+
+    🔴 **발화하지 않았을 때도 trace 에 적는다.** 안 적으면 "치환이 몇 번 설 수 있었는데
+    몇 번 섰는가" 를 사후에 못 세고, 그러면 Δ 를 무엇에 귀속할지가 흐려진다.
+    """
+    pairs = _numeric_tool_results(results)
+    if not pairs:
+        return answer
+    reports = tool_result_reports(answer, pairs)
+    out, substituted = substitute_recomputed(answer, reports, unique_recomputed(reports))
+    if substituted:
+        trace.append(f'tool_substituted={"; ".join(substituted)}')
+    else:
+        trace.append(f"tool_substituted=- values={len(pairs)}")
+    return out
+
+
 def _answer_with_tools(messages: list[dict], max_tokens: int, arm, budget: Budget,
                        trace: list[str]) -> str:
-    """`A24` — 도구를 내밀고, 모델이 부르면 실행해 결과를 되먹여 다시 부른다.
+    """`A24`/`A24b` — 도구를 내밀고, 모델이 부르면 실행해 결과를 되먹여 다시 부른다.
+
+    🔴 `substitute_tool_results`(A24b)가 켜져 있으면 **마지막에 도구 결과로 답변의
+    수치를 치환한다.** 꺼져 있으면(`A24`) 아래 한 줄은 종전과 글자 하나 다르지 않다.
+    """
+    results: list[tuple[str, dict]] = []
+    answer = _tool_round_trip(messages, max_tokens, arm, budget, trace, results)
+    if arm.substitute_tool_results:
+        answer = _substitute_tool_results(answer, results, trace)
+    return answer
+
+
+def _tool_round_trip(messages: list[dict], max_tokens: int, arm, budget: Budget,
+                     trace: list[str], results: list[tuple[str, dict]]) -> str:
+    """왕복 본체. 실행한 도구 결과를 `results` 에 **순서대로 쌓는다** (A24b 가 읽는다).
 
     🔴 **첫 호출이 죽으면 그대로 올려보낸다** — `A8` 과 같은 경로(`UNANSWERABLE` +
     표식)로 나가야 상류 장애와 arm 효과가 섞이지 않는다. 두 번째 회차부터는 이미 받아
     둔 본문이 있으면 그것을 지키고 멈춘다 (`_self_consistent` 와 같은 규약).
     """
+    # 🔴 `A24b` 는 계산 7종만 내민다 — `A24` 실측에서 모델이 부른 47건 중 26건이
+    #    검색이었고 이미 실린 근거를 다시 읽어 희석시켰다 (`tools.CALC_SPECS` 주석).
+    offered = tools.CALC_SPECS if arm.calc_tools_only else tools.TOOL_SPECS
     convo = list(messages)
     best = ""
     for index in range(MAX_TOOL_ROUNDS + 1):
@@ -2113,7 +2181,7 @@ def _answer_with_tools(messages: list[dict], max_tokens: int, arm, budget: Budge
             raise BudgetExceeded("LLM 호출 상한 — function calling 왕복을 마치지 못했다")
         try:
             result = chat(convo, max_tokens=max_tokens, temperature=arm.temperature,
-                          tools=tools.TOOL_SPECS if offer else None, tag="answer")
+                          tools=offered if offer else None, tag="answer")
             budget.spend_llm(result.prompt_tokens, result.completion_tokens)
         except (BudgetExceeded, RuntimeError) as exc:
             if not best:
@@ -2138,6 +2206,7 @@ def _answer_with_tools(messages: list[dict], max_tokens: int, arm, budget: Budge
         for call in calls:
             name = ((call.get("function") or {}).get("name")) or ""
             out = tools.execute(name, _tool_arguments(call))
+            results.append((name, out))
             payload = json.dumps(out, ensure_ascii=False, default=str)
             if len(payload) > MAX_TOOL_RESULT_CHARS:
                 payload = payload[:MAX_TOOL_RESULT_CHARS] + "…(잘림)"
@@ -2146,6 +2215,25 @@ def _answer_with_tools(messages: list[dict], max_tokens: int, arm, budget: Budge
             trace.append(f'fc tool={name or "?"} '
                          f'{"error" if "error" in out else "ok"} chars={len(payload)}')
     return best
+
+
+def _offer_tools(arm, question: str, trace: list[str]) -> bool:
+    """이 문항에 도구를 열 것인가. **`function_calling` 이 꺼져 있으면 무조건 아니다.**
+
+    🔴 `calc_queries_only`(A24b)가 켜져 있으면 **계산 질의에만** 연다 — `tools` 와
+    `maxTokens` 가 배타(40001)라 도구를 내미는 순간 길이 상한이 사라지고, `A24` 는
+    도구를 한 번도 안 부른 `Q-106` 까지 그 이유로 잃었다 (`router.needs_calculation`).
+
+    🔴 **판정을 trace 에 남긴다.** 안 남기면 어느 문항이 열렸는지 사후에 셀 수 없다.
+    플래그가 꺼진 arm 의 trace 는 **바이트 동일**이다.
+    """
+    if not arm.function_calling:
+        return False
+    if not arm.calc_queries_only:
+        return True
+    kind = router_module.calc_question_kind(question)
+    trace.append(f'fc gate={"open:" + kind if kind else "closed"}')
+    return bool(kind)
 
 
 def answer_question(question_id: str, question: str) -> dict:
@@ -2188,7 +2276,7 @@ def answer_question(question_id: str, question: str) -> dict:
         arm = ablation.current()
         # 🔴 `A24` 는 여기서 갈린다 — 도구를 내밀고 왕복한다. 기본값(False)에서는 아래
         #    `else` 가지가 종전과 글자 하나 다르지 않다.
-        if arm.function_calling:
+        if _offer_tools(arm, clean, trace):
             answer = _answer_with_tools(messages, max_tokens, arm, budget, trace)
         else:
             # 🔴 온도는 이제 `Arm` 이 들고 있다. **기본값이 0.0** 이라 `A10` 이외의 arm 에서
