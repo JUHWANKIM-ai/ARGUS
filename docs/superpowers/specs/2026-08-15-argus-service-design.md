@@ -263,7 +263,7 @@ meta.json          데이터 범위 · 생성 시각 · 건수
 
 | | 구현 | 어디에 있었나 | v2 |
 |---|---|---|---|
-| **a** | **읽기 게이트가 함수 층에 있다** — 문서가 아니라 코드가 막는다. 금지 토큰 `heldout`·`data/`·`.env`·`src/`·`secrets`·`attic` 의 **부분 문자열** 검사 + 저장소 밖 경로 거부(`resolve()` 후 `ROOT` 하위인지) | `FORBIDDEN_PATHS` · `_guard_path()` | 🔴 **완화한다.** v2 는 `data/dart-disclosures/universe.csv` 를 **읽어야** 한다(70개사 정본). `data/` 토큰을 통째로 막을 수 없다 — **`evalset`·`ablation`·`.env`·`src/` 로 좁힌다** |
+| **a** | **읽기 게이트가 함수 층에 있다** — 문서가 아니라 코드가 막는다. 금지 토큰 `heldout`·`data/`·`.env`·`src/`·`secrets`·`attic` 의 **부분 문자열** 검사 + 저장소 밖 경로 거부(`resolve()` 후 `ROOT` 하위인지) | `FORBIDDEN_PATHS` · `_guard_path()` | 🔴 **뒤집어 짰다 — 금지 목록이 아니라 *허용 목록*이다.** 두 이유. ① v2 는 `data/…/universe.csv` 를 **읽어야** 해서(70개사 정본) `data/` 를 통째로 막을 수 없다. ② 🔴 **금지 대상의 이름을 소스에 적는 것 자체가 금지다** — 계획서의 테스트가 빌드 스크립트 소스에서 `evalset`·`ablation`·`heldout` 문자열을 찾는다. 허용 목록은 두 제약을 풀면서 **더 강하다**: `ALLOWED_READS` 의 **여섯 파일** 밖으로는 어떤 경로도 열리지 않고, 다음 세대가 원천을 늘려도 조용히 새지 않는다 |
 | **b** | **출력 비밀 패턴 스캔** — `nv-` · `sk-` · `Bearer …` · `X-NCP-*` · `CLOVA_API_KEY|CLOVA_STUDIO_API_KEY` · **40자 이상 영숫자 덩어리**. ②(import 금지)와 **독립된 두 번째 층**이다 | `SECRET_PATTERNS` | 상속 |
 | **c** | **`heldout` 은 `evalset` 과 별개 토큰족** — `heldout`·`held-out`·`held_out` 셋을 본다. 게다가 정본에서 읽은 **모든 문장**이 `redact_reserved()` 를 지나 `[비공개 평가 트랙]` 으로 치환된다(원장 행을 빼면 검산이 깨져서 **금액은 남기고 이름만** 지웠다) | `HELDOUT_TOKENS` · `redact_reserved()` | 상속 (v2 는 정본 문서를 안 읽으므로 치환은 불필요) |
 | **d** | 🔴 **14자리 문서 식별자 차단** — 출력의 어떤 14자리 연속 숫자도 `SiteLeak`. DART 접수번호가 골든 근거를 지목하기 때문이었다 | `DOC_ID` · `test_no_output_carries_a_document_identifier` | 🔴 **의도적으로 뒤집는다.** v2 의 `rcept_no` 가 바로 그 14자리이고 **정정 체인(`targets`)이 접수번호 목록**이다. 근거가 달라서다 — v1 의 접수번호는 *평가셋 골든*에서 왔고 v2 의 것은 *공시 원본*에서 온다. **이 문단이 그 판단의 기록이다.** 다음 세대가 게이트를 조용히 지우거나 되살려 빌드를 깨지 않게 |
