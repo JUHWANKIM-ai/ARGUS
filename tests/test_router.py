@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -205,6 +206,33 @@ def test_conjunctive_particles_do_not_bind_the_role():
         "두산에너빌리티와 발주 구조가 같은 계약을 공시한 상장사는?",
     ):
         assert route(question).counterparty is None, question
+
+
+def test_the_q108_conjunction_is_not_a_role_binding():
+    """🔴 v4 `R1-11` ① 의 기각을 고정한다 — `와|과|및` 을 더해도 `Q-108` 은 안 잡힌다.
+
+    `R1-6` 보고서는 *"정규식이 '…와' 조사를 못 잡아 hop 미발화"* 로 진단했지만
+    기전이 그것이 아니다. 이 정규식은 **`조사+표지` 인접**을 요구하는데, `Q-108` 의
+    `와` 뒤에 오는 것은 표지가 아니라 **다른 회사 이름**이다. 조사 목록을 넓혀도
+    매치할 자리 자체가 없다.
+
+    그리고 매치했더라도 틀린다 — 이 문장에서 두 회사는 **공시한 쪽**이다.
+    """
+    from argus.corpus.counterparty import canonical
+
+    question = ("체코 두코바니 5·6호기 원자력발전소 사업에서 두산에너빌리티와 한전기술이 "
+                "공시한 계약들은 발주-수주 관계로 어떻게 이어지는가?")
+    assert route(question).counterparty is None
+
+    # ① 조사 뒤에 오는 것이 표지가 아니라 회사 이름이다 — 넓혀도 매치할 자리가 없다.
+    key = canonical(question)
+    tail = key[key.index("두산에너빌리티") + len("두산에너빌리티"):]
+    assert tail.startswith("와한전기술")
+    wide = re.compile(r"^(?:(?:을|를|이|가|와|과|및)(?:계약상대|발주)"
+                      r"|(?:이|가)시행(?=하|사|중)|의발주(?!처|사|업체|기업))")
+    assert wide.match(tail) is None
+    # ② 그리고 두 회사 다 공시한 쪽이다 — 결속하면 근거가 역방향으로 뒤집힌다.
+    assert "이공시한" in key
 
 
 def test_marker_before_the_node_is_not_bound():

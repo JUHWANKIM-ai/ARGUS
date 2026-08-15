@@ -141,3 +141,94 @@ def test_the_enumeration_hop_does_not_fire_for_q114():
         pytest.skip("counterparty_graph.json 없음")
     _, trace = pipeline._gather_evidence(r, row["question"], Budget())
     assert not any("strat=enumerate" in line for line in trace)
+
+
+# --- v4 R1-11 ③ 기각 — 하중 상수가 `depth` 가 아니다 ----------------------------
+
+def test_the_evidence_cap_binds_before_the_group_depth():
+    """🔴 `R1-11` ③ 의 기각을 고정한다 — `depth < 1` 을 올려도 집합이 안 바뀐다.
+
+    `R1-6` 보고서는 `Q-117` 미회수 3건의 원인을 `_enumerate_events` 의 `depth < 1`
+    하드코딩(*"그룹당 1건"*)으로 짚었다. 실측하면 **하중 상수는 그것이 아니다**:
+    계약상대 그룹이 11개인데 담을 칸(`MAX_ENUM_EVIDENCE`)이 5개뿐이라 `depth 0`
+    한 바퀴에서 이미 상한이 찬다. `depth` 를 올려도 두 번째 바퀴가 **아예 안 돈다.**
+
+    셋을 회수하려면 `MAX_EVIDENCE`(10)를 올려야 하고 그것은 `A16` 이라
+    `R0-3`(`dac2bf0`)이 이미 기각했다 — 사유는 `_enumerate_events` 독스트링에 있다.
+    """
+    from argus.corpus.counterparty import canonical
+
+    out = tools.execute("query_events",
+                        {"corp_name": "한전기술", "is_latest": True,
+                         "doc_subtype": "단일판매공급계약체결",
+                         "limit": pipeline.ENUM_EVENT_POOL})
+    if "error" in out or not (out.get("events") or ()):
+        pytest.skip("artifacts/exchange_records.jsonl 없음")
+
+    groups: dict[str, list[dict]] = {}
+    for event in out["events"]:
+        groups.setdefault(canonical(event.get("counterparty") or ""), []).append(event)
+
+    # 🔴 이 부등식이 기각의 전부다. 뒤집히면(그룹 < 상한) depth 가 하중이 되고
+    #    그때는 `R1-11` ③ 을 다시 재야 한다.
+    assert len(groups) > pipeline.MAX_ENUM_EVIDENCE, (
+        f"그룹 {len(groups)} <= 상한 {pipeline.MAX_ENUM_EVIDENCE} — depth 가 하중이 됐다")
+
+    def taken_at(max_depth: int) -> list[str]:
+        order = sorted(groups, key=lambda key: (-len(groups[key]), key))
+        taken: list[str] = []
+        depth = 0
+        while len(taken) < pipeline.MAX_ENUM_EVIDENCE and depth < max_depth:
+            for key in order:
+                if len(taken) >= pipeline.MAX_ENUM_EVIDENCE:
+                    break
+                if depth < len(groups[key]):
+                    taken.append(str(groups[key][depth].get("rcept_no")))
+            depth += 1
+        return taken
+
+    assert taken_at(1) == taken_at(2) == taken_at(3), "depth 를 올렸더니 집합이 바뀌었다"
+    assert len(taken_at(1)) == pipeline.MAX_ENUM_EVIDENCE
+
+    # 미회수 3건이 어디 있는지도 못 박는다 — 하나는 **1건짜리 그룹**이라 depth 와
+    # 무관하고(순위가 상한 밖), 둘은 같은 그룹의 2·4번째다.
+    order = sorted(groups, key=lambda key: (-len(groups[key]), key))
+    assert len(groups["한국남부발전"]) == 1
+    assert order.index("한국남부발전") >= pipeline.MAX_ENUM_EVIDENCE
+    doosan = [str(e.get("rcept_no")) for e in sorted(
+        groups["두산에너빌리티"],
+        key=lambda e: (str(e.get("rcept_dt", "")), e.get("rcept_no", "")), reverse=True)]
+    assert doosan.index("20251224800396") == 1
+    assert doosan.index("20230330800844") == 3
+
+
+def test_the_enumeration_hop_fires_on_exactly_one_question_in_the_corpus():
+    """🔴 위 기각이 `Q-117` 하나에만 걸린 판정이 아니라는 것을 못 박는다.
+
+    열거 hop 이 발화하는 문항은 전체 88 + 밸류체인 12 = 100문항 중 **하나뿐**이다
+    (저장 응답의 질문만 읽는다 — LLM 0회 · `evalset/` 미접촉). 이 수가 늘면 그때는
+    그룹 수가 상한보다 작은 문항이 생겼을 수 있으므로 `depth` 를 다시 재야 한다.
+    """
+    import json
+
+    root = Path(__file__).resolve().parents[1] / "artifacts/ablation/v3"
+    questions: dict[str, str] = {}
+    for arm in ("A8", "vc/A8"):
+        directory = root / arm / "responses"
+        if not directory.is_dir():
+            continue
+        for path in sorted(directory.glob("Q-*.json")):
+            payload = json.loads(path.read_text(encoding="utf-8"))["response"]
+            questions.setdefault(payload["question_id"], payload["question"])
+    if len(questions) < 100:
+        pytest.skip("v3 저장 응답이 없다")
+
+    # 🔴 문서군을 `"exchange"` 로 **박지 않는다** — 그러면 제동 ① 을 건너뛴다.
+    #    호출부(`_gather_evidence`)가 넘기는 것은 라우터가 정한 `r.group` 이고,
+    #    박아 두면 `Q-076`(정기공시)처럼 어휘만 걸리는 문항이 발화한 것처럼 보인다.
+    fired = []
+    for qid, question in sorted(questions.items()):
+        r = route(question)
+        if pipeline._wants_enumeration(r, question, r.group):
+            fired.append(qid)
+    assert fired == ["Q-117"], fired
