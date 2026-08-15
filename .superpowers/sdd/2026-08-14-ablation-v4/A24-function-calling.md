@@ -413,3 +413,11 @@ Budget.llm_calls 가 모든 회차를 세는가             ← 게이트 F 가 
    `docs/superpowers/` 라 이 태스크의 쓰기 범위 밖이어서 **고치지 않았다.**
 9. **다른 에이전트가 동시에 `docs/figures/argus-algorithm-v3.drawio` 를 고치고 있다.**
    내 커밋에 넣지 않았다.
+10. 🔴 **`--offline` 재집계가 다른 arm 의 산출물도 다시 썼다.** 성적은 한 칸도 안
+    움직였고(전 arm `report.json` 의 정오 필드 diff 0), 바뀐 것은 셋이다:
+    ① `generated` 타임스탬프 ② `arm_config` 에 `"function_calling": false` 가 새로
+    생긴 것(플래그 집합이 늘었으니 당연하다) ③ 🔴 **`error_matrix.md` 의 수동 정본
+    할당표가 `A5 2건 → 3건`(전 트랙 6 → 7)으로 바뀐 것.** ③은 **내 변경이 아니다** —
+    `scripts/error_analysis.py` 의 `TARGETED_BY_MANUAL_REVIEW` 가 이미 커밋돼 있었는데
+    산출물이 그 앞 세대라 낡아 있었고, 재집계가 **코드와 일치시킨 것**이다.
+    별도 커밋으로 분리해 뒀다.
