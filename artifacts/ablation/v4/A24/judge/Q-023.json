@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-023",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출 답변에는 모범답안의 핵심 요소들이 누락되어 있으며, 특히 계약금액의 변화를 정확하게 반영하지 않았습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 2138,
+   "completion_tokens": 49,
+   "latency_s": 1.598,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 2138,
+ "completion_tokens": 49
+}

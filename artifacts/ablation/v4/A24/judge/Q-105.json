@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-105",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제공된 자료에는 2025년 3분기 분기보고서가 아닌 2025년 반기보고서와 2024년 사업보고서만 존재하며, 두 문서 모두 해당 항목이 생략되어 있다는 점을 누락함.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 3614,
+   "completion_tokens": 75,
+   "latency_s": 2.981,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 3614,
+ "completion_tokens": 75
+}
