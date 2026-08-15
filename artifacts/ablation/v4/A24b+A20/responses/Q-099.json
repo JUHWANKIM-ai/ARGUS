@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-099",
+ "response": {
+  "question_id": "Q-099",
+  "question": "NAVER가 2025년 9월에 공시한 왈라팝(WALLAPOP) 주식매매계약상 지위 양도 건은 이후 두 차례 정정됐다. 최종 확정된 매매대금 총액은 얼마인가?",
+  "retrieved_context": "## [투자판단 관련 주요경영사항] NAVER – 투자판단 관련 주요경영사항\n- 정정체인: 1/3 (원공시 · 대체됨)\n- 공시일: 2025-09-18 (접수번호 20250918800247)\n- 섹터: AI소프트웨어·플랫폼\n- 매매금액: 903,559,577,175원 (9,036억원)\n- 확정일: 2025-09-18\n\n## [기재정정] [투자판단 관련 주요경영사항] NAVER – 투자판단 관련 주요경영사항\n- 공시일: 2025-09-30 (접수번호 20250930800838)\n- 섹터: AI소프트웨어·플랫폼\n- 매매금액: 903,559,577,175원 (9,036억원)\n- 확정일: 2025-09-30\n\n## [기재정정] [투자판단 관련 주요경영사항] NAVER – 투자판단 관련 주요경영사항\n- 정정체인: 3/3 (최신본)\n- 공시일: 2026-01-30 (접수번호 20260130800888)\n- 섹터: AI소프트웨어·플랫폼\n- 매매금액: 902,863,854,765원 (9,029억원)\n- 확정일: 2026-01-30",
+  "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"NAVER\" period=ym:202509 top_k=5 q=\"NAVER 2025 월에 공시한 왈라팝 WALLAPOP 주식매매계약상 지위 양도 건은 이후 차례 정정됐다 최종 확정된 매매대금 총액 얼마인\" n=2 top_score=23.621 ids=exchange_20250918800247,exchange_20250930800838 | hop=5 strat=chain tool=get_history corp=\"NAVER\" rcept=20250918800247 latest=20260130800888 chain_length=3 n=1 top_score=- ids=exchange_20260130800888 | hop=0 verdict=sufficient evidence=3 | fc gate=open:합계·평균 | generate fc=0 offered=y calls=1 finish=tool_calls tokens=766+33 | fc tool=calc_mean ok chars=97 | generate fc=1 offered=n calls=0 finish=stop tokens=847+100 | verify calc_checked=restatement complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=1746",
+  "answer": "NAVER가 2025년 9월에 공시한 왈라팝(WALLAPOP) 주식매매계약상 지위 양도 건에 대한 최종 확정된 매매대금은 **902,863,854,765원**(9,029억 원)입니다.\n\n근거: [기재정정] [투자판단 관련 주요경영사항] NAVER – 투자판단 관련 주요경영사항, 2026-01-30, 접수번호 20260130800888"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 766,
+   "completion_tokens": 33,
+   "latency_s": 3.156,
+   "finish": "tool_calls"
+  },
+  {
+   "tag": "answer",
+   "prompt_tokens": 847,
+   "completion_tokens": 100,
+   "latency_s": 2.443,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1613,
+ "completion_tokens": 133,
+ "llm_calls": 2,
+ "latency_s": 0.01,
+ "ts": "2026-08-16T00:31:28"
+}

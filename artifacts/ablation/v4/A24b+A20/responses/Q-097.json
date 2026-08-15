@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-097",
+ "response": {
+  "question_id": "Q-097",
+  "question": "현대글로비스가 2023년 10월에 공시한 10,800RT급 LNG DF 자동차선 12척 선대 확보 투자에서 1척당 평균 투자금액은 얼마인가?",
+  "retrieved_context": "## [신규 시설투자] 현대글로비스 – 신규시설투자등 — 10,800RT급 LNG DF 자동차선 12척 선대 확보\n- 공시일: 2023-10-26 (접수번호 20231026800363)\n- 섹터: 운송·물류\n- 투자금액: 2,492,215,574,520원 (24,922억원)\n- 자기자본 대비: 36.2%\n- 기간: 2023-10-26 ~ 2047-09-30 (23년 11개월)\n- 확정일: 2023-10-26",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대글로비스\" period=ym:202310 top_k=5 q=\"현대글로비스 2023 10 월에 공시한 10,800 RT LNG DF 자동차선 12 선대 확보 투자 척당 평균 투자금액 얼마인\" n=1 top_score=114.689 ids=exchange_20231026800363 | hop=0 verdict=sufficient evidence=1 | fc gate=open:단가 | generate fc=0 offered=y calls=1 finish=tool_calls tokens=712+37 | fc tool=calc_mean ok chars=106 | generate fc=1 offered=n calls=0 finish=stop tokens=804+102 | tool_substituted=tool_result:calc_mean: 1,246,110,787,266 -> 1,244,610,787,266 | verify calc_checked=amount,per_unit complete_checked=- ok=False kinds=calculation | budget steps=1 hops=0 llm=2 tokens=1655",
+  "answer": "현대글로비스가 2023년 10월에 공시한 10,800RT급 LNG DF 자동차선 12척 선대 확보 투자에서 1척당 평균 투자금액은 **1,244,610,787,266원**입니다.\n(근거: 신규시설투자등 {보고서명}, 2023-10-26 {기준연월}, 접수번호 20231026800363, 섹터: 운송·물류)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — amount: 답변 1,244,610,787,266원 vs 재계산 2,492,215,574,520; per_unit: 답변 1,244,610,787,266원 vs 재계산 207,684,631,210)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 712,
+   "completion_tokens": 37,
+   "latency_s": 2.273,
+   "finish": "tool_calls"
+  },
+  {
+   "tag": "answer",
+   "prompt_tokens": 804,
+   "completion_tokens": 102,
+   "latency_s": 2.521,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1516,
+ "completion_tokens": 139,
+ "llm_calls": 2,
+ "latency_s": 0.009,
+ "ts": "2026-08-16T00:31:26"
+}
