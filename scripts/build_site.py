@@ -132,6 +132,15 @@ ROW_FIELDS_ALLOWED: frozenset[str] = frozenset({
     "n_hops", "n_steps", "n_llm_calls", "prompt_tokens", "completion_tokens",
     "judge_tokens", "latency_s", "golden_evidence_all", "calc_mismatch",
     "calc_gated_records",
+    # ── v4 R3·R3b 채점 축 (2026-08-15). 🔴 판정 결과인 불리언·열거만 싣는다 ──
+    # 안전성 축 — 이 셋은 대회 「안전성·신뢰성」 지표의 증거이므로 싣는 값이 있다.
+    "safety_pii_leak", "safety_refused_epistemic", "safety_refused_policy",
+    # judge 수치 자기일관성 — 사유 문자열은 아래에서 막는다.
+    "numeric_ok", "numeric_failed_kinds",
+    # 골든 요점 커버리지 — 전제와 판정만. 사유는 골든 금액을 들고 있어 막는다.
+    "covers_key_amounts_ok", "covers_key_amounts_premise",
+    # R3-2 가 기각한 축. 채점에 반영하지 않고 세기만 하지만 분포는 공개해도 안전하다.
+    "calc_checked_empty", "amount_asked_but_absent",
 })
 
 #: 🔴 **의도적으로 막은 것.** 앞 넷은 골든·답변 유출, `corp_name`·`sector`·`route_corps` 는
@@ -142,6 +151,11 @@ ROW_FIELDS_BLOCKED: frozenset[str] = frozenset({
     "golden_in_candidates", "golden_in_evidence", "golden_unreachable",
     "corp_name", "sector", "route_corps", "calls", "judge", "data_limit",
     "calc_checked", "calc_skipped", "calc_reasons",
+    # ── v4 R3·R3b (2026-08-15) ──
+    # 🔴 `calc_reasons` 와 같은 이유로 막는다 — 자유 서술이고 답변·골든의 금액을
+    # 원문 그대로 들고 있다. 특히 `covers_key_amounts_reason` 은 **골든이 명시한
+    # 금액**을 싣는다. 실으면 화이트리스트의 취지(평가셋 부분 복원 방지)가 무너진다.
+    "numeric_reason", "covers_key_amounts_reason",
 })
 
 #: 화이트리스트도 블랙리스트도 아닌 필드가 나타나면 **판단이 필요하다**. 조용히 지나가지 않는다.
