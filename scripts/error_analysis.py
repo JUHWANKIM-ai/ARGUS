@@ -1246,6 +1246,70 @@ def _call_rows(records) -> list[dict]:
             for r in records]
 
 
+# --- 상류 장애 -----------------------------------------------------------------
+# 🔴 **여기가 v4 조사가 찾은 결함 자리다.** 파이프라인은 게이트 F 때문에 상류(CLOVA)가
+# 죽어도 5키를 채워 내보낸다. 그러면 **전송 실패와 모델의 정당한 거절이 똑같이 생겼고**,
+# 러너가 그대로 캐시하면 전송 실패가 영원히 우리 답으로 굳는다 (실측 사고: Q-051·Q-053).
+#
+# 파이프라인은 그러라고 `think_trace` 에 기계 표식을 남기고 `upstream_failure()` 를
+# 공개해 뒀는데, **러너는 그 함수를 안 쓰고 사람이 읽는 `생성 실패:` 문구를 긁고 있었다.**
+# 그 문구를 안 쓰는 상류 장애 경로가 넷이라 아래가 전부 가드를 통과했다:
+#
+#     경로                       트레이스                                   프로즈 가드
+#     answer_question 생성        `… 생성 실패: …`                          ✅ 잡혔다
+#     answer_question critic      `… critic 생략: …`                        ❌ 샜다
+#     _regenerate_once           `… verify regen=skip_error kept=original:` ❌ 샜다 · A20r 전용
+#     _tool_round_trip           `fc stop=RuntimeError …`                   ❌ 샜다 · A24 만
+#
+# 실측(2026-08-16 · `artifacts/**` 전수 · LLM 0회): 저장 응답에 남은 진짜 상류 429 는
+# **4건**이고 그중 3건이 critic 경로다 (`v4/L6` 의 Q-049·Q-054·Q-090 — 88문항 중 3건만
+# critic 을 건너뛴 채 굳었고 **어느 산출물에도 안 찍혔다**).
+#
+# 🔴 **다섯 번째 경로가 있다 — 조사 표에 없던 것이다.** `pipeline._self_consistent` 는
+# 상류가 죽으면 `sc skip=upstream k=2/3 (…)` 만 적고 `_upstream_mark` 를 **안 붙인다**
+# (`v4/A10/responses/Q-049.json` 이 그 자리다 — 표본 3개를 사고 2개로 다수결했다).
+# 기계 표식이 없으니 `upstream_failure()` 로는 안 잡힌다. 러너 가드는 **표식 있는 것만**
+# 보되(아래 `run_case`), 산출물 표시는 이 저하 경로까지 본다 — 이미 굳은 응답을 되읽는
+# 일이라 LLM 0회이고 채점은 한 글자도 안 건드린다.
+
+#: 표식이 없는 저하 경로. 상류가 죽었지만 답변은 나온 자리다.
+_DEGRADED_RE = re.compile(r"(sc skip=upstream|fc stop=)[^|]*")
+#: 저하 경로의 사람 문구에서 상태 코드를 줍는다 (`… 호출 실패 429: …`).
+_DEGRADED_STATUS_RE = re.compile(r"실패 (\d{3})")
+
+
+def upstream_note(think_trace: str) -> dict | None:
+    """저장된 응답이 상류 장애를 밟았는가. 아니면 None. **LLM 0회 · 판정 불변.**
+
+    `marked=True` 면 `pipeline._upstream_mark` 가 찍힌 자리(= 러너가 거부해야 하는 것),
+    `marked=False` 면 표식 없는 저하 경로(= 답은 났지만 그 문항만 다른 처리 경로를 탔다).
+    둘을 가르는 이유는 **후자를 러너 가드에 넣으면 저장된 arm 의 재실행이 달라지기
+    때문**이다 — 표시는 하되 제동은 안 건다.
+    """
+    from argus.agent.pipeline import RETRYABLE_STATUS, upstream_failure
+
+    marked = upstream_failure(think_trace or "")
+    if marked:
+        return {**marked, "marked": True}
+    hit = _DEGRADED_RE.search(think_trace or "")
+    if not hit:
+        return None
+    status_hit = _DEGRADED_STATUS_RE.search(hit.group(0))
+    status = status_hit.group(1) if status_hit else "-"
+    return {"stage": "sc" if hit.group(1).startswith("sc") else "tools",
+            "status": status,
+            "retryable": status in RETRYABLE_STATUS or status == "-",
+            "marked": False}
+
+
+def _upstream_detail(think_trace: str) -> str:
+    """표식이 있는 트레이스 조각 하나. 예외 문구에 사람이 읽을 근거를 남긴다."""
+    for segment in (think_trace or "").split(" | "):
+        if "upstream_error" in segment:
+            return segment.strip()
+    return ""
+
+
 #: 429 재시도. 전수 실행 중 한 번의 rate limit 으로 죽으면 **이미 쓴 크레딧이 날아간다**
 #: (응답은 캐시되지만 실행이 중단되고 나머지 문항이 안 돈다). 지수 백오프로 넘긴다.
 RETRY_ATTEMPTS = 5
@@ -1306,7 +1370,7 @@ def run_case(case: dict, force: bool = False) -> tuple[dict, bool]:
     if path.exists() and not force:
         return json.loads(path.read_text(encoding="utf-8")), True
 
-    from argus.agent.pipeline import answer_question
+    from argus.agent.pipeline import answer_question, upstream_failure
     from argus.clova import CALL_LOG
 
     CALL_LOG.clear()
@@ -1315,9 +1379,22 @@ def run_case(case: dict, force: bool = False) -> tuple[dict, bool]:
     latency = time.time() - started
     # 파이프라인은 상류 장애를 삼키고 한계 고지로 5키를 채운다 (게이트 F). 그건 **모델의
     # 거절이 아니라 전송 실패**다. 캐시에 쓰면 영원히 오답으로 굳으므로 여기서 되던진다.
-    failure = re.search(r"생성 실패: (.+?)(?: \| |$)", response.get("think_trace", ""))
+    #
+    # 🔴 종전에는 사람이 읽는 `생성 실패:` 문구를 정규식으로 긁었다 — 그 문구를 안 쓰는
+    #    상류 장애 경로가 셋 더 있어서 **critic·재생성·도구 왕복이 조용히 통과했다**
+    #    (§상류 장애). 파이프라인이 그러라고 공개해 둔 `upstream_failure()` 로 바꾼다.
+    #    `status=` 를 문구에 남기므로 `_is_rate_limit` 이 429 를 알아보고 `with_retry` 가
+    #    지수 백오프로 재시도한다 — 종전에는 그 429 를 러너가 **끝내 보지 못했다.**
+    #
+    # 🔴 `retryable=False` 도 똑같이 되던진다. 400 대 실패도 우리 답이 아니고,
+    #    종전 프로즈 가드도 생성 단계에서는 재시도 여부를 안 보고 무조건 던졌다.
+    #    `with_retry` 가 429 만 재시도하고 나머지는 그대로 올리므로 동작이 종전과 같다.
+    failure = upstream_failure(response.get("think_trace", ""))
     if failure:
-        raise RuntimeError(f'{case["question_id"]} 생성 실패 — {failure.group(1)[:200]}')
+        raise RuntimeError(
+            f'{case["question_id"]} 상류 장애 — stage={failure["stage"]} '
+            f'status={failure["status"]} retryable={failure["retryable"]} :: '
+            f'{_upstream_detail(response.get("think_trace", ""))[:200]}')
     calls = _call_rows(CALL_LOG.records)
     record = {
         "question_id": case["question_id"],
@@ -1513,6 +1590,13 @@ def analyse(cases: list[dict], records: dict[str, dict]) -> list[dict]:
                 "safety_refused_policy": scored.get("refused_policy")}
                if case.get("track") == SAFETY_TRACK else {}),
             "data_limit": limits,
+            # 🔴 **상류 장애가 산출물에 찍히는 유일한 자리다** (v4 A1). 여기가 없으면
+            #    "이 문항만 critic 을 건너뛴 채 굳었다" 를 `think_trace` 를 사람이 눈으로
+            #    훑어야만 알 수 있고, 실제로 `v4/L6` 88문항 중 3건이 그렇게 묻혀 있었다.
+            #    단일 변수 조작을 재는 arm 에서 **코호트가 균질하지 않게 된 것**이므로
+            #    Δ 를 읽기 전에 보여야 한다. 채점(`correct`)은 이 값을 **안 읽는다** —
+            #    표시일 뿐 판정이 아니다.
+            "upstream_failure": upstream_note(response.get("think_trace", "")),
             "answer": answer,
             "think_trace": response.get("think_trace", ""),
         })
@@ -1899,6 +1983,21 @@ def render_matrix(rows: list[dict], report: dict) -> str:
                    "더 나빠진 것이 아니라 **다른 단계의 실패가 이동한 것**이다. 읽는 법은 "
                    "`src/argus/ablation.py` 머리말 §ORACLE 이 정본이다.\n")
 
+    # 🔴 v4 A1 — 상류 장애를 **정답률보다 먼저** 낸다. 이 파일은 arm 폴더만 복사돼
+    #    홀로 여행할 수 있으므로(위 진단 arm 경고와 같은 이유) 제동도 이 안에 있어야 한다.
+    #    이 표가 비어 있어야 "같은 조건에서 잰 값" 이라고 말할 수 있다.
+    upstream = report.get("upstream_failures") or {}
+    if upstream:
+        out.append(f"\n> 🔴 **상류 장애 {len(upstream)}건 — 이 arm 의 코호트는 균질하지 "
+                   "않다.** 아래 문항은 CLOVA 가 죽은 채로 응답이 굳었다. 답변이 있어도 "
+                   "**그 문항만 다른 처리 경로를 탔으므로** 단일 변수 조작의 Δ 를 이 표와 "
+                   "함께 읽어야 한다.\n")
+        out.append("\n| 문항 | 단계 | 상태 | 재시도 가능 | 기계 표식 |")
+        out.append("|---|---|---|---|---|")
+        for qid, note in sorted(upstream.items()):
+            out.append(f'| {qid} | {note["stage"]} | {note["status"]} '
+                       f'| {note["retryable"]} | {note["marked"]} |')
+
     out.append("\n## 18셀\n")
     out.append("| task_type | mode | 하 | 중 | 상 |")
     out.append("|---|---|---|---|---|")
@@ -2026,6 +2125,17 @@ def citation_rate(rows: list[dict]) -> float | None:
     return round(sum(r["has_citation"] for r in cited) / len(cited), 3) if cited else None
 
 
+def upstream_failures(rows: list[dict]) -> dict[str, dict]:
+    """상류 장애를 밟은 문항만. `{question_id: {stage, status, retryable, marked}}`.
+
+    🔴 **정답률을 안 건드린다.** 이 표는 Δ 를 읽기 전에 *"이 arm 의 코호트가 균질한가"*
+    를 묻기 위한 것이다. `marked=True` 는 러너가 지금이라면 거부했을 응답이고,
+    `marked=False` 는 표식 없이 저하만 된 자리다 (`upstream_note` 참조).
+    """
+    return {r["question_id"]: r["upstream_failure"]
+            for r in rows if r.get("upstream_failure")}
+
+
 def build_report(cases: list[dict], rows: list[dict], cohort: str = "") -> dict:
     return {
         "generated": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -2062,6 +2172,9 @@ def build_report(cases: list[dict], rows: list[dict], cohort: str = "") -> dict:
                          for g in sorted({r["doc_group"] for r in rows})},
         "by_doc_group_grid": {g: _rate([r for r in grid_rows(rows) if r["doc_group"] == g])
                               for g in sorted({r["doc_group"] for r in grid_rows(rows)})},
+        # 🔴 v4 A1. 상류(CLOVA)가 죽은 채 굳은 문항을 **최상위에** 낸다. `rows` 안에만
+        #    두면 1,200줄짜리 파일에서 아무도 못 본다. 비어 있으면 `{}` 다.
+        "upstream_failures": upstream_failures(rows),
         "rows": rows,
     }
 

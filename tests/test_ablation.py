@@ -2687,3 +2687,120 @@ def test_sc_samples_after_the_first_bypass_the_request_cache():
         pipeline._self_consistent([], 300, _Arm(), "답 1,000원", _B(), [])
     assert bypassed == [True, True], bypassed        # 2·3회차만 부른다 — 둘 다 우회
     assert not clova.cache_bypassed(), "블록을 나온 뒤에도 우회가 켜져 있다"
+
+
+# --- 상류 장애 가드 (v4 A1) ---------------------------------------------------
+# 🔴 러너가 사람이 읽는 `생성 실패:` 문구를 긁는 동안, 그 문구를 안 쓰는 상류 장애 경로
+#    셋이 조용히 캐시됐다. 실측으로 `v4/L6` 88문항 중 3건이 critic 을 건너뛴 채 굳었고
+#    **어느 산출물에도 안 찍혔다.** 아래가 그 두 구멍(제동·표시)을 각각 고정한다.
+
+
+def _run_case_with_trace(tmp_path, monkeypatch, trace: str):
+    """`run_case` 를 저 트레이스를 내는 가짜 파이프라인에 물려 한 번 돌린다. LLM 0회."""
+    from scripts import error_analysis as ea
+
+    monkeypatch.setattr(ea, "RESPONSE_DIR", tmp_path / "responses")
+
+    def _fake_answer(question_id, question):
+        return {"question_id": question_id, "question": question,
+                "retrieved_context": "", "think_trace": trace, "answer": "1,000원"}
+
+    monkeypatch.setattr(pipeline, "answer_question", _fake_answer)
+    return ea.run_case({"question_id": "Q-999", "question": "얼마인가"})
+
+
+@pytest.mark.parametrize("stage,trace", [
+    ("generate", "upstream_error stage=generate status=429 retryable=True "
+                 "생성 실패: CLOVA 호출 실패 429"),
+    # 🔴 아래 둘이 종전 프로즈 가드를 통과하던 자리다. critic 은 실제로 발화했고
+    #    (v4/L6 Q-049·Q-054·Q-090), regenerate 는 **운영 기본값 A20r 전용 경로**다.
+    ("critic", "upstream_error stage=critic status=429 retryable=True "
+               "critic 생략: CLOVA 호출 실패 429"),
+    ("regenerate", "upstream_error stage=regenerate status=429 retryable=True "
+                   "verify regen=skip_error kept=original: CLOVA 호출 실패 429"),
+])
+def test_the_runner_refuses_to_cache_an_upstream_failure(tmp_path, monkeypatch,
+                                                         stage, trace):
+    from scripts import error_analysis as ea
+
+    with pytest.raises(RuntimeError) as caught:
+        _run_case_with_trace(tmp_path, monkeypatch, trace)
+    assert f"stage={stage}" in str(caught.value)
+    # 🔴 문구에 429 가 남아야 `with_retry` 가 재시도한다. 종전에는 러너가 이 429 를
+    #    끝내 보지 못했다 (파이프라인이 5키 계약을 지키려고 예외를 삼키므로).
+    assert ea._is_rate_limit(caught.value)
+    assert not (tmp_path / "responses" / "Q-999.json").exists(), "실패가 캐시로 굳었다"
+
+
+def test_a_normal_answer_still_caches(tmp_path, monkeypatch):
+    """가드가 넓어졌다고 정상 응답까지 막으면 안 된다."""
+    record, cached = _run_case_with_trace(
+        tmp_path, monkeypatch, "route=closed_lookup | hop=0 verdict=sufficient")
+    assert cached is False and record["response"]["answer"] == "1,000원"
+    assert (tmp_path / "responses" / "Q-999.json").exists()
+
+
+def test_a_client_error_is_also_refused(tmp_path, monkeypatch):
+    """🔴 `retryable=False` 도 우리 답이 아니다 — 종전 생성 경로와 같은 판단이다."""
+    with pytest.raises(RuntimeError) as caught:
+        _run_case_with_trace(
+            tmp_path, monkeypatch,
+            "upstream_error stage=generate status=400 retryable=False 생성 실패: 400")
+    assert "retryable=False" in str(caught.value)
+
+
+def test_upstream_note_reads_the_marked_paths_and_the_unmarked_degraded_one():
+    """🔴 조사 표에 없던 **다섯 번째 경로**를 고정한다.
+
+    `pipeline._self_consistent` 는 상류가 죽으면 `sc skip=upstream` 만 적고
+    `_upstream_mark` 를 안 붙인다 — `v4/A10/responses/Q-049.json` 이 실물이다.
+    러너 제동은 안 걸되(표식 없는 저하 경로까지 막으면 저장된 arm 의 재실행이 달라진다)
+    **산출물에는 찍혀야 한다.**
+    """
+    from scripts import error_analysis as ea
+
+    marked = ea.upstream_note(
+        "upstream_error stage=critic status=429 retryable=True critic 생략: …")
+    assert marked == {"stage": "critic", "status": "429",
+                      "retryable": True, "marked": True}
+
+    degraded = ea.upstream_note(
+        "generate tokens=1+1 | sc skip=upstream k=2/3 (CLOVA 호출 실패 429: …)")
+    assert degraded == {"stage": "sc", "status": "429",
+                        "retryable": True, "marked": False}
+    # 🔴 그리고 이것은 `upstream_failure()` 로는 안 잡힌다 — 그래서 갈래를 나눴다.
+    assert pipeline.upstream_failure(
+        "generate | sc skip=upstream k=2/3 (CLOVA 호출 실패 429)") is None
+
+    assert ea.upstream_note("route=closed_lookup | hop=0 verdict=sufficient") is None
+    assert ea.upstream_note("") is None
+
+
+def test_the_report_names_the_questions_that_hit_an_upstream_failure():
+    """🔴 제동만으로는 **이미 굳은** 3건이 안 보인다. 산출물이 이름을 대야 한다."""
+    from scripts import error_analysis as ea
+
+    rows = [
+        {"question_id": "Q-001", "upstream_failure": None},
+        {"question_id": "Q-049", "upstream_failure": {"stage": "critic", "status": "429",
+                                                      "retryable": True, "marked": True}},
+    ]
+    assert ea.upstream_failures(rows) == {
+        "Q-049": {"stage": "critic", "status": "429", "retryable": True, "marked": True}}
+    assert ea.upstream_failures([{"question_id": "Q-001",
+                                  "upstream_failure": None}]) == {}
+
+
+def test_the_error_matrix_carries_the_upstream_warning_on_its_own():
+    """arm 폴더만 복사돼 홀로 여행할 수 있으므로 제동도 그 파일 안에 있어야 한다."""
+    from scripts import error_analysis as ea
+
+    report = ea.build_report([], [])
+    report["arm"] = "L6"
+    report["upstream_failures"] = {"Q-049": {"stage": "critic", "status": "429",
+                                             "retryable": True, "marked": True}}
+    empty = ea.build_report([], [])
+    empty["arm"] = "A20r"
+    with_warning = ea.render_matrix([], report)
+    assert "상류 장애 1건" in with_warning and "Q-049" in with_warning
+    assert "상류 장애" not in ea.render_matrix([], empty)

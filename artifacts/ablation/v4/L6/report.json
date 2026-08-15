@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-15T22:38:52",
+ "generated": "2026-08-16T01:09:21",
  "split": "dev",
  "cohort": "full",
  "n_cases": 88,
@@ -703,6 +703,26 @@
    }
   }
  },
+ "upstream_failures": {
+  "Q-049": {
+   "stage": "critic",
+   "status": "429",
+   "retryable": true,
+   "marked": true
+  },
+  "Q-054": {
+   "stage": "critic",
+   "status": "429",
+   "retryable": true,
+   "marked": true
+  },
+  "Q-090": {
+   "stage": "critic",
+   "status": "429",
+   "retryable": true,
+   "marked": true
+  }
+ },
  "rows": [
   {
    "question_id": "Q-001",
@@ -796,6 +816,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "HD현대일렉트릭이 2023년 1월에 체결한 2500kVA 배전변압기 등 3,500대 공급계약의 계약금액은 **97,000,000,000원**(970억원)입니다. \n(근거: 단일판매ㆍ공급계약 체결, 2023-01-31, 20230131800162)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — amount: 답변 97,000,000,000원 vs 재계산 971,400,000,000 (10^-1 배 자릿수 오류); amount: 답변 970억원 vs 재계산 971,400,000,000 (10^-1 배 자릿수 오류))",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202301 top_k=5 q=\"HD 현대일렉트릭 2023 월에 체결한 2500 kVA 배전변압기 3,500 얼마인\" n=5 top_score=85.251 ids=exchange_20230131800162,exchange_20230120800061,exchange_20230117800134,exchange_20230110800416,exchange_20230131800272 | hop=0 verdict=sufficient evidence=5 | generate tokens=1121+80 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 계약 금액과 관련된 정보가 정확하게 포함되어 있으며, 해당 정보의 출처인 공시 일자와 접수 번호가 명시되어 있습니다. | verify calc_checked=amount complete_checked=- ok=False kinds=calculation | budget steps=1 hops=0 llm=2 tokens=2148"
   },
@@ -891,6 +912,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "HD현대일렉트릭이 2023년 1월에 체결한 2500kVA 배전변압기 등 3,500대 공급계약의 계약기간은 **1년 9개월**입니다. \n\n(근거: [단일판매ㆍ공급계약 체결] HD현대일렉트릭, 2023-01-31, 20230131800162)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202301 top_k=5 q=\"HD 현대일렉트릭 2023 월에 체결한 2500 kVA 배전변압기 3,500 개월인\" n=5 top_score=87.049 ids=exchange_20230131800162,exchange_20230120800061,exchange_20230117800134,exchange_20230110800416,exchange_20230131800272 | hop=0 verdict=sufficient evidence=5 | generate tokens=1125+82 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에 제시된 정보는 모두 제공된 근거에서 확인할 수 있으며, 접수번호도 명시되어 있습니다. | verify calc_checked=period complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2151"
   },
@@ -992,6 +1014,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "삼성중공업이 2023년 6월에 공시한 원유운반선 2척 공급계약의 계약금액은 이후 정정공시에서 **114,800,000,000원**(1,148억원)으로 변경되었습니다. \n\n(근거: [기재정정] [공급계약 체결] 삼성중공업 – 단일판매ㆍ공급계약체결 — 원유운반선 1척, 20260203800709)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성중공업\" period=ym:202306 top_k=5 q=\"삼성중공업 2023 월에 공시한 원유운반선 이후 정정공시 바뀌었는\" n=5 top_score=43.193 ids=exchange_20230602800079,exchange_20230613800116,exchange_20230629800753,exchange_20230601800012,exchange_20230629800664 | hop=5 strat=chain tool=get_history corp=\"삼성중공업\" rcept=20230602800079 latest=20260203800709 chain_length=2 n=1 top_score=- ids=exchange_20260203800709 | hop=0 verdict=sufficient evidence=6 | generate tokens=1418+99 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 삼성중공업의 원유운반선 공급계약 금액 변경에 대한 정확한 정보가 포함되어 있으며, 해당 정보는 제공된 근거에서 확인할 수 있습니다. | verify calc_checked=amount complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=2662"
   },
@@ -1086,6 +1109,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "HD현대일렉트릭이 2024년 1월에 공시한 362kV 및 170kV 고압차단기 등 공급계약의 계약금액은 정정공시 반영 후 **64,400,000,000원**(644억 원)입니다. \n(근거: [기재정정] [공급계약 체결] HD현대일렉트릭 – 단일판매ㆍ공급계약체결 — 362kV 및 170kV 고압차단기 등, 정정 반영 후, 접수번호 20250225800764)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202401 top_k=5 q=\"HD 현대일렉트릭 2024 월에 공시한 362 kV 170 고압차단기 정정공시 반영 얼마인\" n=5 top_score=75.915 ids=exchange_20240130800387,exchange_20240103800457,exchange_20240103800430,exchange_20240109800112,exchange_20240125800285 | hop=5 strat=chain tool=get_history corp=\"HD현대일렉트릭\" rcept=20240130800387 latest=20250225800764 chain_length=2 n=1 top_score=- ids=exchange_20250225800764 | hop=0 verdict=sufficient evidence=6 | generate tokens=1318+116 | verify calc_checked=amount complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=1434"
   },
@@ -1178,6 +1202,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "SK하이닉스의 2024년 4월 24일 신규 시설 투자 대상은 '**청주 M15X 건설**'입니다. 이는 '신규 시설투자 등'이라는 제목 아래 명시되어 있으며, 해당 보고서의 상세 내용을 통해 확인할 수 있습니다.\n\n(근거: 신규 시설투자 SK하이닉스 – 신규시설투자등 — 청주 M15X 건설, 2024-04-24, 접수번호 20240424800596)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"SK하이닉스\" period=ym:202404 top_k=5 q=\"SK 하이닉스 2024 24 공시한 신규 시설투자 투자 대상 무엇인지 근거 함께\" n=5 top_score=58.790 ids=exchange_20240424800596,exchange_20240430900455,exchange_20240425800143,exchange_20240429800420,exchange_20240404800695 | hop=5 strat=chain tool=get_history corp=\"SK하이닉스\" rcept=20240430900455 latest=20260327903037 chain_length=4 n=3 top_score=- ids=exchange_20250205900405,exchange_20251205900454,exchange_20260327903037 | hop=0 verdict=sufficient evidence=8 | generate tokens=1582+105 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=1687"
   },
@@ -1276,6 +1301,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "두산퓨얼셀이 2024년 6월에 공시한 연료전지 시스템 공급계약 해지의 계약상대는 '**Zhejiang Beisen Hydrogen Science & Technology Co., Ltd.'** 입니다.\n\n(근거: [공급계약 해지] 두산퓨얼셀 – 단일판매ㆍ공급계약 해지 — 연료전지 시스템 공급 계약, 2024-06-03, 20240603800359)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산퓨얼셀\" period=ym:202406 top_k=5 q=\"두산퓨얼셀 2024 월에 공시한 연료전지 시스템 해지 어디인지 근거 함께\" n=5 top_score=48.830 ids=exchange_20240603800359,exchange_20240628800803,exchange_20240610900004,exchange_20240617800437,exchange_20240628800687 | hop=5 strat=chain tool=get_history corp=\"두산퓨얼셀\" rcept=20240628800803 latest=20240903800382 chain_length=2 n=1 top_score=- ids=exchange_20240903800382 | hop=0 verdict=sufficient evidence=6 | generate tokens=1347+89 | 근거 표기 누락 — critic 호출 | critic supported=True reason=해당 정보는 제공된 근거에서 확인할 수 있으며, 접수번호도 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=2602"
   },
@@ -1368,6 +1394,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "카카오가 2025년 5월에 결의한 제14회 전환사채 발행의 주요 조건은 다음과 같습니다.\n\n1. **권면(전자등록) 총액**: 50,182,840,320원 (502억 원)\n2. **사채의 종류**: 무기명식 무보증 사모 전환사채\n3. **타법인 증권 취득자금**: 50,182,840,320원\n4. **표면이자율 및 만기이자율**: 각각 0.0%\n5. **사채 만기일**: 2028년 05월 30일\n6. **사채 발행 방법**: 사모 방식\n7. **전환 비율**: 100\n8. **전환 가액**: 37,527원\n9. **전환에 따라 발행할 주식 수**: 1,337,246주\n10. **기간**: 2026년 5월 30일부터 2028년 5월 23일까지 (1년 11개월)\n11. **확정일**: 2025년 5월 22일\n\n위 내용은 최초 공시 및 정정공시를 반영하여 작성되었습니다. (근거: [전환사채권발행결정] 카카오 – 주요사항보고서(전환사채권발행결정), 2025-05-22, 접수번호 20250522000332; 정정본 포함)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"카카오\" period=ym:202505 top_k=5 q=\"카카오 2025 월에 결의한 14 전환사채 발행 주요 조건\" n=5 top_score=28.252 ids=major_20250522000332,major_20250523000639,major_20250527000422,major_20250507000448,major_20250521000278 | hop=0 verdict=sufficient evidence=5 | generate tokens=2254+315 | verify calc_checked=amount,period complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=2569"
   },
@@ -1464,6 +1491,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "㈜두산이 두산에너빌리티에 대한 지분 보유 상황은 다음과 같이 변화했습니다.\n\n1. **2025년 3월의 보고서**\n   - 보유주식등 수: 196,488,145주\n   - 보유비율: 30.67%\n\n2. **2026년 3월의 보고서**\n   - 보유주식등 수: 196,506,795주 (증가: +8,652주)\n   - 보유비율: 30.68% (증가: +0.01%p)\n\n따라서 ㈜두산의 두산에너빌리티에 대한 지분은 2025년 3월 대비 2026년 3월에 소폭 증가하였습니다. \n\n(근거: 두산에너빌리티 대량보유상황보고서, 2025년 3월 10일, 접수번호 20250310000839; 두산에너빌리티 대량보유상황보고서, 2026년 3월 5일, 접수번호 20260305001006)",
    "think_trace": "route=complex_reason difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202503 top_k=3 q=\"두산 두산에너빌리티 대해 2025 월과 2026 월에 제출한 대량보유상황보고서 비교해 지분 보유 상황 어떻게 달라졌는지\" n=3 top_score=65.882 ids=holding_20250310000839,holding_20250311000891,holding_20250331003797 | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202603 top_k=3 q=\"두산 두산에너빌리티 대해 2025 월과 2026 월에 제출한 대량보유상황보고서 비교해 지분 보유 상황 어떻게 달라졌는지\" n=3 top_score=68.755 ids=holding_20260305001006,holding_20260318000515,holding_20260330001249 | hop=0 verdict=sufficient evidence=6 | generate tokens=1758+218 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=1976"
   },
@@ -1562,6 +1590,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "삼성SDI가 2025년 3월에 결의한 유상증자의 시설자금 조달액을 확인하면 다음과 같습니다.\n\n- 최초 공시(원공시): 454,100,000,000원\n- 정정 반영 후:\n  - 1차 정정: 354,100,000,000원\n  - 2차 정정: 동일하게 354,100,000,000원\n  - 3차 정정: 동일하게 354,100,000,000원\n  - 4차 정정: 동일하게 354,100,000,000원\n  - 5차(최신본): 354,100,000,000원\n\n따라서 삼성SDI의 시설자금 조달액은 **354,100,000,000원**입니다.\n\n또한, 고려아연이 2024년 10월에 결의한 유상증자의 시설자금 조달액은 **135,052,488,000원**입니다.\n\n두 금액을 비교하면, 삼성SDI의 시설자금 조달액이 고려아연의 것보다 큽니다.\n\n- 354,100,000,000 > 135,052,488,000\n\n따라서 삼성SDI가 2025년 3월에 결의한 유상증자의 시설자금 조달액은 고려아연이 2024년 10월에 결의한 유상증자의 시설자금 조달액보다 큽니다.\n\n근거: 각 회사의 유상증자 결정 보고서들 (삼성SDI: 여러 번의 정정 포함; 고려아연: 원공시)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 정보가 제공된 문서에서 확인할 수 있으며, 정확한 계산과 비교가 이루어졌습니다.)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202503 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=3 top_score=33.747 ids=major_20250314000027,major_20250324000773,major_20250320001145 | hop=0 strat=narrow tool=search_chunks corp=\"고려아연\" period=ym:202503 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=3 top_score=33.747 ids=major_20250314000027,major_20250324000773,major_20250320001145 | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202410 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=3 top_score=41.565 ids=major_20241030000098,major_20241002000155,major_20241011000053 | hop=0 strat=narrow tool=search_chunks corp=\"고려아연\" period=ym:202410 top_k=3 q=\"삼성 SDI 2025 월에 결의한 유상증자 시설자금 조달액 고려아연 2024 10 조달액보다 큰가\" n=3 top_score=41.565 ids=major_20241030000098,major_20241002000155,major_20241011000053 | hop=5 strat=chain tool=get_history corp=\"삼성SDI\" rcept=20250314000027 latest=20250519000120 chain_length=5 n=3 top_score=- ids=major_20250409001154,major_20250430001398,major_20250519000120 | hop=0 verdict=sufficient evidence=9 | generate tokens=3577+328 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 문서에서 확인할 수 있으며, 정확한 계산과 비교가 이루어졌습니다. | verify calc_checked=- complete_checked=missing_corp ok=True kinds=- | budget steps=5 hops=0 llm=2 tokens=7382"
   },
@@ -1661,6 +1690,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "HD현대일렉트릭이 2025년 7월에 영국 National Grid와 체결한 변압기 공급계약 금액은 140,400,000,000원이고, 2024년 5월에 체결한 계약 금액은 82,100,000,000원이므로, 차이는 **58,300,000,000원**(583억 원)입니다.\n(근거: [단일판매ㆍ공급계약체결] HD현대일렉트릭, 2025-07-31; [단일판매ㆍ공급계약체결] HD현대일렉트릭, 2024-05-29)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202507 top_k=3 q=\"HD 현대일렉트릭 2025 영국 National Grid 체결한 변압기 2024 같은 상대 계약보다 얼마나 큰가\" n=3 top_score=65.822 ids=exchange_20250731800031,exchange_20250708800087,exchange_20250730800037 | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202405 top_k=3 q=\"HD 현대일렉트릭 2025 영국 National Grid 체결한 변압기 2024 같은 상대 계약보다 얼마나 큰가\" n=3 top_score=65.837 ids=exchange_20240529800105,exchange_20240531801074,exchange_20240521800037 | hop=0 verdict=sufficient evidence=6 | generate tokens=1283+131 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인할 수 있으며, 접수번호도 포함되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=2556"
   },
@@ -1747,6 +1777,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "한국산업은행이 2025년 9월 18일에 제출한 HMM 대량보유상황보고서에 따르면, 보유비율은 직전 보고서 대비 몇 %p 낮아졌는지 다음과 같이 계산할 수 있습니다.\n\n- 직전 보유비율: 36.02%\n- 이번 보유비율: 32.60%\n\n따라서, 보유비율이 낮아진 정도는 다음과 같습니다.\n\n- 36.02% - 32.60% = 3.42%p\n\n즉, 한국산업은행의 HMM 보유비율은 직전 보고서 대비 **3.42**% p 낮아졌습니다. \n\n(근거: [대량보유상황보고서] HMM – 주식등의대량보유상황보고서(일반) · 보고자 한국산업은행, 2025-09-18, 접수번호 20250918000358)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"HMM\" period=ym:202509 top_k=5 q=\"한국산업은행 2025 18 제출한 HMM 대량보유상황보고서 보유비율 직전 대비 낮아졌는\" n=5 top_score=61.805 ids=holding_20250918000358,holding_20250918000280,holding_20250918000384,holding_20250918000327,holding_20250918000365 | hop=5 strat=chain tool=get_history corp=\"HMM\" rcept=20250918000280 latest=20250919000067 chain_length=2 n=1 top_score=- ids=holding_20250919000067 | hop=0 verdict=sufficient evidence=6 | generate tokens=2043+182 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=2225"
   },
@@ -1848,6 +1879,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "HD현대중공업이 2023년 7월에 공시한 FPU 1기 공급계약의 경우, 최초 공시된 계약금액은 1,566,300,000,000원이었고, 최종적으로 수정된 계약금액은 1,842,200,000,000원으로 변경되었습니다. 따라서 계약금액은 **276,900,000,000원**(약 2,769억원) 증가했습니다.\n\n(근거: [기재정정] [공급계약 체결] HD현대중공업 — FPU 1기, 2024-12-23, 20241223800052)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대중공업\" period=ym:202307 top_k=5 q=\"HD 현대중공업 2023 월에 공시한 FPU 정정공시 얼마나 증가했는\" n=5 top_score=29.477 ids=exchange_20230703800173,exchange_20230707800096,exchange_20230717800218,exchange_20230703800336,exchange_20230707800376 | hop=5 strat=chain tool=get_history corp=\"HD현대중공업\" rcept=20230703800173 latest=20241223800052 chain_length=2 n=1 top_score=- ids=exchange_20241223800052 | hop=5 strat=chain tool=get_history corp=\"HD현대중공업\" rcept=20230707800096 latest=20231117800436 chain_length=2 n=1 top_score=- ids=exchange_20231117800436 | hop=0 verdict=sufficient evidence=7 | generate tokens=1579+136 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 최초 및 최종 계약 금액과 그 차이에 대한 정보가 정확하게 제시되어 있으며, 이는 제공된 근거에서 확인할 수 있습니다. | verify calc_checked=amount complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=3 hops=0 llm=2 tokens=3053"
   },
@@ -1944,6 +1976,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "㈜두산이 두산에너빌리티에 대해 2025년 3월 10일과 2025년 5월 14일에 제출한 두 대량보유상황보고서를 비교하면 다음과 같습니다:\n\n1. **2025년 3월 10일 보고서**\n   - 보유주식등의 수: 196,452,737주 → 196,488,145주\n   - 보유비율: 30.67%\n\n2. **2025년 5월 14일 보고서**\n   - 보유주식등의 수: 196,488,145주 (변동 없음)\n   - 보유비율: 30.67% (변동 없음)\n\n따라서, ㈜두산의 두산에너빌리티에 대한 보유 비율은 두 날짜 모두 동일하게 30.67%로 유지되었습니다. \n\n(근거: 두산에너빌리티 대량보유상황보고서(일반), 2025-03-10, 접수번호 20250310000839; 두산에너빌리티 대량보유상황보고서(일반), 2025-05-14, 접수번호 20250514001078)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202503 top_k=3 q=\"두산 두산에너빌리티 대해 2025 10 일과 14 일에 제출한 대량보유상황보고서 보유비율 달라졌는지 근거 함께\" n=3 top_score=71.378 ids=holding_20250310000839,holding_20250311000891,holding_20250331003797 | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202505 top_k=3 q=\"두산 두산에너빌리티 대해 2025 10 일과 14 일에 제출한 대량보유상황보고서 보유비율 달라졌는지 근거 함께\" n=3 top_score=74.203 ids=holding_20250514001078,holding_20250526000405,holding_20250521000058 | hop=0 verdict=sufficient evidence=6 | generate tokens=1891+241 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=2132"
   },
@@ -2042,6 +2075,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "삼성SDI가 2025년 3월에 결의한 유상증자의 자금조달 목적별 금액과 총 조달 규모는 다음과 같습니다.\n\n1. 최초 공시 (2025-03-14)\n   - 시설자금: 454,100,000,000원\n   - 타법인 증권 취득자금: 1,546,013,200,000원\n   - 총 조달규모: 2,000,113,200,000원 (2조 1억원)\n\n2. 정정 반영 후 (최신본 2025-05-19)\n   - 시설자금: 354,100,000,000원\n   - 타법인 증권 취득자금: 1,300,840,000,000원\n   - 총 조달규모: 1,654,940,000,000원 (1조 6,549억원)\n\n따라서, 삼성SDI는 원래 시설자금에 454십억 원, 타법인 증권 취득 자금으로 1,546십억 원을 배정하였으나, 최종적으로는 시설자금 354십억 원, 타법인 증권 취득 자금 1,300십억 원으로 변경되었습니다. 이에 따라 총 조달 금액 또한 2조 1억 원에서 약 1조 6,550억 원으로 감소하였습니다. \n\n(근거: [유상증자결정] 삼성SDI – 주요사항보고서(유상증자결정), 2025-03-14, 20250314000027; [유상증자결정] 삼성SDI – 주요사항보고서(유상증자결정), 2025-05-19, 20250519000120)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — amount: 답변 354,100,000,000원 vs 재계산 3,600,052,500,000 (10^-1 배 자릿수 오류); amount: 답변 354십억 원 vs 재계산 3,600,052,500,000 (10^-1 배 자릿수 오류))",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202503 top_k=5 q=\"삼성 SDI 2025 월에 결의한 유상증자 자금조달 목적별 금액 조달 규모\" n=5 top_score=25.787 ids=major_20250314000027,major_20250324000773,major_20250326000991,major_20250320001145,major_20250310000343 | hop=5 strat=chain tool=get_history corp=\"삼성SDI\" rcept=20250314000027 latest=20250519000120 chain_length=5 n=3 top_score=- ids=major_20250409001154,major_20250430001398,major_20250519000120 | hop=0 verdict=sufficient evidence=8 | generate tokens=3617+361 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치와 사실이 근거에서 확인되며, 접수번호를 포함한 정확한 공시의 출처가 명시되어 있습니다. | verify calc_checked=amount complete_checked=- ok=False kinds=calculation | budget steps=2 hops=0 llm=2 tokens=7553"
   },
@@ -2162,6 +2196,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "한화오션의 2023년 12월 잠수함 1척 공급계약의 계약금액 변화 내역은 다음과 같습니다.\n\n1. 최초 공시 (2023-12-22): 1,102,000,000,000원 (1조 1,020억원)\n\n이후 정정 과정에서의 변동 사항은 없습니다.\n\n따라서, 최초 공시 이후 계약금액에는 변동이 없었습니다.\n\n(근거: [단일판매ㆍ공급계약 체결] 한화오션, 2023-12-22, 20231222800809)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — stale_value: 근거에 최신본이 있는데 답이 대체본 값 1,102,000,000,000 을 썼다)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한화오션\" period=ym:202312 top_k=5 q=\"한화오션 2023 12 월에 공시한 잠수함 이후 여러 차례 정정됐다 정정 과정 어떻게 바뀌었는지 시간순\" n=5 top_score=37.754 ids=exchange_20231222800809,exchange_20231229800466,exchange_20231222800421,exchange_20231211800451,exchange_20231221800398 | hop=5 strat=chain tool=get_history corp=\"한화오션\" rcept=20231222800809 latest=20251204800395 chain_length=7 n=6 top_score=- ids=exchange_20240322800822,exchange_20240607800418,exchange_20241029800530,exchange_20250605800294,exchange_20251030800728,exchange_20251204800395 | hop=0 verdict=sufficient evidence=11 | generate tokens=1994+122 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제공된 근거에 기반하여 작성되었으며, 해당 공시의 계약 금액과 관련된 정보가 정확하게 반영되었습니다. | verify calc_checked=amount complete_checked=evidence_gap,stale_value ok=False kinds=stale_value | budget steps=2 hops=0 llm=2 tokens=3833"
   },
@@ -2270,6 +2305,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "한전기술이 2024년 5월에 공시한 EUR Rev.E 인증 관련 APR1000 설계용역 계약의 계약금액 변화 과정은 다음과 같습니다.\n\n1. 최초 공시 (2024년 5월 31일): 53,618,694,910원 (536억원)\n2. 첫 번째 수정 공시 (2024년 7월 3일): 53,579,286,750원 (536억원)\n3. 두 번째 수정 공시 (2025년 1월 2일): 71,596,206,330원 (716억원)\n\n따라서, 최초 공시에서 최종 공시까지 계약금액은 17,976,919,630원이 증가했습니다.\n\n(근거: [기재정정] [공급계약 체결] 한전기술 – 단일판매ㆍ공급계약체결 — EUR Rev.E 인증을 위한 APR1000 NSSS설계 및 종합설계분야 표준설계 개발용역, 각 시점별 공시)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한전기술\" period=ym:202405 top_k=5 q=\"한전기술 2024 월에 공시한 EUR Rev 인증 관련 APR 1000 설계용역 계약 차례 공시됐다 어떻게 변해 왔는지\" n=5 top_score=61.439 ids=exchange_20240531800927,exchange_20240514801290,exchange_20240531801257,exchange_20240517800071,exchange_20240530800516 | hop=5 strat=chain tool=get_history corp=\"한전기술\" rcept=20240531800927 latest=20250102800164 chain_length=3 n=2 top_score=- ids=exchange_20240703800584,exchange_20250102800164 | hop=5 strat=chain tool=get_history corp=\"한전기술\" rcept=20240514801290 latest=20240712800053 chain_length=3 n=2 top_score=- ids=exchange_20240712800050,exchange_20240712800053 | hop=0 verdict=sufficient evidence=9 | generate tokens=2123+206 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치와 사실이 근거에서 확인되며, 접수번호를 포함한 근거 표기가 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=3 hops=0 llm=2 tokens=4380"
   },
@@ -2364,6 +2400,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "네, 있었습니다. 최초 공시에는 계약 상대가 '글로벌 대형기업'이라고만 명시되어 있었으나, 정정 후에는 '테슬라(Tesla, Inc.)'라고 구체적으로 밝혀졌습니다. \n\n(근거: [기재정정] [공급계약 체결] 삼성전자 – 단일판매ㆍ공급계약체결 — 반도체 위탁생산 공급계약, 2025-07-31, 20250731800028)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성전자\" period=ym:202507 top_k=5 q=\"삼성전자 2025 28 공시한 반도체 위탁생산 이후 정정공시 있었는\" n=5 top_score=54.708 ids=exchange_20250728800035,exchange_20250731800028,exchange_20250718800275,exchange_20250721800070,exchange_20250707800058 | hop=0 verdict=sufficient evidence=5 | generate tokens=1261+96 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제공된 근거를 바탕으로 하며, 해당 정보의 출처를 명확히 인용하고 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2334"
   },
@@ -2458,6 +2495,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "공시 근거에는 HD현대일렉트릭이 2023년 1월 31일에 공시한 2500kVA 배전변압기 등 3,500대 공급계약에 대한 정정공시가 없습니다. 따라서 해당 공급계약에 대해 추가적인 정정공시는 없었던 것으로 확인됩니다.\n(근거: 단일판매ㆍ공급계약 체결, 2023-01-31, 20230131800162)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202301 top_k=5 q=\"HD 현대일렉트릭 2023 31 공시한 2500 kVA 배전변압기 3,500 이후 정정공시 있었는\" n=5 top_score=87.687 ids=exchange_20230131800162,exchange_20230120800061,exchange_20230117800134,exchange_20230110800416,exchange_20230131800272 | hop=0 verdict=sufficient evidence=5 | generate tokens=1125+90 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제공된 근거에 기반하여 특정 공급계약에 대한 정정공시가 없음을 명확히 하고 있으며, 관련 세부 정보를 정확하게 인용하고 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2177"
   },
@@ -2544,6 +2582,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "HMM 대량보유상황보고서에 따르면, 국민연금공단의 보유주식 등의 수가 20,929,483주에서 25,151,114주로 증가했습니다. 이에 따라 보유 비율은 다음과 같이 계산할 수 있습니다.\n\n1. 기존 보유 비율: 5.16%\n2. 새로운 보유주식 등 수: 25,151,114주\n3. 전체 발행주식 총수: 689,039,496주\n\n새로운 보유 비율을 구하기 위해 아래 식을 사용합니다.\n$$\\text{새 보유 비율} = \\left(\\frac{\\text{증가한 주식 수}}{\\text{전체 발행주식 총수}}\\right) \\times 100$$\n\n즉,\n$$\\text{새 보유 비율} = \\left(\\frac{25,151,114}{689,039,496}\\right) \\times 100 \\approx 3.65\\%$$\n\n따라서, 국민연금공단의 HMM에 대한 보유 비율은 5.16%에서 **3.65**%로 낮아졌습니다.\n\n(근거: HMM – 주식등의대량보유상황보고서(약식), 2024-01-08, 접수번호 20240108000164)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"HMM\" period=ym:202401 top_k=5 q=\"국민연금공단 2024 제출한 HMM 대량보유상황보고서 보유주식등 수는 20,929,483 25,151,114 주로 늘었는데 보유비율 5.16 에서 낮아졌는\" n=5 top_score=69.162 ids=holding_20240108000164,holding_20240119000174,holding_20240119000208,holding_20240108000246,holding_20240108000598 | hop=0 verdict=sufficient evidence=5 | generate tokens=1433+263 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=1696"
   },
@@ -2642,6 +2681,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "네, 고려아연은 2024년 10월 30일 이사회에서 결의한 일반공모 유상증자를 철회했습니다. \n(근거: [기정정] [유상증자결정] 고려아연 – 주요사항보고서(유상증자결정), 2024-11-14, 20241114000001)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"고려아연\" period=ym:202410 top_k=5 q=\"고려아연 2024 10 30 이사회 결의한 일반공모 유상증자 이후 철회되었는\" n=5 top_score=37.410 ids=major_20241030000098,major_20241002000155,major_20241011000053,major_20241002000553,major_20241004000001 | hop=5 strat=chain tool=get_history corp=\"고려아연\" rcept=20241030000098 latest=20241114000001 chain_length=3 n=2 top_score=- ids=major_20241113000148,major_20241114000001 | hop=0 verdict=sufficient evidence=7 | generate tokens=2256+81 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 유상증자의 철회 사실을 정확하게 반영하고 있으며, 해당 정보의 출처인 공시 일자와 접수 번호를 명시하고 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=4293"
   },
@@ -2742,6 +2782,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "LG에너지솔루션이 2025년 12월 17일에 공시한 전기차 배터리 공급계약 해지의 해지 금액은 **9,603,075,000,000원**(9조 6,031억원)입니다.\n\n- **근거**: [공급계약 해지] LG에너지솔루션 – 단일판매ㆍ공급계약 해지 — 전기차 배터리 공급계약, 공시일 2025-12-17 (접수번호 20251217800800)\n\n따라서, 질문에 대한 답변은 위와 같습니다.",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG에너지솔루션\" period=ym:202512 top_k=5 q=\"LG 에너지솔루션 2025 12 17 공시한 전기차 배터리 해지 금액 얼마인지 근거 함께\" n=5 top_score=72.097 ids=exchange_20251217800800,exchange_20251226800706,exchange_20251217800853,exchange_20251208800031,exchange_20251226800767 | hop=0 verdict=sufficient evidence=5 | generate tokens=1274+109 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 해지 금액과 관련된 정보가 정확하게 포함되어 있으며, 해당 정보는 제공된 근거에서 확인할 수 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2365"
   },
@@ -2835,6 +2876,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "삼성E&A가 2024년 11월에 공시한 알제리 Hassi Messaoud 정유 프로젝트 계약 해지에 대한 정보는 다음과 같습니다.\n\n- **해지 금액**: 1,937,231,667,470원 (1조 9,372억원)\n- **계약 상대방**: SONATRACH (알제리 국영석유회사)\n- **원래 계약 기간**: 2020-02-25부터 2024-12-21까지 (총 4년 9개월)\n\n(근거: 공급계약 해지, 삼성E&A, 2024-11-28, 접수번호 20241128800504)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성E&A\" period=ym:202411 top_k=5 q=\"삼성 2024 11 월에 공시한 알제리 Hassi Messaoud 정유 프로젝트 계약 해지 금액 원래\" n=5 top_score=80.500 ids=exchange_20241128800504,exchange_20241128800562,exchange_20241115800529,exchange_20241120800003,exchange_20241120800004 | hop=5 strat=chain tool=get_history corp=\"삼성E&A\" rcept=20241128800504 latest=20241128800504 chain_length=1 n=1 top_score=- ids=exchange_20240618800188 | hop=5 strat=chain tool=get_history corp=\"삼성E&A\" rcept=20241128800562 latest=20260120800597 chain_length=15 n=5 top_score=- ids=exchange_20230626800002,exchange_20240215801246,exchange_20240522800200,exchange_20240523800361,exchange_20240524800345 | hop=0 verdict=insufficient evidence=11 reason=chain_open:20240614800515,chain_open:20250331802494,chain_open:20250415800827 | hop=5 stop=chain_unresolved (체인 링크 9건 미해소 — 재검색 대상이 아니다) | generate tokens=1964+141 | verify calc_checked=amount,period complete_checked=- ok=True kinds=- | budget steps=3 hops=0 llm=1 tokens=2105"
   },
@@ -2945,6 +2987,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "두산퓨얼셀이 2025년 3~4월에 공시한 계약 해지 3건은 다음과 같습니다:\n\n1. **㈜태영건설**\n   - 해지 금액: 72,200,000,000원 (722억 원)\n\n2. **한국전력기술㈜, 금호건설㈜, LS일렉트릭㈜**\n   - 해지 금액: 398,800,000,000원 (3,988억 원)\n\n3. **ZKRG Smart Energy Technology (Foshan) Co., Ltd. (ZKRG)**\n   - 해지 금액: 346,900,000,000원 (3,469억 원)\n\n따라서 세 건의 해지 금액 합계는 **757,900,000,000원**(7,579억 원)입니다.\n\n(근거: 각 공급계약 해지 보고서들, 2025년 3~4월 기준)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 계약 해지 정보가 제공된 근거에서 확인할 수 있으며, 정확한 금액과 상대방도 명시되어 있습니다.)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산퓨얼셀\" period=year:2025 top_k=5 q=\"두산퓨얼셀 2025 월에 공시한 계약 해지 건의 금액 정리하고 합계\" n=5 top_score=30.250 ids=exchange_20250402800768,exchange_20250331802527,exchange_20250402800874,exchange_20250424800733,exchange_20250903800038 | hop=0 verdict=sufficient evidence=5 | generate tokens=1055+189 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 계약 해지 정보가 제공된 근거에서 확인할 수 있으며, 정확한 금액과 상대방도 명시되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2220"
   },
@@ -3057,6 +3100,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "LG에너지솔루션이 2024년 10월에 공시한 Ford Motor Company와의 전기차 배터리 공급계약의 정정 및 해지 이력은 다음과 같습니다.\n\n1. **원공시**: 2024년 10월 15일에 최초 공시된 내용은 Ford Motor Company와 2027년 1월 1일부터 2032년 12월 31일까지 총 75GWh 규모의 전기차 배터리를 공급하는 계약이며, 계약금액은 미확정으로 추후 공시 예정이었습니다.\n    - (근거: 단일판매ㆍ공급계약 체결, 2024-10-15)\n\n2. **정정공시**: 2025년 12월 17일에 원공시가 정정되었습니다. 정정된 내용에 따르면, 계약금액은 9,603,075,000,000원(9조 6,031억 원), 매출액 대비 28.5%였으며, 나머지 조건은 동일했습니다.\n    - (근거: 단일판매ㆍ공급계약 체결 정정, 2025-12-17)\n\n3. **해지공시**: 동일한 날짜인 2025년 12월 17일에 위 계약이 해지되었다는 공시가 나왔습니다. 해지금액은 9,603,075,000,000원으로 이전에 공시된 계약금액과 동일하며, 매출액 대비 비율 또한 변동이 없었습니다.\n    - (근거: 단일판매ㆍ공급계약 해지, 2025-12-17)\n\n따라서, LG에너지솔루션의 Ford Motor Company와의 전기차 배터리 공급계약은 처음엔 2024년 10월에 공시되었고, 이후 2025년 12월에 계약금액이 확정되어 재공시되었지만 결국에는 해지되었습니다. \n\n(근거: 각 공시별 상세 내용 참조)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG에너지솔루션\" period=ym:202410 top_k=5 q=\"LG 에너지솔루션 2024 10 월에 공시한 Ford Motor Company 와의 전기차 배터리 이후 어떻게 처리되었는지 정정 해지 이력 함께\" n=5 top_score=60.750 ids=exchange_20241015800261,exchange_20241015800258,exchange_20241008800163,exchange_20241002800608,exchange_20241008800090 | hop=5 strat=chain tool=get_history corp=\"LG에너지솔루션\" rcept=20241015800258 latest=20251217800853 chain_length=2 n=2 top_score=- ids=exchange_20251217800853,exchange_20251217800800 | hop=0 verdict=sufficient evidence=7 | generate tokens=2191+376 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 주요 정보는 제공된 근거에서 확인할 수 있으며, 각각의 공시에 대한 세부 사항들이 정확하게 인용되었습니다. | verify calc_checked=amount,share complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=4736"
   },
@@ -3121,6 +3165,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다.",
    "think_trace": "route=unanswerable difficulty=low cot=False sc=False | 범위 밖 — LLM 호출 없이 한계 고지 | budget steps=0 hops=0 llm=0 tokens=0"
   },
@@ -3185,6 +3230,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다.",
    "think_trace": "route=unanswerable difficulty=low cot=False sc=False | 범위 밖 — LLM 호출 없이 한계 고지 | budget steps=0 hops=0 llm=0 tokens=0"
   },
@@ -3251,6 +3297,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다.",
    "think_trace": "route=unanswerable difficulty=low cot=False sc=False | 범위 밖 — LLM 호출 없이 한계 고지 | budget steps=0 hops=0 llm=0 tokens=0"
   },
@@ -3317,6 +3364,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "공시에서 확인되지 않습니다. 질문이 지목한 보고서가 제공 코퍼스(70개사 · 2023.01~2026.03 접수분)에 없습니다. 어느 사업연도·보고서 종류를 확인해 드릴지 알려주시면 실재하는 공시로 답해 드리겠습니다.",
    "think_trace": "route=unanswerable difficulty=low cot=False sc=False | no_such_report:half:base_year=2026 — 지목한 보고서가 목록에 없다 (LLM 호출 없이 한계 고지) | budget steps=0 hops=0 llm=0 tokens=0"
   },
@@ -3400,6 +3448,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "공시에서 대우건설의 2026년 하반기 신규 수주 전망치에 대한 정보는 확인되지 않습니다.\n(근거: 없음)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 답변이 주어진 근거와 관련이 없으며, 해당 내용에 대해 확인할 수 있는 정보가 없습니다.)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"대우건설\" period=year:2026 top_k=5 q=\"대우건설 2026 하반기 신규 수주 전망치 얼마인\" n=5 top_score=13.906 ids=exchange_20260119800228,exchange_20260202800101,exchange_20260316800085,exchange_20260128800877,exchange_20260206800121 | hop=0 verdict=sufficient evidence=5 | generate tokens=922+29 | 근거 표기 누락 — critic 호출 | critic supported=False reason=답변이 주어진 근거와 관련이 없으며, 해당 내용에 대해 확인할 수 있는 정보가 없습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1661"
   },
@@ -3466,6 +3515,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "공시에서 확인되지 않습니다. 제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다.",
    "think_trace": "route=unanswerable difficulty=low cot=False sc=False | 범위 밖 — LLM 호출 없이 한계 고지 | budget steps=0 hops=0 llm=0 tokens=0"
   },
@@ -3557,6 +3607,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "LG에너지솔루션의 2025년 사업보고서에 따르면, 주요 5대 매출처에 대한 매출 비중은 약 63%입니다. \n(근거: [사업보고서 2025] LG에너지솔루션 – II. 사업의 내용, 20260312)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"LG에너지솔루션\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"LG 에너지솔루션 2025 사업보고서 밝힌 주요 매출처 대한 매출 비중\" n=8 top_score=57.599 ids=periodic_20260312000217,periodic_20260318001243,periodic_20260310002954,periodic_20260318001461,periodic_20260318001444,periodic_20260311004517,periodic_20260316000832,periodic_20260318000617 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"LG에너지솔루션\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 2. 주요 제품 및 서비스\" top_k=8 q=\"LG 에너지솔루션 2025 사업보고서 밝힌 주요 매출처 대한 매출 비중\" n=8 top_score=48.516 ids=periodic_20260312000217,periodic_20260318000617,periodic_20260310002954,periodic_20260312001270,periodic_20260318000617,periodic_20260325001401,periodic_20260310003071,periodic_20260319001275 | hop=4 verdict=sufficient evidence=4 | generate tokens=3964+63 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에 제시된 정보는 제공된 근거에서 확인할 수 있으며, 정확한 출처를 명시하고 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=7790"
   },
@@ -3641,6 +3692,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "삼성전자 2023년 사업보고서(제55기) 기준 DX 부문과 DS 부문의 매출액은 다음과 같이 계산할 수 있습니다.\n\nDX 부문의 매출액은 1,699,923억 원, DS 부문의 매출액은 665,945억 원이므로, 이를 합하면 **2,365,868억 원**입니다.\n\n따라서, DX 부문과 DS 부문의 매출액 합계는 **2,365,868억 원**입니다.\n(근거: [사업보고서 2023] 삼성전자 – II. 사업의 내용 > 4. 매출 및 수주상황, 접수번호 20240312000736, https://dart.fss.or.kr/dsaf001/main.do)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2023,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"삼성전자 2023 사업보고서 55 기준 DX 부문 DS 합계 억원 단위 얼마인\" n=8 top_score=52.220 ids=periodic_20240312000736,periodic_20240312000853,periodic_20240307000835,periodic_20240329003421,periodic_20240313000522,periodic_20240314001768,periodic_20240312000778,periodic_20240329002895 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2023,doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"삼성전자 2023 사업보고서 55 기준 DX 부문 DS 합계 억원 단위 얼마인\" n=8 top_score=23.937 ids=periodic_20240312000736,periodic_20240314001768,periodic_20240313000522,periodic_20240329003421,periodic_20240329002895,periodic_20240312000778,periodic_20240314001257,periodic_20240322000986 | hop=4 verdict=sufficient evidence=4 | generate tokens=5252+149 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=5401"
   },
@@ -3728,6 +3780,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "삼성전자 2025년 사업보고서에 따르면 다음과 같이 정리할 수 있습니다:\n\n- **발주처**: 해당 정보는 보고서에 명시되어 있지 않아 제공할 수 없습니다.\n- **품목**: 아연, 연\n- **계약기간**: ~ 2025.12.31\n- **수주총액**\n  - 아연: 630,000톤 (2,559,498천 USD)\n  - 연: 450,000톤 (1,369,634천 USD)\n  - 합계: 1,080,000톤 (3,929,132천 USD)\n\n공시에서 확인되는 정보를 바탕으로 위와 같이 정리하였습니다. 추가적인 정보가 필요하시면 말씀해 주시기 바랍니다.\n(근거: [삼성전자 사업보고서 2025] II. 사업의 내용 > 4. 매출 및 수주상황, 접수번호 20260316000929, 20260325)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"삼성전자 2025 사업보고서 매출 수주상황 기재한 수주 계약 발주처 품목 수주총액\" n=8 top_score=79.081 ids=periodic_20260312001037,periodic_20260325000008,periodic_20260316000929,periodic_20260601001725,periodic_20260316000832,periodic_20260310002954,periodic_20260311004517,periodic_20260318001024 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2025,doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"삼성전자 2025 사업보고서 매출 수주상황 기재한 수주 계약 발주처 품목 수주총액\" n=8 top_score=18.254 ids=periodic_20260310002820,periodic_20260320001246,periodic_20260312001230,periodic_20260318001444,periodic_20260309001878,periodic_20260310003071,periodic_20260312001119,periodic_20260515001658 | hop=4 verdict=sufficient evidence=4 | generate tokens=6440+190 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=6630"
   },
@@ -3828,6 +3881,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "삼성전자 DS 부문 매출액은 다음과 같이 변화했습니다:\n\n- **제53기 (2021년)**: 953,872억 원 (근거: [사업보고서 2023], 섹션 4. 매출 및 수주상황)\n- **제57기 (2025년)**: 1,301,282억 원 (근거: [사업보고서 2025], 섹션 4. 매출 및 수주상황)\n\n따라서, DS 부문 매출액은 2021년의 953,872억 원에서 2025년에는 1,301,282억 원으로 **347410억 원** 증가했습니다. 이는 각각 2023년도와 2025년도 보고서의 데이터를 기반으로 합니다.",
    "think_trace": "route=complex_reason difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"삼성전자 DS 부문 53 2021 57 2025 사이 어떻게 달라졌는지 값을 어느 확인했는지 함께\" n=8 top_score=35.267 ids=periodic_20240312000736,periodic_20260310002820,periodic_20250311001085,periodic_20250311001275,periodic_20240312000853,periodic_20260310003071,periodic_20260310002954,periodic_20260319001275 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"삼성전자 DS 부문 53 2021 57 2025 사이 어떻게 달라졌는지 값을 어느 확인했는지 함께\" n=8 top_score=22.560 ids=periodic_20240312000736,periodic_20260310002820,periodic_20260310003071,periodic_20250311001085,periodic_20240329003421,periodic_20240313000522,periodic_20240314001768,periodic_20260311003927 | hop=4 verdict=sufficient evidence=4 | generate tokens=5838+153 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 데이터는 제시된 문서들에서 확인할 수 있으며 정확하게 인용되었습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=11703"
   },
@@ -3925,6 +3979,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "SK하이닉스의 2025년 사업보고서에 기재된 제78기(2025년) 연결 매출액은 **97,146,675백만 원**이고, 삼성전자의 2025년 사업보고서에 기재된 제57기(2025년) 연결 매출액은 **3,336,059억 원**입니다. 이를 비교하면 다음과 같습니다.\n\n- SK하이닉스 매출액: 97,146,675백만 원 = **97조 1,466억 750만 원**\n- 삼성전자 매출액: 3,336,059억 원 = **333조 6,059억 원**\n\n따라서, 삼성전자의 매출액이 SK하이닉스의 매출액보다 훨씬 큽니다.\n\n**결론**: SK하이닉스가 2025년 사업보고서에 기재한 제78기(2025년) 연결 매출액은 삼성전자가 2025년 사업보고서에 기재한 제57기(2025년) 연결 매출액보다 작습니다.\n\n**근거**\n- SK하이닉스 매출액 정보: (사업보고서 2025) SK하이닉스 – II. 사업의 내용 > 4. 매출 및 수주상황, 접수번호 20260317000635, (공시일 20260317)\n- 삼성전자 매출액 정보: (사업보고서 2025) 삼성전자 – II. 사업의 내용 > 4. 매출 및 수주상황, 접수번호 20260310002820, (공시일 20260310)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"SK하이닉스\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"SK 하이닉스 2025 사업보고서 기재한 78 연결 삼성전자 57 매출액보다 큰가\" n=8 top_score=25.676 ids=periodic_20260310002820,periodic_20260317000635,periodic_20260310002954,periodic_20260312001270,periodic_20260318001444,periodic_20260311003927,periodic_20260320000802,periodic_20260311004517 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"SK 하이닉스 2025 사업보고서 기재한 78 연결 삼성전자 57 매출액보다 큰가\" n=8 top_score=25.676 ids=periodic_20260310002820,periodic_20260317000635,periodic_20260310002954,periodic_20260312001270,periodic_20260318001444,periodic_20260311003927,periodic_20260320000802,periodic_20260311004517 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"SK하이닉스\" filters=base_year=2025,doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"SK 하이닉스 2025 사업보고서 기재한 78 연결 삼성전자 57 매출액보다 큰가\" n=8 top_score=31.594 ids=periodic_20260317000635,periodic_20260310002820,periodic_20260311003927,periodic_20260312001230,periodic_20260331004244,periodic_20260311004614,periodic_20260319001417,periodic_20260310003071 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2025,doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"SK 하이닉스 2025 사업보고서 기재한 78 연결 삼성전자 57 매출액보다 큰가\" n=8 top_score=31.594 ids=periodic_20260317000635,periodic_20260310002820,periodic_20260311003927,periodic_20260312001230,periodic_20260331004244,periodic_20260311004614,periodic_20260319001417,periodic_20260310003071 | hop=4 verdict=sufficient evidence=4 | generate tokens=5197+313 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 데이터와 정보는 해당 문서들에서 정확하게 인용되었으며, 변환 과정에서도 오류 없이 반영되었습니다. | verify calc_checked=- complete_checked=missing_corp ok=True kinds=- | budget steps=4 hops=0 llm=2 tokens=10642"
   },
@@ -4013,6 +4068,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "연결 요약재무정보의 제50기 1분기 지배주주순이익은 정정으로 **77,557,171,145원** 만큼 줄었습니다.\n\n- 정전 전: 216,407,387,195원\n- 정정 후: 139,850,216,050원\n\n(근거: [분기보고서 2023] 고려아연 – 정 정 신 고 (보고), 접수번호 20230518000337, 20230518)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"고려아연\" filters=- path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"고려아연 2023 15 제출한 50 분기 분기보고서 사흘 정정됐다 연결 요약재무정보 지배주주순이익 정정 얼마나 줄었는\" n=8 top_score=71.700 ids=periodic_20230518000337,periodic_20230515001843,periodic_20230515001372,periodic_20230515001896,periodic_20230515001515,periodic_20230515001577,periodic_20230515002568,periodic_20230515002019 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"고려아연\" filters=- path=\"정 정 신 고 (보고)\" top_k=8 q=\"고려아연 2023 15 제출한 50 분기 분기보고서 사흘 정정됐다 연결 요약재무정보 지배주주순이익 정정 얼마나 줄었는\" n=2 top_score=134.904 ids=periodic_20230518000337,periodic_20230522000371 | hop=4 verdict=sufficient evidence=4 | generate tokens=6627+105 | verify calc_checked=- complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=6732"
   },
@@ -4107,6 +4163,12 @@
     "shell_only": [],
     "asks_value": false,
     "blocking": false
+   },
+   "upstream_failure": {
+    "stage": "critic",
+    "status": "429",
+    "retryable": true,
+    "marked": true
    },
    "answer": "LG에너지솔루션의 제6기(2025년) 연결 매출액과 두산에너빌리티의 제63기(2025년) 연결 매출액을 비교하면 다음과 같습니다.\n\n- LG에너지솔루션의 제6기(2025년) 연결 매출액: 23,671,759백만 원\n- 두산에너빌리티의 제63기(2025년) 연결 매출액: 17,057,876백만 원\n\n따라서, LG에너지솔루션의 제6기(2025년) 연결 매출액이 두산에너빌리티의 제63기(2025년) 연결 매출액보다 큽니다.\n\n(근거: [LG에너지솔루션 사업보고서 2025], [두산에너빌리티 사업보고서 2025])",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"LG에너지솔루션\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"LG 에너지솔루션 2025 연결 두산에너빌리티 63 어느 쪽이 큰지 근거 함께\" n=8 top_score=54.479 ids=periodic_20260320001246,periodic_20260312000217,periodic_20260312001270,periodic_20260318000617,periodic_20260310002954,periodic_20260311004517,periodic_20260325001401,periodic_20260320001246 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"두산에너빌리티\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"LG 에너지솔루션 2025 연결 두산에너빌리티 63 어느 쪽이 큰지 근거 함께\" n=8 top_score=54.479 ids=periodic_20260320001246,periodic_20260312000217,periodic_20260312001270,periodic_20260318000617,periodic_20260310002954,periodic_20260311004517,periodic_20260325001401,periodic_20260320001246 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"LG에너지솔루션\" filters=base_year=2025,doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"LG 에너지솔루션 2025 연결 두산에너빌리티 63 어느 쪽이 큰지 근거 함께\" n=8 top_score=40.449 ids=periodic_20260320001246,periodic_20260312000217,periodic_20260325001401,periodic_20260325001401,periodic_20260325001401,periodic_20260325001401,periodic_20260318001264,periodic_20260318001562 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"두산에너빌리티\" filters=base_year=2025,doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"LG 에너지솔루션 2025 연결 두산에너빌리티 63 어느 쪽이 큰지 근거 함께\" n=8 top_score=40.449 ids=periodic_20260320001246,periodic_20260312000217,periodic_20260325001401,periodic_20260325001401,periodic_20260325001401,periodic_20260325001401,periodic_20260318001264,periodic_20260318001562 | hop=4 verdict=sufficient evidence=4 | generate tokens=6306+171 | 근거 표기 누락 — critic 호출 | upstream_error stage=critic status=429 retryable=True critic 생략: CLOVA 호출 실패 429: {'status': {'code': '42901', 'message': 'Too many requests: rate exceeded. Check response headers for current limits and retry information.'}, 'result': None} | verify calc_checked=- complete_checked=missing_corp ok=True kinds=- | budget steps=4 hops=0 llm=1 tokens=6477"
@@ -4205,6 +4267,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "LG에너지솔루션의 제4기(2023년)부터 제6기(2025년)까지의 연결 매출액 추이는 다음과 같습니다:\n\n- 제4기(2023년): 33,745,470백만 원\n- 제5기(2024년): 25,619,585백만 원\n- 제6기(2025년): 23,671,759백만 원\n\n이를 바탕으로 제4기 대비 제6기의 감소액은 다음과 같이 계산됩니다:\n- 33,745,470 - 23,671,759 = 10,073,711백만 원\n\n따라서, 제4기에 비해 제6기에는 10,073,711백만 원만큼 매출액이 감소하였습니다. \n(근거: [사업보고서 2023], [사업보고서 2024], [사업보고서 2025])",
    "think_trace": "route=complex_reason difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"LG에너지솔루션\" filters=doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"LG 에너지솔루션 2023 부터 2025 까지 연결 추이 대비 감소액\" n=8 top_score=38.117 ids=periodic_20260312000217,periodic_20240314001110,periodic_20250312000405,periodic_20260312001270,periodic_20260318000617,periodic_20250318000381,periodic_20240312000853,periodic_20260310002954 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"LG에너지솔루션\" filters=doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"LG 에너지솔루션 2023 부터 2025 까지 연결 추이 대비 감소액\" n=8 top_score=29.849 ids=periodic_20260312000217,periodic_20240314001110,periodic_20250312000405,periodic_20260325001401,periodic_20260325001401,periodic_20240318000918,periodic_20240328000654,periodic_20250317001024 | hop=4 verdict=sufficient evidence=4 | generate tokens=5261+185 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 데이터는 제공된 사업보고서에서 가져온 것으로 정확합니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=10612"
   },
@@ -4290,6 +4353,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "두산에너빌리티 2025년 사업보고서의 요약재무정보를 확인해 보겠습니다.\n\n- 제63기 연결 자산총계: 27,513,223백만 원\n- 제63기 별도 자산총계: 14,866,375백만 원\n\n따라서, 두 값의 차이를 계산하면 다음과 같습니다.\n- 27,513,223 - 14,866,375 = 12,646848백만 원\n\n즉, 두산에너빌리티 2025년 사업보고서에서 제63기 연결 자산총계와 별도 자산총계의 차이는 **12,646,848백만 원**입니다. \n\n(근거: [사업보고서 2025] 두산에너빌리티 – III. 재무에 관한 사항 > 1. 요약재무정보, 접수번호 20260320001246, 공시일 20260320)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"두산에너빌리티\" filters=base_year=2025,doc_subtype=annual path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"두산에너빌리티 2025 사업보고서 요약재무정보 63 연결 자산총계 별도 차이 백만원인\" n=8 top_score=91.909 ids=periodic_20260320001246,periodic_20260312001230,periodic_20260318001264,periodic_20260313000442,periodic_20260323001596,periodic_20260325000008,periodic_20260316000929,periodic_20260601001725 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"두산에너빌리티\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"두산에너빌리티 2025 사업보고서 요약재무정보 63 연결 자산총계 별도 차이 백만원인\" n=8 top_score=49.489 ids=periodic_20260320001246,periodic_20260312001270,periodic_20260320001246,periodic_20260316001503,periodic_20260320000803,periodic_20260318001461,periodic_20260312001224,periodic_20260323000234 | hop=4 verdict=sufficient evidence=4 | generate tokens=5739+190 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=5929"
   },
@@ -4375,6 +4439,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "HMM이 2024년 3월 20일 제출한 2023년 사업보고서에 따르면, 제48기 보통주 주당 현금배당금은 600원이었습니다. 하지만, 2024년 3월 28일에 열린 제48기 정기주주총회에서 기말배당금을 700원으로 수정하는 안건이 승인되었으므로, 최종적으로 변경된 제48기 보통주 주당 현금배당금은 **700원**입니다. \n(근거: [정정신고] 2023년 사업보고서, 접수번호 20240328001188, 섹션 1. 정정대상 공시서류 정보)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"HMM\" filters=- path=\"III. 재무에 관한 사항 > 6. 배당에 관한 사항\" top_k=8 q=\"HMM 2024 20 제출한 2023 사업보고서에 48 보통주 주당 현금배당금 600 기재돼 있었다 정정 반영 최종 금액 얼마인\" n=8 top_score=62.724 ids=periodic_20240314001257,periodic_20240320001238,periodic_20240322000989,periodic_20240320001965,periodic_20240318000918,periodic_20240328000654,periodic_20240321000506,periodic_20240320001386 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"HMM\" filters=- path=\"정 정 신 고 (보고)\" top_k=8 q=\"HMM 2024 20 제출한 2023 사업보고서에 48 보통주 주당 현금배당금 600 기재돼 있었다 정정 반영 최종 금액 얼마인\" n=8 top_score=95.419 ids=periodic_20240328001188,periodic_20240321000907,periodic_20240328001400,periodic_20240320002050,periodic_20240322000886,periodic_20240314001734,periodic_20240315000850,periodic_20240319000626 | hop=4 verdict=sufficient evidence=4 | generate tokens=3409+136 | verify calc_checked=- complete_checked=evidence_gap ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=3545"
   },
@@ -4464,6 +4529,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "삼성전자의 2026년 1분기 분기보고서에서 'V. 회계검사인의 감사의견 등 > 2. 내부통제에 관한 사항'에 대한 내용을 확인해 보겠습니다.\n\n- **공시 내용**: 삼성전자 분기보고서의 경우, 내부통제에 관한 사항은 기업공시서식 작성기준에 따라 기재하지 않았습니다. 따라서 해당 섹션에서는 내부통제에 관한 어떠한 정보도 찾아볼 수 없습니다.\n\n이러한 이유로, 삼성전자 2026년 1분기 분기보고서에는 'V. 회계검사인의 감사의견 등 > 2. 내부통제에 관한 사항' 항목에 내용이 기재되어 있지 않습니다.\n\n(근거: [분기보고서 2026] 삼성전자, 접수번호 20260515002181, V. 회계검사인의 감사의견 등 > 2. 내부통제에 관한 사항)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2026,doc_subtype=quarter path=\"V. 회계감사인의 감사의견 등\" top_k=8 q=\"삼성전자 2026 분기 분기보고서 회계감사인 감사의견 내부통제 관한 사항 어떤 내용 기재돼 있는지 근거 함께\" n=8 top_score=101.506 ids=periodic_20260515002181,periodic_20260515002888,periodic_20260515002842,periodic_20260515002550,periodic_20260515002248,periodic_20260515002805,periodic_20260515001802,periodic_20260515002408 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전자\" filters=base_year=2026,doc_subtype=quarter path=\"V. 회계감사인의 감사의견 등 > 2. 내부통제에 관한 사항\" top_k=8 q=\"삼성전자 2026 분기 분기보고서 회계감사인 감사의견 내부통제 관한 사항 어떤 내용 기재돼 있는지 근거 함께\" n=8 top_score=101.506 ids=periodic_20260515002181,periodic_20260515002888,periodic_20260515002842,periodic_20260515002550,periodic_20260515002248,periodic_20260515002805,periodic_20260515001802,periodic_20260515002408 | hop=4 verdict=sufficient evidence=4 | generate tokens=848+179 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=1027"
   },
@@ -4553,6 +4619,12 @@
     "shell_only": [],
     "asks_value": false,
     "blocking": false
+   },
+   "upstream_failure": {
+    "stage": "critic",
+    "status": "429",
+    "retryable": true,
+    "marked": true
    },
    "answer": "HMM이 2024년 5월 14일에 제출한 2024년 1분기 분기보고서의 정정 사유는 '**기재 누락**'입니다. 구체적으로 어떤 부분이 누락되었는지 직접적인 언급은 없지만, 정정된 부분은 '**III. 재무에 관한 사항 3. 연결재무제표 주석 1. 일반적 사항 (연결)**'과 '**III. 재무에 관한 사항 5. 재무제표 주석 1. 회사의 개요 2. 중요한 회계정책 3. 중요한 회계추정 및 가정 11. 종속기업, 공동기업 및 관계기업투자**' 부분입니다.\n\n이는 연결재무제표 작성과 관련된 중요 정보들이 원래 제출된 분기보고서에 포함되어 있지 않았음을 의미하며, 이러한 정보의 누락은 투자자나 이해관계자들에게 정확한 정보를 제공하지 못하는 문제를 야기할 수 있습니다. 따라서 기업은 이러한 누락사항을 발견하고 보완하여 정정 신고를 통해 올바른 정보를 공시하게 되었습니다.\n\n이러한 정정은 기업의 투명성을 높이고 투자자들이 보다 정확하고 완전한 정보를 바탕으로 의사 결정을 내릴 수 있도록 하기 위해 필수적입니다. 특히 재무 관련 정보는 기업의 전반적인 건강 상태와 성과를 평가하는 데 매우 중요하므로, 이러한 정보가 누락될 경우 잘못된 투자 결정을 초래할 수 있기 때문입니다. (근거: 분기보고서 2024, 20240514001580)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"HMM\" filters=- path=\"정 정 신 고 (보고)\" top_k=8 q=\"HMM 2024 14 제출한 분기 분기보고서 같은 정정됐다 정정됐는지\" n=8 top_score=41.623 ids=periodic_20240514001580,periodic_20240517000380,periodic_20240516001695,periodic_20240502000081,periodic_20240516001472,periodic_20240514001580,periodic_20240514001580,periodic_20240514001580 | hop=4 verdict=sufficient evidence=4 | generate tokens=6650+297 | 근거 표기 누락 — critic 호출 | upstream_error stage=critic status=429 retryable=True critic 생략: CLOVA 호출 실패 429: {'status': {'code': '42901', 'message': 'Too many requests: rate exceeded. Check response headers for current limits and retry information.'}, 'result': None} | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=6947"
@@ -4649,6 +4721,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "LG유플러스가 2025년 4월에 공시한 파주 AIDC 신규 구축의 투자금액은 **615,600,000,000원**(6,156억원)입니다. \n(근거: 신규 시설투자등_파주 AIDC 신규 구축_LG유플러스, 2025-04-29, 20250429800933)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG유플러스\" period=ym:202504 top_k=5 q=\"LG 유플러스 2025 월에 공시한 파주 AIDC 신규 구축 투자금액 얼마인\" n=5 top_score=78.993 ids=exchange_20250429800933,exchange_20250428800407,exchange_20250428800409,exchange_20250430800633,exchange_20250414800004 | hop=0 verdict=sufficient evidence=5 | generate tokens=1290+88 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 LG유플러스의 신규 시설 투자 금액과 관련된 정보가 정확하게 포함되어 있으며, 해당 정보의 출처인 공시 일자와 접수 번호가 명시되어 있습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2521"
   },
@@ -4736,6 +4809,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "POSCO홀딩스가 2024년 7월 12일 이사회에서 결정한 자기주식 취득의 취득예정금액은 **100,000,062,000원**(1,000억 원)입니다. \n(근거: [자기주식취득결정] POSCO홀딩스 – 주요사항보고서(자기주식취득결정), 2024-07-12, 접수번호 20240712000097)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"POSCO홀딩스\" period=ym:202407 top_k=5 q=\"POSCO 홀딩스 2024 12 이사회 결정한 자기주식 취득 취득예정금액 얼마인\" n=5 top_score=40.059 ids=major_20240712000097,major_20240718000126,major_20240701000614,major_20240718000129,major_20240725000389 | hop=0 verdict=sufficient evidence=5 | generate tokens=1309+94 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=1403"
   },
@@ -4831,6 +4905,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "현대오토에버가 2025년 7월에 공시한 hCloud 서비스 제공 계약의 계약기간은 **4년 11개월**입니다. \n(근거: 공급계약 체결 현대오토에버, 2025-07-31)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대오토에버\" period=ym:202507 top_k=5 q=\"현대오토에버 2025 월에 공시한 hCloud 서비스 제공 계약 년인\" n=5 top_score=71.282 ids=exchange_20250731800497,exchange_20250708800090,exchange_20250708800221,exchange_20250714800342,exchange_20250731800031 | hop=0 verdict=sufficient evidence=5 | generate tokens=1210+58 | 근거 표기 누락 — critic 호출 | critic supported=True reason=제공된 답변에는 계약기간이 명시되어 있으며, 이는 주어진 근거에서 확인할 수 있습니다. | verify calc_checked=period complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2159"
   },
@@ -4922,6 +4997,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "시프트업의 2025년 반기보고서(제13기 반기) 기준 게임개발 부문의 아시아와 아메리카 매출 합계는 다음과 같이 계산할 수 있습니다.\n\n- 아시아 매출: 125,188백만 원\n- 아메리카 매출: 28,860백만 원\n\n따라서, 아시아와 아메리카 지역의 매출 합계는 **154,048백만 원**입니다.\n\n(근거: 반기보고서 2025 시프트업, 20250814, II.사업의 내용>4.매출 및 수주상황)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"시프트업\" filters=base_year=2025,doc_subtype=half path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"시프트업 2025 반기보고서 13 반기 기준 게임개발 부문 아시아 아메리카 매출 합계 백만원 단위 얼마인\" n=8 top_score=92.337 ids=periodic_20250814004388,periodic_20250814002845,periodic_20250814001936,periodic_20250814003814,periodic_20250814004457,periodic_20250813001577,periodic_20250813001108,periodic_20250814004371 | hop=4 verdict=sufficient evidence=4 | generate tokens=4943+125 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치와 사실이 근거에서 확인되며, 정확한 출처를 명시했습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=9858"
   },
@@ -5016,6 +5092,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "레인보우로보틱스의 2024년 4월 신규 시설 투자에 대한 최종 정정본 기준 투자 금액은 **28,533,520,000원**(285억 원)입니다. \n(근거: [기재정정] [신규 시설투자] 레인보우로보틱스 – 신규시설 투자 등, 2026-03-27, 접수번호 20260327903037)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"레인보우로보틱스\" period=ym:202404 top_k=5 q=\"레인보우로보틱스 2024 월에 공시한 이후 차례 정정됐다 최종 정정본 기준 투자금액 얼마인\" n=5 top_score=61.145 ids=exchange_20240430900455,exchange_20240426900872,exchange_20240424800596,exchange_20240425800143,exchange_20240402800113 | hop=5 strat=chain tool=get_history corp=\"레인보우로보틱스\" rcept=20240430900455 latest=20260327903037 chain_length=4 n=3 top_score=- ids=exchange_20250205900405,exchange_20251205900454,exchange_20260327903037 | hop=0 verdict=sufficient evidence=8 | generate tokens=2119+96 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=2215"
   },
@@ -5099,6 +5176,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "기아 제80기 사업보고서의 연결재무제표 주석 '9. 유형자산 및 사용권자산' 항목에서 전기 유형자산처분이익은 정정 후 **7,362백만 원**입니다. \n\n(근거: [정정신고(보고)] 20240312, 접수번호 20240312000909)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"기아\" filters=doc_subtype=annual path=\"III. 재무에 관한 사항 > 3. 연결재무제표 주석\" top_k=8 q=\"기아 80 사업보고서 2024 12 정정됐다 연결재무제표 주석 유형자산 사용권자산 전기 유형자산처분이익 정정 백만원 단위 얼마인\" n=8 top_score=86.611 ids=periodic_20240328001188,periodic_20240320001402,periodic_20240318000722,periodic_20250318000828,periodic_20260323001004,periodic_20260311004208,periodic_20260311004649,periodic_20240307000545 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"기아\" filters=doc_subtype=annual path=\"정 정 신 고 (보고)\" top_k=8 q=\"기아 80 사업보고서 2024 12 정정됐다 연결재무제표 주석 유형자산 사용권자산 전기 유형자산처분이익 정정 백만원 단위 얼마인\" n=8 top_score=115.619 ids=periodic_20240312000909,periodic_20240314001768,periodic_20240321000907,periodic_20240320001078,periodic_20250321001604,periodic_20240328000773,periodic_20250318001384,periodic_20240313001130 | hop=4 verdict=sufficient evidence=4 | generate tokens=4421+74 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=4495"
   },
@@ -5199,6 +5277,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "NC의 2024년 2월에 공시한 글로벌 RDI 센터(가칭) 건립 신규 시설 투자의 투자금액은 다음과 같습니다.\n\n- **투자금액**: 580,000,000,000원 (5,800억 원)\n\n이는 '신규 시설투자' 항목의 내용을 통해 확인할 수 있습니다.\n\n(근거: 신규 시설투자 등, 2024-02-07, 20240207801456)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"NC\" period=ym:202402 top_k=5 q=\"NC 2024 월에 공시한 글로벌 RDI 센터 가칭 건립 투자금액 근거 함께\" n=5 top_score=70.771 ids=exchange_20240207801456,exchange_20240220800842,exchange_20240229800089,exchange_20240222800238,exchange_20240222800887 | hop=0 verdict=sufficient evidence=5 | generate tokens=991+97 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변에는 NC의 신규 시설 투자 금액과 관련된 정보가 정확하게 포함되어 있으며, 해당 정보의 출처인 공시 일자와 접수 번호가 명시되어 있어 근거가 충분히 제시되었습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=1926"
   },
@@ -5297,6 +5376,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "국민연금공단이 2024년 10월에 시프트업에 대해 처음 제출한 대량보유상황보고서의 이번 보유비율은 **6.15**%입니다.\n\n(근거: [대량보유상황보고서] 시프트업 – 주식등의대량보유상황보고서(약식), 2024-10-07, 20241007000135)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"시프트업\" period=ym:202410 top_k=5 q=\"국민연금공단 2024 10 월에 시프트업 대해 처음 제출한 대량보유상황보고서 이번 보유비율 얼마인지 근거 함께\" n=5 top_score=67.989 ids=holding_20241007000135,holding_20241030000262,holding_20241007000306,holding_20241007000356,holding_20241007000156 | hop=0 verdict=sufficient evidence=5 | generate tokens=1391+87 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제시된 근거에서 직접 인용하여 정확한 정보를 제공하고 있으며, 필요한 경우 출처를 명시하고 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2687"
   },
@@ -5397,6 +5477,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "한미반도체의 2024년 6월 공시에 따르면 다음과 같습니다.\n\n- 계약금액: **149,919,000,000원**(1,499억원)\n- 최근 매출액 대비 비율: **94.28**%\n- 계약기간: **2024-06-07부터 2024-12-02까지**(0년 5개월)\n\n(근거: [공급계약 체결] 한미반도체 – 단일판매ㆍ공급계약체결 — HBM 제조용 'DUAL TC BONDER GRIFFIN' 장비 수주, 2024-06-07, 20240607800056)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한미반도체\" period=ym:202406 top_k=5 q=\"한미반도체 2024 월에 공시한 HBM 제조용 DUAL TC BONDER GRIFFIN 장비 대비 비율\" n=5 top_score=83.880 ids=exchange_20240607800056,exchange_20240628800687,exchange_20240604800108,exchange_20240612800420,exchange_20240628800693 | hop=5 strat=chain tool=get_history corp=\"한미반도체\" rcept=20240628800687 latest=20251224800595 chain_length=3 n=2 top_score=- ids=exchange_20241227800341,exchange_20251224800595 | hop=0 verdict=sufficient evidence=7 | generate tokens=1813+133 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거에서 확인할 수 있으며, 접수번호를 포함한 정확한 공시 정보를 인용하였습니다. | verify calc_checked=amount,period complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=3484"
   },
@@ -5493,6 +5574,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "세아베스틸지주의 2025년 반기보고서에 실린 제71기 반기 별도 영업수익의 구성은 다음과 같습니다:\n\n1. **배당금수익**: 73,581백만원 (91.6%)\n2. **임대수익**: 710백만원 (0.9%)\n3. **용역수익**: 6,027백만원 (7.5%)\n\n이러한 구성을 통해 지주회사의 전반적인 매출 실적을 파악할 수 있으며, 각 항목의 비율도 함께 제시되어 있어 전체 매출에서 차지하는 비중을 쉽게 이해할 수 있습니다. (근거: 반기보고서 2025, 매출 및 수주상황 섹션)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"세아베스틸지주\" filters=base_year=2025,doc_subtype=half path=\"-\" top_k=8 q=\"세아베스틸지주 2025 반기보고서 실린 71 반기 별도 영업수익 구성\" n=8 top_score=71.599 ids=periodic_20250814003583,periodic_20250814003583,periodic_20250814003583,periodic_20250814003583,periodic_20250814003583,periodic_20250814003583,periodic_20250814003583,periodic_20250814003583 | hop=4 verdict=sufficient evidence=4 | generate tokens=5549+144 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제공된 근거 자료의 내용을 정확하게 반영하고 있으며, 모든 수치와 사실이 근거에서 확인할 수 있습니다. 또한, 답변에서는 출처를 명확히 인용하여 정보의 신뢰성을 높이고 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=11142"
   },
@@ -5601,6 +5683,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "엘에스일렉트릭의 Barton Malow Company-BlueOval SK 관련 공급계약 금액 변경 내역은 다음과 같습니다.\n\n1. 최초 공시 (2024-01-25):\n    - 계약금액: 89,446,399,107원 (894억원)\n\n2. 첫 번째 수정 공시 (2024-09-30):\n    - 계약기간 연장: 2024년 9월 30일에서 2025년 2월 28일로 변경됨\n    - 계약금액 변동 없음: 여전히 89,446,399,107원 (894억원)\n\n3. 두 번째 수정 공시 (2024-12-13):\n    - 계약금액 감소: 73,029,784,233원 (730억원)\n\n따라서, 엘에스일렉트릭의 Barton Malow Company-BlueOval SK 관련 공급계약 금액은 처음 894억원이었고, 두 번의 정정을 거쳐 최종적으로 730억원으로 변경되었습니다.\n\n(근거: 각 공시별 단일판매ㆍ공급계약 체결 보고서들, 기준연월 및 접수번호 참조)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"엘에스일렉트릭\" period=none top_k=5 q=\"엘에스일렉트릭 Barton Malow Company BlueOval SK 관련 차례 정정됐다 어떻게 바뀌었는지 정정 순서대\" n=5 top_score=58.832 ids=exchange_20240125800285,exchange_20240930800476,exchange_20241213801356,exchange_20260211801720,exchange_20260211801733 | hop=0 verdict=sufficient evidence=5 | generate tokens=1106+230 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치와 사실이 근거에서 확인되며, 접수번호가 명시되어 있습니다. | verify calc_checked=amount complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2395"
   },
@@ -5691,6 +5774,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "현대글로비스의 2024년 반기보고서가 2024년 8월 26일에 정정된 사항은 다음과 같습니다:\n\n1. **국문 XBRL [D999004] 보고서정보 - 기업 정보 공시대상정보 [abstract] 공시대상, 상장정보**\n   - 정정 사유: 단순 기재 오류\n   - 정정 전: 코스닥시장상장법인\n   - 정정 후: 유가증권시장상장법인\n\n2. **국문 XBRL [D999004] 보고서정보 - 기업 정보 공시대상정보 [abstract] 공시대상, 해외상장정보**\n   - 정정 사유: 단순 기재 오류\n   - 정정 전: 미국나스닥\n   - 정정 후: 해당사항 없음\n\n3. **영문 XBRL [D999004] Entity Information Entity information [abstract] Domestic exchange**\n   - 정정 사유: 단순 기재 오류\n   - 정정 전: Listed Company on KOSDAQ Market\n   - 정정 후: Listed Company on KRX Stock Market\n\n4. **영문 XBRL [D999004] Entity Information Entity information [abstract] International exchange**\n   - 정정 사유: 단순 기재 오류\n   - 정정 전: Listed Company on NASDAQ\n   - 정정 후: N/A\n\n이러한 정정사항들은 주로 상장 시장 관련 정보의 오류를 바로잡는 것으로 보입니다. (근거: 반기보고서 2024, 정 정 신고, 2024.08.26, 접수번호 20240826000294)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"현대글로비스\" filters=base_year=2024,doc_subtype=half path=\"정 정 신 고 (보고)\" top_k=8 q=\"현대글로비스 2024 반기보고서 26 정정됐다 어떻게 정정됐는지\" n=8 top_score=66.489 ids=periodic_20240826000294,periodic_20240816000180,periodic_20240814004587,periodic_20240926000448,periodic_20240913000803,periodic_20240930000554,periodic_20250515002742,periodic_20240904000344 | hop=4 verdict=sufficient evidence=4 | generate tokens=7224+313 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=7537"
   },
@@ -5790,6 +5874,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "현대글로비스가 2024년 12월 31일에 공시한 두 건의 완성차 해상운송계약 중 계약금액이 더 큰 건은 '**3,365,500,000,000원**(3조 3,655억원)**'입니다.\n\n- 두 계약의 금액 비교 결과는 다음과 같습니다.\n  - 기아와의 계약: 3,334,000,000,000원 (3조 3,340억원)\n  - 현대차와의 계약: 3,365,500,000,000원 (3조 3,655억원)\n\n따라서 계약금액이 더 큰 것은 현대차와 맺은 계약이며, 해당 금액은 3,365,500,000,000원입니다. \n\n(근거: 각 공급계약 체결 보고서, 2024-12-31 기준)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 정보가 제공된 근거 내에서 도출되었으며, 추가적인 허위 정보 없이 정확하게 기재되었습니다.)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"현대글로비스\" period=ym:202412 top_k=5 q=\"현대글로비스 2024 12 31 같은 공시한 건의 완성차 해상운송계약 금액 얼마인\" n=5 top_score=86.681 ids=exchange_20241231800107,exchange_20241231800103,exchange_20241227800136,exchange_20241203800532,exchange_20241231800491 | hop=0 verdict=sufficient evidence=5 | generate tokens=1268+174 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거 내에서 도출되었으며, 추가적인 허위 정보 없이 정확하게 기재되었습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2483"
   },
@@ -5881,6 +5966,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "국민연금공단이 세아베스틸지주에 대해 2023년 8월과 2025년 7월에 각각 보고한 '이번 보유비율'을 비교하면 다음과 같습니다.\n\n- 2023년 8월의 보유비율: 7.11%\n- 2025년 7월의 보유비율: 7.37%\n\n따라서, 더 높은 값은 **7.37**%입니다.\n\n근거: 각 보고서별 상세 내용은 아래와 같습니다.\n- 2023년 8월: 대량보유상황보고서_세아베스틸지주_2023-08-01, 접수번호 20230801000354\n- 2025년 7월: 대량보유상황보고서_세아베스틸지주_2025-07-02, 접수번호 20250702000233",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"세아베스틸지주\" period=ym:202308 top_k=3 q=\"국민연금공단 세아베스틸지주 대해 2023 월과 2025 월에 각각 보고한 이번 보유비율 높은 값은\" n=3 top_score=70.341 ids=holding_20230801000354,holding_20230807000195,holding_20230807000136 | hop=0 strat=narrow tool=search_chunks corp=\"세아베스틸지주\" period=ym:202507 top_k=3 q=\"국민연금공단 세아베스틸지주 대해 2023 월과 2025 월에 각각 보고한 이번 보유비율 높은 값은\" n=3 top_score=70.184 ids=holding_20250702000233,holding_20250702000176,holding_20250702000280 | hop=0 verdict=sufficient evidence=6 | generate tokens=1602+182 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=1784"
   },
@@ -5973,6 +6059,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "LG이노텍이 2024년 2월과 2025년 11월에 각각 공시한 광학솔루션사업부 시설투자의 투자금액 차이를 구하기 위해 각 시기의 투자금액을 비교하겠습니다.\n\n1. 2024년 2월의 투자금액: 383,000,000,000원\n2. 2025년 11월의 투자금액: 341,100,000,000원\n\n두 금액의 차이를 계산하면 다음과 같습니다.\n- 383,000,000,000원 - 341,100,000,000원 = 41,900,000,000원\n\n따라서, LG이노텍이 2024년 2월과 2025년 11월에 각각 공시한 광학솔루션사업부 시설투자의 투자금액 차이는 **41,900,000,000원**(419억원)입니다.\n\n(근거: [신규 시설투자] LG이노텍 – 신규시설투자등 — 광학솔루션사업부 시설투자, 2024-02-20, 접수번호 20240220800842; [신규 시설투투투자] LG이노텍 – 신규시설투자등 — 광학솔루션사업부 시설투자, 2025-11-27, 접수번호 20251127800903)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"LG이노텍\" period=ym:202402 top_k=3 q=\"LG 이노텍 2024 월과 2025 11 월에 각각 공시한 광학솔루션사업부 시설투자 투자금액 차이 얼마인\" n=3 top_score=105.897 ids=exchange_20240220800842,exchange_20240207801456,exchange_20240222800238 | hop=0 strat=narrow tool=search_chunks corp=\"LG이노텍\" period=ym:202511 top_k=3 q=\"LG 이노텍 2024 월과 2025 11 월에 각각 공시한 광학솔루션사업부 시설투자 투자금액 차이 얼마인\" n=3 top_score=107.404 ids=exchange_20251127800903,exchange_20251127800002,exchange_20251126800682 | hop=0 verdict=sufficient evidence=6 | generate tokens=1341+305 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=1646"
   },
@@ -6057,6 +6144,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "두산로보틱스의 2025년 반기보고서에 따르면, 로봇 부문 매출과 기타 부문 매출의 합계는 다음과 같습니다.\n\n- 로봇 부문 매출: 6,485백만 원\n- 기타 부문 매출: 3,130백만 원\n\n따라서, 두 금액을 합하면 **9,615백만 원**입니다.\n\n(근거: [반기보고서 2025] 두산로보틱스 – II. 사업의 내용 > 4. 매출 및 수주상황, 접수번호 20250814004413, 20250814)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"두산로보틱스\" filters=base_year=2025,doc_subtype=half path=\"II. 사업의 내용 > 7. 기타 참고사항\" top_k=8 q=\"두산로보틱스 2025 반기보고서 11 반기 기준 로봇 부문 매출 기타 합계 백만원 단위 얼마인\" n=8 top_score=39.389 ids=periodic_20250814004413,periodic_20250814004413,periodic_20250814004413,periodic_20250814003907,periodic_20250814003089,periodic_20250814003089,periodic_20250814003089,periodic_20250814001526 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"두산로보틱스\" filters=base_year=2025,doc_subtype=half path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"두산로보틱스 2025 반기보고서 11 반기 기준 로봇 부문 매출 기타 합계 백만원 단위 얼마인\" n=8 top_score=50.649 ids=periodic_20250814004413,periodic_20250814003089,periodic_20250814003814,periodic_20250813001108,periodic_20250813001577,periodic_20250814003907,periodic_20250814004371,periodic_20250814001936 | hop=4 verdict=sufficient evidence=4 | generate tokens=4477+121 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=4598"
   },
@@ -6155,6 +6243,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "공시에서 확인되지 않습니다. \n정정된 내용은 매매금액에 관한 것으로, 매수인에 대한 정보는 제공되지 않았습니다. (근거: [기재정정] [투자판단 관련 주요경영사항] 이마트 – 투자판단 관련 주요경영사항, 2024-11-14, 20241114800538)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"이마트\" period=ym:202406 top_k=5 q=\"이마트 2024 공시한 에스에스지닷컴 지분 매매계약 그해 11 정정됐다 정정 확정된 매수인 누구인\" n=5 top_score=70.119 ids=exchange_20240604800108,exchange_20240612800468,exchange_20240611800517,exchange_20240627800415,exchange_20240618800408 | hop=5 strat=chain tool=get_history corp=\"이마트\" rcept=20240604800108 latest=20241114800538 chain_length=2 n=1 top_score=- ids=exchange_20241114800538 | hop=0 verdict=sufficient evidence=6 | generate tokens=1645+72 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 근거에 제시된 내용을 바탕으로 매수인에 대한 정보가 제공되지 않았음을 명확히 하고 있으며, 이는 정확한 정보입니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=3046"
   },
@@ -6247,6 +6336,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "현대건설의 2024년 사업보고서가 2025년 10월 17일에 정정되면서 추가 기재된 연결 기준 건설계약 수주잔고는 **95,822,036백만 원**입니다. \n(근거: [사업보고서 2024] 현대건설 – 정 정 신 고 (보고), 20251017)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"현대건설\" filters=base_year=2024,doc_subtype=annual path=\"정 정 신 고 (보고)\" top_k=8 q=\"현대건설 2024 사업보고서 2025 10 17 정정됐다 이때 추가 기재된 연결 기준 건설계약 수주잔고 백만원 단위 얼마인\" n=8 top_score=117.164 ids=periodic_20251017000151,periodic_20250813000868,periodic_20260324000822,periodic_20250814003044,periodic_20250814004283,periodic_20250321001612,periodic_20250321001604,periodic_20250814002961 | hop=4 verdict=sufficient evidence=4 | generate tokens=5856+76 | 근거 표기 누락 — critic 호출 | critic supported=True reason=정정된 현대건설의 사업보고서에 따르면, 연결 기준 건설계약 수주잔고가 정확히 95,822,036백만 원으로 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=11616"
   },
@@ -6351,6 +6441,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "LG씨엔에스가 2025년 12월 30일에 LG전자와 체결한 두 건의 계약금액은 다음과 같습니다.\n\n1. 첫 번째 계약: N-ERP 구축 SI 인건비 계약\n   - 계약금액: **242,151,000,000원**(2,422억원)\n\n2. 두 번째 계약: 25년 N-ERP 확산 계약 (차세대 ERP 구축 통합테스트 및 확산)\n   - 계약금액: **226,178,000,000원**(2,262억원)\n\n(근거: 각 보고서명, 2025-12-30)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 정보가 제공된 근거 내에서 확인되며, 추가적인 허위 정보 없이 정확하게 요약되었습니다.)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"LG씨엔에스\" period=ym:202512 top_k=5 q=\"LG 씨엔에스 2025 12 30 같은 전자 체결했다고 공시한 건의 각각\" n=5 top_score=38.174 ids=exchange_20251230800216,exchange_20251230800219,exchange_20251229800114,exchange_20251208800031,exchange_20251224800405 | hop=0 verdict=sufficient evidence=5 | generate tokens=1353+127 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거 내에서 확인되며, 추가적인 허위 정보 없이 정확하게 요약되었습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2567"
   },
@@ -6448,6 +6539,12 @@
     "shell_only": [],
     "asks_value": true,
     "blocking": false
+   },
+   "upstream_failure": {
+    "stage": "critic",
+    "status": "429",
+    "retryable": true,
+    "marked": true
    },
    "answer": "SK텔레콤과 KT가 2023년에 체결하기로 결정한 자기주식 취득 신탁계약의 계약 금액은 동일하게 **300,000,000,000원**(3,000억 원)입니다.\n\n- SK텔레콤: 2023년 7월 27일 공시 (접수번호 20230727000001), 계약금액 300,000,000,000원\n- KT: 2023년 2월 9일 공시 (접수번호 20230209000394), 계약금액 300,000,000,000원\n\n따라서 두 회사의 2023년도 자기주식 취득 신탁계약의 계약 금액은 동일한 규모입니다. \n(근거: 각 회사별 자기주식취득신탁계약체결결정 보고서, 기준연월 2023년)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"SK텔레콤\" period=year:2023 top_k=5 q=\"SK 텔레콤 케이티 2023 년에 각각 체결하기 결정한 자기주식취득 신탁계약 비교해줘\" n=5 top_score=42.944 ids=major_20230727000001,major_20230209000394,major_20230809000692,major_20230208000001,major_20230224000002 | hop=0 strat=narrow tool=search_chunks corp=\"케이티\" period=year:2023 top_k=5 q=\"SK 텔레콤 케이티 2023 년에 각각 체결하기 결정한 자기주식취득 신탁계약 비교해줘\" n=5 top_score=42.944 ids=major_20230727000001,major_20230209000394,major_20230809000692,major_20230208000001,major_20230224000002 | hop=0 verdict=insufficient evidence=5 reason=missing_corp:케이티 | hop=1 strat=relax_period tool=search_chunks corp=\"SK텔레콤\" period=none top_k=8 q=\"SK 텔레콤 케이티 2023 년에 각각 체결하기 결정한 자기주식취득 신탁계약 비교해줘\" n=8 top_score=42.944 ids=major_20230727000001,major_20230209000394,major_20240126000018,major_20241108000518,major_20250213000806,major_20260210000397,major_20230809000692,major_20250813000724 | hop=1 verdict=insufficient evidence=10 reason=missing_corp:케이티 | hop=2 verdict=insufficient evidence=10 reason=missing_corp:케이티 | hop=3 strat=global skip=corp_scoped (기업 특정 질의에 근거 10건 확보 — 전역 검색은 오염) | generate tokens=2205+174 | 근거 표기 누락 — critic 호출 | upstream_error stage=critic status=429 retryable=True critic 생략: CLOVA 호출 실패 429: {'status': {'code': '42901', 'message': 'Too many requests: rate exceeded. Check response headers for current limits and retry information.'}, 'result': None} | verify calc_checked=amount complete_checked=missing_corp ok=True kinds=- | budget steps=3 hops=2 llm=1 tokens=2379"
@@ -6552,6 +6649,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "현대건설이 2023년 1월 27일에 같은 날 공시한 카타르 Lusail Plaza Towers Plot3와 Plot4 건설공사의 계약금액 및 차이는 다음과 같습니다.\n\n- Plot3 공사 계약금액: 588,939,240,000원 (5,889억원)\n- Plot4 공사 계약금액: 630,179,460,000원 (6,302억원)\n\n두 공사의 금액 차이를 구하면,\n\n- 630,179,460,000원 - 588,939,240,000원 = 41,240,220,000원 (412억원)\n\n따라서, Plot4가 Plot3보다 **412억원** 더 큽니다.\n\n(근거: [카타르 Lusail Plaza Towers(Plot3) 건설공사], [카타르 Lusail Plaza Towers(Plot4) 건설공사], 2023-01-27)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 수치가 근거에서 확인할 수 있으며, 계산도 정확합니다.)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대건설\" period=ym:202301 top_k=5 q=\"현대건설 2023 27 같은 공시한 카타르 Lusail Plaza Towers Plot 건설공사 차이\" n=5 top_score=81.128 ids=exchange_20230127800714,exchange_20230127800757,exchange_20230109800082,exchange_20230131800272,exchange_20230131800738 | hop=0 verdict=sufficient evidence=5 | generate tokens=1259+190 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인할 수 있으며, 계산도 정확합니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2492"
   },
@@ -6639,6 +6737,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "LG생활건강의 2025년 사업보고서에 따르면, 사업부문별 매출 비중은 다음과 같습니다:\n\n- Beauty 사업부문: 37%\n- HDB (생활용품) 사업부문: 35%\n- Refreshment (음료) 사업부문: 28%\n\n가장 큰 부문인 Beauty 사업부문(37%)이 두 번째로 큰 HDB 사업부문(35%)보다 **2**% p 더 큽니다.\n\n(근거: [사업보고서 2025] LG생활건강 – II. 사업의 내용 > 1. 사업의 개요, 접수번호 20260316000985, 공시일 20260316)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"LG생활건강\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용\" top_k=8 q=\"LG 생활건강 2025 사업보고서 25 사업부문별 매출 비교하고 가장 부문 번째 부문보다 얼마나 큰지\" n=8 top_score=54.834 ids=periodic_20260316000985,periodic_20260318001243,periodic_20260318001205,periodic_20260325001401,periodic_20260317000781,periodic_20260312001270,periodic_20260312001037,periodic_20260310003071 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"LG생활건강\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 1. 사업의 개요\" top_k=8 q=\"LG 생활건강 2025 사업보고서 25 사업부문별 매출 비교하고 가장 부문 번째 부문보다 얼마나 큰지\" n=8 top_score=54.834 ids=periodic_20260316000985,periodic_20260317000781,periodic_20260312001037,periodic_20260310003071,periodic_20260312001270,periodic_20260316001116,periodic_20260318000617,periodic_20260316001112 | hop=4 verdict=sufficient evidence=4 | generate tokens=5385+134 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=5519"
   },
@@ -6734,6 +6833,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "크래프톤의 2025년 12월 최초 공시에서는 **출자금액이 200,000,000,000원**(2,000억 원)이었으나, 2026년 3월의 정정공시에서도 동일한 금액을 유지하고 있습니다. 따라서 출자금액은 변동이 없습니다.\n\n정정된 내용은 다음과 같습니다.\n- 최초 공시: 2025-12-19 (접수번호 20251219800469), 출자금액: 200,000,000,000원\n- 정정 반영 후: 2026-03-06 (접수번호 20260306801011), 출자금액: 200,000,000,000원\n\n따라서 크래프톤의 출자금액에는 변화가 없으며, 다른 정보들도 동일하게 유지되었습니다.\n(근거: [투자판단 관련 주요경영사항] 크래프톤 – 투자판단 관련 주요경영사항, 정정 반영 후, 접수번호 20260306801011)",
    "think_trace": "route=complex_reason difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"크래프톤\" period=ym:202512 top_k=3 q=\"크래프톤 2025 12 월에 공시한 신기술사업투자조합 출자 결정 2026 정정됐다 정정 바뀌었는지 출자금액 변동 여부 함께\" n=3 top_score=67.088 ids=exchange_20251219800469,exchange_20251205900454,exchange_20251217800832 | hop=0 strat=narrow tool=search_chunks corp=\"크래프톤\" period=ym:202603 top_k=3 q=\"크래프톤 2025 12 월에 공시한 신기술사업투자조합 출자 결정 2026 정정됐다 정정 바뀌었는지 출자금액 변동 여부 함께\" n=3 top_score=67.929 ids=exchange_20260306801011,exchange_20260320800727,exchange_20260327903037 | hop=5 strat=chain tool=get_history corp=\"크래프톤\" rcept=20251205900454 latest=20260327903037 chain_length=4 n=2 top_score=- ids=exchange_20240430900455,exchange_20250205900405 | hop=0 verdict=sufficient evidence=8 | generate tokens=1649+214 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=3 hops=0 llm=1 tokens=1863"
   },
@@ -6831,6 +6931,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "NC 제28기 사업보고서의 정정 전후 내용을 비교해보면 다음과 같습니다:\n\n1. **정정 전**\n    - 배당 기준 총발행 보통주식수와 배당기준일의 자기주식수가 동일하게 유지되었습니다.\n    - 보통주에 지급된 주당배당금은 각각 3,130원과 6,680원으로 나타나 있습니다.\n    - 배당금 총액은 각각 63,562,284천원과 135,653,693천원으로 기록되어 있습니다.\n\n2. **정정 후**\n    - 배당 기준 총발행 보통주식수와 배당기준일의 자기주식수는 여전히 동일합니다.\n    - 그러나 보통주에 지급된 주당배당금이 단위 표기가 추가되어 '3,130(단위: 원/주)'와 '6,680(단위: 원/주)'로 수정되었습니다.\n    - 배당금 총액 역시 동일한 금액을 유지하고 있으나 단위가 명확히 표기되었습니다.\n\n따라서, 주요 변경 사항은 주당 배당금의 단위가 추가되었다는 점입니다. 이는 보고서의 정확성을 높이고, 독자가 이해하기 쉽게 하기 위한 단순한 기재 오류의 수정으로 보입니다. (근거: [정정 신고 보고서], 20250328)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"NC\" filters=doc_subtype=annual path=\"III. 재무에 관한 사항 > 3. 연결재무제표 주석\" top_k=8 q=\"NC 28 사업보고서 2025 정정됐다 연결재무제표 주석 배당금 지급 내역 정정 전후 달라졌는지\" n=8 top_score=47.212 ids=periodic_20260312001270,periodic_20250318001384,periodic_20250313000721,periodic_20260318001423,periodic_20250324000901,periodic_20260325001401,periodic_20250317001024,periodic_20250318001297 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"NC\" filters=doc_subtype=annual path=\"정 정 신 고 (보고)\" top_k=8 q=\"NC 28 사업보고서 2025 정정됐다 연결재무제표 주석 배당금 지급 내역 정정 전후 달라졌는지\" n=8 top_score=81.521 ids=periodic_20250328002285,periodic_20250321001604,periodic_20240321000907,periodic_20240328001188,periodic_20240328001805,periodic_20250318001384,periodic_20240328001400,periodic_20250324000901 | hop=4 verdict=sufficient evidence=4 | generate tokens=5983+265 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 문서에서 확인할 수 있으며, 정확한 비교 분석을 통해 정정 전후의 차이를 명확히 설명하고 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=12217"
   },
@@ -6918,6 +7019,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "아모레퍼시픽이 2024년 2월에 공시한 용산 본사 사옥 임대차 계약의 최근 매출액 대비 비율을 찾기 위해 관련 정보를 확인해 보겠습니다.\n\n- 보고서명: [기재정정] 공급계약 체결 (아모레퍼시픽 – 단일판매ㆍ공급계약체결 — 임대차 계약)\n- 기준연월: 2024년 2월\n- 접수번호: 20240228800335\n- 섹션 경로: 소비재·유통\n\n해당 문서에는 아모레퍼시픽의 용산 본사 사옥 임대차 계약에 대한 정보가 포함되어 있으며, 계약 금액 및 매출액 대비 비율이 명시되어 있습니다.\n\n따라서, 아모레퍼시픽이 2024년 2월에 공시한 용산 본사 사옥 임대차 계약의 최근 매출액 대비 비율은 **5.07**% 입니다.\n\n(근거: [기재정정] 공급계약 체결 (아모레퍼시픽 – 단일판매ㆍ공급계약체결 — 임대차 계약), 2024년 2월, 접수번호 20240228800335, 소비재·유통)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"아모레퍼시픽\" period=ym:202402 top_k=5 q=\"아모레퍼시픽 2024 월에 공시한 용산 본사 사옥 임대차 계약 대비 비율\" n=5 top_score=73.984 ids=exchange_20240228800335,exchange_20240207800065,exchange_20240206800046,exchange_20240220800097,exchange_20240223800090 | hop=0 verdict=sufficient evidence=5 | generate tokens=1266+244 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=1510"
   },
@@ -7011,6 +7113,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "국민연금공단이 2026년 1월 2일 제출한 CJ제일제당 대량보유상황보고서에 따르면, 이번 보유 비율은 **7.81**%입니다.\n\n(근거: [대량보유상황보고서] CJ제일제당 – 주식등의대량보유상황보고서(약식), 2026-01-02, 20260102000302)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"CJ제일제당\" period=ym:202601 top_k=5 q=\"국민연금공단 2026 제출한 CJ 제일제당 대량보유상황보고서 이번 보유비율\" n=5 top_score=76.530 ids=holding_20260102000302,holding_20260102000260,holding_20260102000266,holding_20260102000323,holding_20260102000209 | hop=0 verdict=sufficient evidence=5 | generate tokens=1393+89 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제시된 근거에서 직접적으로 관련 정보를 인용하여 작성되었습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=2694"
   },
@@ -7109,6 +7212,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "현대글로비스가 2023년 10월에 공시한 10,800RT급 LNG DF 자동차선 12척 선대 확보 투자에서 1척당 평균 투자금액은 약 207,685,479,043원입니다.\n\n- 총 투자금액: 2,492,215,574,520원\n- 선박 척수: 12척\n- 1척 당 평균 투자금액 = 2,492,215,574,520 / 12 = **약 207,685,479,043원**\n\n(근거: 신규 시설투자, 2023-10-26, 20231026800363)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — per_unit: 답변 207,685,479,043원 vs 재계산 207,684,631,210)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대글로비스\" period=ym:202310 top_k=5 q=\"현대글로비스 2023 10 월에 공시한 10,800 RT LNG DF 자동차선 12 선대 확보 투자 척당 평균 투자금액 얼마인\" n=5 top_score=114.689 ids=exchange_20231026800363,exchange_20231010800102,exchange_20231023800428,exchange_20231023800049,exchange_20231026800085 | hop=0 verdict=sufficient evidence=5 | generate tokens=1203+140 | 근거 표기 누락 — critic 호출 | critic supported=True reason=계산식이 정확하며, 모든 수치가 근거에서 확인할 수 있습니다. | verify calc_checked=amount,per_unit complete_checked=- ok=False kinds=calculation | budget steps=1 hops=0 llm=2 tokens=2288"
   },
@@ -7193,6 +7297,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "SK텔레콤의 2025년 반기보고서에 따르면, 제42기 반기말 자본총계는 11,971,398백만 원이고, 제41기 말 자본총계는 11,827,634백만 원입니다. 따라서 제42기 반기말 자본총계는 제41기 말 대비 **143,764백만 원** 증가했습니다.\n\n(근거: [반기보고서 2025] SK텔레콤 – III. 재무에 관한 사항 > 1. 요약재무정보, 접수번호 20250814001526, 공시일 20250814)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"SK텔레콤\" filters=base_year=2025,doc_subtype=half path=\"III. 재무에 관한 사항\" top_k=8 q=\"SK 텔레콤 2025 반기보고서 요약연결재무정보 기준 42 반기말 자본총계 41 기말 대비 백만원 단위 늘었는\" n=8 top_score=98.412 ids=periodic_20250814001526,periodic_20250814004094,periodic_20250814003907,periodic_20250814002281,periodic_20250814002650,periodic_20250814002402,periodic_20250814003814,periodic_20250814003089 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"SK텔레콤\" filters=base_year=2025,doc_subtype=half path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"SK 텔레콤 2025 반기보고서 요약연결재무정보 기준 42 반기말 자본총계 41 기말 대비 백만원 단위 늘었는\" n=8 top_score=43.010 ids=periodic_20250814001526,periodic_20250814001936,periodic_20250814002114,periodic_20250814003814,periodic_20250814004371,periodic_20250814004141,periodic_20250814001930,periodic_20250814003856 | hop=4 verdict=sufficient evidence=4 | generate tokens=6350+128 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=6478"
   },
@@ -7283,6 +7388,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "NAVER가 2025년 9월에 공시한 왈라팝(WALLAPOP) 주식매매계약상 지위 양도와 관련된 최종 확정된 매매 대금은 다음과 같습니다.\n\n1. 최초 공시 (2025-09-18): 903,559,577,175원 (9,036억원)\n2. 첫 번째 정정 (2025-09-30): 동일하게 903,559,577,175원 (9,036억원)\n3. 두 번째 정정 (2026-01-30): 902,863,854,765원 (9,029억원)\n\n따라서, 최종 확정된 매매 대금은 **902,863,854,765원 (9,029억원)** 입니다.\n\n근거: [기재정정] [투자판단 관련 주요경영사항] NAVER – 투자판단 관련 주요경영사항 (2026-01-30, 접수번호 20260130800888)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"NAVER\" period=ym:202509 top_k=5 q=\"NAVER 2025 월에 공시한 왈라팝 WALLAPOP 주식매매계약상 지위 양도 건은 이후 차례 정정됐다 최종 확정된 매매대금 총액 얼마인\" n=5 top_score=23.621 ids=exchange_20250918800247,exchange_20250930800838,exchange_20250903800021,exchange_20250910800087,exchange_20250922800142 | hop=5 strat=chain tool=get_history corp=\"NAVER\" rcept=20250918800247 latest=20260130800888 chain_length=3 n=1 top_score=- ids=exchange_20260130800888 | hop=0 verdict=sufficient evidence=6 | generate tokens=1464+197 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=1661"
   },
@@ -7370,6 +7476,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "크래프톤 2025년 사업보고서의 요약 연결 재무정보 내 제19기 기본주당이익은 정정 후 **16,454원**입니다. \n(근거: [사업보고서 2025] 크래프톤 – 정 정 신 고 (보고) [1/14 조각], 접수번호 20260515002689, 20260515)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"크래프톤\" filters=base_year=2025,doc_subtype=annual path=\"III. 재무에 관한 사항\" top_k=8 q=\"크래프톤 2025 사업보고서 2026 15 정정됐다 요약 연결 재무정보 19 기본주당이익 정정 원인\" n=8 top_score=62.794 ids=periodic_20260515002689,periodic_20260316001313,periodic_20260316001313,periodic_20260515002689,periodic_20260316001313,periodic_20260515002689,periodic_20260515002689,periodic_20260316001313 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"크래프톤\" filters=base_year=2025,doc_subtype=annual path=\"정 정 신 고 (보고)\" top_k=8 q=\"크래프톤 2025 사업보고서 2026 15 정정됐다 요약 연결 재무정보 19 기본주당이익 정정 원인\" n=8 top_score=80.983 ids=periodic_20260515002689,periodic_20260323001610,periodic_20260325000008,periodic_20260323001004,periodic_20260515002972,periodic_20260601001725,periodic_20260317000644,periodic_20260324000835 | hop=4 verdict=sufficient evidence=4 | generate tokens=3145+84 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=3229"
   },
@@ -7461,6 +7568,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "현대제철이 2025년 3월에 공시한 미국 전기로 제철소 건설 추진 건의 투자금액은 **$58억**(원화로 환산하면 **8조 5,080억원**)입니다. \n\n이는 2025년 3월 24일 서울외국환중개 매매기준율(1,466.9원/달러)을 기준으로 환산한 금액이며, 실제 거래종결일의 환율에 따라 원화 환산 금액은 변경될 수 있다고 명시되어 있습니다. 또한, 해당 투자금액의 자본구조는 자기자본 50%, 외부차입 50%로 검토 중이라고 합니다. \n(근거: 현대제철 – 투자판단 관련 주요경영사항, 2025-03-25, 접수번호 20250325800001)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — share: 답변 50% vs 재계산 14.5)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"현대제철\" period=ym:202503 top_k=5 q=\"현대제철 2025 월에 공시한 미국 전기 제철소 건설 추진 건의 투자금액 근거 함께\" n=5 top_score=61.591 ids=exchange_20250325800001,exchange_20250325800164,exchange_20250325800910,exchange_20250331802494,exchange_20250304800611 | hop=0 verdict=sufficient evidence=5 | generate tokens=1555+174 | verify calc_checked=share complete_checked=- ok=False kinds=calculation | budget steps=1 hops=0 llm=1 tokens=1729"
   },
@@ -7553,6 +7661,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "시프트업이 2025년 5월에 체결하기로 결정한 자기주식취득 신탁계약의 계약금액은 **50,000,000,000원**(500억 원)입니다.\n\n(근거: 주요사항보고서(자기주식취득신탁계약체결결정), 2025-05-12, 접수번호 20250512000665)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"시프트업\" period=ym:202505 top_k=5 q=\"시프트업 2025 월에 체결하기 결정한 자기주식취득 신탁계약 근거 함께\" n=5 top_score=42.888 ids=major_20250512000665,major_20250512000550,major_20250520000284,major_20250507000438,major_20250512000462 | hop=0 verdict=sufficient evidence=5 | generate tokens=1286+84 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=1370"
   },
@@ -7651,6 +7760,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "두산로보틱스의 2023년 8월 유상증자의 조달 자금은 다음과 같이 용도별로 나뉘었습니다.\n\n- 시설자금: 31,000,000,000원\n- 운영자금: 30,084,464,000원\n- 타법인 증권취득자금: 225,000,000,000원\n- 기타자금: 50,000,000,000원\n\n따라서 총 조달금액인 336,084,464,000원이 위 항목들에 배분되었습니다. (근거: [유상증자결정] 두산로보틱스, 2023-08-23, 20230823000334)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산로보틱스\" period=ym:202308 top_k=5 q=\"두산로보틱스 2023 월에 결정한 유상증자 조달 자금 용도별 어떻게 나눴는지\" n=5 top_score=43.547 ids=major_20230823000334,major_20230830001131,major_20230823000265,major_20230829000808,major_20230801000091 | hop=0 verdict=sufficient evidence=5 | generate tokens=1747+151 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 금액과 정보가 제공된 근거와 일치합니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=3399"
   },
@@ -7747,6 +7857,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "삼성전기 2025년 사업보고서에 따르면, 사업부문별 매출은 다음과 같습니다.\n\n- 컴포넌트 사업부문: 5,198,501백만원 (45.95%)\n- 패키지솔루션 사업부문: 2,301,753백만원 (20.34%)\n- 광학솔루션 사업부문: 3,814,205백만원 (33.71%)\n\n위의 금액은 연결기준으로 작성되었습니다. (근거: [사업보고서 2025] 삼성전기 – II. 사업의 내용 > 2. 주요 제품 및 서비스, 20260310003071)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전기\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용\" top_k=8 q=\"삼성전기 2025 사업보고서 53 사업부문별 매출\" n=8 top_score=43.394 ids=periodic_20260310003071,periodic_20260310003071,periodic_20260310003071,periodic_20260318001243,periodic_20260311003927,periodic_20260310002820,periodic_20260325001401,periodic_20260310003071 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"삼성전기\" filters=base_year=2025,doc_subtype=annual path=\"II. 사업의 내용 > 1. 사업의 개요\" top_k=8 q=\"삼성전기 2025 사업보고서 53 사업부문별 매출\" n=8 top_score=40.282 ids=periodic_20260310003071,periodic_20260310002820,periodic_20260312001037,periodic_20260317000781,periodic_20260310002954,periodic_20260316001112,periodic_20260318000617,periodic_20260311003927 | hop=4 verdict=sufficient evidence=4 | generate tokens=3490+137 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치와 사실이 근거에서 확인되며, 접수번호를 포함한 정확한 출처가 명시되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=6999"
   },
@@ -7850,6 +7961,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "케이티(KT)의 각 문서에서 'IV. 이사의 경영진단 및 분석의견' 섹션의 내용을 비교하면 다음과 같습니다:\n\n1. **2025년 반기보고서**\n   - 공시일: 2025년 8월 14일\n   - 내용: 이 섹션은 기업공시서식 작성기준에 따라 분기 및 반기보고서에는 기재하지 않으며, 사업보고서에 기재될 예정이라고 명시되어 있습니다.\n   \n2. **2025년 3분기 분기보고서**\n   - 공시일: 2025년 5월 15일\n   - 내용: 마찬가지로, 이 섹션은 기업공시서식 작성기준에 따라 분기 및 반기보고서에는 기재하지 않으며, 사업보고서에 기재될 예정이라고 명시되어 있습니다.\n\n3. **2024년 사업보고서**\n   - 공시일: 2024년 3월 21일\n   - 내용: 여기서는 실제로 이사의 경영진단 및 분석 의견이 상세하게 기재되어 있습니다. 주요 내용으로는 예측정보에 대한 주의사항, 매출 및 이익 성장, ICT 및 AI 분야에서의 성과 등이 포함되어 있습니다.\n\n따라서, 2025년의 반기보고서와 분기보고서에는 해당 섹션이 기재되지 않았으며, 이는 공시 서식 작성 기준 때문이라는 점을 명확히 하고 있습니다. 반면, 2024년 사업보고서에서만 이 섹션이 상세히 다루어져 있음을 알 수 있습니다. \n\n(근거: 각 보고서 IV. 이사의 경영진단 및 분석의견 부분 참조)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"케이티\" filters=base_year=2025,doc_subtype=half path=\"IV. 이사의 경영진단 및 분석의견\" top_k=8 q=\"케이티 2025 반기보고서 분기 분기보고서 2024 사업보고서 IV 이사 경영진단 분석의견 각각 어떻게 기재돼 있는지 비교해줘\" n=8 top_score=121.648 ids=periodic_20250814003695,periodic_20260324000827,periodic_20250814004355,periodic_20250814002402,periodic_20250814003700,periodic_20250814003328,periodic_20250814003814,periodic_20250814001550 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"케이티\" filters=base_year=2025,doc_subtype=quarter path=\"IV. 이사의 경영진단 및 분석의견\" top_k=8 q=\"케이티 2025 반기보고서 분기 분기보고서 2024 사업보고서 IV 이사 경영진단 분석의견 각각 어떻게 기재돼 있는지 비교해줘\" n=8 top_score=121.648 ids=periodic_20250515002428,periodic_20251114002201,periodic_20250526000374,periodic_20251114003011,periodic_20250515002905,periodic_20251114002727,periodic_20250515002745,periodic_20251114002699 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"케이티\" filters=base_year=2024,doc_subtype=annual path=\"IV. 이사의 경영진단 및 분석의견\" top_k=8 q=\"케이티 2025 반기보고서 분기 분기보고서 2024 사업보고서 IV 이사 경영진단 분석의견 각각 어떻게 기재돼 있는지 비교해줘\" n=8 top_score=76.101 ids=periodic_20250321001834,periodic_20250311001055,periodic_20250328001868,periodic_20250312001016,periodic_20250312001063,periodic_20250331004004,periodic_20250318000688,periodic_20250318001297 | hop=0 stop=named_reports_covered (부른 보고서 3종을 모두 회수) | hop=4 verdict=sufficient evidence=4 | generate tokens=4934+330 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 인용된 문서에서 이사의 경영진단 및 분석 의견 섹션의 부재 이유가 공시 서식 작성 기준에 따른 것임을 확인할 수 있으며, 2024년 사업보고서의 세부 내용 역시 정확하게 인용되었습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=3 hops=0 llm=2 tokens=10175"
   },
@@ -7957,6 +8069,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "(주)두산의 두산로보틱스에 대한 보유 비율은 다음과 같이 변화했습니다.\n\n1. 최초 공시 (2023년 10월 13일): \n   - 보유주식등 수: 44,200,027주\n   - 보유비율: 68.19%\n\n2. 변동 보고서 (2025년 3월 5일):\n   - 보유주식등 수: 44,177,137주로 감소 (-23,890주)\n   - 보유비율: 68.15%로 소폭 하락(-0.04%p)\n\n3. 변경 보고서 (2025년 6월 30일):\n   - 보유주식등 수는 동일하게 유지됨: 44,177,137주\n   - 보유비율 역시 동일하게 유지됨: 68.15%\n   - 추가로 담보 계약 체결을 통해 14,600,000주를 주요 계약 체결하였으나 이는 직접적인 보유 비율에는 영향을 미치지 않았습니다.\n\n따라서, (주)두산은 두산로보틱스의 초기 상장부터 2025년 6월까지 약간의 감소를 보였으며 현재까지 동일한 보유 비율을 유지하고 있습니다.\n\n(근거: 대량보유상황보고서 (주)두산, 2023-10-13, 20231013000473; 대량보유상황보고서 (주)두산, 2025-03-05, 20250305000647; 대량보유상황보고서 (주)두산, 2025-06-30, 20250630000778)",
    "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산로보틱스\" period=none top_k=5 q=\"두산 두산로보틱스 대해 보고한 보유비율 상장 이후 어떻게 변해 왔는지 근거\" n=5 top_score=62.174 ids=holding_20231013000473,holding_20231013000452,holding_20250305000647,holding_20250630000778,holding_20250401003061 | hop=0 verdict=sufficient evidence=5 | generate tokens=1367+330 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 데이터는 제공된 근거에서 확인할 수 있으며, 정확한 수치와 날짜가 명시되어 있다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=2 tokens=3128"
   },
@@ -8050,6 +8163,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "삼성SDI의 최초 유상증자 결정 금액은 2조 1억원이며, 최종 정정공시된 금액은 1조 6,549억원입니다. 따라서 최초 공시 대비 감소한 금액은 다음과 같이 계산됩니다.\n\n- 2,000,113,200,000원에서 1,654,940,000,000원을 뺍니다.\n- 차이는 345,173,200,000원입니다.\n\n따라서 최초 공시 대비 345,173,200,000원이 줄었습니다. 이는 약 1,850억원 가량의 금액입니다. (345,173,200,000 / 1,000,000,000 = 1,850)\n\n최종 답변: 345,173,200,000원 (약 1,850억원)(근거: [유상증자결정] 삼성SDI – 주요사항보고서(유상증자결정), 정정 5/5, 2025-05-19, 접수번호 20250519000120)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"삼성SDI\" period=ym:202503 top_k=5 q=\"삼성 SDI 2025 14 결의한 유상증자 이후 차례 정정공시됐다 최종 정정공시 기준 조달 총액 최초 대비 얼마나 줄었는\" n=5 top_score=30.285 ids=major_20250314000027,major_20250324000773,major_20250326000991,major_20250320001145,major_20250314001646 | hop=5 strat=chain tool=get_history corp=\"삼성SDI\" rcept=20250314000027 latest=20250519000120 chain_length=5 n=3 top_score=- ids=major_20250409001154,major_20250430001398,major_20250519000120 | hop=0 verdict=sufficient evidence=8 | generate tokens=3540+220 | verify calc_checked=- complete_checked=evidence_gap,stale_value ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=3760"
   },
@@ -8136,6 +8250,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "한화솔루션이 2026년 3월 26일 결의한 유상증자에서 채무상환자금으로 조달하려는 금액은 **1,489,900,000,000원**(1조 4,899억원)입니다. \n(근거: [유상증자결정] 한화솔루션, 2026-03-26, 접수번호 20260326000538)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한화솔루션\" period=ym:202603 top_k=5 q=\"한화솔루션 2026 26 결의한 유상증자 채무상환자금 조달하려 금액 얼마인\" n=5 top_score=50.930 ids=major_20260326000538,major_20260310002649,major_20260326000277,major_20260326000117,major_20260326001343 | hop=0 verdict=sufficient evidence=5 | generate tokens=1600+92 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=1692"
   },
@@ -8228,6 +8343,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "우리기술이 2025년 11월 20일에 결의한 사모 전환사채 발행의 주요 조건은 다음과 같습니다.\n\n- 권면(전자등록) 총액: 22,000,000,000원 (220억 원)\n- 표면이자율: 0.0%\n- 만기이자율: 2.0%\n- 전환가액: 3,767원\n- 사채만기일: 2030년 11월 28일\n\n(근거: [전환사채권발행결정] 우리기술 – 주요사항보고서(전환사채권발행결정), 2025-11-20, 접수번호 20251120000565)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"우리기술\" period=ym:202511 top_k=5 q=\"우리기술 2025 11 20 결의한 사모 전환사채 발행 주요 조건 권면총액 표면이자율 만기이자율 전환가액 사채만기일\" n=5 top_score=102.108 ids=major_20251120000565,major_20251121000110,major_20251117000069,major_20251112000393,major_20251106000355 | hop=0 verdict=sufficient evidence=5 | generate tokens=1748+154 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=1902"
   },
@@ -8314,6 +8430,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "SK하이닉스의 2025년 2월 11일에 접수된 주식등의 대량보유상황보고서에 따르면, 직전 보고서에서의 보유 비율은 5.09%, 이번 보고서의 보유 비율은 6.70%입니다. 따라서 증가한 비율은 다음과 같이 계산할 수 있습니다.\n\n- 증가 비율 = 6.70% - 5.09% = 1.61%p\n\n따라서 SK하이닉스에 대한 보유 비율은 직전 보고서 대비 **1.61%p** 높아졌습니다. \n\n(근거: [대량보유상황보고서] SK하이닉스 – 주식등의대량보유상황보고서(약식), 2025-02-11, 접수번호 20250211000533)",
    "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"SK하이닉스\" period=ym:202502 top_k=5 q=\"SK 하이닉스 대해 2025 11 접수된 주식등 대량보유상황보고서 약식 에서 보유비율 직전 대비 높아졌는\" n=5 top_score=70.075 ids=holding_20250211000533,holding_20250211000468,holding_20250221001760,holding_20250224001573,holding_20250221001812 | hop=0 verdict=sufficient evidence=5 | generate tokens=1419+155 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=1 hops=0 llm=1 tokens=1574"
   },
@@ -8413,6 +8530,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "Dukovany 5&6 NSSS 계약의 계약금액은 4,928,968,079,043원이고, 신한울 원자력 발전소 3,4호기 원자로설비 공급 계약의 계약금액은 2,338,117,950,000원이므로, 차이는 **2,590,850,129,043원**(2조 5,908억원)입니다. \n\n(근거: [단일판매ㆍ공급계약체결] 두산에너빌리티 – Dukovany 5&6 NSSS Contract, 2025-12-16; [단일판매ㆍ공급계약체결] 두산에너빌리티 – 신한울 원자력 발전소 3,4호기 원자로설비 공급 계약, 2023-03-29)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202512 top_k=3 q=\"두산에너빌리티 2025 12 월에 공시한 Dukovany NSSS 계약 2023 신한울 원자력 발전소 3,4 호기 원자로설비 계약금액보다 얼마나 큰가\" n=3 top_score=65.074 ids=exchange_20251216801147,exchange_20251216801163,exchange_20251224800396 | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=ym:202303 top_k=3 q=\"두산에너빌리티 2025 12 월에 공시한 Dukovany NSSS 계약 2023 신한울 원자력 발전소 3,4 호기 원자로설비 계약금액보다 얼마나 큰가\" n=3 top_score=127.647 ids=exchange_20230329801108,exchange_20230329801112,exchange_20230330800844 | hop=0 verdict=sufficient evidence=6 | generate tokens=1473+170 | 근거 표기 누락 — critic 호출 | critic supported=True reason= | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=2847"
   },
@@ -8505,6 +8623,7 @@
     "asks_value": true,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "대우건설이 2024년 11월 15일에 공시한 광주 경안2지구 도시개발사업 계약 해지가 가리키는 원래 공급계약의 계약금액은 **351,882,914,000원**(3,519억원)입니다. \n\n(근거: [공급계약 체결] 대우건설 – 단일판매ㆍ공급계약체결 — 광주 경안2지구 도시개발사업, 2023-02-28, 접수번호 20230228801277)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"대우건설\" period=ym:202411 top_k=5 q=\"대우건설 2024 11 15 공시한 광주 경안 지구 도시개발사업 계약 해지 가리키 원래 얼마인\" n=5 top_score=76.317 ids=exchange_20241115800529,exchange_20241115800378,exchange_20241106800473,exchange_20241105800001,exchange_20241114802520 | hop=5 strat=chain tool=get_history corp=\"대우건설\" rcept=20241115800529 latest=20241115800529 chain_length=1 n=1 top_score=- ids=exchange_20230228801277 | hop=0 verdict=sufficient evidence=6 | generate tokens=1333+103 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=1436"
   },
@@ -8587,6 +8706,7 @@
     "asks_value": false,
     "blocking": false
    },
+   "upstream_failure": null,
    "answer": "HD현대중공업이 2025년 3월 18일 제출한 사업보고서에는 제6기(2024년) 연결 자산총계에 대한 정보가 기재되어 있지 않습니다. 따라서 이에 대해 확인할 수 없습니다.\n(근거: [사업보고서 2024] HD현대중공업 – II. 사업의 내용, 접수번호 20250318000897, 공시일 20250318)",
    "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"HD현대중공업\" filters=- path=\"II. 사업의 내용 > 4. 매출 및 수주상황\" top_k=8 q=\"HD 현대중공업 2025 18 제출한 사업보고서 기재된 2024 연결 자산총계 백만원인지 확인해줘\" n=8 top_score=24.795 ids=periodic_20250318000897,periodic_20250311001270,periodic_20250312000970,periodic_20250318000828,periodic_20250312001016,periodic_20250312000405,periodic_20250312001136,periodic_20250318001384 | hop=0 strat=toc_narrow tool=search_chunks group=periodic corp=\"HD현대중공업\" filters=- path=\"III. 재무에 관한 사항 > 1. 요약재무정보\" top_k=8 q=\"HD 현대중공업 2025 18 제출한 사업보고서 기재된 2024 연결 자산총계 백만원인지 확인해줘\" n=8 top_score=39.280 ids=periodic_20250313001171,periodic_20250318000897,periodic_20250320001309,periodic_20250317000868,periodic_20250312000970,periodic_20250311001180,periodic_20250312001124,periodic_20250312001048 | hop=4 verdict=sufficient evidence=4 | generate tokens=5436+88 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=5524"
   }
@@ -8615,6 +8735,9 @@
   "nary": false,
   "multi_hub": false,
   "function_calling": false,
+  "calc_tools_only": false,
+  "calc_queries_only": false,
+  "substitute_tool_results": false,
   "sc_k": 1,
   "temperature": 0.0
  }
