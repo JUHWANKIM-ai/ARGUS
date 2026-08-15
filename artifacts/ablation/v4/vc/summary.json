@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-08-15T16:58:13",
+  "generated": "2026-08-15T17:11:56",
   "cohort": "valuechain",
   "n_cases": 12,
   "question_ids": [
@@ -17,8 +17,8 @@
    "Q-117",
    "Q-118"
   ],
-  "budget_won": 12000.0,
-  "stop_won": 9600.0,
+  "budget_won": 700.0,
+  "stop_won": 560.0,
   "price_won_per_1k": 7.02,
   "index_snapshot": {
    "artifacts/exchange_bm25.json": "e43eceee9d54d8d8:1044414",
@@ -35,64 +35,65 @@
    "data/dart-disclosures/manifest.jsonl": "04750795e1a2d5c3:2419214",
    "data/dart-disclosures/universe.csv": "96560165c836b10e:10674"
   },
-  "spent_won": 123.6,
+  "spent_won": 345.4,
   "spent_won_source": "arm·코호트별 run.json 합 (하위 폴더 포함)",
   "spent_won_by_arm": {
    "A18": 0.0,
    "A20": 0.0,
    "A20r": 123.6,
    "A21": 0.0,
+   "A22": 221.8,
    "A8": 0.0
   },
-  "this_process_spent_won": 0.0,
-  "cache_hits": 27,
-  "cache_misses": 0,
+  "this_process_spent_won": 221.8,
+  "cache_hits": 11,
+  "cache_misses": 15,
   "cache_bypassed": 0,
-  "fresh_prompt_tokens": 0,
-  "fresh_completion_tokens": 0,
+  "fresh_prompt_tokens": 29898,
+  "fresh_completion_tokens": 1697,
   "cache_stats_are_this_process": true,
   "this_run": {
-   "A18": {
-    "arm": "A18",
+   "A22": {
+    "arm": "A22",
     "n_run": 12,
     "stopped_at": null,
-    "spent_won": 0.0,
+    "spent_won": 221.8,
     "runs": [
      {
       "question_id": "Q-107",
-      "cached": false,
+      "cached": true,
       "judge_cached": null,
-      "request_cache_hits": 2,
+      "request_cache_hits": 0,
       "spent_won": 0.0,
       "llm_calls": 2,
       "prompt_tokens": 4481,
       "completion_tokens": 375,
       "judge_tokens": 0,
-      "latency_s": 0.197
+      "latency_s": 0.214
      },
      {
       "question_id": "Q-108",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 3,
-      "spent_won": 0.0,
+      "request_cache_hits": 0,
+      "spent_won": 49.63,
       "llm_calls": 2,
-      "prompt_tokens": 3987,
-      "completion_tokens": 422,
-      "judge_tokens": 2210,
-      "latency_s": 0.018
+      "prompt_tokens": 4333,
+      "completion_tokens": 383,
+      "judge_tokens": 2354,
+      "latency_s": 10.114
      },
      {
       "question_id": "Q-109",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 1,
-      "spent_won": 0.0,
-      "llm_calls": 1,
-      "prompt_tokens": 2079,
-      "completion_tokens": 147,
+      "request_cache_hits": 0,
+      "spent_won": 32.83,
+      "llm_calls": 2,
+      "prompt_tokens": 4498,
+      "completion_tokens": 178,
       "judge_tokens": 0,
-      "latency_s": 0.013
+      "latency_s": 5.57
      },
      {
       "question_id": "Q-110",
@@ -104,31 +105,31 @@
       "prompt_tokens": 4465,
       "completion_tokens": 455,
       "judge_tokens": 2533,
-      "latency_s": 0.013
+      "latency_s": 0.016
      },
      {
       "question_id": "Q-111",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 2,
-      "spent_won": 0.0,
+      "request_cache_hits": 0,
+      "spent_won": 23.33,
       "llm_calls": 2,
-      "prompt_tokens": 2430,
-      "completion_tokens": 175,
+      "prompt_tokens": 3165,
+      "completion_tokens": 158,
       "judge_tokens": 0,
-      "latency_s": 0.018
+      "latency_s": 4.415
      },
      {
       "question_id": "Q-112",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 3,
-      "spent_won": 0.0,
+      "request_cache_hits": 0,
+      "spent_won": 35.63,
       "llm_calls": 2,
-      "prompt_tokens": 2711,
-      "completion_tokens": 356,
-      "judge_tokens": 1521,
-      "latency_s": 0.024
+      "prompt_tokens": 3067,
+      "completion_tokens": 325,
+      "judge_tokens": 1684,
+      "latency_s": 8.086
      },
      {
       "question_id": "Q-113",
@@ -140,7 +141,7 @@
       "prompt_tokens": 4618,
       "completion_tokens": 357,
       "judge_tokens": 0,
-      "latency_s": 0.03
+      "latency_s": 0.042
      },
      {
       "question_id": "Q-114",
@@ -164,7 +165,7 @@
       "prompt_tokens": 4125,
       "completion_tokens": 356,
       "judge_tokens": 0,
-      "latency_s": 0.025
+      "latency_s": 0.029
      },
      {
       "question_id": "Q-116",
@@ -176,35 +177,44 @@
       "prompt_tokens": 1295,
       "completion_tokens": 154,
       "judge_tokens": 0,
-      "latency_s": 0.009
+      "latency_s": 0.011
      },
      {
       "question_id": "Q-117",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 3,
-      "spent_won": 0.0,
+      "request_cache_hits": 0,
+      "spent_won": 49.74,
       "llm_calls": 2,
-      "prompt_tokens": 3603,
-      "completion_tokens": 290,
-      "judge_tokens": 2003,
-      "latency_s": 0.007
+      "prompt_tokens": 4372,
+      "completion_tokens": 318,
+      "judge_tokens": 2396,
+      "latency_s": 7.929
      },
      {
       "question_id": "Q-118",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 2,
-      "spent_won": 0.0,
+      "request_cache_hits": 0,
+      "spent_won": 30.64,
       "llm_calls": 2,
-      "prompt_tokens": 3741,
-      "completion_tokens": 319,
+      "prompt_tokens": 4113,
+      "completion_tokens": 251,
       "judge_tokens": 0,
-      "latency_s": 0.021
+      "latency_s": 6.511
      }
     ]
    }
-  }
+  },
+  "stale_parents": [
+   {
+    "path": "artifacts/ablation/v4/summary.json",
+    "stored_won": 4453.1,
+    "actual_won": 4674.9,
+    "gap_won": 221.8,
+    "prescription": "`--arm` 없이 코호트만 주는 재집계`(--offline)`로 artifacts/ablation/v4/summary.json 를 다시 쓴다 (LLM 0회 · 0원). 그 파일의 `spent_won` 은 하위 폴더를 포함하는 재귀 합이라 하위 코호트를 유료로 돌리면 반드시 낡는다."
+   }
+  ]
  },
  "summary": {
   "arms": {
@@ -273,7 +283,8 @@
      "substitute_verified": false,
      "provenance_gate": false,
      "regenerate_on_verify": false,
-     "nary": false
+     "nary": false,
+     "multi_hub": false
     },
     "golden_evidence_all": 0,
     "golden_evidence_hit": 0,
@@ -355,7 +366,8 @@
      "substitute_verified": true,
      "provenance_gate": false,
      "regenerate_on_verify": false,
-     "nary": false
+     "nary": false,
+     "multi_hub": false
     },
     "golden_evidence_all": 0,
     "golden_evidence_hit": 0,
@@ -437,7 +449,8 @@
      "substitute_verified": false,
      "provenance_gate": true,
      "regenerate_on_verify": true,
-     "nary": false
+     "nary": false,
+     "multi_hub": false
     },
     "golden_evidence_all": 0,
     "golden_evidence_hit": 0,
@@ -519,7 +532,8 @@
      "substitute_verified": false,
      "provenance_gate": true,
      "regenerate_on_verify": false,
-     "nary": false
+     "nary": false,
+     "multi_hub": false
     },
     "golden_evidence_all": 0,
     "golden_evidence_hit": 0,
@@ -527,6 +541,93 @@
     "golden_unreachable": 0,
     "golden_recall": {
      "hit": 34,
+     "denominator_raw": 46,
+     "unreachable": 3,
+     "unreachable_missed": 3,
+     "denominator_adjusted": 43,
+     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
+    },
+    "diagnostic": false,
+    "diagnostic_note": null
+   },
+   "A22": {
+    "correct": 0,
+    "n_scored": 0,
+    "rate": null,
+    "rate_reported": null,
+    "n_grid": 0,
+    "data_limit": 0,
+    "overall": 0.333,
+    "overall_correct": 4,
+    "overall_n_scored": 12,
+    "info_limit_correct": 0,
+    "info_limit_n": 0,
+    "hallucination": 0,
+    "tracks": {
+     "valuechain": {
+      "n": 12,
+      "n_scored": 12,
+      "correct": 4,
+      "rate": 0.333,
+      "data_limit": 0,
+      "stages": {
+       "RETRIEVAL": 4,
+       "TOOL": 2,
+       "GENERATION": 2
+      }
+     }
+    },
+    "tokens": 59387,
+    "arm_cost_won": 416.9,
+    "llm_calls": 23,
+    "latency_s_mean_recorded": 3.58,
+    "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+    "failures": {
+     "RETRIEVAL": 4,
+     "GENERATION": 2,
+     "TOOL": 2
+    },
+    "failures_all": {
+     "RETRIEVAL": 4,
+     "GENERATION": 2,
+     "TOOL": 2
+    },
+    "root_causes": {
+     "RETRIEVAL/MULTI_POINT_QUERY": 3,
+     "GENERATION/REASONING": 2,
+     "TOOL/TOOL": 2,
+     "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1
+    },
+    "citation_rate": 0.083,
+    "flags": {
+     "name": "A22",
+     "retrieval": "all",
+     "schema_fields": true,
+     "dense": false,
+     "hop_ladder": true,
+     "chain_hop": true,
+     "counterparty_hop": true,
+     "split_query": true,
+     "calc_values": true,
+     "verifier": true,
+     "followup_hop": true,
+     "meta_corp": true,
+     "meta_date": true,
+     "meta_group": true,
+     "golden_oracle": false,
+     "lean_rules": false,
+     "substitute_verified": false,
+     "provenance_gate": false,
+     "regenerate_on_verify": false,
+     "nary": false,
+     "multi_hub": true
+    },
+    "golden_evidence_all": 0,
+    "golden_evidence_hit": 0,
+    "golden_total": 0,
+    "golden_unreachable": 0,
+    "golden_recall": {
+     "hit": 35,
      "denominator_raw": 46,
      "unreachable": 3,
      "unreachable_missed": 3,
@@ -601,7 +702,8 @@
      "substitute_verified": false,
      "provenance_gate": false,
      "regenerate_on_verify": false,
-     "nary": true
+     "nary": true,
+     "multi_hub": false
     },
     "golden_evidence_all": 0,
     "golden_evidence_hit": 0,
@@ -642,6 +744,11 @@
       "n": 0,
       "rate": null
      },
+     "A22": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "A18": {
       "correct": 0,
       "n": 0,
@@ -669,6 +776,11 @@
       "n": 0,
       "rate": null
      },
+     "A22": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "A18": {
       "correct": 0,
       "n": 0,
@@ -692,6 +804,11 @@
       "rate": null
      },
      "A21": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A22": {
       "correct": 0,
       "n": 0,
       "rate": null
@@ -725,6 +842,11 @@
       "n": 0,
       "rate": null
      },
+     "A22": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "A18": {
       "correct": 0,
       "n": 0,
@@ -748,6 +870,11 @@
       "rate": null
      },
      "A21": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A22": {
       "correct": 0,
       "n": 0,
       "rate": null
@@ -781,6 +908,11 @@
       "n": 0,
       "rate": null
      },
+     "A22": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "A18": {
       "correct": 0,
       "n": 0,
@@ -804,6 +936,11 @@
       "rate": null
      },
      "A21": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A22": {
       "correct": 0,
       "n": 0,
       "rate": null
@@ -835,6 +972,11 @@
       "n": 0,
       "rate": null
      },
+     "A22": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
      "A18": {
       "correct": 0,
       "n": 0,
@@ -861,6 +1003,10 @@
      "correct": 0,
      "n": 0
     },
+    "A22": {
+     "correct": 0,
+     "n": 0
+    },
     "A18": {
      "correct": 0,
      "n": 0
@@ -883,6 +1029,10 @@
      "correct": 0,
      "n": 0
     },
+    "A22": {
+     "correct": 0,
+     "n": 0
+    },
     "A18": {
      "correct": 0,
      "n": 0
@@ -902,6 +1052,10 @@
      "n": 0
     },
     "A21": {
+     "correct": 0,
+     "n": 0
+    },
+    "A22": {
      "correct": 0,
      "n": 0
     },

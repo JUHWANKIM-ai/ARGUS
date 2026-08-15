@@ -774,7 +774,64 @@ def _counterparty_note(display: str, roster: str, n_partners: int) -> str:
     return f"- 발주처 관계: {display} 를 계약상대로 한 공시 상장사 {n_partners}곳 — {roster}"
 
 
-def _gather_counterparty(r, question: str, budget: Budget, trace: list[str], take) -> int:
+#: 🔴 **`A22` — 결속할 허브 상한 `W`.** 종전은 `W=1`(질문이 지목한 허브 하나)이다.
+#: 3 으로 못박은 이유는 실측이다 — 근거의 `계약상대:` 에서 나오는 후보가 밸류체인
+#: 문항에서 5~11개까지 나오는데(그 자체가 `Q-117` 의 갈래 수다), 전부 결속하면 스텝
+#: 상한 8을 먼저 먹고 근거가 두 배가 된다. 상한 없이 여는 것은 조작이 아니라 사고다.
+MAX_COUNTERPARTY_HUBS = 3
+#: 추가 허브 하나가 가져가는 근거 칸. 🔴 **첫 허브의 6칸을 나눠 쓰지 않는다** —
+#: 나누면 파트너 6인 노드에서 몫이 1 밑으로 떨어져 fan-in 문항이 깨진다
+#: (`_partner_quota` 독스트링의 Q-110 실측 2/6 → 5/6 이 그 값에 걸려 있다).
+MAX_EXTRA_HUB_EVIDENCE = 2
+
+#: 근거 블록의 `- 계약상대: …` 줄. `corpus/markdown.to_markdown` 이 `record["fields"]`
+#: 로 찍은 것과 **같은 서식**이라 정규식으로 추측하는 것이 아니다.
+_EVIDENCE_HUB_RE = re.compile(r"^-\s*계약상대\s*:\s*(.+?)\s*$", re.M)
+
+
+def _evidence_hubs(picked: list[dict], primary: str | None,
+                   companies: Sequence[str] = ()) -> list[str]:
+    """🔴 `A22` — **이미 담은 근거**의 `계약상대:` 필드에서 추가 허브를 뽑는다.
+    LLM 0회 · 검색 0회 · 스텝 0. canonical 이름을 **많이 나온 순 · 먼저 나온 순**으로.
+
+    질문이 아니라 근거에서 뽑는 것이 이 함수의 전부다. 라우터의 역할 결속
+    (`find_counterparty`)은 *질문 문장에서* 발주 방향을 읽는데, `R1-11 ①` 이 그 축을
+    넓히는 안을 **오탐 3건으로 기각**했다 (`Q-108` 은 두 회사가 다 공시한 쪽이라 결속하면
+    근거가 역방향으로 뒤집힌다). 근거의 `계약상대:` 는 **그 공시가 스스로 적은 상대**라
+    방향이 이미 확정돼 있어 그 기각과 충돌하지 않는다.
+
+    제동 셋:
+      ① 그래프 노드가 아닌 이름은 버린다 — `query_by_counterparty` 가 2회 미만 등장
+         상대를 거부하므로, 넘기면 스텝만 쓰고 `skip=tool_error` 가 된다
+      ② 비실명(`classify == "vague"`)은 버린다 — 같은 이유이고 사유가 다르다
+      ③ 🔴 `companies`(질문이 지목한 기업)는 버린다 — 그 회사는 이 질문에서 **공시한
+         쪽**일 수 있고, 그것을 허브로 세우는 것이 `R1-11 ①` 이 기각한 바로 그 조작이다.
+         질문이 지목한 허브(`primary`)는 라우터가 역할을 읽고 세운 것이라 예외다
+    """
+    from argus.corpus.counterparty import canonical, classify
+
+    nodes = set(router_module._counterparty_nodes())
+    blocked = {canonical(c) for c in companies if c}
+    if primary:
+        blocked.add(canonical(primary))
+    counts: dict[str, int] = {}
+    order: list[str] = []
+    for item in picked:
+        for raw in _EVIDENCE_HUB_RE.findall(item.get("markdown") or ""):
+            if classify(raw) == "vague":
+                continue
+            key = canonical(raw)
+            if key not in nodes or key in blocked:
+                continue
+            if key not in counts:
+                order.append(key)
+            counts[key] = counts.get(key, 0) + 1
+    return sorted(order, key=lambda k: (-counts[k], order.index(k)))
+
+
+def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[str],
+                         take, limit: int = MAX_COUNTERPARTY_EVIDENCE,
+                         prefer: Sequence[str] = ()) -> int:
     """발주처 그래프에서 파트너별 근거를 담는다. LLM 0회 · 스텝 1.
 
     `plan_hops` 사다리 **밖의 스텝 1개**다 (정정 체인 hop 과 같은 선례) — 재검색
@@ -783,28 +840,38 @@ def _gather_counterparty(r, question: str, budget: Budget, trace: list[str], tak
 
     `question` 은 **레인 안 정렬에만** 쓴다 (`_partner_order`). 후보 집합도 파트너
     목록도 질문과 무관하게 그래프가 정한다 — 질문이 바꾸는 것은 순서뿐이다.
+
+    🔴 `limit`·`prefer` 는 **`A22`(다중 허브) 전용 인자**다. 기본값이 종전 동작이고,
+    `W=1` arm 에서는 두 인자가 아무것도 안 바꾼다 (`limit` 은 종전 상한 그대로,
+    `prefer` 가 비면 파트너 순서가 그래프 순서 그대로다).
+    `prefer` 를 두는 이유는 실측 구조다 — 추가 허브는 칸이 2개뿐이라 파트너를 그래프
+    순서로 담으면 **질문이 부른 기업이 그 둘 안에 들어온다는 보장이 없다.** 추가 허브는
+    애초에 *그 기업들의 근거*에서 나온 것이므로 그 기업으로 되돌아가는 것이 정의에 맞다.
     """
     try:
         budget.spend_step()
     except BudgetExceeded as exc:
         trace.append(f"hop={COUNTERPARTY_HOP} stop=step_budget ({exc})")
         return 0
-    # 🔴 도구에 넘기는 이름은 **원문 표기**다. `r.counterparty` 는 canonical(공백·`·`·`,`·`.`
+    # 🔴 도구에 넘기는 이름은 **원문 표기**다. `hub` 는 canonical(공백·`·`·`,`·`.`
     # 제거 + 소문자)이고, `query_by_counterparty` 는 그 값을 `classify()` 에 넣는데
     # `ANON_COUNTERPARTY` 의 여러 대안이 **공백 경계에 의존한다** (`지역\s*선주` ·
     # `(?:^|\s)글로벌(?:\s|$)`). 실측: `classify('글로벌 기업')=vague` 인데
     # `classify(canonical('글로벌 기업'))='other'` — canonical 을 되먹이면 비실명 가드가
     # 빗나간다. 그래프 145 노드 전량 대조로 `canonical(display) == canonical` ·
     # `classify(display) != vague` 를 확인했으므로 조회 결과는 글자 하나 안 바뀐다.
-    name = router_module.counterparty_display(r.counterparty) or r.counterparty
+    name = router_module.counterparty_display(hub) or hub
     out = tools.execute("query_by_counterparty", {"name": name})
     if "error" in out:
         trace.append(f'hop={COUNTERPARTY_HOP} strat=counterparty '
-                     f'tool=query_by_counterparty via={r.counterparty} '
+                     f'tool=query_by_counterparty via={hub} '
                      f'skip=tool_error 건너뜀({out["error"]})')
         return 0
 
     partners = list(out.get("partners") or [])
+    if prefer:
+        wanted = [c for c in partners if c in set(prefer)]
+        partners = wanted + [c for c in partners if c not in set(wanted)]
     by_partner: dict[str, list[dict]] = {}
     for record in out.get("records") or []:
         by_partner.setdefault(record.get("corp_name"), []).append(record)
@@ -813,13 +880,12 @@ def _gather_counterparty(r, question: str, budget: Budget, trace: list[str], tak
     # 회사명만. **건수를 붙이지 않는다** — 사유는 `_counterparty_note` 독스트링에 있다
     # (정정본 포함 전역 집계가 답변에 `"총 47건"` 으로 새어 나간 기록이 있다).
     roster = " · ".join(partners)
-    note = _counterparty_note(out.get("counterparty") or r.counterparty,
-                              roster, len(partners))
+    note = _counterparty_note(out.get("counterparty") or hub, roster, len(partners))
 
     taken: list[str] = []
     for depth in range(_partner_quota(len(partners))):
         for corp in partners:
-            if len(taken) >= MAX_COUNTERPARTY_EVIDENCE:
+            if len(taken) >= limit:
                 break
             items = lanes[corp]
             if depth >= len(items):
@@ -830,7 +896,7 @@ def _gather_counterparty(r, question: str, budget: Budget, trace: list[str], tak
                 taken.append(record["doc_id"])
 
     trace.append(f'hop={COUNTERPARTY_HOP} strat=counterparty tool=query_by_counterparty '
-                 f'via={r.counterparty} partners={len(partners)} '
+                 f'via={hub} partners={len(partners)} '
                  f'corp="{",".join(partners) or "-"}" n={len(taken)} top_score=- '
                  f'ids={",".join(taken) or "-"}')
     return len(taken)
@@ -1526,6 +1592,9 @@ def _gather_evidence(r, question: str = "",
     # 차선을 완전히 나눠야 검색 경로가 종전과 비트 단위로 같다.
     cp_picked: list[dict] = []
     cp_seen: set[str] = set()
+    #: 발주처 차선이 최종 근거에 실을 수 있는 칸. `A22` 가 추가 허브를 결속할 때만
+    #: 허브당 `MAX_EXTRA_HUB_EVIDENCE` 씩 늘어난다 — `W=1` 에서는 종전 상수 그대로다.
+    cp_cap = MAX_COUNTERPARTY_EVIDENCE
 
     def _take(doc_id, markdown, score, corp) -> bool:
         if markdown and doc_id and doc_id not in seen:
@@ -1553,12 +1622,15 @@ def _gather_evidence(r, question: str = "",
         (`_chain_note`·`_counterparty_note` 가 피하려고 애쓴 사고의 다른 입구다).
         기록된 밸류체인 8건에서는 미발화다(중복으로 빠진 cp 레코드가 전부 상위 10 안에
         있었다). `picked` 가 10을 넘는 문항(Q-113 실측 14블록)에서 발화한다.
+
+        🔴 `cp_cap` 은 `A22` 가 **결속한 추가 허브 수만큼만** 늘어난다. 여기 상한을
+        `cp_picked` 전량으로 열면 허브가 셋일 때 발주처 근거가 18블록까지 부풀어
+        검색 근거를 프롬프트 뒤로 밀어낸다. `W=1` arm 에서는 종전 값 그대로다.
         """
         head = picked[:MAX_EVIDENCE]
         kept = {p["doc_id"] for p in head}
         extra = [p for p in cp_picked if p["doc_id"] not in kept]
-        return "\n\n".join(p["markdown"] for p in
-                           head + extra[:MAX_COUNTERPARTY_EVIDENCE])
+        return "\n\n".join(p["markdown"] for p in head + extra[:cp_cap])
 
     if not arm.uses_bm25:                      # A0 — 검색 없이 메타 프리필터만
         if _out_of_corpus_period(r, question):
@@ -1713,8 +1785,25 @@ def _gather_evidence(r, question: str = "",
     # 발주처 hop. 사다리 **밖의 스텝 1개**이고, 검색이 예산을 다 쓴 뒤에 남는 것으로만
     # 움직인다 (제동 ④). 순서를 뒤로 미뤄도 담기는 레코드는 같다 — 그래프 조회라
     # 검색 상태에 의존하지 않는다.
-    if getattr(r, "counterparty", None) and arm.counterparty_hop:
-        _gather_counterparty(r, question, budget, trace, _take_cp)
+    #
+    # 🔴 `A22`(`multi_hub`)만 허브를 둘 이상 결속한다. 플래그가 꺼져 있으면 아래는
+    # `hubs = [r.counterparty]` 한 칸이라 종전과 호출도 인자도 같다.
+    if arm.counterparty_hop:
+        primary = getattr(r, "counterparty", None)
+        hubs = [primary] if primary else []
+        if arm.multi_hub and len(hubs) < MAX_COUNTERPARTY_HUBS:
+            room = MAX_COUNTERPARTY_HUBS - len(hubs)
+            extra_hubs = _evidence_hubs(picked, primary, r.companies)[:room]
+            hubs += extra_hubs
+            cp_cap += MAX_EXTRA_HUB_EVIDENCE * len(extra_hubs)
+        for index, hub in enumerate(hubs):
+            # 첫 허브가 질문이 지목한 것이면 종전 상한·순서를 그대로 쓴다. 근거에서
+            # 나온 허브는 칸이 둘이고, 질문이 부른 기업을 파트너 앞줄에 세운다.
+            from_question = index == 0 and hub == primary
+            _gather_counterparty(
+                hub, question, budget, trace, _take_cp,
+                limit=MAX_COUNTERPARTY_EVIDENCE if from_question else MAX_EXTRA_HUB_EVIDENCE,
+                prefer=() if from_question else tuple(r.companies or ()))
 
     # 근거 절단은 체인을 먼저 살린다. 한화오션 잠수함은 검색 5건 + 체인 6건 = 11건이라
     # 도착 순서대로 자르면 **체인의 마지막 정정본**(=정답)이 잘려 나간다.

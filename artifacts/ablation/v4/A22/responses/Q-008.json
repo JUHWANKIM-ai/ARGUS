@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-008",
+ "response": {
+  "question_id": "Q-008",
+  "question": "두산퓨얼셀이 2024년 6월에 공시한 연료전지 시스템 공급계약 해지의 계약상대가 어디인지 근거와 함께 설명해줘.",
+  "retrieved_context": "## [기재정정] [공급계약 체결] 두산퓨얼셀 – 단일판매ㆍ공급계약체결 — 연료전지 시스템 공급 계약\n- 정정체인: 1/2 (원공시 · 대체됨)\n- 공시일: 2024-06-28 (접수번호 20240628800803)\n- 섹터: 신재생에너지\n- 계약금액: 400,000,000,000원 (4,000억원)\n- 계약상대: 두산에너빌리티㈜\n- 확정일: 2021-12-22\n- 공시유보: 경영상 비밀유지\n\n## [기재정정] [공급계약 체결] 두산퓨얼셀 – 단일판매ㆍ공급계약체결 — 연료전지 시스템 공급 계약\n- 정정체인: 2/2 (최신본)\n- 공시일: 2024-09-03 (접수번호 20240903800382)\n- 섹터: 신재생에너지\n- 계약금액: 154,600,000,000원 (1,546억원)\n- 매출액 대비: 33.48%\n- 계약상대: 두산에너빌리티㈜\n- 기간: 2021-12-22 ~ 2026-09-05 (4년 8개월)\n- 확정일: 2021-12-22\n\n## [공급계약 해지] 두산퓨얼셀 – 단일판매ㆍ공급계약 해지 — 연료전지 시스템 공급 계약\n- 공시일: 2024-06-03 (접수번호 20240603800359)\n- 섹터: 신재생에너지\n- 해지금액: 19,300,000,000원 (193억원)\n- 매출액 대비: 5.06%\n- 계약상대: Zhejiang Beisen Hydrogen Science & Technology Co., Ltd.\n- 확정일: 2024-05-31\n\n## [기재정정] [공급계약 체결] 우리기술 – 단일판매ㆍ공급계약체결\n- 발주처 관계: 두산에너빌리티 를 계약상대로 한 공시 상장사 3곳 — 두산퓨얼셀 · 우리기술 · 한전기술\n- 공시일: 2026-02-05 (접수번호 20260205901045)\n- 섹터: 원전\n- 계약금액: 6,860,611,947원 (69억원)\n- 매출액 대비: 10.86%\n- 계약상대: 두산에너빌리티(주)\n- 기간: 2024-11-15 ~ 2026-04-30 (1년 5개월)\n- 확정일: 2024-11-15\n\n## [기재정정] [공급계약 체결] 두산퓨얼셀 – 단일판매ㆍ공급계약체결 — 연료전지 시스템 공급 계약\n- 발주처 관계: Zhejiang Beisen Hydrogen Science & Technology Co., Ltd. 를 계약상대로 한 공시 상장사 1곳 — 두산퓨얼셀\n- 공시일: 2023-03-31 (접수번호 20230331802739)\n- 섹터: 신재생에너지\n- 계약금액: 19,300,000,000원 (193억원)\n- 매출액 대비: 5.06%\n- 계약상대: Zhejiang Beisen Hydrogen Science & Technology Co., Ltd.\n- 확정일: 2022-04-26",
+  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산퓨얼셀\" period=ym:202406 top_k=5 q=\"두산퓨얼셀 2024 월에 공시한 연료전지 시스템 해지 어디인지 근거 함께\" n=2 top_score=48.830 ids=exchange_20240603800359,exchange_20240628800803 | hop=5 strat=chain tool=get_history corp=\"두산퓨얼셀\" rcept=20240628800803 latest=20240903800382 chain_length=2 n=1 top_score=- ids=exchange_20240903800382 | hop=0 verdict=sufficient evidence=3 | hop=6 strat=counterparty tool=query_by_counterparty via=두산에너빌리티 partners=3 corp=\"두산퓨얼셀,우리기술,한전기술\" n=2 top_score=- ids=exchange_20240903800382,exchange_20260205901045 | hop=6 strat=counterparty tool=query_by_counterparty via=zhejiangbeisenhydrogenscience&technology partners=1 corp=\"두산퓨얼셀\" n=1 top_score=- ids=exchange_20230331802739 | generate tokens=1171+216 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거에서 확인할 수 있으며, 정확한 접수번호와 함께 인용되었습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=4 hops=0 llm=2 tokens=2506",
+  "answer": "두산퓨얼셀이 2024년 6월에 공시한 연료전지 시스템 공급계약 해지의 계약상대는 '**Zhejiang Beisen Hydrogen Science & Technology Co., Ltd.**'입니다.\n\n이를 뒷받침할 근거는 다음과 같습니다.\n\n- **[공급계약 해지]** 두산퓨얼셀 – 단일판매ㆍ공급계약 해지 — 연료전지 시스템 공급 계약\n  - 공시일: 2024-06-03 (접수번호 20240603800359)\n  - 계약상대: Zhejiang Beisen Hydrogen Science & Technology Co., Ltd.\n\n따라서, 두산퓨얼셀이 2024년 6월에 공시한 연료전지 시스템 공급계약의 상대방은 'Zhejiang Beisen Hydrogen Science & Technology Co., Ltd.'가 맞습니다.\n(근거: [공급계약 해지] 두산퓨얼셀 – 단일판매ㆍ공급계약 해지 — 연료전지 시스템 공급 계약, 2024-06-03, 20240603800359)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 1171,
+   "completion_tokens": 216,
+   "latency_s": 5.114,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 1074,
+   "completion_tokens": 45,
+   "latency_s": 1.505,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 2245,
+ "completion_tokens": 261,
+ "llm_calls": 2,
+ "latency_s": 6.817,
+ "ts": "2026-08-15T17:15:04"
+}

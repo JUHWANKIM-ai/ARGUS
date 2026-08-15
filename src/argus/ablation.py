@@ -297,9 +297,13 @@ META_UNREACHABLE_AXES = ("meta_corp", "meta_date", "meta_group")
 #: `_verify` 안에 있으므로 검증 단계가 꺼진 arm 에서는 코드가 도달하지 않는다.
 #: 🔴 `verifier -> regenerate_on_verify` 도 같다 — `A20r` 의 재생성은 `_verify` 가
 #: 결함을 찾은 **뒤에** 서므로 검증 단계가 꺼지면 재생성이 한 번도 안 돈다.
+#: 🔴 `counterparty_hop -> multi_hub` 도 구조적 의존이다 — `A22` 의 추가 허브는
+#: `_gather_evidence` 의 **발주처 차선 안**에서만 결속되므로, 그 hop 이 꺼진 arm
+#: (`A0`~`A7`·`L3`)에서 켜면 코드가 도달하지 않는다.
 FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     "chain_hop": ("followup_hop",),
     "calc_values": ("lean_rules",),
+    "counterparty_hop": ("multi_hub",),
     "verifier": ("substitute_verified", "provenance_gate", "regenerate_on_verify")}
 
 #: 🔴 `golden_oracle=True` 에서 **읽히지 않는** 축. 검색 차선을 통째로 골든 주입으로
@@ -316,7 +320,7 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
 #: 접수일 접두 · `group` 어느 것도 후보 집합을 안 바꾼다.
 ORACLE_UNREACHABLE_FLAGS = ("retrieval", "dense", "hop_ladder", "chain_hop",
                             "split_query", "counterparty_hop", "followup_hop",
-                            "meta_corp", "meta_date", "meta_group")
+                            "meta_corp", "meta_date", "meta_group", "multi_hub")
 
 
 @dataclass(frozen=True)
@@ -446,6 +450,24 @@ class Arm:
     #: `R0-1` 이 238건 중 새로 회수 가능 13건 · 그중 평가셋 골든 **0건**을 실측했고
     #: **Δ = 0 을 예측으로 박아 뒀다.** 그 예외임을 제안서 §7 이 명시해야 한다.
     nary: bool = False
+    #: 🔴 **`A22` 전용 — 다중 허브 결속 `W = 1 → 3`.** 참이면 `_gather_evidence` 가
+    #: 발주처 차선에서 허브를 **하나가 아니라 최대 셋** 결속한다. 추가 허브는 질문이
+    #: 아니라 **이미 담은 근거의 `- 계약상대:` 필드**에서 나온다.
+    #:
+    #: 🔴 **`Route.counterparty` 는 단수 그대로 둔다.** 계획서가 그것을 복수로 바꾸는
+    #: 안을 냈지만 `R1-9` 실측이 독자 `pipeline.py` 6곳 + 테스트 단언 약 25건을 셌고,
+    #: 무엇보다 라우터의 결속은 **질문에서 역할을 읽는** 축이라 `R1-11 ①` 이 오탐 3건으로
+    #: 이미 기각한 자리다(`test_disclosing_company_is_never_bound_as_counterparty`).
+    #: 근거의 `계약상대:` 는 **그 공시가 스스로 적은 상대**라 역할이 이미 확정돼 있고,
+    #: 그래서 이 arm 은 그 불변을 깨지 않고 축을 넓힌다.
+    #:
+    #: 🔴 **추가 허브는 자기 칸을 따로 쓴다** (`MAX_EXTRA_HUB_EVIDENCE`). 6칸을 나눠
+    #: 쓰면 첫 허브가 파트너당 1칸씩 담는 fan-in 문항(`Q-110` 실측 2/6 → 5/6)이 깨진다.
+    #:
+    #: 🔴 `counterparty_hop=False` 와는 함께 켤 수 없다 (`FLAG_DEPENDENCIES`).
+    #: 🔴 `ORACLE_UNREACHABLE_FLAGS` 에 **넣는다** — `_gather_golden` 은 발주처 차선을
+    #: 아예 안 탄다.
+    multi_hub: bool = False
 
     def __post_init__(self) -> None:
         if self.retrieval not in RETRIEVAL_MODES:
@@ -606,6 +628,24 @@ A20R = replace(A8, name="A20r", regenerate_on_verify=True, provenance_gate=True)
 #: **틀리면 238건 판정 전체를 재검토하라** (계획서 §9pre 의 어긋남 표).
 A18 = replace(A8, name="A18", nary=True)
 
+# --- A22 — 다중 허브 결속 `W=1→3` (사다리 밖 곁가지 · v4 신설) --------------------
+#: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 발주처 차선의 허브를 하나에서 최대 셋으로
+#: 넓힌다. 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** — `A20`·`A21`·`A18` 과 같은 곁가지다.
+#:
+#: 🔴 **이 arm 은 정답률을 올리지 않는다 — 근거 회수를 올린다.** 계획서 §4·§9pre 가
+#: 예측을 박아 뒀다: **뒤집기 0 · 근거 회수 +2**(`Q-108`·`Q-117`). 보고할 때 두 분모를
+#: 반드시 갈라야 한다(그리드 72 / 밸류체인 골든 46). 성적 표에 섞으면 "유료 arm 이
+#: 성적을 못 올렸다" 와 "근거를 더 가져왔다" 가 한 칸에서 상쇄된다.
+#:
+#: 🔴 겨냥 셋의 성격이 다르다:
+#:   `Q-107`  hop 은 이미 발화한다(`via=한국수력원자력` · partners=6). 단수라 **진짜
+#:            계약상대**(두산에너빌리티)를 허브로 못 잡는 것이 병목이다 (`R1-11 ②` 이관)
+#:   `Q-108`  `Route.counterparty` 가 **아예 None** 이라 hop 이 안 선다. 라우터 결속은
+#:            `R1-11 ①` 이 기각했고(두 회사가 다 공시한 쪽), 근거의 `계약상대:` 는 그
+#:            기각과 충돌하지 않는다
+#:   `Q-117`  열거 hop(`strat=enumerate`)이 서는데 갈래가 계약상대별이라 허브가 더 필요하다
+A22 = replace(A8, name="A22", multi_hub=True)
+
 #: 실행 순서는 **A8 부터 역순**이다 (§I-4b) — 가장 비싼 구성을 먼저 확보해야
 #: 중간에 예산이 끊겨도 최신 성능을 안다. A2 계열은 사다리를 다 확보한 뒤 맨 끝이다 —
 #: G1 불허로 A2 를 버려도 앞의 여덟 칸이 그대로 남아야 한다.
@@ -623,9 +663,11 @@ A18 = replace(A8, name="A18", nary=True)
 #: (`R0-1` 겨냥 0 · Δ=0 예측) 채택 후보 넷(`A8-lean`·`A20`·`A20r`·`A21`)을 먼저
 #: 확보한 뒤에 선다. 그래도 G1 미확정인 dense·진단 arm 보다는 앞이다 — 이쪽은
 #: **제안서 §7 의 논거**로 반드시 필요하고 저쪽은 아니다.
+#: 🔴 `A22` 는 `A21` 뒤 · `A18` 앞이다 — **밸류체인 근거 회수**를 올리는 arm 이라
+#: 겨냥 0 인 `A18` 보다 앞에 서야 정지선에 걸릴 때 잃는 것이 적다.
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
-             "A8-lean", "A20", "A20r", "A21", "A18", "A2F", "A2", "ORACLE")
+             "A8-lean", "A20", "A20r", "A21", "A22", "A18", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
 LADDER = ("A0", "A1", "A1b", "A4", "A5", "A6", "A7", "A8")
@@ -659,7 +701,7 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, L6, L7, L8,
-                         A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18)}
+                         A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은

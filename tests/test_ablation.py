@@ -2408,3 +2408,120 @@ def test_a8_lean_removes_only_the_money_rule_from_the_real_pipeline(monkeypatch)
     # ④ 뺀 것은 규칙 8·9 뿐이다 — 길이 차가 정확히 그 문자열이다.
     from argus.agent import prompts
     assert len(full_system) - len(lean_system) == len(prompts.MONEY_UNIT_RULE)
+
+
+# --- A22 — 다중 허브 결속 `W=1→3` (v4 신설) --------------------------------------
+# 🔴 이 arm 은 **정답률이 아니라 근거 회수**를 올린다. 그래서 여기 검사도 '정답' 이
+# 아니라 '허브가 실제로 몇 개 결속됐는가 · 근거 칸이 얼마나 늘었는가' 를 본다.
+#
+# 🔴 그리고 이 arm 이 깨면 안 되는 불변이 하나 있다 —
+# `test_router.py::test_disclosing_company_is_never_bound_as_counterparty`.
+# `R1-11 ①` 이 라우터 결속을 오탐 3건으로 기각한 자리이고, `A22` 는 **근거의
+# `계약상대:` 필드**에서 허브를 뽑아 그 기각을 비껴간다.
+
+MULTI_HUB_Q = "두산에너빌리티가 2025년 12월에 공시한 원자력 주기기 공급계약의 계약상대는 누구인가?"
+
+
+def test_a22_arm_differs_from_a8_by_exactly_the_multi_hub_flag():
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["A22"], f) != getattr(ablation.A8, f)]
+    assert diff == ["multi_hub"], diff
+    assert "A22" in ablation.SIDE_ARMS          # 사다리도 LOO 도 진단도 아니다
+    assert "A22" not in ablation.LADDER and "A22" not in ablation.LOO_REMOVED
+
+
+def test_multi_hub_cannot_be_on_without_the_counterparty_hop():
+    """🔴 추가 허브는 발주처 차선 **안**에서만 결속된다. 그 hop 이 꺼진 arm 에서 켜면
+    코드가 도달하지 않아 Δ 가 조용히 0 이 된다."""
+    assert "multi_hub" in ablation.FLAG_DEPENDENCIES["counterparty_hop"]
+    with pytest.raises(ValueError):
+        replace(ablation.A7, name="A7-multi", multi_hub=True)
+    with pytest.raises(ValueError):
+        replace(ablation.ORACLE, name="ORACLE-multi", multi_hub=True)
+
+
+def test_evidence_hubs_only_takes_graph_nodes_and_skips_the_question_side():
+    """허브 후보는 **근거의 `계약상대:`** 뿐이고, 셋을 버린다 —
+    질문이 지목한 허브(중복) · 질문이 지목한 기업(공시한 쪽일 수 있다) · 노드 아닌 이름."""
+    picked = [
+        {"markdown": "## 접수번호 1\n- 계약상대: 한국수력원자력(주)\n- 계약금액: 1원"},
+        {"markdown": "## 접수번호 2\n- 계약상대: 한국중부발전(주)\n- 계약금액: 2원"},
+        {"markdown": "## 접수번호 3\n- 계약상대: 두산에너빌리티\n- 계약금액: 3원"},
+        {"markdown": "## 접수번호 4\n- 계약상대: 글로벌 대형기업\n- 계약금액: 4원"},
+        {"markdown": "## 접수번호 5\n- 계약금액: 5원"},
+    ]
+    hubs = pipeline._evidence_hubs(picked, primary=None, companies=())
+    assert "한국수력원자력" in hubs and "한국중부발전" in hubs
+    assert not any("글로벌" in h for h in hubs), "비실명은 노드가 아니다"
+
+    # 질문이 지목한 허브는 이미 결속돼 있다 — 두 번 세지 않는다.
+    assert "한국수력원자력" not in pipeline._evidence_hubs(
+        picked, primary="한국수력원자력", companies=())
+    # 🔴 질문이 지목한 기업은 **공시한 쪽**일 수 있다 (`R1-11 ①` 의 기각 근거).
+    assert "두산에너빌리티" not in pipeline._evidence_hubs(
+        picked, primary=None, companies=("두산에너빌리티",))
+
+
+def test_evidence_hubs_orders_by_frequency_then_first_appearance():
+    picked = [{"markdown": "- 계약상대: 한국중부발전(주)"},
+              {"markdown": "- 계약상대: 한국수력원자력(주)"},
+              {"markdown": "- 계약상대: 한국수력원자력㈜"}]
+    assert pipeline._evidence_hubs(picked, None, ()) == ["한국수력원자력", "한국중부발전"]
+
+
+def _counterparty_lines(arm: str, question: str) -> list[str]:
+    with ablation.use(arm):
+        _, trace = pipeline._gather_evidence(route(question), question, Budget())
+    return [line for line in trace if "strat=counterparty" in line]
+
+
+def test_a22_binds_hubs_from_the_evidence_where_a8_binds_none():
+    """🔴 진짜 경로. 질문이 발주처를 지목하지 않아 `A8` 은 hop 이 아예 안 서는데,
+    `A22` 는 근거의 `계약상대:` 에서 허브를 찾아 선다."""
+    if not (_Path(__file__).resolve().parents[1]
+            / "artifacts/exchange_bm25.json").exists():
+        pytest.skip("검색 인덱스 산출물이 없다 (gitignore)")
+
+    assert route(MULTI_HUB_Q).counterparty is None, "이 문항은 라우터 결속이 없어야 한다"
+    assert _counterparty_lines("A8", MULTI_HUB_Q) == []
+    lines = _counterparty_lines("A22", MULTI_HUB_Q)
+    assert lines, "A22 가 근거에서 허브를 못 찾았다 — 조용한 no-op 이다"
+    assert len(lines) <= pipeline.MAX_COUNTERPARTY_HUBS, "W=3 상한이 안 걸렸다"
+
+
+def test_a22_never_exceeds_the_hub_cap_or_the_evidence_cap():
+    """🔴 회귀 방어 둘. 허브 수는 `W=3` 이하이고, 발주처 근거 칸은 첫 허브 6 +
+    추가 허브당 2 를 넘지 않는다 — 상한 없이 열면 검색 근거를 프롬프트 뒤로 민다."""
+    if not (_Path(__file__).resolve().parents[1]
+            / "artifacts/exchange_bm25.json").exists():
+        pytest.skip("검색 인덱스 산출물이 없다 (gitignore)")
+
+    import re
+
+    cap = (pipeline.MAX_COUNTERPARTY_EVIDENCE
+           + pipeline.MAX_EXTRA_HUB_EVIDENCE * (pipeline.MAX_COUNTERPARTY_HUBS - 1))
+    for question in (MULTI_HUB_Q, CHAIN_Q, HOLDING_Q, SPLIT_Q):
+        lines = _counterparty_lines("A22", question)
+        assert len(lines) <= pipeline.MAX_COUNTERPARTY_HUBS, (question, lines)
+        taken = sum(int(m.group(1)) for line in lines
+                    if (m := re.search(r"\bn=(\d+)", line)))
+        assert taken <= cap, (question, taken, cap)
+
+
+def test_w1_arms_call_the_counterparty_hop_with_the_old_arguments():
+    """🔴 `A22` 를 안 켠 arm 은 **호출 인자가 종전과 같아야** 한다 — 기본 인자가
+    움직이면 v1~v4 측정이 전부 무효다."""
+    seen = []
+
+    def _spy(hub, question, budget, trace, take, **kwargs):
+        seen.append((hub, kwargs))
+        return 0
+
+    question = "한국수력원자력이 발주한 계약을 공시한 상장사는?"
+    assert route(question).counterparty == "한국수력원자력"
+    with ablation.use("A8"), pytest.MonkeyPatch.context() as mp:
+        mp.setattr(pipeline, "_gather_counterparty", _spy)
+        pipeline._gather_evidence(route(question), question, Budget())
+    assert len(seen) == 1, seen
+    assert seen[0] == ("한국수력원자력", {"limit": pipeline.MAX_COUNTERPARTY_EVIDENCE,
+                                        "prefer": ()})

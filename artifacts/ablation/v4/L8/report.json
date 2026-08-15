@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-15T16:57:45",
+ "generated": "2026-08-15T17:18:21",
  "split": "dev",
  "cohort": "full",
  "n_cases": 88,
@@ -479,7 +479,7 @@
  "arm_allocation_reconciliation": {
   "authoritative": "manual",
   "note": "자동 분류기는 A5 를 구조적으로 못 본다 — `verify_calculation` 이 답변 수치 중 최유리 값을 골라 비교하므로 10× 단위환산 오류가 `mismatch=False` 로 통과하고, TOOL 버킷이 그리드에서 0건이 된다. arm 확정은 원문 대조(`TARGETED_BY_MANUAL_REVIEW`)의 몫이다.",
-  "denominator_note": "자동 = 그리드만 22건 · 수동 = 전 트랙 6건",
+  "denominator_note": "자동 = 그리드만 22건 · 수동 = 전 트랙 7건",
   "by_arm": [
    {
     "arm": "A4",
@@ -491,7 +491,7 @@
     "arm": "A5",
     "auto_grid": 3,
     "auto_all_tracks": 3,
-    "manual_all_tracks": 2
+    "manual_all_tracks": 3
    },
    {
     "arm": "A6",
@@ -590,7 +590,7 @@
     "track": "grid",
     "bucket": "GENERATION/REASONING",
     "auto_arm": "A4",
-    "manual_arm": "—",
+    "manual_arm": "A5",
     "agree": false,
     "critic_passed_wrong_answer": true
    },
@@ -819,7 +819,7 @@
     "track": "grid",
     "bucket": "GENERATION/REASONING",
     "auto_arm": "A4",
-    "manual_arm": "—",
+    "manual_arm": "A5",
     "agree": false,
     "critic_passed_wrong_answer": true
    },
@@ -9205,6 +9205,7 @@
   "substitute_verified": false,
   "provenance_gate": false,
   "regenerate_on_verify": false,
-  "nary": false
+  "nary": false,
+  "multi_hub": false
  }
 }

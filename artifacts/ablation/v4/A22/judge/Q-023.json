@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-023",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출 답변은 모범답안의 일부 정보만을 포함하고 있으며, 정정 과정에 대한 전체적인 설명을 누락하였습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 2253,
+   "completion_tokens": 48,
+   "latency_s": 1.575,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 2253,
+ "completion_tokens": 48
+}
