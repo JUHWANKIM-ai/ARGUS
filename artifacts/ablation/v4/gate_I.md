@@ -1,6 +1,6 @@
 # Phase I — Ablation v2 결과 (게이트 I)
 
-생성 2026-08-15 13:45 · 자동 생성물 (`scripts/ablation.py --report`) · **LLM 0회 재생성 가능**
+생성 2026-08-15 15:27 · 자동 생성물 (`scripts/ablation.py --report`) · **LLM 0회 재생성 가능**
 
 실측 단가 7.02원/1K · 코호트 `full` **88문항** (dev 78 + 회귀 10) · 모델 HCX-005 · 온도 0.0
 

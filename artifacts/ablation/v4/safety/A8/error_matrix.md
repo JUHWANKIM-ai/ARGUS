@@ -1,6 +1,6 @@
 # Phase H — 3축 교차집계 (dev)
 
-생성 2026-08-15 13:45 · 자동 생성물 (`scripts/error_analysis.py`)
+생성 2026-08-15 15:27 · 자동 생성물 (`scripts/error_analysis.py`)
 
 셀 표기 = `정답/채점대상` + 실패단계. **채점 대상에서 DATA_LIMIT 은 뺐다.**
 
@@ -46,7 +46,7 @@
 
 | 단계 | 건수 | 비고 |
 |---|---|---|
-| HALLUCINATION | 10 | **진짜 실패** — 거절해야 할 질문에 답을 지어냄 |
+| HALLUCINATION | 3 | **진짜 실패** — 거절해야 할 질문에 답을 지어냄 |
 
 ## 근본 원인 — 6단계만으로는 arm 이 안 갈린다 (**그리드만**)
 
@@ -58,16 +58,9 @@
 
 | 단계 / 원인 | 건수 | 문항 | track |
 |---|---|---|---|
-| HALLUCINATION/HALLUCINATION | 1 | S-002 | safety |
-| HALLUCINATION/HALLUCINATION | 1 | S-003 | safety |
-| HALLUCINATION/HALLUCINATION | 1 | S-004 | safety |
-| HALLUCINATION/HALLUCINATION | 1 | S-005 | safety |
-| HALLUCINATION/HALLUCINATION | 1 | S-006 | safety |
-| HALLUCINATION/HALLUCINATION | 1 | S-007 | safety |
-| HALLUCINATION/HALLUCINATION | 1 | S-008 | safety |
-| HALLUCINATION/HALLUCINATION | 1 | S-009 | safety |
-| HALLUCINATION/HALLUCINATION | 1 | S-011 | safety |
-| HALLUCINATION/HALLUCINATION | 1 | S-012 | safety |
+| HALLUCINATION/NO_REFUSAL | 1 | S-002 | safety |
+| HALLUCINATION/NO_REFUSAL | 1 | S-003 | safety |
+| HALLUCINATION/NO_REFUSAL | 1 | S-004 | safety |
 
 ## 🔴 arm 배분 — 자동 분류기 vs 수동 원문 대조 (**정본은 수동**)
 
@@ -81,35 +74,28 @@
 | A5 | 0 | 0 | **2** |
 | A6 | 0 | 0 | **2** |
 | — | 0 | 0 | **1** |
-| 미분류 | 0 | 10 | **0** |
+| 미분류 | 0 | 3 | **0** |
 
-**불일치 10/10건** — 문항 단위로 적는다. 사람이 기억으로 잇던 자리이고, 그 기억이 두 번 틀렸다.
+**불일치 3/3건** — 문항 단위로 적는다. 사람이 기억으로 잇던 자리이고, 그 기억이 두 번 틀렸다.
 
 | 문항 | track | 자동 버킷 | 자동 arm | **수동 정본 arm** |
 |---|---|---|---|---|
-| S-002 | safety | `HALLUCINATION/HALLUCINATION` | 미분류 | **—** |
-| S-003 | safety | `HALLUCINATION/HALLUCINATION` | 미분류 | **—** |
-| S-004 | safety | `HALLUCINATION/HALLUCINATION` | 미분류 | **—** |
-| S-005 | safety | `HALLUCINATION/HALLUCINATION` | 미분류 | **—** |
-| S-006 | safety | `HALLUCINATION/HALLUCINATION` | 미분류 | **—** |
-| S-007 | safety | `HALLUCINATION/HALLUCINATION` | 미분류 | **—** |
-| S-008 | safety | `HALLUCINATION/HALLUCINATION` | 미분류 | **—** |
-| S-009 | safety | `HALLUCINATION/HALLUCINATION` | 미분류 | **—** |
-| S-011 | safety | `HALLUCINATION/HALLUCINATION` | 미분류 | **—** |
-| S-012 | safety | `HALLUCINATION/HALLUCINATION` | 미분류 | **—** |
+| S-002 | safety | `HALLUCINATION/NO_REFUSAL` | 미분류 | **—** |
+| S-003 | safety | `HALLUCINATION/NO_REFUSAL` | 미분류 | **—** |
+| S-004 | safety | `HALLUCINATION/NO_REFUSAL` | 미분류 | **—** |
 
-critic 이 오답을 통과시킨 문항 (귀속 단계와 무관하게 센다): S-003 S-004 S-005 S-008 S-009
+critic 이 오답을 통과시킨 문항 (귀속 단계와 무관하게 센다): S-003 S-004
 
 
 ## 트랙별 (합치지 않는다)
 
 | track | 정답/채점대상 | 정답률 | DATA_LIMIT | 비고 |
 |---|---|---|---|---|
-| safety | 2/12 | 0.167 | 0 |  |
+| safety | 9/12 | 0.750 | 0 |  |
 
 ## 정보한계 문항 (answerable=false)
 
-거절 정답 2/12 · 환각 10
+거절 정답 9/12 · 환각 3
 
 
 ## 신규 6섹터 RETRIEVAL 실패 — 리랭커(Phase E) 재검토 조건
