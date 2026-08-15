@@ -1805,6 +1805,133 @@ def assert_not_v1_root(out_dir: Path, what: str) -> None:
         "v1 `gate_I.md` 를 다시 만들려면 `python scripts/ablation_report.py` 입니다.")
 
 
+# --- v4 R3. 전 세대 재채점 — 🔴 **LLM 0회 · 얼린 세대를 읽기만 한다** ------------
+# 채점기를 고치면 v1·v2·v3·v4 의 비교가 전부 깨진다. 그래서 **같은 저장 응답에 새
+# 채점기를 태워** 채점기 전/후를 나란히 낸다. judge 를 다시 부르지 않는다 — 저장된
+# judge 판정(`judge/*.json`)을 그대로 읽고, 그 위에 결정적 검사만 얹는다.
+#
+# 🔴 **얼린 세대에 쓰지 않는다.** `v1`·`v2`·`v3` 의 `report.json` 은 물증이므로
+# 손대지 않고, 결과는 **`--out` 아래 한 파일**로만 나간다.
+
+#: 재채점에서 제외한다. heldout 응답 폴더는 **열지 않는다** — 2회 소진된 자산이다.
+RESCORE_SKIP_DIRS = frozenset({"A6_heldout_run", "A8_heldout_run", "heldout", "cache"})
+
+#: (판 이름, 폴더). `v1` 은 `artifacts/ablation` 자신이다.
+RESCORE_GENERATIONS = ("v1", "v2", "v3", "v4")
+
+#: 하위 코호트 폴더 -> 코호트 이름. 빈 문자열은 판 폴더 자신(= `full`)이다.
+RESCORE_SUBDIRS = (("", "full"), ("vc", "valuechain"), ("safety", "safety"))
+
+
+def rescore_targets() -> list[tuple[str, Path, str]]:
+    """재채점할 `(판, arm 폴더, 코호트)`. 응답 폴더가 있는 것만 센다."""
+    base_v1 = ROOT / "artifacts" / "ablation"
+    out: list[tuple[str, Path, str]] = []
+    for gen in RESCORE_GENERATIONS:
+        base = base_v1 if gen == "v1" else base_v1 / gen
+        if not base.exists():
+            continue
+        for sub, cohort in RESCORE_SUBDIRS:
+            root = base / sub if sub else base
+            if not root.exists():
+                continue
+            for arm in sorted(p for p in root.iterdir() if p.is_dir()):
+                if arm.name in RESCORE_SKIP_DIRS or not (arm / "responses").exists():
+                    continue
+                out.append((gen, arm, cohort))
+    return out
+
+
+def rescore_all(records: dict) -> list[dict]:
+    """전 세대를 새 채점기로 다시 채점한다. **LLM 0회.**
+
+    `published` 는 얼린 `report.json` 이 들고 있는 수(= 채점기 전)이고, `grid`·`overall`
+    은 지금 채점기가 낸 수(= 채점기 후)다. 🔴 **조정값만 남기지 않는다** — 두 수를
+    같은 행에 싣고, 뒤집힌 문항 목록까지 붙인다.
+    """
+    saved = (ea.RESPONSE_DIR, ea.JUDGE_DIR)
+    cohorts: dict[str, list[dict]] = {}
+    rows_out: list[dict] = []
+    try:
+        for gen, arm_dir, cohort in rescore_targets():
+            if cohort not in cohorts:
+                cohorts[cohort] = ea.load_cohort(cohort)
+            cases = cohorts[cohort]
+            ea.RESPONSE_DIR = arm_dir / "responses"
+            ea.JUDGE_DIR = arm_dir / "judge"
+            rows = ea.analyse(cases, records)
+            if not rows:
+                continue
+            published = {}
+            report_path = arm_dir / "report.json"
+            if report_path.exists():
+                crosstab = json.loads(
+                    report_path.read_text(encoding="utf-8")).get("crosstab", {})
+                published = {"grid": crosstab.get("grid_overall", {}),
+                             "overall": crosstab.get("overall", {})}
+            rows_out.append({
+                "generation": gen,
+                "arm": arm_dir.name,
+                "cohort": cohort,
+                "path": _short(arm_dir),
+                "n_analysed": len(rows),
+                "before": published,
+                "after": {"grid": _grid_rate(rows), "overall": ea._rate(rows),
+                          "cohort": _cohort_rate(rows, cohort)},
+                "scorer_r3": ea.scorer_r3_summary(rows),
+                "wrong": sorted(r["question_id"] for r in rows
+                                if not r["correct"] and r["first_failure"] != ea.DATA_LIMIT),
+            })
+    finally:
+        ea.RESPONSE_DIR, ea.JUDGE_DIR = saved
+    return rows_out
+
+
+def render_rescore(rows: list[dict]) -> str:
+    """채점기 전/후를 **나란히** 낸 표. 떨어진 칸에 🔴 를 찍는다."""
+    out = ["# v4 `R3` — 전 세대 재채점 (채점기 전/후)", "",
+           "🔴 **LLM 0회 · 크레딧 0원.** 저장 응답과 저장 judge 판정을 그대로 읽고 "
+           "결정적 검사만 새로 얹었다.", "",
+           "`before` 는 얼린 `report.json` 의 수(채점기 전)이고 `after` 는 이 채점기가 "
+           "낸 수다. 얼린 세대는 **수정하지 않았다**.", "",
+           "🔴 **분모에 라벨을 붙인다** — `그리드` 는 72(v1 은 36)이고 `전체` 는 그 판의 "
+           "코호트 전량(full=88 · valuechain=12 · safety=12)이다.", "",
+           "| 판 | arm | 코호트 | 그리드 전 | 그리드 후 | Δ | 전체 전 | 전체 후 | Δ |",
+           "|---|---|---|---:|---:|---:|---:|---:|---:|"]
+    for row in rows:
+        before, after = row["before"], row["after"]
+        bg, ag = before.get("grid") or {}, after["grid"]
+        bo, ao = before.get("overall") or {}, after["overall"]
+        def cell(rate):
+            n = rate.get("n_scored")
+            return f'{rate.get("correct")}/{n}' if n else "—"
+        def delta(old, new):
+            if old.get("correct") is None or not new.get("n_scored"):
+                return "—"
+            d = new["correct"] - old["correct"]
+            return "0" if d == 0 else (f"🔴 {d}" if d < 0 else f"+{d}")
+        out.append(f'| {row["generation"]} | `{row["arm"]}` | {row["cohort"]} '
+                   f'| {cell(bg)} | {cell(ag)} | {delta(bg, ag)} '
+                   f'| {cell(bo)} | {cell(ao)} | {delta(bo, ao)} |')
+    flipped = sorted({q for row in rows for q in row["scorer_r3"]["a19_overridden"]})
+    out += ["", "## `A19` 가 뒤집은 문항 (judge 통과 → 결정적 검사가 기각)", "",
+            ("· ".join(f"`{q}`" for q in flipped) if flipped else "없다"), ""]
+    return "\n".join(out) + "\n"
+
+
+def run_rescore(out_dir: Path) -> list[dict]:
+    """재채점을 돌리고 `--out` 아래에 결과를 남긴다. 얼린 세대는 안 건드린다."""
+    assert_not_v1_root(out_dir, "재채점 산출물")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    rows = rescore_all(ea._load_records())
+    (out_dir / "rescore.json").write_text(
+        json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
+    (out_dir / "rescore.md").write_text(render_rescore(rows), encoding="utf-8")
+    print(render_rescore(rows))
+    print(f'재채점 {len(rows)} arm · 산출물 {_short(out_dir / "rescore.md")} · LLM 0회')
+    return rows
+
+
 def _grid_rate(rows: list[dict], wanted: set[str] | None = None) -> dict:
     sub = [r for r in ea.grid_rows(rows) if wanted is None or r["question_id"] in wanted]
     return ea._rate(sub)
@@ -2888,6 +3015,9 @@ def main(argv: list[str] | None = None) -> None:
                         help="arm 폴더의 부모. 비면 artifacts/ablation (v1 자리)")
     parser.add_argument("--report", action="store_true",
                         help="게이트 I 보고서만 생성한다 (LLM 0회 · 크레딧 0원)")
+    parser.add_argument("--rescore", action="store_true",
+                        help="🔴 전 세대를 현재 채점기로 다시 채점해 전/후를 나란히 낸다 "
+                             "(LLM 0회 · 크레딧 0원 · 얼린 세대는 읽기만 한다)")
     parser.add_argument("--budget-won", "--budget", dest="budget_won", type=float,
                         default=None,
                         help="상한(원). 러너는 그 80%%(=정지선)에서 멈춘다")
@@ -2926,6 +3056,11 @@ def main(argv: list[str] | None = None) -> None:
     if args.report:
         assert_not_v1_root(OUT_DIR, "게이트 보고서")
         write_gate_report(OUT_DIR, budget_cap)
+        return
+
+    if args.rescore:
+        # 🔴 LLM 0회. 캐시를 설치하지 않는다 — 호출 경로 자체를 안 탄다.
+        run_rescore(OUT_DIR)
         return
 
     if args.retrieval:

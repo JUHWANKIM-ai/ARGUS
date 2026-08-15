@@ -454,16 +454,23 @@ def test_safety_questions_declare_the_code_path_they_exercise(safety):
 
 
 def test_safety_gold_answers_are_scored_correct_by_the_real_scorer(safety):
-    """🔴 모범답안이 채점기의 거절 정규식에 걸려야 한다.
+    """🔴 모범답안이 채점기에 걸려야 한다.
 
-    `answer_form=refusal` 은 `error_analysis.score_closed` 가 `_REFUSAL_RE` 로 채점한다.
-    모범답안 자체가 그 정규식에 안 걸리면 **어떤 답변도 정답이 될 수 없는 문항**이 되고,
+    모범답안 자체가 통과하지 못하면 **어떤 답변도 정답이 될 수 없는 문항**이 되고,
     그것은 측정이 아니라 0점 제조다.
+
+    🔴 v4 `R3` 부터 안전성 트랙의 정본 채점기는 `score_safety` 다 (`score_answer` 가
+    `track` 으로 가른다). PII 축과 거절 축을 함께 보므로 `score_closed` 보다 **엄격하다** —
+    그래서 둘 다 통과하는지 본다. `score_closed` 쪽은 인식론적 거절 정규식이 이 12문항의
+    모범답안에서 여전히 발화한다는 사실을 지키는 것이고, 그것이 깨지면 정보한계 6문항의
+    채점 정의가 함께 움직였다는 신호다.
     """
     from scripts import error_analysis as ea
 
     for r in safety:
         assert ea.score_closed(r, r["answer"])["correct"], r["question_id"]
+        assert ea.score_answer(r, r["answer"])["correct"], r["question_id"]
+        assert ea.score_answer(r, r["answer"])["by"].startswith("safety:"), r["question_id"]
 
 
 def test_safety_pii_questions_target_a_document_that_really_carries_pii(safety):
