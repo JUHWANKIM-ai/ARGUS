@@ -75,6 +75,7 @@ import re
 import statistics
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1968,8 +1969,1083 @@ def resolve_budget_cap(meta: dict, cli_cap: float) -> tuple[float, str, str]:
     return float(from_meta), "summary.json `meta.budget_won`", note
 
 
+# --- 게이트 I 보고서 — 절별 순수 함수 ------------------------------------------
+# 🔴 **한 함수가 933줄이었다** (v4 B1 이전). 중첩 헬퍼가 0개이고 `# --- N.` 주석
+#    으로만 열일곱 절이 갈려 있어서 **읽을 수도 절 단위로 테스트할 수도 없었다.**
+#    그 주석 경계를 그대로 함수 경계로 삼아 갈랐다 — 절 본문은
+#    `o.append(` -> `out.append(` 말고 **한 글자도 안 바뀌었다.**
+#
+#    🔴 합격 조건은 미학이 아니라 **바이트**다. v2·v3·v4 세 root 를 쪼개기
+#    전후로 렌더해 sha256 이 같은 것을 확인했고, 그 대조를
+#    `tests/test_ablation.py::test_the_gate_report_is_assembled_from_section_functions`
+#    가 절 목록·순서·순수성으로 고정한다.
+#
+#    절 사이의 상태 흐름은 AST 로 전수 조사했다. 전 열일곱 절이 읽는 것은
+#    **머리말이 만든 값뿐**이고(`_GateContext`), 예외가 딱 하나다 —
+#    `9b` 가 `9` 의 `targeted`·`idx` 를 읽는다. 그것만 인자로 넘긴다.
+
+
+@dataclass(frozen=True)
+class _GateContext:
+    """`render_gate` 머리말이 한 번 계산해 절 함수들에 나눠 주는 값.
+
+    🔴 **얼려 둔다.** 절이 이 값을 고치면 뒤 절의 표가 조용히 달라지고,
+    게이트 문서는 그 사실을 드러낼 방법이 없다 (숫자만 남는다).
+    """
+    root: Path
+    budget_cap: float
+    budget_source: str
+    budget_note: str
+    reports: dict
+    ladder: list[str]
+    loo: list[str]
+    diag: list[str]
+    side: list[str]
+    full: str
+    summary: dict
+    arms: dict
+    spend: dict
+    meta: dict
+    vc: dict
+    vc_diag: list[str]
+    held: dict | None
+
+
+def _gate_arm_flags(c: _GateContext) -> list[str]:
+    """§0. arm 구성 — 켠 것이 실제로 켜졌는가. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    arms, diag, ladder, loo, side = c.arms, c.diag, c.ladder, c.loo, c.side
+
+    # --- 0. arm 구성 확인 — 무엇이 실제로 켜졌는가 ---
+    out.append("\n## 0. arm 구성 — 켠 것이 실제로 켜졌는가\n")
+    out.append("Δ 를 읽기 전에 스위치를 확인한다. **끈 줄 알았는데 안 꺼진 것**이 "
+             "가장 비싼 실패다 (Δ 가 0 으로 나오고 우리는 그것을 '기여 없음' 으로 읽는다).\n")
+    flags = [f for f in ablation.FLAG_NAMES if f != "dense"]
+    out.append("| arm | " + " | ".join(f"`{f}`" for f in flags) + " |")
+    out.append("|---|" + "---|" * len(flags))
+    for arm in ladder + loo + side + diag:
+        cells = []
+        for f in flags:
+            value = arms[arm]["flags"].get(f)
+            cells.append(str(value) if isinstance(value, str)
+                         else ("✓" if value else "✗"))
+        out.append(f"| **{arm}**{' 🔬' if arm in diag else ''} | "
+                 + " | ".join(cells) + " |")
+    if diag:
+        out.append(f'\n🔬 = 진단 arm (`{"`·`".join(diag)}`). **성적이 아니다** — 평가 시점에 '
+                 "없는 정보(골든 근거)를 쓰므로 제출 구성이 될 수 없다. 스위치 표에만 "
+                 "싣고 누적 곡선·LOO 표에는 넣지 않는다 (`ablation.DIAGNOSTIC_ARMS`).\n")
+    out.append("\n🔴 **`A7` 은 플래그가 A6 과 같다** — 거절 강제·시점 지정은 무조건 실행되는 "
+             "코드이고(`router.missing_named_report` · `pipeline._as_of_ym`) 플래그로 끌 수 "
+             "없다. 그래서 사다리의 `Δ(A6→A7)` 은 **측정값이 아니라 정의상 0** 이다. "
+             "A7 의 실효는 §I-5d 가 42문항 코호트로 이미 쟀다 (grid +2.8%p · 환각 1→0).\n")
+    out.append("🔴 **`L3` 은 플래그가 A7 과 같다** (`A8 − counterparty_hop = A7`). "
+             "두 수는 부호만 다른 같은 값이어야 하고, 아니면 어딘가 틀렸다.\n")
+
+    return out
+
+
+def _gate_cost(c: _GateContext) -> list[str]:
+    """§1. arm 별 비용 실측. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    budget_cap = c.budget_cap
+    budget_note = c.budget_note
+    budget_source = c.budget_source
+    diag = c.diag
+    held = c.held
+    ladder = c.ladder
+    loo = c.loo
+    meta = c.meta
+    reports = c.reports
+    root = c.root
+    side = c.side
+    spend = c.spend
+    vc = c.vc
+    vc_diag = c.vc_diag
+
+    # --- 1. 비용 ---
+    out.append("\n## 1. arm 별 비용 실측\n")
+    out.append("`arm 비용` = 그 arm 을 혼자 돌렸을 때의 실측 usage 합 (캐시 적중 포함). "
+             "`신규 지출` = 요청 캐시가 못 막아 **이번에 결제된** 몫.\n")
+    out.append("| arm | LLM 호출 | prompt | completion | judge | 총 토큰 | arm 비용(원) | 신규 지출(원) |")
+    out.append("|---|---|---|---|---|---|---|---|")
+    arm_sum = 0.0
+    for arm in ladder + loo + side + diag:
+        t = reports[arm]["totals"]
+        arm_sum += t["cost_won"]
+        fresh = spend["per_arm"].get(arm)
+        out.append(f'| {arm}{" 🔬" if arm in diag else ""} | {t["llm_calls"]} '
+                 f'| {t["prompt_tokens"]:,} '
+                 f'| {t["completion_tokens"]:,} | {t["judge_tokens"]:,} '
+                 f'| {t["total_tokens"]:,} | {t["cost_won"]:,.1f} '
+                 f'| {"—" if fresh is None else f"{fresh:,.1f}"} |')
+    vc_runs = (spend_from_runs(root / "vc")["per_arm"]
+               if (root / "vc").exists() else {})
+    for arm, report in vc.items():
+        t = report["totals"]
+        fresh = vc_runs.get(arm)
+        out.append(f'| {arm}{" 🔬" if arm in vc_diag else ""}/밸류체인 (12문항) '
+                 f'| {t["llm_calls"]} | {t["prompt_tokens"]:,} '
+                 f'| {t["completion_tokens"]:,} | {t["judge_tokens"]:,} '
+                 f'| {t["total_tokens"]:,} | {t["cost_won"]:,.1f} '
+                 f'| {"—" if fresh is None else f"{fresh:,.1f}"} |')
+        arm_sum += t["cost_won"]
+    # 🔴 heldout 도 이 폴더 안에서 결제됐으므로 `spend["won"]`(재귀 합)에 이미 들어 있다.
+    #    표에 행을 안 내면 `arm_sum` 만 빠져서 "캐시가 막은 금액" 이 그만큼 작게 찍힌다
+    #    (heldout 은 캐시 적중 0 이라 막은 금액에 기여가 없어야 한다).
+    held_report = _load_report(root / "heldout", f'{held["arm"]}_heldout_run') if held else None
+    if held_report:
+        t = held_report["totals"]
+        out.append(f'| {held["arm"]}/heldout (18문항 · §14) | {t["llm_calls"]} '
+                 f'| {t["prompt_tokens"]:,} | {t["completion_tokens"]:,} '
+                 f'| {t["judge_tokens"]:,} | {t["total_tokens"]:,} '
+                 f'| {t["cost_won"]:,.1f} | {held["spent_won"] or 0:,.1f} |')
+        arm_sum += t["cost_won"]
+    # `spend` 는 재귀 합이므로 밸류체인·heldout 몫이 이미 들어 있다 — 다시 더하면 이중계상이다.
+    total_spend = spend["won"]
+    out.append(f'| **합계 (캐시 없었다면)** | | | | | | **{arm_sum:,.0f}** | |')
+    out.append(f'| **실제 결제 (하위 코호트 포함)** | | | | | | | **{total_spend:,.1f}** |')
+    if held_report:
+        out.append(f'\n🔴 **사다리 실행분과 heldout 을 갈라 읽는다.** 위 총액 '
+                 f'{total_spend:,.1f}원 = 사다리·LOO·밸류체인 '
+                 f'{total_spend - (held["spent_won"] or 0):,.1f}원 + heldout '
+                 f'{held["spent_won"] or 0:,.1f}원(§14). 앞엣것이 Ablation v2 측정 비용이고, '
+                 "뒤엣것은 **최종 1회** 몫이라 회계가 다르다.\n")
+    # 🔴 `summary.json` 과 이 표가 맞는지 **여기서 검산한다.** 예전에는 "그 파일은
+    #    heldout 이전 값이다" 를 문장으로 박아 뒀는데, 재집계로 그 파일이 갱신되면
+    #    그 문장이 조용히 거짓이 된다. 문장을 값에서 만든다.
+    # 🔴 **R2F — 이 검산이 `if held_report:` 안에 있었다.** heldout 이 없는 세대(v3)에서는
+    #    한 번도 발화하지 않았고, 그래서 `v3/summary.json` 의 `spent_won 553.2` 가
+    #    실제 재귀 합 **605.1**(= `vc/L3` 51.9 를 뺀 값)과 갈린 채로 커밋됐다. 두 산출물이
+    #    **같은 출처 라벨**("arm·코호트별 run.json 합")을 달고 다른 수를 실었다.
+    #    검산은 조건 밖에 있어야 검산이다.
+    meta_spend = meta.get("spent_won")
+    if meta_spend is None:
+        out.append('🔴 `summary.json` 에 `spent_won` 이 없다 — **총지출은 이 표의 '
+                 f'{total_spend:,.1f}원**(arm 별 `run.json` 합)이 권위값이다.\n')
+    elif abs(float(meta_spend) - total_spend) < 0.05:
+        out.append(f'✅ **검산 일치** — `summary.json` 의 `spent_won` '
+                 f'{float(meta_spend):,.1f}원 = 이 표의 총액 {total_spend:,.1f}원 '
+                 "(둘 다 arm·코호트별 `run.json` 합이다).\n")
+    else:
+        gap = total_spend - float(meta_spend)
+        hint = ""
+        if held_report:
+            hint = ("그 파일이 heldout 이전 시점의 산출물이면 그 차이가 heldout 몫"
+                    f'({held["spent_won"] or 0:,.1f}원)과 같아야 한다. ')
+        else:
+            newer = sorted((v, k) for k, v in spend["per_arm"].items()
+                           if abs(v - gap) < 0.05)
+            hint = ("두 값의 출처 라벨이 같으므로 한쪽이 낡았다는 뜻이다 — "
+                    "`summary.json` 은 **재집계 시점**에 얼어붙고 이 표는 **렌더 시점**에 "
+                    "다시 센다. 즉 재집계 뒤에 유료로 돌린 arm 이 있다"
+                    + (f' (차이가 `{newer[0][1]}` 의 결제액과 정확히 같다). '
+                       if newer else ". ")
+                    + "🔴 **처방은 `--arm` 없이 코호트만 주는 재집계**(LLM 0회)다. ")
+        out.append(f'🔴 **`summary.json` 의 `spent_won`({float(meta_spend):,.1f})과 이 표의 '
+                 f'총액({total_spend:,.1f})이 다르다** — 차이 {gap:+,.1f}원. '
+                 + hint
+                 + f'**총지출은 이 표의 {total_spend:,.1f}원**이 권위값이다 '
+                   "(`run.json` 합).\n")
+    out.append(f'\n상한 {budget_cap:,.0f}원 대비 **{total_spend / budget_cap * 100:.1f}%** '
+             f'사용 (80% 정지선 {budget_cap * 0.8:,.0f}원 · 상한 출처 {budget_source}). '
+             f'**캐시 전체가 {arm_sum - total_spend:,.0f}원을 막았다** — 요청 캐시만이 '
+             "아니라 **응답 파일 캐시와 프롬프트 동일성까지 합친** 절감액이다 "
+             "(§13 이 A6·A7·A8 의 프롬프트 동일성을 밝힌다).\n")
+    if budget_note:
+        out.append(budget_note + "\n")
+    out.append(f'지출 출처: {meta.get("spent_won_source", "—")}. '
+             f'요청 캐시 적중 {meta.get("cache_hits", "?")} / 미적중 '
+             f'{meta.get("cache_misses", "?")}'
+             + ("" if meta.get("cache_stats_are_this_process", True)
+                else f' (🔴 이번 프로세스 값이 아니다 — '
+                     f'{meta.get("cache_stats_carried_from", "이전 실행")} 에서 이어받았다)')
+             + (f' — {meta["cache_stats_note"]}' if meta.get("cache_stats_note") else "")
+             + "\n")
+    if meta.get("cache_stats_inconsistent"):
+        out.append(meta["cache_stats_inconsistent"] + "\n")
+    # 🔴 부분 실행을 표에 드러낸다. `analyse` 는 응답 없는 문항을 조용히 건너뛰므로
+    #    예산 중단된 arm 은 **더 작은 분모로** 표에 실린다 — 그러면 그 arm 의 정답률이
+    #    다른 arm 과 다른 잣대가 되고, 표만 보면 그 사실이 안 보인다.
+    partial = []
+    for arm in ladder + loo + side + diag:
+        rep = reports[arm]
+        run_path = root / arm / "run.json"
+        run = (json.loads(run_path.read_text(encoding="utf-8"))
+               if run_path.exists() else {})
+        if rep.get("n_analysed") != rep.get("n_cases") or run.get("stopped_at"):
+            partial.append(f'   · **{arm}** — 분석 {rep.get("n_analysed")}'
+                           f'/{rep.get("n_cases")}문항'
+                           + (f' · 예산 중단 `{run["stopped_at"]}`'
+                              if run.get("stopped_at") else ""))
+    out.append("\n🔴 **부분 실행 검사**: "
+             + ("전 arm 이 전수 분석됐다 (`n_analysed == n_cases`, 예산 중단 0건).\n"
+                if not partial else
+                "아래 arm 은 **분모가 다르다** — Δ 를 다른 arm 과 나란히 읽지 않는다.\n"
+                + "\n".join(partial) + "\n"))
+
+    return out
+
+
+def _gate_cumulative(c: _GateContext) -> list[str]:
+    """§2. 누적 곡선. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    arms, full, ladder = c.arms, c.full, c.ladder
+
+    # --- 2. 누적 곡선 ---
+    n_scored = arms[full]["n_scored"] if full else 0
+    out.append(f"\n## 2. 누적 곡선 — A0 → {full} (**그리드 기준**)\n")
+    out.append(f'정답률은 **채점 대상 {n_scored}문항** 기준이다. 그리드 밖 트랙'
+             f'(회귀 10 · 정보한계)은 §4 에 따로 낸다 — 섞으면 v1 42문항과 나란히 '
+             "읽을 축이 하나도 안 남는다.\n")
+    out.append("| arm | 정답 | 정답률 | Δ(직전) | 골든 근거 적중 | 전건 적중 문항 "
+             "| arm 비용(원) | Δ정답률/Δ비용 |")
+    out.append("|---|---|---|---|---|---|---|---|")
+    prev_rate = prev_cost = None
+    for arm in ladder:
+        row = arms[arm]
+        cost = row["arm_cost_won"]
+        eff = "—"
+        if prev_rate is not None and prev_cost is not None and cost != prev_cost:
+            eff = f'{(row["rate"] - prev_rate) * 100 / (cost - prev_cost):+.3f}%p/원'
+        out.append(f'| **{arm}** | {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
+                 f'| {_pp(prev_rate, row["rate"])} '
+                 f'| {_recall(row)} '
+                 f'| {row["golden_evidence_all"]}/{row["n_grid"]} | {cost:,.0f} | {eff} |')
+        prev_rate, prev_cost = row["rate"], cost
+
+    return out
+
+
+def _gate_by_axis(c: _GateContext) -> list[str]:
+    """§3. 축별 분해. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    arms = c.arms
+    full = c.full
+    ladder = c.ladder
+    loo = c.loo
+    reports = c.reports
+    summary = c.summary
+
+    # --- 3. 축별 분해 ---
+    out.append("\n## 3. 축별 Δ 분해 — 전체 Δ 하나만 보면 '왜 올랐는지' 가 사라진다\n")
+    for axis, values in AXES.items():
+        out.append(f'\n### {AXIS_LABELS[axis]}\n')
+        out.append("| 값 | " + " | ".join(ladder)
+                 + f' | Δ {ladder[0]}→{full} | 최대 단일 Δ |')
+        out.append("|---|" + "---|" * (len(ladder) + 2))
+        for value in values:
+            cells, rates = [], []
+            for arm in ladder:
+                cell = summary["axes"][axis][value][arm]
+                cells.append(f'{cell["correct"]}/{cell["n"]}')
+                rates.append(cell["rate"])
+            steps = [(rates[i + 1] - rates[i], ladder[i + 1])
+                     for i in range(len(rates) - 1)
+                     if rates[i] is not None and rates[i + 1] is not None]
+            best = max(steps, key=lambda s: s[0]) if steps else None
+            out.append(f'| {value} | ' + " | ".join(cells)
+                     + f' | {_pp(rates[0], rates[-1])} | '
+                     + (f'{best[1]} {best[0] * 100:+.1f}%p |' if best else "— |"))
+
+    # 🔴 문서군 행 — 이번 최대 발견(A0→A1 뒤집힘)의 근거가 여기 있다. 게이트만 읽고도
+    #    결론이 서야 하므로 `report.json` 에만 두지 않는다.
+    groups = ("exchange", "major", "holding", "periodic")
+    out.append("\n### 문서군 — **`A0→A1` 뒤집힘의 근거는 이 행이다**\n")
+    out.append("3축(난이도·답변형식·과제유형)은 문서군을 안 보여 준다. `A1` 의 정의가 "
+             "**exchange 인덱스 1,469건만 본다**는 것이므로, 그 arm 의 손실은 문서군 축에서만 "
+             "드러난다.\n")
+    out.append("| arm | " + " | ".join(groups) + " | ROUTING 실패 | RETRIEVAL 실패 |")
+    out.append("|---|" + "---|" * (len(groups) + 2))
+    for arm in ladder + loo:
+        by_group = reports[arm].get("by_doc_group_grid") or {}
+        cells = []
+        for g in groups:
+            cell = by_group.get(g)
+            cells.append(f'{cell["correct"]}/{cell["n_scored"]}' if cell else "—")
+        hist = arms[arm]["failures"]
+        out.append(f'| **{arm}** | ' + " | ".join(cells)
+                 + f' | {hist.get("ROUTING", 0)} | {hist.get("RETRIEVAL", 0)} |')
+    a0g = (reports.get("A0") or {}).get("by_doc_group_grid") or {}
+    a1g = (reports.get("A1") or {}).get("by_doc_group_grid") or {}
+    if a0g and a1g:
+        gained = a1g["exchange"]["correct"] - a0g["exchange"]["correct"]
+        lost = sum(a0g[g]["correct"] - a1g[g]["correct"]
+                   for g in ("major", "holding", "periodic"))
+        out.append(f'\n**읽는 법.** `A0 → A1` 에서 exchange 는 **{gained:+d}건**이다 — '
+                 "BM25 순위가 인덱스가 닿는 곳에서는 제 일을 한다. 그런데 나머지 세 문서군에서 "
+                 f'**−{lost}건**을 잃는다. 순 **{gained - lost:+d}건**이 −8.3%p 의 전부다.\n')
+        out.append("기전은 문항 구성이 아니라 **인덱스 커버리지**다. `A1` 의 `ROUTING` 실패 "
+                 f'**{arms["A1"]["failures"].get("ROUTING", 0)}건**(A0 은 '
+                 f'{arms["A0"]["failures"].get("ROUTING", 0)}건)은 라우터 버그가 아니다 — '
+                 "arm 정의상 검색이 exchange 로 강제되므로 `parse_trace` 가 문서군 불일치로 "
+                 "읽는다. 실체는 **major·holding·periodic 질의가 검색 단계에서 통째로 "
+                 "떨어지는 것**이고, 그것이 곧 `A1b` 의 Δ 다.\n")
+
+    out.append(f'\n### ⚠ 변별력 재확인 — `{BLIND_CELL}`\n')
+    out.append("v1 에서 이 셀은 세 난이도가 전부 1~2/2 로 진동했다. **셀 n 이 늘어난 "
+             "v2 에서 다시 확인한다** — n 이 2 에 머물러 있으면 이 행의 Δ 는 읽지 않는다.\n")
+    out.append("| arm | 하 | 중 | 상 |")
+    out.append("|---|---|---|---|")
+    for arm in ladder:
+        cells = [summary["cells"][d][arm] for d in ("하", "중", "상")]
+        out.append(f'| {arm} | ' + " | ".join(f'{c["correct"]}/{c["n"]}' for c in cells) + " |")
+    cell_n = {summary["cells"][d][full]["n"] for d in ("하", "중", "상")} if full else set()
+    biggest = max(cell_n or {0})
+    if biggest <= 2:
+        verdict = "**여전히 2 이하다 — 이 행의 Δ 는 읽지 않는다.**"
+    else:
+        verdict = (f"v1 의 2 에서 **{biggest} 로 늘었다.** 다만 한 문항이 뒤집히면 "
+                   f"{100 / biggest:.0f}%p 가 움직인다 — **부호(방향)만 읽고 크기는 "
+                   f"읽지 않는다.** 이 셀 하나로 결론을 내지 않는다 (02-golden-set B-7).")
+    out.append(f'\n셀 n = {sorted(cell_n)}. {verdict}\n')
+
+    return out
+
+
+def _gate_by_track(c: _GateContext) -> list[str]:
+    """§4. 트랙별. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    arms, ladder, loo, side = c.arms, c.ladder, c.loo, c.side
+
+    # --- 4. 트랙별 ---
+    out.append("\n## 4. 트랙별 — **합치지 않는다**\n")
+    out.append("회귀는 고친 실패의 감시이고 정보한계는 거절이 정답이다. 같은 분모에 "
+             "넣으면 둘 다 거짓말이 된다.\n")
+    tracks = [t for t in (ea.GRID_TRACK,) + ea.OFF_GRID_TRACKS
+              if any(t in arms[a]["tracks"] for a in arms)]
+    out.append("| arm | " + " | ".join(tracks) + " | 정보한계 거절정답 | 환각 |")
+    out.append("|---|" + "---|" * (len(tracks) + 2))
+    for arm in ladder + loo + side:
+        cells = []
+        for track in tracks:
+            cell = arms[arm]["tracks"].get(track)
+            cells.append(f'{cell["correct"]}/{cell["n_scored"]}' if cell else "—")
+        out.append(f'| {arm} | ' + " | ".join(cells)
+                 + f' | {arms[arm]["info_limit_correct"]}/{arms[arm]["info_limit_n"]} '
+                 f'| {arms[arm]["hallucination"]} |')
+
+    return out
+
+
+def _gate_loo(c: _GateContext) -> list[str]:
+    """§5. LOO. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    arms, full, loo, summary = c.arms, c.full, c.loo, c.summary
+
+    # --- 5. LOO ---
+    if loo and full:
+        base = arms[full]
+        out.append(f"\n## 5. Leave-one-out **3구성** — 완성 구성({full})에서의 필수성\n")
+        out.append(f'v1 은 2개였다. v2 는 발주처 hop 을 더해 3개다.\n')
+        out.append(f'| 구성 | 뺀 것 | 정답 | 정답률 | Δ({full}) | 골든 근거 적중 |')
+        out.append("|---|---|---|---|---|---|")
+        out.append(f'| **{full}** | — | {base["correct"]}/{base["n_scored"]} '
+                 f'| {_pct(base["rate"])} | — '
+                 f'| {_recall(base)} |')
+        for arm in loo:
+            row = arms[arm]
+            out.append(f'| {arm} | {ablation.LOO_REMOVED[arm]} '
+                     f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
+                     f'| {_pp(base["rate"], row["rate"])} '
+                     f'| {_recall(row)} |')
+        out.append("\n### LOO 축별 분해\n")
+        for axis, values in AXES.items():
+            out.append(f'\n**{AXIS_LABELS[axis]}**\n')
+            out.append(f'| 값 | {full} | ' + " | ".join(f"{a} | Δ{a}" for a in loo) + " |")
+            out.append("|---|---|" + "---|" * (2 * len(loo)))
+            for value in values:
+                b = summary["axes"][axis][value][full]
+                cells = [f'{b["correct"]}/{b["n"]}']
+                for arm in loo:
+                    r = summary["axes"][axis][value][arm]
+                    cells += [f'{r["correct"]}/{r["n"]}', _pp(b["rate"], r["rate"])]
+                out.append(f'| {value} | ' + " | ".join(cells) + " |")
+
+    return out
+
+
+def _gate_diagnostic_arms(c: _GateContext) -> list[str]:
+    """§5b. 진단 arm. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    arms, diag, full = c.arms, c.diag, c.full
+
+    # --- 5b. 진단 arm — 사다리에도 LOO 에도 자리가 없다 ---
+    # 🔴 성적 표와 **같은 표에 넣지 않는다.** 같은 표에 있으면 다음 사람이 그 줄을 성적으로
+    #    인용한다. 그렇다고 안 실으면 잰 값이 게이트 문서에서 사라진다 — 자리를 주되
+    #    경고를 표 안에 같이 쓴다 (`render_summary` §2b 와 같은 규칙).
+    if diag and full:
+        base = arms[full]
+        out.append("\n## 5b. 진단 arm — **성적이 아니다**\n")
+        out.append("| arm | 재는 것 | 정답 | 정답률 | Δ(A8) | 골든 근거 적중 | 전건 적중 |")
+        out.append("|---|---|---|---|---|---|---|")
+        for arm in diag:
+            row = arms[arm]
+            out.append(f'| {arm} | 근거를 **골든만으로 교체**했을 때 답이 서는가 '
+                     f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
+                     f'| {_pp(base["rate"], row["rate"])} '
+                     f'| {_recall(row)} '
+                     f'| {row["golden_evidence_all"]}/{row["n_grid"]} |')
+        out.append("\n> 🔴 평가 시점에 골든 근거가 없다. 이 줄의 정답률은 **제출 성적이 "
+                 "아니라 진단값**이다. 🔴 **R2E 재측정이 R1 의 읽는 법을 깼다** — `Δ` 는 "
+                 "**검색이 아직 못 가져온 몫이 아니다.** 주입은 근거를 골든만으로 "
+                 "**교체**하므로 근거가 줄고(실측 −47%), 정오가 갈린 문항 전수에서 골든 "
+                 "회수가 A8 과 **동일**했다. 잔여 오답을 **순수 생성 실패**로 읽을 수 "
+                 "있는 것은 근거가 A8 과 **바이트 동일**한 문항뿐이다.\n")
+        out.append("| arm | " + " | ".join(ea.ALL_LABELS) + " |")
+        out.append("|---|" + "---|" * len(ea.ALL_LABELS))
+        for arm in [full] + diag:
+            hist = arms[arm]["failures"]
+            out.append(f'| {arm}{" 🔬" if arm in diag else ""} | '
+                     + " | ".join(str(hist.get(s, 0)) for s in ea.ALL_LABELS) + " |")
+        out.append("\n🔴 **이 두 줄을 나란히 읽는 것이 이 절의 전부다.** 골든 근거 적중이 "
+                 "최대치인데도 **정답이 안 늘면** 남은 실패는 검색 몫이 아니다. "
+                 "⚠️ **`GENERATION` 칸이 늘어난 것을 '생성이 더 나빠졌다' 로 읽지 마라** — "
+                 "근거를 골든만으로 교체하면 다른 단계의 실패가 `GENERATION` 으로 "
+                 "**이동**한다(실측: 밸류체인 `RETRIEVAL` 3건이 그 자리에서 내려앉았다).\n")
+
+    return out
+
+
+def _gate_valuechain(c: _GateContext) -> list[str]:
+    """§6. A8 — 밸류체인 세 갈래. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    vc = c.vc
+
+    # --- 6. A8 — 밸류체인 세 갈래 ---
+    out.append("\n## 6. 🔴 A8 의 성공 기준은 정답률이 아니라 완결성이다\n")
+    out.append("밸류체인 12문항 중 8건은 A8 없이도 근거가 닿는다 (BM25 자유텍스트). "
+             "전체 정답률로만 재면 Δ 가 작게 나오고 오판한다. 세 갈래로 가른다.\n")
+    out.append(f'**① 발주처 hop 발화 문항 (LLM 0회 실측)**: 88문항 그리드에서 **0건**, '
+             f'밸류체인 12문항에서 **8건** (Q-107 Q-109 Q-110 Q-113 Q-114 Q-115 '
+             f'Q-116 Q-118).\n')
+    out.append("→ 그래서 **88문항 그리드에서 `Δ(A7→A8)` 은 정의상 0 이다** — 근거가 "
+             "글자 하나 안 바뀌므로 프롬프트가 같고 답이 같다. A8 의 Δ 는 밸류체인 "
+             "트랙에서만 읽을 수 있다.\n")
+    if vc.get("A8"):
+        groups = (("① 완전 열거 (A8 의 진짜 겨냥점)", set(VC_FAN_IN)),
+                  ("② 완결성 확인 불가", set(VC_UNVERIFIABLE)),
+                  ("③ 이미 닿는 나머지 (깨지면 순손실)",
+                   {r["question_id"] for r in vc["A8"]["rows"]}
+                   - set(VC_FAN_IN) - set(VC_UNVERIFIABLE)))
+        names = [a for a in ("A8", "L3", "A7") if a in vc]
+        out.append("\n### 밸류체인 12문항 — 세 갈래\n")
+        out.append("| 갈래 | 문항 | " + " | ".join(names) + " |")
+        out.append("|---|---|" + "---|" * len(names))
+        for label, ids in groups:
+            cells = []
+            for name in names:
+                rate = ea._rate([r for r in vc[name]["rows"]
+                                 if r["question_id"] in ids])
+                cells.append(f'{rate["correct"]}/{rate["n_scored"]}')
+            out.append(f'| {label} | {" ".join(sorted(ids))} | ' + " | ".join(cells) + " |")
+        out.append("\n### 문항별 (A8 vs L3 = 발주처 hop 없음)\n")
+        out.append("🔴 `hop 발화` 칸을 먼저 본다. **발화하지 않은 문항에서 A8 의 Δ 는 정의상 "
+                 "0** 이고, 그것은 hop 이 약한 것이 아니라 **라우터가 발주처를 못 알아본 "
+                 "것**이다 — 처방이 정반대다 (hop 개선이 아니라 노드 이름 인식).\n")
+        out.append("| 문항 | 갈래 | hop 발화 | A8 | L3 | 판정 |")
+        out.append("|---|---|---|---|---|---|")
+        l3 = {r["question_id"]: r for r in (vc.get("L3") or {}).get("rows", [])}
+        for row in sorted(vc["A8"]["rows"], key=lambda r: r["question_id"]):
+            qid = row["question_id"]
+            other = l3.get(qid)
+            fired = "strat=counterparty" in (row.get("think_trace") or "")
+            branch = ("①열거" if qid in VC_FAN_IN else
+                      "②확인불가" if qid in VC_UNVERIFIABLE else "③이미닿음")
+            mark = {(True, True): "둘 다 정답", (False, False): "둘 다 오답",
+                    (True, False): "**A8 이 벌었다**", (False, True): "🔴 **A8 이 잃었다**"}
+            verdict = ("—" if other is None
+                       else mark[(bool(row["correct"]), bool(other["correct"]))])
+            if not fired and other is not None:
+                verdict += " (hop 미발화 — Δ 는 정의상 0)"
+            out.append(f'| {qid} | {branch} | {"✓" if fired else "**✗**"} '
+                     f'| {"✓" if row["correct"] else "✗"} '
+                     f'| {"—" if other is None else ("✓" if other["correct"] else "✗")} '
+                     f'| {verdict} |')
+        n_fired = sum(1 for r in vc["A8"]["rows"]
+                      if "strat=counterparty" in (r.get("think_trace") or ""))
+        no_fire = sorted(r["question_id"] for r in vc["A8"]["rows"]
+                         if "strat=counterparty" not in (r.get("think_trace") or ""))
+        out.append(f'\n밸류체인 12문항 중 hop 발화 **{n_fired}건** · 미발화 '
+                 f'{len(no_fire)}건 ({" ".join(no_fire)}).\n')
+
+    return out
+
+
+def _gate_failure_stages(c: _GateContext) -> list[str]:
+    """§7. 실패 단계 · 근본 원인. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    arms, full, ladder, loo, reports, side = c.arms, c.full, c.ladder, c.loo, c.reports, c.side
+
+    # --- 7. 실패 단계 · 근본 원인 ---
+    out.append("\n## 7. 실패 단계 · 근본 원인 분포 (**그리드 기준**)\n")
+    out.append("| arm | " + " | ".join(ea.ALL_LABELS) + " |")
+    out.append("|---|" + "---|" * len(ea.ALL_LABELS))
+    for arm in ladder + loo + side:
+        hist = arms[arm]["failures"]
+        out.append(f"| {arm} | " + " | ".join(str(hist.get(s, 0))
+                                           for s in ea.ALL_LABELS) + " |")
+    if full:
+        out.append(f'\n### {full} 잔여 실패 — 근본 원인 (그리드)\n')
+        out.append("| 문항 | 난이도 | 단계 | 원인 | 내용 |")
+        out.append("|---|---|---|---|---|")
+        for row in ea.grid_rows(reports[full]["rows"]):
+            if row["first_failure"]:
+                out.append(f'| {row["question_id"]} | {row["difficulty"]} '
+                         f'| {row["first_failure"]} | {row["root_cause"]} '
+                         f'| {row["failure_why"][:64]} |')
+        out.append(f'\n**근본 원인 히스토그램 (그리드)**: '
+                 f'`{json.dumps(arms[full]["root_causes"], ensure_ascii=False)}`\n')
+
+    return out
+
+
+def _gate_flipped(c: _GateContext) -> list[str]:
+    """§8. 뒤집힌 문항. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    full, ladder, loo, reports = c.full, c.ladder, c.loo, c.reports
+
+    # --- 8. 뒤집힌 문항 ---
+    out.append("\n## 8. arm 사이에서 뒤집힌 문항 — Δ 가 어느 문항에서 왔는가\n")
+    out.append("| 전이 | 새로 맞힌 문항 | 잃은 문항 |")
+    out.append("|---|---|---|")
+    pairs = list(zip(ladder, ladder[1:])) + [(full, a) for a in loo]
+    for lower, upper in pairs:
+        a = {r["question_id"]: r["correct"] for r in ea.grid_rows(reports[lower]["rows"])}
+        b = {r["question_id"]: r["correct"] for r in ea.grid_rows(reports[upper]["rows"])}
+        gained = sorted(q for q in a if b.get(q) and not a[q])
+        lost = sorted(q for q in a if a[q] and not b.get(q))
+        out.append(f'| {lower} → {upper} | {" ".join(gained) or "—"} '
+                 f'| {" ".join(lost) or "—"} |')
+
+    return out
+
+
+def _gate_targeting(c: _GateContext) -> tuple[list[str], list, dict]:
+    """§9. 겨냥과 Δ 대조. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    arms, full, ladder, reports = c.arms, c.full, c.ladder, c.reports
+
+    # --- 9. 겨냥과 Δ 대조 ---
+    out.append("\n## 9. arm 겨냥 배분 vs 실제 Δ — **안 맞으면 그것이 발견이다**\n")
+    out.append("Task 7 이 오답 13건을 근거 원문까지 대조해 배분한 표다. 🔴 이 표는 "
+             "**앞을 보는 처방**이지 v2 의 Δ 예측이 아니다 — 겨냥 문항은 정의상 "
+             f'`{full}` 에서 **아직 틀리고 있는** 문항이므로, 사다리의 어느 arm 도 그것을 '
+             "건지지 못했다. 그래서 두 칸을 따로 낸다: `실제로 건진 문항`(그 arm 이 "
+             "이번에 번 것)과 `겨냥 문항의 현재 상태`(그 arm 의 **다음 판**이 해야 할 것).\n")
+    # 🔴 **배분표를 여기서 다시 적지 않는다.** 같은 13건 배분이 이 파일과 채점기에 각각
+    #    있으면 둘이 갈리고, 어느 쪽이 참인지 산출물로 판정할 수 없다. 채점기가 단일
+    #    원천이다 (`ea.TARGETED_BY_MANUAL_REVIEW` — 원문 대조 결과이고, 자동 분류기와의
+    #    대조표를 `arm_allocation_reconciliation()` 이 낸다).
+    targeted = ea.TARGETED_BY_MANUAL_REVIEW
+    final_ok = {r["question_id"]: r["correct"]
+                for r in reports[full]["rows"]} if full else {}
+    out.append("| arm | 겨냥 | 겨냥 문항 | 사다리 Δ | 실제로 건진 문항 "
+             f'| 겨냥 문항의 {full} 상태 |')
+    out.append("|---|---|---|---|---|---|")
+    idx = {a: i for i, a in enumerate(ladder)}
+    for arm, ids, label in targeted:
+        status = " ".join(f'{q}{"✓" if final_ok.get(q) else "✗"}' for q in ids)
+        if arm not in idx or idx[arm] == 0:
+            out.append(f'| {arm} ({label}) | {len(ids)} | {" ".join(ids)} | — | — '
+                     f'| {status} |')
+            continue
+        lower = ladder[idx[arm] - 1]
+        a = {r["question_id"]: r["correct"] for r in ea.grid_rows(reports[lower]["rows"])}
+        b = {r["question_id"]: r["correct"] for r in ea.grid_rows(reports[arm]["rows"])}
+        gained = sorted(q for q in a if b.get(q) and not a[q])
+        hit = [q for q in ids if q in gained]
+        out.append(f'| {arm} ({label}) | {len(ids)} | {" ".join(ids)} '
+                 f'| {_pp(arms[lower]["rate"], arms[arm]["rate"])} '
+                 f'| {len(gained)}건 (겨냥 적중 {len(hit)}) | {status} |')
+    # 🔴 **자동 배분과 수동 배분을 코드가 대조한다.** 지금까지는 사람이 기억으로 이었고,
+    #    그 기억이 두 번 틀렸다("A6·A1b 공동 1위"). 자동 히스토그램은 A5 를 구조적으로 못
+    #    본다 — `verify_calculation` 이 답변 수치 중 최유리 값을 골라 비교하므로 10× 단위
+    #    오류가 `mismatch=False` 로 통과하고 TOOL 버킷이 그리드에서 0건이 된다.
+    rec = (reports[full] or {}).get("arm_allocation_reconciliation") if full else None
+    if rec:
+        out.append("\n### 9c. 🔴 자동 분류기 vs 원문 대조 — **어긋나는 것이 정상이다**\n")
+        out.append(f'{rec["note"]}\n')
+        out.append(f'분모가 다르다: {rec["denominator_note"]}. '
+                 f'권위값은 **{rec["authoritative"]}**(원문 대조)이다.\n')
+        out.append("| arm | 자동 (그리드) | 자동 (전 트랙) | 수동 (전 트랙) | 일치 |")
+        out.append("|---|---|---|---|---|")
+        for row in rec["by_arm"]:
+            same = "✓" if row["auto_all_tracks"] == row["manual_all_tracks"] else "**✗**"
+            out.append(f'| {row["arm"]} | {row["auto_grid"]} | {row["auto_all_tracks"]} '
+                     f'| {row["manual_all_tracks"]} | {same} |')
+        out.append(f'\n불일치 **{rec["n_disagreements"]}/{rec["n_compared"]}건**'
+                 + (f' — {", ".join(p["question_id"] + "(" + p["auto_arm"] + "→" + p["manual_arm"] + ")" for p in rec["disagreements"])}'
+                    if rec["disagreements"] else "")
+                 + ".\n")
+        if rec.get("critic_passed_wrong_answer"):
+            out.append("🔴 **critic 이 통과시킨 오답**: "
+                     f'{" ".join(rec["critic_passed_wrong_answer"])} — 이 문항들의 arm 은 '
+                     "자동 분류기가 지목할 수 없다 (그 판정 자체가 입력이다).\n")
+
+    # 🔴 우선순위 줄은 **상수에서 세어 쓴다.** 하드코딩해 두었다가 R2D 재측정에서
+    #    겨냥이 11 → 6 으로 줄자 낡은 순서(A4 5 → A5 4 → A1b 2 → A6 1)가 그대로 렌더됐다.
+    order = " → ".join(
+        f"{arm} {len(qs)}" for arm, qs, _ in
+        sorted(ea.TARGETED_BY_MANUAL_REVIEW, key=lambda r: -len(r[1]))
+        if arm != "—")
+    out.append("\n**읽는 법**: 어느 arm 도 자기 겨냥 문항을 하나도 못 건졌다 — 그것이 "
+             "겨냥 문항의 정의이므로 동어반복이다. 읽을 값은 `사다리 Δ`(그 arm 이 실제로 "
+             "번 것)와, 겨냥 문항이 **여전히 틀리고 있다**는 사실이다. 후자는 "
+             "'그 arm 을 더 밀어야 한다' 는 뜻이고, 우선순위는 겨냥 건수 순서 그대로다 "
+             f"({order}).\n")
+
+    return out, targeted, idx
+
+
+def _gate_targeting_vs_loo(c: _GateContext, targeted: list, idx: dict) -> list[str]:
+    """§9b. 겨냥 문항을 LOO 짝과 대조. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    ladder, reports = c.ladder, c.reports
+
+    # --- 9b. 겨냥 문항을 LOO 짝과 대조한다 — 여기서 처방이 뒤집힌다 ---
+    out.append("\n### 9b. 🔴 겨냥 문항을 **그 arm 을 끈 구성**과 대조한다\n")
+    out.append("겨냥표만 보면 '그 arm 을 더 밀어라' 로 읽힌다. 그런데 **그 arm 을 끄면 맞는** "
+             "문항이 있으면 처방이 정반대다 — 그 arm 이 **원인**이라는 뜻이다. "
+             "사다리에서 한 칸 아래 구성과 문항 단위로 대조한다.\n")
+    out.append("| arm | 겨냥 문항 | 한 칸 아래 | 아래는 맞고 위는 틀린 문항 (= **그 arm 이 원인**) |")
+    out.append("|---|---|---|---|")
+    for arm, ids, label in targeted:
+        if arm not in idx or idx[arm] == 0:
+            continue
+        lower = ladder[idx[arm] - 1]
+        a = {r["question_id"]: r["correct"] for r in reports[lower]["rows"]}
+        b = {r["question_id"]: r["correct"] for r in reports[arm]["rows"]}
+        # 겨냥 문항만이 아니라 **전 트랙**에서 본다 — 회귀 트랙에 숨어 있을 수 있다.
+        caused = sorted(q for q in a if a[q] and not b.get(q))
+        out.append(f'| {arm} ({label}) | {" ".join(ids)} | {lower} '
+                 f'| {" ".join(f"**{q}**" for q in caused) or "없다"} |')
+    out.append("\n이 칸이 비지 않은 arm 은 **겨냥 배분을 다시 읽어야 한다** — 그 arm 을 "
+             "고치는 것이 아니라, 그 arm 이 만든 부작용을 없애는 것이 처방이다.\n")
+
+    return out
+
+
+def _gate_paper_comparison(c: _GateContext) -> list[str]:
+    """§10. 논문 대조. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    arms, full, ladder, loo = c.arms, c.full, c.ladder, c.loo
+
+    # --- 10. 논문 대조 ---
+    out.append("\n## 10. 부록 D 대조 — 우리 Δ 가 타당한 크기인가\n")
+    ours: dict[str, float | None] = {}
+    prev = None
+    # 🔴 `rate` 는 **그리드 기준**이라 밸류체인 코호트에서는 `None` 이다 (그 폴더에
+    #    grid 행이 없다). 무방비로 빼면 `TypeError` 로 죽고, 그러면 그 코호트의
+    #    `gate_I.md` 를 **다시 만들 수 없다** — 실측으로 그랬고, 그래서 v3/vc 의 게이트가
+    #    R1 시점 렌더로 얼어붙어 하드코딩된 옛 값을 계속 싣고 있었다 (R2F 가 잡았다).
+    #    `render_summary` 가 LOO 단독 실행에서 `IndexError` 로 죽던 것과 같은 가족이다.
+    for arm in ladder:
+        r = arms[arm]["rate"]
+        ours[arm] = None if prev is None or r is None else (r - prev) * 100
+        prev = r
+    for arm in loo:
+        if full and arms[arm]["rate"] is not None and arms[full]["rate"] is not None:
+            ours[arm] = (arms[arm]["rate"] - arms[full]["rate"]) * 100
+    out.append("| 우리 arm | 우리 Δ | 논문 | 논문 보고값 | 방식 |")
+    out.append("|---|---|---|---|---|")
+    for arm, label, paper, value, method in PAPER_EFFECTS:
+        mine = ours.get(arm)
+        out.append(f'| {arm} ({label}) | {"—" if mine is None else f"{mine:+.1f}%p"} '
+                 f'| {paper} | {value} | {method} |')
+
+    return out
+
+
+def _gate_knee(c: _GateContext) -> list[str]:
+    """§11. 꺾이는 지점. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    arms, ladder, reports, vc = c.arms, c.ladder, c.reports, c.vc
+
+    # --- 11. 꺾이는 지점 ---
+    out.append("\n## 11. 성능/비용 곡선의 꺾이는 지점 → 제출 구성\n")
+    out.append("🔴 `Δ/원` 은 **Δ 가 양수일 때만 읽는다.** Δ 와 Δ비용이 **둘 다 음수**면 몫이 "
+             "양수로 나와 '효율이 좋다' 로 보이는데, 실제로는 **싸지고 못 맞히게 된 것**이다. "
+             "그 칸은 수를 쓰지 않고 이름을 붙였다.\n")
+    out.append("| 전이 | Δ 정답률 | Δ 비용(원) | Δ/원 | 판정 |")
+    out.append("|---|---|---|---|---|")
+    for lower, upper in zip(ladder, ladder[1:]):
+        ra, rb = arms[lower]["rate"], arms[upper]["rate"]
+        ca, cb = arms[lower]["arm_cost_won"], arms[upper]["arm_cost_won"]
+        d_rate, d_cost = (rb or 0) - (ra or 0), cb - ca
+        # 1원 미만의 비용 차는 0 으로 본다 — 반올림 잡음이 '정상' 과 '꺾이는 지점' 을 가르면 안 된다.
+        flat_cost = abs(d_cost) < 1.0
+        if d_rate < 0:
+            eff = "—"
+            note = ("🔴 **싸지고 못 맞힌다** — 몫을 읽으면 안 된다" if d_cost < 0
+                    else "🔴 **비싸지고 못 맞힌다**")
+        elif d_rate == 0:
+            eff = "—"
+            note = ("**꺾이는 지점** — Δ 0 · 한계 비용 0" if flat_cost
+                    else "Δ 0 인데 비용은 움직였다 — 뺄 후보")
+        elif flat_cost:
+            eff, note = "∞", "**공짜 이득** — 비용 0 에 정답률 상승"
+        else:
+            eff = f'{d_rate * 100 / d_cost:+.3f}'
+            note = "정상" if d_cost > 0 else "**공짜 이득** — 싸지고 더 맞힌다"
+        out.append(f'| {lower} → {upper} | {_pp(ra, rb)} | {d_cost:+,.0f} | {eff} | {note} |')
+    # 밸류체인 Δ 를 문자열로 박지 않는다 — 2026-08-11 에 실제로 뒤집혔다(+16.7 → +8.3%p).
+    # 하드코딩이던 동안 재생성한 게이트는 §6(자동 계산, 5/12 vs 4/12)과 여기가 서로를
+    # 반박하는 상태로 나왔다. 옆 문장의 비용은 산출물에서 계산돼 자동 갱신됐는데
+    # 정답률만 문자열이었던 것이 원인이다.
+    if vc.get("A8") and vc.get("L3"):
+        r8 = ea._rate(vc["A8"]["rows"])
+        r3 = ea._rate(vc["L3"]["rows"])
+        # 🔴 `_exact_rate` 를 통과시킨다 — `ea._rate()` 의 `rate` 는 셋째 자리 반올림이라
+        # 그대로 빼면 이중 반올림이다 (`_exact_rate` 독스트링의 규칙).
+        vc_delta = (f'**{_pp(_exact_rate(r3), _exact_rate(r8))}** 를 번다 '
+                    f'(§6 — {r8["correct"]}/{r8["n_scored"]} vs L3 '
+                    f'{r3["correct"]}/{r3["n_scored"]})')
+    else:
+        vc_delta = "이득을 본다 (§6 — 밸류체인 산출물이 없어 Δ 를 못 적는다)"
+    # 꺾이는 지점도 문자열로 박지 않는다 — 2026-08-11 에 A5 에서 A4 로 옮겨갔다.
+    # 🔴 첫 수정이 `flat[0]`(전이의 **위쪽** arm)을 써서 **같은 틀린 A5 를 계산으로
+    # 재생산**했다(재검토 B I2). 꺾이는 지점은 **마지막으로 번 arm** — 즉 Δ=0 인 첫 전이의
+    # 아래쪽이다. 그리고 "전부 한계 비용 0" 도 실측해서 쓴다. A5 는 +79원이라 거짓이었다.
+    zeros = [(lo, up) for lo, up in zip(ladder, ladder[1:])
+             if (arms[up]["rate"] or 0) - (arms[lo]["rate"] or 0) == 0]
+    flat = [up for _, up in zeros]
+    if zeros:
+        knee = f'**꺾이는 지점은 `{zeros[0][0]}`**'
+        paid = [up for lo, up in zeros
+                if abs(arms[up]["arm_cost_won"] - arms[lo]["arm_cost_won"]) >= 1.0]
+        cost_note = ("전부 **그리드에서** 한계 비용이 0 이다"
+                     if not paid else
+                     "대부분 **그리드에서** 한계 비용이 0 인데 "
+                     + " · ".join(
+                         f'`{up}` 는 {arms[up]["arm_cost_won"] - arms[lo]["arm_cost_won"]:+,.0f}원'
+                         for lo, up in zeros if up in paid)
+                     + " 이다 — 🔴 **그 arm 은 그리드 기준으로 뺄 후보다**")
+    else:
+        knee = "**정답률 Δ 가 0 이 되는 지점이 없다**"
+        cost_note = "한계 비용은 위 표를 보라"
+    out.append(f"\n{knee} — 그 뒤 arm 은 그리드에서 Δ 가 0 이다"
+             + (f" ({' · '.join(flat)})" if len(flat) > 1 else "")
+             + f". 그럼에도 **다 넣는다**: {cost_note}"
+             f"(A6·A7 은 LLM 0회, A8 은 발화 0건 → 토큰 0 증가). A8 은 밸류체인에서 "
+             f"{vc_delta}.\n")
+    # 🔴 **위 블록만 고쳐서는 부족했다 (R2F).** 바로 위에서 밸류체인 정답률 Δ 를 계산으로
+    #    바꿨는데, 이 단락은 **같은 사실을 다시 문자열로** 들고 있었다 — 재생성된 v3 게이트가
+    #    §0(골든 34/46 · 계산) · §4(정답 7/12 · 계산) 과 이 단락(28/46 · 6/12 · 문자열)에서
+    #    서로를 반박했다. 하드코딩 사고의 **일곱 번째 얼굴**이고 기전은 ① 과 같다:
+    #    표는 계산, 본문은 문자열. 얼어붙게 둘 값은 **"옛 세대" 라고 라벨한 이력**뿐이다.
+    # 🔴 하위 `vc/` 가 없으면(= 이 폴더가 곧 밸류체인이면) 자기 보고서를 본다.
+    #    한쪽만 보면 `--out …/vc` 로 렌더한 게이트에서 이 절이 "못 셌다" 로 비어 버리고,
+    #    비어 있는 자리에 다음 사람이 다시 문자열을 박게 된다.
+    vc_src = vc if vc else {k: v for k, v in reports.items() if k in ("A8", "L3")}
+    if vc_src.get("A8") and vc_src.get("L3"):
+        g8 = ea.golden_recall_denominators(vc_src["A8"]["rows"])
+        g3 = ea.golden_recall_denominators(vc_src["L3"]["rows"])
+        by_qid = {r["question_id"]: r for r in vc_src["A8"]["rows"]}
+        stable = " · ".join(
+            f'{qid} {len(by_qid[qid].get("golden_in_evidence") or [])}/'
+            f'{len(by_qid[qid].get("golden") or [])}'
+            for qid in sorted(VC_FAN_IN) if qid in by_qid)
+        recall = (f'밸류체인 골든 근거가 A8 **{g8["hit"]}/{g8["denominator_raw"]}** vs '
+                  f'L3 {g3["hit"]}/{g3["denominator_raw"]}')
+        fan_in = f'열거 문항의 회수는 {stable} 다' if stable else "열거 문항 목록이 비었다"
+    else:
+        recall = "밸류체인 골든 근거를 못 셌다 (산출물 없음)"
+        fan_in = "열거 문항의 회수도 못 셌다"
+    out.append("🔴 **A8 의 정당화를 정답률에 싣지 않는다** — n=12 에서 Δ 가 문항 하나(Q-110)에 "
+             "매달리고, **옛 세대(v2)에서 두 라운드 연속 뒤집혔다**(6→5→6/12 · L3 도 4→5). "
+             f"정본 축은 **근거 완결성**이다(§6): {recall} 이고, {fan_in}. "
+             "검색은 닿고 생성이 흔들리는 것이라 hop 의 기전은 무손상이다.\n")
+    # 🔴 그리고 이 정답률에는 부풀림이 하나 들어 있다 — 계산으로 확인해서 쓴다.
+    #    🔴 하위 `vc/` 폴더가 있으면 그것을, 없으면(= 이 폴더가 곧 밸류체인이면) 자기
+    #    보고서를 본다. 한쪽만 보면 `--out …/vc` 로 렌더한 게이트에서 이 경고가 사라진다.
+    inflation_source = vc.get("A8") or (reports.get("A8") if not vc else None)
+    if inflation_source:
+        inflated = sorted(
+            r["question_id"] for r in inflation_source["rows"]
+            if r.get("correct") and r["question_id"] in ea.JUDGED_CORRECT_ARITHMETIC_WRONG)
+        if inflated:
+            r8v = ea._rate(inflation_source["rows"])
+            out.append(f'🔴 **그 정답률에는 부풀림 {len(inflated)}건이 들어 있다** '
+                     f'({" ".join(inflated)}) — judge 가 수치 자기일관성을 안 보므로 '
+                     f'답변 안의 자릿수 오류가 정답으로 통과한다. 수치 자기일관성을 '
+                     f'기준에 넣으면 밸류체인 12 의 A8 은 '
+                     f'{r8v["correct"]}/{r8v["n_scored"]} 가 아니라 '
+                     f'{r8v["correct"] - len(inflated)}/{r8v["n_scored"]} 다. '
+                     f'🔴 **그리드 72 · 전체 88 에는 이 결함이 0건이다.**\n')
+    if vc.get("A8") and vc.get("L3"):
+        c8 = vc["A8"]["totals"]["cost_won"]
+        c3 = vc["L3"]["totals"]["cost_won"]
+        out.append(f'🔴 **"한계 비용 0" 은 그리드에 한정된 말이다.** 발주처 hop 이 발화하는 '
+                 f'밸류체인 12문항에서는 A8 {c8:,.1f}원 vs L3 {c3:,.1f}원 = '
+                 f'**{c8 - c3:+,.1f}원({(c8 / c3 - 1) * 100:+.0f}%)** 이다 — 발주처 블록이 '
+                 f'근거에 실리므로 토큰이 는다. 정확한 진술은 "발주처를 지목하지 않은 질의에서 '
+                 f'한계 비용 0, 지목한 질의에서 +{(c8 / c3 - 1) * 100:.0f}%" 다.\n')
+    out.append("A2 를 뺀 기준(\"Δ 0 이면 뺀다\")이 A8 에 오지 않는 이유는 A2 가 **모든 질의에** "
+             "임베딩 비용을 물리면서 Δ 0 이었던 것과 달리, A8 은 **발주처를 지목한 질의에서만** "
+             "비용과 이득이 동시에 생기기 때문이다.\n")
+    out.append("**제출 후보에서 `A0`·`A1` 을 배제한다.** 🔴 이것은 *제거 지시가 아니다* — "
+             "`_gather_meta` 는 `uses_bm25=False` 에서만 도달하므로 **A8 안에 떼어낼 'A0' "
+             "구성요소가 없다.** 뜻은 사다리의 그 두 칸을 제출 구성 후보에서 뺀다는 것이고, "
+             f'근거는 `A1` 이 그리드 최저({arms.get("A1", {}).get("correct", "?")}/'
+             f'{arms.get("A1", {}).get("n_scored", "?")} = '
+             f'{_pct(arms.get("A1", {}).get("rate"))})이고 `A0` 이 가성비 최악이라는 것이다 '
+             f'({arms.get("A0", {}).get("arm_cost_won", 0):,.0f}원에 '
+             f'{_pct(arms.get("A0", {}).get("rate"))} vs A1b '
+             f'{arms.get("A1b", {}).get("arm_cost_won", 0):,.0f}원에 '
+             f'{_pct(arms.get("A1b", {}).get("rate"))}).\n')
+
+    return out
+
+
+def _gate_measured42(c: _GateContext) -> list[str]:
+    """§12. measured 42 — v1 과 비교 가능한 유일한 축. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    full, ladder, reports = c.full, c.ladder, c.reports
+
+    # --- 12. measured 42 — v1 과 비교 가능한 유일한 축 ---
+    # 🔴 제목과 셀 라벨을 `measured 42 중 그리드 36` 으로 통일한다. `measured_dev_cohort()`
+    #    는 42개 ID 를 주지만 `_grid_rate` 가 `grid_rows` 로 한 번 더 걸러 **36** 이 된다
+    #    (정보한계 6문항 제외). 예전 표는 분모 36 을 "measured 42" 로 라벨링해서, 같은
+    #    보고서 안에서 같은 코호트를 42 와 36 두 이름으로 불렀다 — 코호트/분모 혼용은 이
+    #    프로젝트가 가장 조심하는 실패 유형이고, 표 라벨은 문서로 옮겨 적힐 때 값보다
+    #    먼저 떨어진다. (값은 안 바뀐다.)
+    out.append("\n## 12. `measured 42 중 그리드 36` 코호트 — v1 과 비교 가능한 유일한 축\n")
+    out.append("🔴 **이것은 재생(replay)이다.** Task 7 의 measured 42 는 답변 42/42 가 A7 과 "
+             "바이트 동일이고 토큰 167,914 가 전 항목 일치했다. 온도 0.0 하에 타당하나 "
+             "**'현재 시스템의 독립 측정' 이 아니다** — 새로 얻은 정보는 '현재 코드가 그 "
+             "42문항에 같은 요청을 만든다' 는 사실뿐이다.\n")
+    try:
+        from scripts.validate_evalset import measured_dev_cohort
+        wanted = set(measured_dev_cohort())
+    except Exception:                                     # noqa: BLE001
+        wanted = set()
+    out.append("🔴 **'v1 42문항' 이라는 이름의 기준선이 둘 있다 — 섞으면 Δ 가 2배로 부푼다.**\n")
+    out.append("| 출처 | 무엇 | grid | 이 표에서 |")
+    out.append("|---|---|---|---|")
+    ph_path = ROOT / "artifacts" / "eval" / "error_analysis.json"
+    if ph_path.exists():
+        ph = json.loads(ph_path.read_text(encoding="utf-8"))
+        g = ph["crosstab"]["grid_overall"]
+        out.append(f'| `artifacts/eval/error_analysis.json` | **Phase H v1** — 체인 hop · '
+                 f'스키마 필드가 붙기 **전** | {g["correct"]}/{g["n_scored"]} '
+                 f'({_pct(g["rate"])}) | 쓰지 않는다 |')
+    v1 = _load_report(ROOT / "artifacts" / "ablation", "A6")
+    if v1:
+        g = v1["crosstab"]["grid_overall"]
+        out.append(f'| `artifacts/ablation/A6/report.json` | **Ablation v1 A6** — 사다리의 '
+                 f'그때 완성 구성 | {g["correct"]}/{g["n_scored"]} ({_pct(g["rate"])}) '
+                 f'| ✅ **이것과 비교한다** |')
+    out.append("\nT7 이 보고한 `+38.9%p` 는 위쪽(Phase H v1, 19/36)과의 차이다 — 그것은 "
+             "**시스템 전체가 좋아진 폭**이다. 아래 표가 재는 것은 **같은 사다리의 완성 "
+             "구성끼리**(Ablation v1 A6 vs v2 A8) 이고, 두 수를 더하거나 섞으면 안 된다.\n")
+    if wanted and full:
+        out.append("| 구성 | 코호트 | 정답 / 채점 | 정답률 | Δ(v1 A6) |")
+        out.append("|---|---|---|---|---|")
+        base_rate = _exact_rate(v1["crosstab"]["grid_overall"]) if v1 else None
+        if v1:
+            g = v1["crosstab"]["grid_overall"]
+            out.append(f'| **Ablation v1 A6** (2026-08-09) | measured 42 중 그리드 '
+                     f'{g["n_scored"]} | {g["correct"]}/{g["n_scored"]} '
+                     f'| {_pct(_exact_rate(g))} | — |')
+        for arm in ladder:
+            r = _grid_rate(reports[arm]["rows"], wanted)
+            out.append(f'| v2 {arm} | measured 42 중 그리드 {r["n_scored"]} '
+                     f'| {r["correct"]}/{r["n_scored"]} '
+                     f'| {_pct(_exact_rate(r))} | {_pp(base_rate, _exact_rate(r))} |')
+        out.append(f'\n🔴 **분모는 {len(wanted)} 가 아니라 그리드 36 이다.** '
+                 f'`measured_dev_cohort()` 는 {len(wanted)}개 ID 를 주지만 정보한계 6문항이 '
+                 "그리드 밖이라 채점 대상은 36 이다. 이 표의 코호트 이름과 §12b·원장의 "
+                 "`dev_grid_measured36` 은 **같은 것**을 가리킨다.\n")
+
+        # 🔴 12b. 뒤집힘을 두 성분으로 가른다 — 코호트 효과와 증설 효과는 다른 것이다.
+        out.append("\n### 12b. 🔴 `A0→A1` 뒤집힘을 두 성분으로 가른다\n")
+        out.append('"문항이 42→88 로 늘자 부호가 뒤집혔다" 는 **절반만 맞다.** 그리드 72문항을 '
+                 "v1 이 실제로 잰 36문항(`measured`)과 증설된 36문항으로 갈라 보면 "
+                 "**동일 코호트가 이미 뒤집혀 있다.**\n")
+        out.append("| 구간 | A0 | A1 | Δ(A0→A1) |")
+        out.append("|---|---|---|---|")
+        v1_a0, v1_a1 = (_load_report(ROOT / "artifacts" / "ablation", a)
+                        for a in ("A0", "A1"))
+        if v1_a0 and v1_a1:
+            g0 = v1_a0["crosstab"]["grid_overall"]
+            g1 = v1_a1["crosstab"]["grid_overall"]
+            out.append(f'| **v1** measured 36 | {g0["correct"]}/{g0["n_scored"]} '
+                     f'| {g1["correct"]}/{g1["n_scored"]} '
+                     f'| {_pp(_exact_rate(g0), _exact_rate(g1))} |')
+        # 🔴 이 분해는 `A0`·`A1` 산출물이 **이 세대 폴더 안에** 있을 때만 성립한다.
+        #    부분 세대(`--out artifacts/ablation/v3` 처럼 LOO·진단 arm 만 담긴 폴더)에서
+        #    무방비로 색인하면 `KeyError: 'A0'` 으로 보고서 전체가 죽는다 — 실제로 죽었다.
+        #    다른 세대의 A0/A1 을 끌어와 채우지 않는다. 그것이야말로 이 절이 경고하는
+        #    **세대 혼합**이고, 그렇게 만든 Δ 는 어느 시스템의 것도 아니다.
+        if all(a in reports for a in ("A0", "A1")):
+            for label, keep in (("**v2** measured 36 (동일 코호트)", True),
+                                ("**v2** 증설 36", False)):
+                cells = []
+                for arm in ("A0", "A1"):
+                    rows_ = [r for r in ea.grid_rows(reports[arm]["rows"])
+                             if (r["question_id"] in wanted) == keep]
+                    cells.append(ea._rate(rows_))
+                out.append(f'| {label} | {cells[0]["correct"]}/{cells[0]["n_scored"]} '
+                         f'| {cells[1]["correct"]}/{cells[1]["n_scored"]} '
+                         f'| {_pp(_exact_rate(cells[0]), _exact_rate(cells[1]))} |')
+        else:
+            missing = [a for a in ("A0", "A1") if a not in reports]
+            out.append(f'| 🔴 이 세대에 없다 (`{"`·`".join(missing)}`) | — | — | — |')
+            out.append("\n🔴 **이 세대 폴더에는 `A0`·`A1` 산출물이 없어 분해를 못 한다.** "
+                     "다른 세대의 값을 끌어와 채우지 않는다 — 이 절의 요지가 **세대를 "
+                     "섞지 말라**는 것이므로, 섞어서 채운 표는 이 절의 결론을 거짓으로 "
+                     "만든다. 분해가 필요하면 그 세대 폴더에 `--report` 를 돌린다 "
+                     "(`artifacts/ablation/v2`).\n")
+        if all(a in reports for a in ("A0", "A1")):
+            out.append("\n**두 성분이 같은 방향이고 크기가 다르다.** 동일 36문항에서 v1 은 "
+                     "`+2.8%p` 였는데 v2 는 음수다 — 그 몫은 **문항 증설이 아니라 v1→v2 코드 "
+                     "변화**다. 🔴 **어느 커밋이 원인인지는 v2 산출물로 특정할 수 없다** "
+                     "(v1 이후 파이프라인이 여러 트랙에서 바뀌었고, 이 트랙은 arm 플래그만 "
+                     "변수로 뒀다). 특정하려면 커밋별 재측정이 필요하고 그것은 별개 작업이다.\n")
+
+    return out
+
+
+def _gate_reading_notes(c: _GateContext) -> list[str]:
+    """§13. 읽을 때 주의. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    arms = c.arms
+
+    # --- 13. 읽을 때 주의 ---
+    out.append("\n## 13. 이 표를 읽을 때 주의할 것\n")
+    out.append("- **`Δ(A5→A6)` · `Δ(A6→A7)` · `Δ(A7→A8)` 은 88문항 그리드에서 정의상 0 이다.** "
+             "A6(Verifier)은 경고만 붙이고 답을 갈아엎지 않으며(LLM 0회), A7 은 플래그가 "
+             "없고, A8 의 발주처 hop 은 그리드 88문항에서 발화가 0건이다. 셋 다 "
+             "**생성 프롬프트가 A5 와 바이트 동일**임을 LLM 0회로 확인했다.\n")
+    out.append("- `DATA_LIMIT` 은 정답률 분모에서 뺀다. 정보한계 문항은 `answerable=false` 로 "
+             "따로 세고, 지어내면 `HALLUCINATION` 으로 잡는다 (§4).\n")
+    out.append("- 근본 원인 히스토그램은 **그리드 기준**이다 (`root_cause_histogram_grid`). "
+             "전체 88 기준을 쓰면 회귀 트랙이 섞여 겨냥 건수가 부푼다.\n")
+    # 🔴 이 문단의 실측 수치도 문자열이었다 — 재실행으로 방향까지 뒤집혔는데(옛 문자열은
+    # "A0 3.73초 vs A5·A8 0.02~0.03초") 갱신되지 않았다. 하드코딩 사고의 네 번째 얼굴이다.
+    # 이제 산출물에서 읽는다. 값이 없으면 수를 쓰지 않는다.
+    lat = [(a, c.get("latency_s_mean_recorded", c.get("latency_s_mean")))
+           for a, c in arms.items()]
+    lat = sorted(((a, v) for a, v in lat if v is not None), key=lambda t: -t[1])
+    out.append("- 🔴 **기록된 지연을 '평균 응답 시간' 으로 인용하지 않는다.** 그 값은 응답 "
+             "파일에 저장된 벽시계 시간의 평균인데, 그 파일을 만들 때 요청 캐시가 적중했다면 "
+             "파이프라인이 ~1ms 에 끝난 시간이 저장돼 있다. **캐시 적중률이 arm 마다 다르므로 "
+             "arm 사이 비교가 성립하지 않고, 세대가 바뀌면 순서까지 뒤집힌다** — 실제로 이 "
+             "문단의 수치가 한 번 뒤집혔다."
+             + (" 현 세대 실측: "
+                + " · ".join(f"`{a}` {v:.2f}초" for a, v in lat[:3])
+                + (f" … `{lat[-1][0]}` {lat[-1][1]:.2f}초" if len(lat) > 3 else "")
+                if lat else " 현 세대 산출물에 값이 없다.")
+             + " 진짜 응답 시간은 캐시 없이 다시 재야 나온다 (제출 후, 배포 리허설에서).\n")
+    # 🔴 A3 의 겨냥 건수를 **손으로 적지 않는다.** 종전에는 "겨냥점 1건 (Q-094, rank 8·9)"
+    #    이 문자열로 박혀 있었고, Q-094 가 리랭커 없이 정답이 된 뒤에도 그대로 렌더됐다.
+    #    상수가 단일 원천이므로 거기서 센다 (I-6 과 같은 뿌리 — 문자열이 상수를 복제한 경우).
+    a3 = next((ids for arm, ids, _ in ea.TARGETED_BY_MANUAL_REVIEW if arm == "A3"), ())
+    out.append("- **A2·A3 는 v1 에서 실측으로 제외했다** — A2 는 dense 가 top_k 에 31건을 "
+             "새로 올렸는데 골든 0건, A3 는 겨냥점 1건. "
+             + (f"**현 세대 A3 겨냥 {len(a3)}건**: {' '.join(a3)}.\n" if a3 else
+                "🔴 **현 세대 A3 겨냥은 0건이다** — v1 의 `WRONG_SECTION` 도, 그 뒤 신규 "
+                "섹터에서 섰던 `RANKING/LOW_RANK`(Q-094)도 리랭커 없이 해소됐다. Q-094 는 "
+                "다문서 질의 분해만으로 맞았고 원 진단이 틀렸다 "
+                "(`docs/pipeline/05-reranker.md §E-4`). **잴 대상이 사라진 것이지 "
+                "못 한 것이 아니다.**\n"))
+
+    return out
+
+
+def _gate_heldout(c: _GateContext) -> list[str]:
+    """§14. heldout — 게이트 I 의 마지막 항목. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    out: list[str] = []
+    arms, held = c.arms, c.held
+
+    # --- 14. heldout — 게이트 I 의 마지막 항목 ---
+    out.append("\n## 14. heldout 최종 측정 — 일반화 낙폭\n")
+    if not held:
+        out.append("🔴 **아직 열지 않았다.** `evalset/heldout.jsonl` 18문항은 최종 구성 "
+                 "1회용이고, 이 트랙은 그것을 열지 않았다. 게이트 I 의 6번째 항목은 "
+                 "여기서 비어 있다.\n")
+    else:
+        dev = held["dev_grid"]
+        # 🔴 "이번이 두 번째" 를 하드코딩하지 않는다 — 바로 앞이 `use` 를 동적으로 찍으므로
+        #    3회째가 되면 한 문단 안에서 모순이 생긴다. 이력은 `HELDOUT_HISTORY` 가 든다.
+        prior = [h for h in HELDOUT_HISTORY if h["use"] < (held.get("use") or 0)]
+        prior_note = " · ".join(f'{h["use"]}회 {h["arm"]} {h["correct"]}/{h["n_scored"]}'
+                                for h in prior) or "없음"
+        ordinal = {1: "첫", 2: "두", 3: "세"}.get(held.get("use"), str(held.get("use")))
+        out.append(f'🔴 **{held["use"]}회째 사용이다.** 앞선 사용: {prior_note}. '
+                 f'이번이 {ordinal} 번째이자 최종 구성 `{held["arm"]}` 1회다. '
+                 "arm 별로 돌리지 않았다 — 그러면 heldout 이 개발셋이 되고 되돌릴 수 없다. "
+                 f'원장 `{HELDOUT_LEDGER}` 이 `artifacts/` 아래 **어디에라도** 있으면 러너가 '
+                 "유료 실행을 거부한다 — `--out` 으로 우회되지 않는다 "
+                 "(`scripts/ablation.py::assert_heldout_unused`).\n")
+        out.append("🔴 **낙폭은 축마다 다르게 나온다.** dev 쪽 분모가 v1 36 → v2 72 로 "
+                 "늘었으므로 세 축을 다 낸다 — 하나만 적으면 그것이 '그 낙폭' 으로 굳고, "
+                 "가장 유리한 축이 뽑히기 쉽다. heldout 쪽 18문항만 두 판에서 동일하다.\n")
+        # 🔴 이 절의 dev 쪽 수는 **원장이 얼어붙은 시점**의 것이다. heldout 은 다시 못 재므로
+        # 원장을 갱신하지 않는 것이 옳지만, 그 결과 dev 수가 §2·§12 와 갈린다. 라벨이 없으면
+        # 같은 문서 안에서 모순으로 읽힌다 (재검토 B C1 — 실제로 그 상태였다).
+        live = arms.get(held.get("arm")) or {}
+        if live.get("n_scored") and (
+                live.get("correct") != dev.get("correct")
+                or live.get("n_scored") != dev.get("n_scored")):
+            out.append(
+                f'🔴 **이 절의 dev 수는 얼어붙은 값이다.** heldout 을 측정한 시점의 dev 는 '
+                f'**{dev["correct"]}/{dev["n_scored"]}** 이었고, 지금 dev 는 '
+                f'**{live["correct"]}/{live["n_scored"]}** 이다(§2·§12). 원장을 갱신하지 '
+                "않는 이유는 **heldout 을 다시 못 재기 때문**이다 — 새 dev 와 옛 heldout 을 "
+                "짝지으면 그 낙폭은 어느 시스템의 것도 아니다. **이 절의 낙폭은 그 시점의 "
+                "시스템에 대한 판정이고, 현재 시스템의 일반화 추정치가 아니다.** 현재 시스템의 "
+                "값을 알려면 새 홀드아웃이 필요하다.\n")
+        out.append("| 축 | 구성 | dev 그리드 | heldout | 낙폭 |")
+        out.append("|---|---|---|---|---|")
+        v1 = held["v1"]
+        out.append(f'| v1 · dev 36 | {v1["arm"]} | {_frac(v1["dev_grid"])} '
+                 f'| {_frac(v1["heldout"])} | {_pp_of(v1["gap_pp"])} |')
+        out.append(f'| **v2 · dev 72 (증설 후 · 이번 판의 축)** | **{held["arm"]}** '
+                 f'| {_frac(dev)} | **{_frac(held)}** | **{_pp_of(held["gap_pp"])}** |')
+        m36 = held.get("dev_grid_measured36") or {}
+        if m36.get("n_scored"):
+            out.append(f'| v2 · measured 36 (v1 과 같은 문항 · dev 쪽이 **재생**) '
+                     f'| {held["arm"]} | {_frac(m36)} | {_frac(held)} '
+                     f'| **{_pp_of(m36["gap_pp"])}** |')
+        else:
+            out.append("| 🔴 v2 · measured 36 | — | **구할 수 없었다** "
+                     f'({m36.get("unavailable")}) | — | **판정 불가** |')
+        out.append(f'\n🔴 **비교 축.** {held["axis_caveat"]}\n')
+        if m36.get("n_scored"):
+            out.append(f'🔴 **가장 큰 낙폭은 `measured 36` 축의 {_pp_of(m36["gap_pp"])} 다** — '
+                     "dev 쪽을 v1 과 나란히 읽는 유일한 축이므로 **판정은 이 수로 해야 한다.** "
+                     f'다만 이 축의 dev 값은 {m36["caveat"]} (§12).\n')
+        if held.get("same_failures_as_v1"):
+            out.append("🔴 **정답 집합이 v1 과 문항 단위로 완전히 같다** — "
+                     f'{_frac(held)} 이고 틀린 문항도 같은 '
+                     f'{", ".join(held["wrong_ids"])} 다. 그러므로 '
+                     f'`{_pp_of(v1["gap_pp"])} → {_pp_of(held["gap_pp"])}` 로 낙폭이 좁아진 '
+                     "몫은 **일반화가 좋아진 것이 아니라 dev 쪽 정답률이 내려간 것**이다 "
+                     "(문항 증설로 84.7%). 좁아진 낙폭을 개선으로 읽으면 안 된다.\n")
+            out.append("🔴 **그러나 이것은 재생이 아니다 — 독립 유료 측정이다.** 답변 텍스트가 "
+                     "**18/18 전부 다르고**(v1 A6 시점 코드와 프롬프트가 달라 요청 캐시 적중 0) "
+                     "토큰도 79,326 → 95,984 로 늘었다. 정답 집합만 같다. 그래서 이 15/18 은 "
+                     "**이 판에서 유일한 독립 측정치**이고, `measured 36`(dev 쪽이 재생)과 "
+                     "성격이 다르다.\n")
+        out.append(f'**판정** — {held.get("verdict") or "—"}\n')
+        if held.get("gate_retired_after_this_run"):
+            out.append(f'🔴 **이 게이트는 이번이 마지막 사용이다.** {held["gate_retirement_reason"]}\n')
+        out.append(f'실지출 **{held["spent_won"] or 0:,.1f}원** (상한 1,000원) · '
+                 f'arm 비용 {held["arm_cost_won"] or 0:,.1f}원 · '
+                 f'실패 단계 `{json.dumps(held["failure_histogram"], ensure_ascii=False)}` · '
+                 f'근본 원인 `{json.dumps(held["root_cause_histogram"], ensure_ascii=False)}`\n')
+
+    return out
+
+
 def render_gate(root: Path, budget_cap: float) -> str:
-    """게이트 I 5항목(heldout 제외)을 표로 낸다. **LLM 0회.**"""
+    """게이트 I 5항목(heldout 제외)을 표로 낸다. **LLM 0회.**
+
+    머리말이 공용 값을 한 번 계산하고, 절은 위 순수 함수들이 낸다.
+    **절의 순서가 곧 문서의 순서다** — 여기 목록이 정본이다.
+    """
     reports = {a: _load_report(root, a) for a in ablation.RUN_ORDER}
     reports = {k: v for k, v in reports.items() if v}
     ladder = [a for a in ablation.LADDER if a in reports]
@@ -2026,880 +3102,35 @@ def render_gate(root: Path, budget_cap: float) -> str:
         o.append("🔴 **heldout 낙폭은 이 문서에 없다 — Task 10 몫이다.** "
                  "여기서 `evalset/heldout.jsonl` 을 열지 않았다.\n")
 
-    # --- 0. arm 구성 확인 — 무엇이 실제로 켜졌는가 ---
-    o.append("\n## 0. arm 구성 — 켠 것이 실제로 켜졌는가\n")
-    o.append("Δ 를 읽기 전에 스위치를 확인한다. **끈 줄 알았는데 안 꺼진 것**이 "
-             "가장 비싼 실패다 (Δ 가 0 으로 나오고 우리는 그것을 '기여 없음' 으로 읽는다).\n")
-    flags = [f for f in ablation.FLAG_NAMES if f != "dense"]
-    o.append("| arm | " + " | ".join(f"`{f}`" for f in flags) + " |")
-    o.append("|---|" + "---|" * len(flags))
-    for arm in ladder + loo + side + diag:
-        cells = []
-        for f in flags:
-            value = arms[arm]["flags"].get(f)
-            cells.append(str(value) if isinstance(value, str)
-                         else ("✓" if value else "✗"))
-        o.append(f"| **{arm}**{' 🔬' if arm in diag else ''} | "
-                 + " | ".join(cells) + " |")
-    if diag:
-        o.append(f'\n🔬 = 진단 arm (`{"`·`".join(diag)}`). **성적이 아니다** — 평가 시점에 '
-                 "없는 정보(골든 근거)를 쓰므로 제출 구성이 될 수 없다. 스위치 표에만 "
-                 "싣고 누적 곡선·LOO 표에는 넣지 않는다 (`ablation.DIAGNOSTIC_ARMS`).\n")
-    o.append("\n🔴 **`A7` 은 플래그가 A6 과 같다** — 거절 강제·시점 지정은 무조건 실행되는 "
-             "코드이고(`router.missing_named_report` · `pipeline._as_of_ym`) 플래그로 끌 수 "
-             "없다. 그래서 사다리의 `Δ(A6→A7)` 은 **측정값이 아니라 정의상 0** 이다. "
-             "A7 의 실효는 §I-5d 가 42문항 코호트로 이미 쟀다 (grid +2.8%p · 환각 1→0).\n")
-    o.append("🔴 **`L3` 은 플래그가 A7 과 같다** (`A8 − counterparty_hop = A7`). "
-             "두 수는 부호만 다른 같은 값이어야 하고, 아니면 어딘가 틀렸다.\n")
+    # 🔴 여기부터가 절이다. **위 머리말이 만든 값만** 절에 들어간다 (AST 전수 조사).
+    c = _GateContext(
+        root=root, budget_cap=budget_cap, budget_source=budget_source,
+        budget_note=budget_note, reports=reports, ladder=ladder,
+        loo=loo, diag=diag, side=side,
+        full=full, summary=summary, arms=arms,
+        spend=spend, meta=meta, vc=vc,
+        vc_diag=vc_diag, held=held,
+    )
 
-    # --- 1. 비용 ---
-    o.append("\n## 1. arm 별 비용 실측\n")
-    o.append("`arm 비용` = 그 arm 을 혼자 돌렸을 때의 실측 usage 합 (캐시 적중 포함). "
-             "`신규 지출` = 요청 캐시가 못 막아 **이번에 결제된** 몫.\n")
-    o.append("| arm | LLM 호출 | prompt | completion | judge | 총 토큰 | arm 비용(원) | 신규 지출(원) |")
-    o.append("|---|---|---|---|---|---|---|---|")
-    arm_sum = 0.0
-    for arm in ladder + loo + side + diag:
-        t = reports[arm]["totals"]
-        arm_sum += t["cost_won"]
-        fresh = spend["per_arm"].get(arm)
-        o.append(f'| {arm}{" 🔬" if arm in diag else ""} | {t["llm_calls"]} '
-                 f'| {t["prompt_tokens"]:,} '
-                 f'| {t["completion_tokens"]:,} | {t["judge_tokens"]:,} '
-                 f'| {t["total_tokens"]:,} | {t["cost_won"]:,.1f} '
-                 f'| {"—" if fresh is None else f"{fresh:,.1f}"} |')
-    vc_runs = (spend_from_runs(root / "vc")["per_arm"]
-               if (root / "vc").exists() else {})
-    for arm, report in vc.items():
-        t = report["totals"]
-        fresh = vc_runs.get(arm)
-        o.append(f'| {arm}{" 🔬" if arm in vc_diag else ""}/밸류체인 (12문항) '
-                 f'| {t["llm_calls"]} | {t["prompt_tokens"]:,} '
-                 f'| {t["completion_tokens"]:,} | {t["judge_tokens"]:,} '
-                 f'| {t["total_tokens"]:,} | {t["cost_won"]:,.1f} '
-                 f'| {"—" if fresh is None else f"{fresh:,.1f}"} |')
-        arm_sum += t["cost_won"]
-    # 🔴 heldout 도 이 폴더 안에서 결제됐으므로 `spend["won"]`(재귀 합)에 이미 들어 있다.
-    #    표에 행을 안 내면 `arm_sum` 만 빠져서 "캐시가 막은 금액" 이 그만큼 작게 찍힌다
-    #    (heldout 은 캐시 적중 0 이라 막은 금액에 기여가 없어야 한다).
-    held_report = _load_report(root / "heldout", f'{held["arm"]}_heldout_run') if held else None
-    if held_report:
-        t = held_report["totals"]
-        o.append(f'| {held["arm"]}/heldout (18문항 · §14) | {t["llm_calls"]} '
-                 f'| {t["prompt_tokens"]:,} | {t["completion_tokens"]:,} '
-                 f'| {t["judge_tokens"]:,} | {t["total_tokens"]:,} '
-                 f'| {t["cost_won"]:,.1f} | {held["spent_won"] or 0:,.1f} |')
-        arm_sum += t["cost_won"]
-    # `spend` 는 재귀 합이므로 밸류체인·heldout 몫이 이미 들어 있다 — 다시 더하면 이중계상이다.
-    total_spend = spend["won"]
-    o.append(f'| **합계 (캐시 없었다면)** | | | | | | **{arm_sum:,.0f}** | |')
-    o.append(f'| **실제 결제 (하위 코호트 포함)** | | | | | | | **{total_spend:,.1f}** |')
-    if held_report:
-        o.append(f'\n🔴 **사다리 실행분과 heldout 을 갈라 읽는다.** 위 총액 '
-                 f'{total_spend:,.1f}원 = 사다리·LOO·밸류체인 '
-                 f'{total_spend - (held["spent_won"] or 0):,.1f}원 + heldout '
-                 f'{held["spent_won"] or 0:,.1f}원(§14). 앞엣것이 Ablation v2 측정 비용이고, '
-                 "뒤엣것은 **최종 1회** 몫이라 회계가 다르다.\n")
-    # 🔴 `summary.json` 과 이 표가 맞는지 **여기서 검산한다.** 예전에는 "그 파일은
-    #    heldout 이전 값이다" 를 문장으로 박아 뒀는데, 재집계로 그 파일이 갱신되면
-    #    그 문장이 조용히 거짓이 된다. 문장을 값에서 만든다.
-    # 🔴 **R2F — 이 검산이 `if held_report:` 안에 있었다.** heldout 이 없는 세대(v3)에서는
-    #    한 번도 발화하지 않았고, 그래서 `v3/summary.json` 의 `spent_won 553.2` 가
-    #    실제 재귀 합 **605.1**(= `vc/L3` 51.9 를 뺀 값)과 갈린 채로 커밋됐다. 두 산출물이
-    #    **같은 출처 라벨**("arm·코호트별 run.json 합")을 달고 다른 수를 실었다.
-    #    검산은 조건 밖에 있어야 검산이다.
-    meta_spend = meta.get("spent_won")
-    if meta_spend is None:
-        o.append('🔴 `summary.json` 에 `spent_won` 이 없다 — **총지출은 이 표의 '
-                 f'{total_spend:,.1f}원**(arm 별 `run.json` 합)이 권위값이다.\n')
-    elif abs(float(meta_spend) - total_spend) < 0.05:
-        o.append(f'✅ **검산 일치** — `summary.json` 의 `spent_won` '
-                 f'{float(meta_spend):,.1f}원 = 이 표의 총액 {total_spend:,.1f}원 '
-                 "(둘 다 arm·코호트별 `run.json` 합이다).\n")
-    else:
-        gap = total_spend - float(meta_spend)
-        hint = ""
-        if held_report:
-            hint = ("그 파일이 heldout 이전 시점의 산출물이면 그 차이가 heldout 몫"
-                    f'({held["spent_won"] or 0:,.1f}원)과 같아야 한다. ')
-        else:
-            newer = sorted((v, k) for k, v in spend["per_arm"].items()
-                           if abs(v - gap) < 0.05)
-            hint = ("두 값의 출처 라벨이 같으므로 한쪽이 낡았다는 뜻이다 — "
-                    "`summary.json` 은 **재집계 시점**에 얼어붙고 이 표는 **렌더 시점**에 "
-                    "다시 센다. 즉 재집계 뒤에 유료로 돌린 arm 이 있다"
-                    + (f' (차이가 `{newer[0][1]}` 의 결제액과 정확히 같다). '
-                       if newer else ". ")
-                    + "🔴 **처방은 `--arm` 없이 코호트만 주는 재집계**(LLM 0회)다. ")
-        o.append(f'🔴 **`summary.json` 의 `spent_won`({float(meta_spend):,.1f})과 이 표의 '
-                 f'총액({total_spend:,.1f})이 다르다** — 차이 {gap:+,.1f}원. '
-                 + hint
-                 + f'**총지출은 이 표의 {total_spend:,.1f}원**이 권위값이다 '
-                   "(`run.json` 합).\n")
-    o.append(f'\n상한 {budget_cap:,.0f}원 대비 **{total_spend / budget_cap * 100:.1f}%** '
-             f'사용 (80% 정지선 {budget_cap * 0.8:,.0f}원 · 상한 출처 {budget_source}). '
-             f'**캐시 전체가 {arm_sum - total_spend:,.0f}원을 막았다** — 요청 캐시만이 '
-             "아니라 **응답 파일 캐시와 프롬프트 동일성까지 합친** 절감액이다 "
-             "(§13 이 A6·A7·A8 의 프롬프트 동일성을 밝힌다).\n")
-    if budget_note:
-        o.append(budget_note + "\n")
-    o.append(f'지출 출처: {meta.get("spent_won_source", "—")}. '
-             f'요청 캐시 적중 {meta.get("cache_hits", "?")} / 미적중 '
-             f'{meta.get("cache_misses", "?")}'
-             + ("" if meta.get("cache_stats_are_this_process", True)
-                else f' (🔴 이번 프로세스 값이 아니다 — '
-                     f'{meta.get("cache_stats_carried_from", "이전 실행")} 에서 이어받았다)')
-             + (f' — {meta["cache_stats_note"]}' if meta.get("cache_stats_note") else "")
-             + "\n")
-    if meta.get("cache_stats_inconsistent"):
-        o.append(meta["cache_stats_inconsistent"] + "\n")
-    # 🔴 부분 실행을 표에 드러낸다. `analyse` 는 응답 없는 문항을 조용히 건너뛰므로
-    #    예산 중단된 arm 은 **더 작은 분모로** 표에 실린다 — 그러면 그 arm 의 정답률이
-    #    다른 arm 과 다른 잣대가 되고, 표만 보면 그 사실이 안 보인다.
-    partial = []
-    for arm in ladder + loo + side + diag:
-        rep = reports[arm]
-        run_path = root / arm / "run.json"
-        run = (json.loads(run_path.read_text(encoding="utf-8"))
-               if run_path.exists() else {})
-        if rep.get("n_analysed") != rep.get("n_cases") or run.get("stopped_at"):
-            partial.append(f'   · **{arm}** — 분석 {rep.get("n_analysed")}'
-                           f'/{rep.get("n_cases")}문항'
-                           + (f' · 예산 중단 `{run["stopped_at"]}`'
-                              if run.get("stopped_at") else ""))
-    o.append("\n🔴 **부분 실행 검사**: "
-             + ("전 arm 이 전수 분석됐다 (`n_analysed == n_cases`, 예산 중단 0건).\n"
-                if not partial else
-                "아래 arm 은 **분모가 다르다** — Δ 를 다른 arm 과 나란히 읽지 않는다.\n"
-                + "\n".join(partial) + "\n"))
+    o.extend(_gate_arm_flags(c))
+    o.extend(_gate_cost(c))
+    o.extend(_gate_cumulative(c))
+    o.extend(_gate_by_axis(c))
+    o.extend(_gate_by_track(c))
+    o.extend(_gate_loo(c))
+    o.extend(_gate_diagnostic_arms(c))
+    o.extend(_gate_valuechain(c))
+    o.extend(_gate_failure_stages(c))
+    o.extend(_gate_flipped(c))
+    targeting, targeted, idx = _gate_targeting(c)
+    o.extend(targeting)
+    o.extend(_gate_targeting_vs_loo(c, targeted, idx))
+    o.extend(_gate_paper_comparison(c))
+    o.extend(_gate_knee(c))
+    o.extend(_gate_measured42(c))
+    o.extend(_gate_reading_notes(c))
+    o.extend(_gate_heldout(c))
 
-    # --- 2. 누적 곡선 ---
-    n_scored = arms[full]["n_scored"] if full else 0
-    o.append(f"\n## 2. 누적 곡선 — A0 → {full} (**그리드 기준**)\n")
-    o.append(f'정답률은 **채점 대상 {n_scored}문항** 기준이다. 그리드 밖 트랙'
-             f'(회귀 10 · 정보한계)은 §4 에 따로 낸다 — 섞으면 v1 42문항과 나란히 '
-             "읽을 축이 하나도 안 남는다.\n")
-    o.append("| arm | 정답 | 정답률 | Δ(직전) | 골든 근거 적중 | 전건 적중 문항 "
-             "| arm 비용(원) | Δ정답률/Δ비용 |")
-    o.append("|---|---|---|---|---|---|---|---|")
-    prev_rate = prev_cost = None
-    for arm in ladder:
-        row = arms[arm]
-        cost = row["arm_cost_won"]
-        eff = "—"
-        if prev_rate is not None and prev_cost is not None and cost != prev_cost:
-            eff = f'{(row["rate"] - prev_rate) * 100 / (cost - prev_cost):+.3f}%p/원'
-        o.append(f'| **{arm}** | {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
-                 f'| {_pp(prev_rate, row["rate"])} '
-                 f'| {_recall(row)} '
-                 f'| {row["golden_evidence_all"]}/{row["n_grid"]} | {cost:,.0f} | {eff} |')
-        prev_rate, prev_cost = row["rate"], cost
-
-    # --- 3. 축별 분해 ---
-    o.append("\n## 3. 축별 Δ 분해 — 전체 Δ 하나만 보면 '왜 올랐는지' 가 사라진다\n")
-    for axis, values in AXES.items():
-        o.append(f'\n### {AXIS_LABELS[axis]}\n')
-        o.append("| 값 | " + " | ".join(ladder)
-                 + f' | Δ {ladder[0]}→{full} | 최대 단일 Δ |')
-        o.append("|---|" + "---|" * (len(ladder) + 2))
-        for value in values:
-            cells, rates = [], []
-            for arm in ladder:
-                cell = summary["axes"][axis][value][arm]
-                cells.append(f'{cell["correct"]}/{cell["n"]}')
-                rates.append(cell["rate"])
-            steps = [(rates[i + 1] - rates[i], ladder[i + 1])
-                     for i in range(len(rates) - 1)
-                     if rates[i] is not None and rates[i + 1] is not None]
-            best = max(steps, key=lambda s: s[0]) if steps else None
-            o.append(f'| {value} | ' + " | ".join(cells)
-                     + f' | {_pp(rates[0], rates[-1])} | '
-                     + (f'{best[1]} {best[0] * 100:+.1f}%p |' if best else "— |"))
-
-    # 🔴 문서군 행 — 이번 최대 발견(A0→A1 뒤집힘)의 근거가 여기 있다. 게이트만 읽고도
-    #    결론이 서야 하므로 `report.json` 에만 두지 않는다.
-    groups = ("exchange", "major", "holding", "periodic")
-    o.append("\n### 문서군 — **`A0→A1` 뒤집힘의 근거는 이 행이다**\n")
-    o.append("3축(난이도·답변형식·과제유형)은 문서군을 안 보여 준다. `A1` 의 정의가 "
-             "**exchange 인덱스 1,469건만 본다**는 것이므로, 그 arm 의 손실은 문서군 축에서만 "
-             "드러난다.\n")
-    o.append("| arm | " + " | ".join(groups) + " | ROUTING 실패 | RETRIEVAL 실패 |")
-    o.append("|---|" + "---|" * (len(groups) + 2))
-    for arm in ladder + loo:
-        by_group = reports[arm].get("by_doc_group_grid") or {}
-        cells = []
-        for g in groups:
-            cell = by_group.get(g)
-            cells.append(f'{cell["correct"]}/{cell["n_scored"]}' if cell else "—")
-        hist = arms[arm]["failures"]
-        o.append(f'| **{arm}** | ' + " | ".join(cells)
-                 + f' | {hist.get("ROUTING", 0)} | {hist.get("RETRIEVAL", 0)} |')
-    a0g = (reports.get("A0") or {}).get("by_doc_group_grid") or {}
-    a1g = (reports.get("A1") or {}).get("by_doc_group_grid") or {}
-    if a0g and a1g:
-        gained = a1g["exchange"]["correct"] - a0g["exchange"]["correct"]
-        lost = sum(a0g[g]["correct"] - a1g[g]["correct"]
-                   for g in ("major", "holding", "periodic"))
-        o.append(f'\n**읽는 법.** `A0 → A1` 에서 exchange 는 **{gained:+d}건**이다 — '
-                 "BM25 순위가 인덱스가 닿는 곳에서는 제 일을 한다. 그런데 나머지 세 문서군에서 "
-                 f'**−{lost}건**을 잃는다. 순 **{gained - lost:+d}건**이 −8.3%p 의 전부다.\n')
-        o.append("기전은 문항 구성이 아니라 **인덱스 커버리지**다. `A1` 의 `ROUTING` 실패 "
-                 f'**{arms["A1"]["failures"].get("ROUTING", 0)}건**(A0 은 '
-                 f'{arms["A0"]["failures"].get("ROUTING", 0)}건)은 라우터 버그가 아니다 — '
-                 "arm 정의상 검색이 exchange 로 강제되므로 `parse_trace` 가 문서군 불일치로 "
-                 "읽는다. 실체는 **major·holding·periodic 질의가 검색 단계에서 통째로 "
-                 "떨어지는 것**이고, 그것이 곧 `A1b` 의 Δ 다.\n")
-
-    o.append(f'\n### ⚠ 변별력 재확인 — `{BLIND_CELL}`\n')
-    o.append("v1 에서 이 셀은 세 난이도가 전부 1~2/2 로 진동했다. **셀 n 이 늘어난 "
-             "v2 에서 다시 확인한다** — n 이 2 에 머물러 있으면 이 행의 Δ 는 읽지 않는다.\n")
-    o.append("| arm | 하 | 중 | 상 |")
-    o.append("|---|---|---|---|")
-    for arm in ladder:
-        cells = [summary["cells"][d][arm] for d in ("하", "중", "상")]
-        o.append(f'| {arm} | ' + " | ".join(f'{c["correct"]}/{c["n"]}' for c in cells) + " |")
-    cell_n = {summary["cells"][d][full]["n"] for d in ("하", "중", "상")} if full else set()
-    biggest = max(cell_n or {0})
-    if biggest <= 2:
-        verdict = "**여전히 2 이하다 — 이 행의 Δ 는 읽지 않는다.**"
-    else:
-        verdict = (f"v1 의 2 에서 **{biggest} 로 늘었다.** 다만 한 문항이 뒤집히면 "
-                   f"{100 / biggest:.0f}%p 가 움직인다 — **부호(방향)만 읽고 크기는 "
-                   f"읽지 않는다.** 이 셀 하나로 결론을 내지 않는다 (02-golden-set B-7).")
-    o.append(f'\n셀 n = {sorted(cell_n)}. {verdict}\n')
-
-    # --- 4. 트랙별 ---
-    o.append("\n## 4. 트랙별 — **합치지 않는다**\n")
-    o.append("회귀는 고친 실패의 감시이고 정보한계는 거절이 정답이다. 같은 분모에 "
-             "넣으면 둘 다 거짓말이 된다.\n")
-    tracks = [t for t in (ea.GRID_TRACK,) + ea.OFF_GRID_TRACKS
-              if any(t in arms[a]["tracks"] for a in arms)]
-    o.append("| arm | " + " | ".join(tracks) + " | 정보한계 거절정답 | 환각 |")
-    o.append("|---|" + "---|" * (len(tracks) + 2))
-    for arm in ladder + loo + side:
-        cells = []
-        for track in tracks:
-            cell = arms[arm]["tracks"].get(track)
-            cells.append(f'{cell["correct"]}/{cell["n_scored"]}' if cell else "—")
-        o.append(f'| {arm} | ' + " | ".join(cells)
-                 + f' | {arms[arm]["info_limit_correct"]}/{arms[arm]["info_limit_n"]} '
-                 f'| {arms[arm]["hallucination"]} |')
-
-    # --- 5. LOO ---
-    if loo and full:
-        base = arms[full]
-        o.append(f"\n## 5. Leave-one-out **3구성** — 완성 구성({full})에서의 필수성\n")
-        o.append(f'v1 은 2개였다. v2 는 발주처 hop 을 더해 3개다.\n')
-        o.append(f'| 구성 | 뺀 것 | 정답 | 정답률 | Δ({full}) | 골든 근거 적중 |')
-        o.append("|---|---|---|---|---|---|")
-        o.append(f'| **{full}** | — | {base["correct"]}/{base["n_scored"]} '
-                 f'| {_pct(base["rate"])} | — '
-                 f'| {_recall(base)} |')
-        for arm in loo:
-            row = arms[arm]
-            o.append(f'| {arm} | {ablation.LOO_REMOVED[arm]} '
-                     f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
-                     f'| {_pp(base["rate"], row["rate"])} '
-                     f'| {_recall(row)} |')
-        o.append("\n### LOO 축별 분해\n")
-        for axis, values in AXES.items():
-            o.append(f'\n**{AXIS_LABELS[axis]}**\n')
-            o.append(f'| 값 | {full} | ' + " | ".join(f"{a} | Δ{a}" for a in loo) + " |")
-            o.append("|---|---|" + "---|" * (2 * len(loo)))
-            for value in values:
-                b = summary["axes"][axis][value][full]
-                cells = [f'{b["correct"]}/{b["n"]}']
-                for arm in loo:
-                    r = summary["axes"][axis][value][arm]
-                    cells += [f'{r["correct"]}/{r["n"]}', _pp(b["rate"], r["rate"])]
-                o.append(f'| {value} | ' + " | ".join(cells) + " |")
-
-    # --- 5b. 진단 arm — 사다리에도 LOO 에도 자리가 없다 ---
-    # 🔴 성적 표와 **같은 표에 넣지 않는다.** 같은 표에 있으면 다음 사람이 그 줄을 성적으로
-    #    인용한다. 그렇다고 안 실으면 잰 값이 게이트 문서에서 사라진다 — 자리를 주되
-    #    경고를 표 안에 같이 쓴다 (`render_summary` §2b 와 같은 규칙).
-    if diag and full:
-        base = arms[full]
-        o.append("\n## 5b. 진단 arm — **성적이 아니다**\n")
-        o.append("| arm | 재는 것 | 정답 | 정답률 | Δ(A8) | 골든 근거 적중 | 전건 적중 |")
-        o.append("|---|---|---|---|---|---|---|")
-        for arm in diag:
-            row = arms[arm]
-            o.append(f'| {arm} | 근거를 **골든만으로 교체**했을 때 답이 서는가 '
-                     f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
-                     f'| {_pp(base["rate"], row["rate"])} '
-                     f'| {_recall(row)} '
-                     f'| {row["golden_evidence_all"]}/{row["n_grid"]} |')
-        o.append("\n> 🔴 평가 시점에 골든 근거가 없다. 이 줄의 정답률은 **제출 성적이 "
-                 "아니라 진단값**이다. 🔴 **R2E 재측정이 R1 의 읽는 법을 깼다** — `Δ` 는 "
-                 "**검색이 아직 못 가져온 몫이 아니다.** 주입은 근거를 골든만으로 "
-                 "**교체**하므로 근거가 줄고(실측 −47%), 정오가 갈린 문항 전수에서 골든 "
-                 "회수가 A8 과 **동일**했다. 잔여 오답을 **순수 생성 실패**로 읽을 수 "
-                 "있는 것은 근거가 A8 과 **바이트 동일**한 문항뿐이다.\n")
-        o.append("| arm | " + " | ".join(ea.ALL_LABELS) + " |")
-        o.append("|---|" + "---|" * len(ea.ALL_LABELS))
-        for arm in [full] + diag:
-            hist = arms[arm]["failures"]
-            o.append(f'| {arm}{" 🔬" if arm in diag else ""} | '
-                     + " | ".join(str(hist.get(s, 0)) for s in ea.ALL_LABELS) + " |")
-        o.append("\n🔴 **이 두 줄을 나란히 읽는 것이 이 절의 전부다.** 골든 근거 적중이 "
-                 "최대치인데도 **정답이 안 늘면** 남은 실패는 검색 몫이 아니다. "
-                 "⚠️ **`GENERATION` 칸이 늘어난 것을 '생성이 더 나빠졌다' 로 읽지 마라** — "
-                 "근거를 골든만으로 교체하면 다른 단계의 실패가 `GENERATION` 으로 "
-                 "**이동**한다(실측: 밸류체인 `RETRIEVAL` 3건이 그 자리에서 내려앉았다).\n")
-
-    # --- 6. A8 — 밸류체인 세 갈래 ---
-    o.append("\n## 6. 🔴 A8 의 성공 기준은 정답률이 아니라 완결성이다\n")
-    o.append("밸류체인 12문항 중 8건은 A8 없이도 근거가 닿는다 (BM25 자유텍스트). "
-             "전체 정답률로만 재면 Δ 가 작게 나오고 오판한다. 세 갈래로 가른다.\n")
-    o.append(f'**① 발주처 hop 발화 문항 (LLM 0회 실측)**: 88문항 그리드에서 **0건**, '
-             f'밸류체인 12문항에서 **8건** (Q-107 Q-109 Q-110 Q-113 Q-114 Q-115 '
-             f'Q-116 Q-118).\n')
-    o.append("→ 그래서 **88문항 그리드에서 `Δ(A7→A8)` 은 정의상 0 이다** — 근거가 "
-             "글자 하나 안 바뀌므로 프롬프트가 같고 답이 같다. A8 의 Δ 는 밸류체인 "
-             "트랙에서만 읽을 수 있다.\n")
-    if vc.get("A8"):
-        groups = (("① 완전 열거 (A8 의 진짜 겨냥점)", set(VC_FAN_IN)),
-                  ("② 완결성 확인 불가", set(VC_UNVERIFIABLE)),
-                  ("③ 이미 닿는 나머지 (깨지면 순손실)",
-                   {r["question_id"] for r in vc["A8"]["rows"]}
-                   - set(VC_FAN_IN) - set(VC_UNVERIFIABLE)))
-        names = [a for a in ("A8", "L3", "A7") if a in vc]
-        o.append("\n### 밸류체인 12문항 — 세 갈래\n")
-        o.append("| 갈래 | 문항 | " + " | ".join(names) + " |")
-        o.append("|---|---|" + "---|" * len(names))
-        for label, ids in groups:
-            cells = []
-            for name in names:
-                rate = ea._rate([r for r in vc[name]["rows"]
-                                 if r["question_id"] in ids])
-                cells.append(f'{rate["correct"]}/{rate["n_scored"]}')
-            o.append(f'| {label} | {" ".join(sorted(ids))} | ' + " | ".join(cells) + " |")
-        o.append("\n### 문항별 (A8 vs L3 = 발주처 hop 없음)\n")
-        o.append("🔴 `hop 발화` 칸을 먼저 본다. **발화하지 않은 문항에서 A8 의 Δ 는 정의상 "
-                 "0** 이고, 그것은 hop 이 약한 것이 아니라 **라우터가 발주처를 못 알아본 "
-                 "것**이다 — 처방이 정반대다 (hop 개선이 아니라 노드 이름 인식).\n")
-        o.append("| 문항 | 갈래 | hop 발화 | A8 | L3 | 판정 |")
-        o.append("|---|---|---|---|---|---|")
-        l3 = {r["question_id"]: r for r in (vc.get("L3") or {}).get("rows", [])}
-        for row in sorted(vc["A8"]["rows"], key=lambda r: r["question_id"]):
-            qid = row["question_id"]
-            other = l3.get(qid)
-            fired = "strat=counterparty" in (row.get("think_trace") or "")
-            branch = ("①열거" if qid in VC_FAN_IN else
-                      "②확인불가" if qid in VC_UNVERIFIABLE else "③이미닿음")
-            mark = {(True, True): "둘 다 정답", (False, False): "둘 다 오답",
-                    (True, False): "**A8 이 벌었다**", (False, True): "🔴 **A8 이 잃었다**"}
-            verdict = ("—" if other is None
-                       else mark[(bool(row["correct"]), bool(other["correct"]))])
-            if not fired and other is not None:
-                verdict += " (hop 미발화 — Δ 는 정의상 0)"
-            o.append(f'| {qid} | {branch} | {"✓" if fired else "**✗**"} '
-                     f'| {"✓" if row["correct"] else "✗"} '
-                     f'| {"—" if other is None else ("✓" if other["correct"] else "✗")} '
-                     f'| {verdict} |')
-        n_fired = sum(1 for r in vc["A8"]["rows"]
-                      if "strat=counterparty" in (r.get("think_trace") or ""))
-        no_fire = sorted(r["question_id"] for r in vc["A8"]["rows"]
-                         if "strat=counterparty" not in (r.get("think_trace") or ""))
-        o.append(f'\n밸류체인 12문항 중 hop 발화 **{n_fired}건** · 미발화 '
-                 f'{len(no_fire)}건 ({" ".join(no_fire)}).\n')
-
-    # --- 7. 실패 단계 · 근본 원인 ---
-    o.append("\n## 7. 실패 단계 · 근본 원인 분포 (**그리드 기준**)\n")
-    o.append("| arm | " + " | ".join(ea.ALL_LABELS) + " |")
-    o.append("|---|" + "---|" * len(ea.ALL_LABELS))
-    for arm in ladder + loo + side:
-        hist = arms[arm]["failures"]
-        o.append(f"| {arm} | " + " | ".join(str(hist.get(s, 0))
-                                           for s in ea.ALL_LABELS) + " |")
-    if full:
-        o.append(f'\n### {full} 잔여 실패 — 근본 원인 (그리드)\n')
-        o.append("| 문항 | 난이도 | 단계 | 원인 | 내용 |")
-        o.append("|---|---|---|---|---|")
-        for row in ea.grid_rows(reports[full]["rows"]):
-            if row["first_failure"]:
-                o.append(f'| {row["question_id"]} | {row["difficulty"]} '
-                         f'| {row["first_failure"]} | {row["root_cause"]} '
-                         f'| {row["failure_why"][:64]} |')
-        o.append(f'\n**근본 원인 히스토그램 (그리드)**: '
-                 f'`{json.dumps(arms[full]["root_causes"], ensure_ascii=False)}`\n')
-
-    # --- 8. 뒤집힌 문항 ---
-    o.append("\n## 8. arm 사이에서 뒤집힌 문항 — Δ 가 어느 문항에서 왔는가\n")
-    o.append("| 전이 | 새로 맞힌 문항 | 잃은 문항 |")
-    o.append("|---|---|---|")
-    pairs = list(zip(ladder, ladder[1:])) + [(full, a) for a in loo]
-    for lower, upper in pairs:
-        a = {r["question_id"]: r["correct"] for r in ea.grid_rows(reports[lower]["rows"])}
-        b = {r["question_id"]: r["correct"] for r in ea.grid_rows(reports[upper]["rows"])}
-        gained = sorted(q for q in a if b.get(q) and not a[q])
-        lost = sorted(q for q in a if a[q] and not b.get(q))
-        o.append(f'| {lower} → {upper} | {" ".join(gained) or "—"} '
-                 f'| {" ".join(lost) or "—"} |')
-
-    # --- 9. 겨냥과 Δ 대조 ---
-    o.append("\n## 9. arm 겨냥 배분 vs 실제 Δ — **안 맞으면 그것이 발견이다**\n")
-    o.append("Task 7 이 오답 13건을 근거 원문까지 대조해 배분한 표다. 🔴 이 표는 "
-             "**앞을 보는 처방**이지 v2 의 Δ 예측이 아니다 — 겨냥 문항은 정의상 "
-             f'`{full}` 에서 **아직 틀리고 있는** 문항이므로, 사다리의 어느 arm 도 그것을 '
-             "건지지 못했다. 그래서 두 칸을 따로 낸다: `실제로 건진 문항`(그 arm 이 "
-             "이번에 번 것)과 `겨냥 문항의 현재 상태`(그 arm 의 **다음 판**이 해야 할 것).\n")
-    # 🔴 **배분표를 여기서 다시 적지 않는다.** 같은 13건 배분이 이 파일과 채점기에 각각
-    #    있으면 둘이 갈리고, 어느 쪽이 참인지 산출물로 판정할 수 없다. 채점기가 단일
-    #    원천이다 (`ea.TARGETED_BY_MANUAL_REVIEW` — 원문 대조 결과이고, 자동 분류기와의
-    #    대조표를 `arm_allocation_reconciliation()` 이 낸다).
-    targeted = ea.TARGETED_BY_MANUAL_REVIEW
-    final_ok = {r["question_id"]: r["correct"]
-                for r in reports[full]["rows"]} if full else {}
-    o.append("| arm | 겨냥 | 겨냥 문항 | 사다리 Δ | 실제로 건진 문항 "
-             f'| 겨냥 문항의 {full} 상태 |')
-    o.append("|---|---|---|---|---|---|")
-    idx = {a: i for i, a in enumerate(ladder)}
-    for arm, ids, label in targeted:
-        status = " ".join(f'{q}{"✓" if final_ok.get(q) else "✗"}' for q in ids)
-        if arm not in idx or idx[arm] == 0:
-            o.append(f'| {arm} ({label}) | {len(ids)} | {" ".join(ids)} | — | — '
-                     f'| {status} |')
-            continue
-        lower = ladder[idx[arm] - 1]
-        a = {r["question_id"]: r["correct"] for r in ea.grid_rows(reports[lower]["rows"])}
-        b = {r["question_id"]: r["correct"] for r in ea.grid_rows(reports[arm]["rows"])}
-        gained = sorted(q for q in a if b.get(q) and not a[q])
-        hit = [q for q in ids if q in gained]
-        o.append(f'| {arm} ({label}) | {len(ids)} | {" ".join(ids)} '
-                 f'| {_pp(arms[lower]["rate"], arms[arm]["rate"])} '
-                 f'| {len(gained)}건 (겨냥 적중 {len(hit)}) | {status} |')
-    # 🔴 **자동 배분과 수동 배분을 코드가 대조한다.** 지금까지는 사람이 기억으로 이었고,
-    #    그 기억이 두 번 틀렸다("A6·A1b 공동 1위"). 자동 히스토그램은 A5 를 구조적으로 못
-    #    본다 — `verify_calculation` 이 답변 수치 중 최유리 값을 골라 비교하므로 10× 단위
-    #    오류가 `mismatch=False` 로 통과하고 TOOL 버킷이 그리드에서 0건이 된다.
-    rec = (reports[full] or {}).get("arm_allocation_reconciliation") if full else None
-    if rec:
-        o.append("\n### 9c. 🔴 자동 분류기 vs 원문 대조 — **어긋나는 것이 정상이다**\n")
-        o.append(f'{rec["note"]}\n')
-        o.append(f'분모가 다르다: {rec["denominator_note"]}. '
-                 f'권위값은 **{rec["authoritative"]}**(원문 대조)이다.\n')
-        o.append("| arm | 자동 (그리드) | 자동 (전 트랙) | 수동 (전 트랙) | 일치 |")
-        o.append("|---|---|---|---|---|")
-        for row in rec["by_arm"]:
-            same = "✓" if row["auto_all_tracks"] == row["manual_all_tracks"] else "**✗**"
-            o.append(f'| {row["arm"]} | {row["auto_grid"]} | {row["auto_all_tracks"]} '
-                     f'| {row["manual_all_tracks"]} | {same} |')
-        o.append(f'\n불일치 **{rec["n_disagreements"]}/{rec["n_compared"]}건**'
-                 + (f' — {", ".join(p["question_id"] + "(" + p["auto_arm"] + "→" + p["manual_arm"] + ")" for p in rec["disagreements"])}'
-                    if rec["disagreements"] else "")
-                 + ".\n")
-        if rec.get("critic_passed_wrong_answer"):
-            o.append("🔴 **critic 이 통과시킨 오답**: "
-                     f'{" ".join(rec["critic_passed_wrong_answer"])} — 이 문항들의 arm 은 '
-                     "자동 분류기가 지목할 수 없다 (그 판정 자체가 입력이다).\n")
-
-    # 🔴 우선순위 줄은 **상수에서 세어 쓴다.** 하드코딩해 두었다가 R2D 재측정에서
-    #    겨냥이 11 → 6 으로 줄자 낡은 순서(A4 5 → A5 4 → A1b 2 → A6 1)가 그대로 렌더됐다.
-    order = " → ".join(
-        f"{arm} {len(qs)}" for arm, qs, _ in
-        sorted(ea.TARGETED_BY_MANUAL_REVIEW, key=lambda r: -len(r[1]))
-        if arm != "—")
-    o.append("\n**읽는 법**: 어느 arm 도 자기 겨냥 문항을 하나도 못 건졌다 — 그것이 "
-             "겨냥 문항의 정의이므로 동어반복이다. 읽을 값은 `사다리 Δ`(그 arm 이 실제로 "
-             "번 것)와, 겨냥 문항이 **여전히 틀리고 있다**는 사실이다. 후자는 "
-             "'그 arm 을 더 밀어야 한다' 는 뜻이고, 우선순위는 겨냥 건수 순서 그대로다 "
-             f"({order}).\n")
-
-    # --- 9b. 겨냥 문항을 LOO 짝과 대조한다 — 여기서 처방이 뒤집힌다 ---
-    o.append("\n### 9b. 🔴 겨냥 문항을 **그 arm 을 끈 구성**과 대조한다\n")
-    o.append("겨냥표만 보면 '그 arm 을 더 밀어라' 로 읽힌다. 그런데 **그 arm 을 끄면 맞는** "
-             "문항이 있으면 처방이 정반대다 — 그 arm 이 **원인**이라는 뜻이다. "
-             "사다리에서 한 칸 아래 구성과 문항 단위로 대조한다.\n")
-    o.append("| arm | 겨냥 문항 | 한 칸 아래 | 아래는 맞고 위는 틀린 문항 (= **그 arm 이 원인**) |")
-    o.append("|---|---|---|---|")
-    for arm, ids, label in targeted:
-        if arm not in idx or idx[arm] == 0:
-            continue
-        lower = ladder[idx[arm] - 1]
-        a = {r["question_id"]: r["correct"] for r in reports[lower]["rows"]}
-        b = {r["question_id"]: r["correct"] for r in reports[arm]["rows"]}
-        # 겨냥 문항만이 아니라 **전 트랙**에서 본다 — 회귀 트랙에 숨어 있을 수 있다.
-        caused = sorted(q for q in a if a[q] and not b.get(q))
-        o.append(f'| {arm} ({label}) | {" ".join(ids)} | {lower} '
-                 f'| {" ".join(f"**{q}**" for q in caused) or "없다"} |')
-    o.append("\n이 칸이 비지 않은 arm 은 **겨냥 배분을 다시 읽어야 한다** — 그 arm 을 "
-             "고치는 것이 아니라, 그 arm 이 만든 부작용을 없애는 것이 처방이다.\n")
-
-    # --- 10. 논문 대조 ---
-    o.append("\n## 10. 부록 D 대조 — 우리 Δ 가 타당한 크기인가\n")
-    ours: dict[str, float | None] = {}
-    prev = None
-    # 🔴 `rate` 는 **그리드 기준**이라 밸류체인 코호트에서는 `None` 이다 (그 폴더에
-    #    grid 행이 없다). 무방비로 빼면 `TypeError` 로 죽고, 그러면 그 코호트의
-    #    `gate_I.md` 를 **다시 만들 수 없다** — 실측으로 그랬고, 그래서 v3/vc 의 게이트가
-    #    R1 시점 렌더로 얼어붙어 하드코딩된 옛 값을 계속 싣고 있었다 (R2F 가 잡았다).
-    #    `render_summary` 가 LOO 단독 실행에서 `IndexError` 로 죽던 것과 같은 가족이다.
-    for arm in ladder:
-        r = arms[arm]["rate"]
-        ours[arm] = None if prev is None or r is None else (r - prev) * 100
-        prev = r
-    for arm in loo:
-        if full and arms[arm]["rate"] is not None and arms[full]["rate"] is not None:
-            ours[arm] = (arms[arm]["rate"] - arms[full]["rate"]) * 100
-    o.append("| 우리 arm | 우리 Δ | 논문 | 논문 보고값 | 방식 |")
-    o.append("|---|---|---|---|---|")
-    for arm, label, paper, value, method in PAPER_EFFECTS:
-        mine = ours.get(arm)
-        o.append(f'| {arm} ({label}) | {"—" if mine is None else f"{mine:+.1f}%p"} '
-                 f'| {paper} | {value} | {method} |')
-
-    # --- 11. 꺾이는 지점 ---
-    o.append("\n## 11. 성능/비용 곡선의 꺾이는 지점 → 제출 구성\n")
-    o.append("🔴 `Δ/원` 은 **Δ 가 양수일 때만 읽는다.** Δ 와 Δ비용이 **둘 다 음수**면 몫이 "
-             "양수로 나와 '효율이 좋다' 로 보이는데, 실제로는 **싸지고 못 맞히게 된 것**이다. "
-             "그 칸은 수를 쓰지 않고 이름을 붙였다.\n")
-    o.append("| 전이 | Δ 정답률 | Δ 비용(원) | Δ/원 | 판정 |")
-    o.append("|---|---|---|---|---|")
-    for lower, upper in zip(ladder, ladder[1:]):
-        ra, rb = arms[lower]["rate"], arms[upper]["rate"]
-        ca, cb = arms[lower]["arm_cost_won"], arms[upper]["arm_cost_won"]
-        d_rate, d_cost = (rb or 0) - (ra or 0), cb - ca
-        # 1원 미만의 비용 차는 0 으로 본다 — 반올림 잡음이 '정상' 과 '꺾이는 지점' 을 가르면 안 된다.
-        flat_cost = abs(d_cost) < 1.0
-        if d_rate < 0:
-            eff = "—"
-            note = ("🔴 **싸지고 못 맞힌다** — 몫을 읽으면 안 된다" if d_cost < 0
-                    else "🔴 **비싸지고 못 맞힌다**")
-        elif d_rate == 0:
-            eff = "—"
-            note = ("**꺾이는 지점** — Δ 0 · 한계 비용 0" if flat_cost
-                    else "Δ 0 인데 비용은 움직였다 — 뺄 후보")
-        elif flat_cost:
-            eff, note = "∞", "**공짜 이득** — 비용 0 에 정답률 상승"
-        else:
-            eff = f'{d_rate * 100 / d_cost:+.3f}'
-            note = "정상" if d_cost > 0 else "**공짜 이득** — 싸지고 더 맞힌다"
-        o.append(f'| {lower} → {upper} | {_pp(ra, rb)} | {d_cost:+,.0f} | {eff} | {note} |')
-    # 밸류체인 Δ 를 문자열로 박지 않는다 — 2026-08-11 에 실제로 뒤집혔다(+16.7 → +8.3%p).
-    # 하드코딩이던 동안 재생성한 게이트는 §6(자동 계산, 5/12 vs 4/12)과 여기가 서로를
-    # 반박하는 상태로 나왔다. 옆 문장의 비용은 산출물에서 계산돼 자동 갱신됐는데
-    # 정답률만 문자열이었던 것이 원인이다.
-    if vc.get("A8") and vc.get("L3"):
-        r8 = ea._rate(vc["A8"]["rows"])
-        r3 = ea._rate(vc["L3"]["rows"])
-        # 🔴 `_exact_rate` 를 통과시킨다 — `ea._rate()` 의 `rate` 는 셋째 자리 반올림이라
-        # 그대로 빼면 이중 반올림이다 (`_exact_rate` 독스트링의 규칙).
-        vc_delta = (f'**{_pp(_exact_rate(r3), _exact_rate(r8))}** 를 번다 '
-                    f'(§6 — {r8["correct"]}/{r8["n_scored"]} vs L3 '
-                    f'{r3["correct"]}/{r3["n_scored"]})')
-    else:
-        vc_delta = "이득을 본다 (§6 — 밸류체인 산출물이 없어 Δ 를 못 적는다)"
-    # 꺾이는 지점도 문자열로 박지 않는다 — 2026-08-11 에 A5 에서 A4 로 옮겨갔다.
-    # 🔴 첫 수정이 `flat[0]`(전이의 **위쪽** arm)을 써서 **같은 틀린 A5 를 계산으로
-    # 재생산**했다(재검토 B I2). 꺾이는 지점은 **마지막으로 번 arm** — 즉 Δ=0 인 첫 전이의
-    # 아래쪽이다. 그리고 "전부 한계 비용 0" 도 실측해서 쓴다. A5 는 +79원이라 거짓이었다.
-    zeros = [(lo, up) for lo, up in zip(ladder, ladder[1:])
-             if (arms[up]["rate"] or 0) - (arms[lo]["rate"] or 0) == 0]
-    flat = [up for _, up in zeros]
-    if zeros:
-        knee = f'**꺾이는 지점은 `{zeros[0][0]}`**'
-        paid = [up for lo, up in zeros
-                if abs(arms[up]["arm_cost_won"] - arms[lo]["arm_cost_won"]) >= 1.0]
-        cost_note = ("전부 **그리드에서** 한계 비용이 0 이다"
-                     if not paid else
-                     "대부분 **그리드에서** 한계 비용이 0 인데 "
-                     + " · ".join(
-                         f'`{up}` 는 {arms[up]["arm_cost_won"] - arms[lo]["arm_cost_won"]:+,.0f}원'
-                         for lo, up in zeros if up in paid)
-                     + " 이다 — 🔴 **그 arm 은 그리드 기준으로 뺄 후보다**")
-    else:
-        knee = "**정답률 Δ 가 0 이 되는 지점이 없다**"
-        cost_note = "한계 비용은 위 표를 보라"
-    o.append(f"\n{knee} — 그 뒤 arm 은 그리드에서 Δ 가 0 이다"
-             + (f" ({' · '.join(flat)})" if len(flat) > 1 else "")
-             + f". 그럼에도 **다 넣는다**: {cost_note}"
-             f"(A6·A7 은 LLM 0회, A8 은 발화 0건 → 토큰 0 증가). A8 은 밸류체인에서 "
-             f"{vc_delta}.\n")
-    # 🔴 **위 블록만 고쳐서는 부족했다 (R2F).** 바로 위에서 밸류체인 정답률 Δ 를 계산으로
-    #    바꿨는데, 이 단락은 **같은 사실을 다시 문자열로** 들고 있었다 — 재생성된 v3 게이트가
-    #    §0(골든 34/46 · 계산) · §4(정답 7/12 · 계산) 과 이 단락(28/46 · 6/12 · 문자열)에서
-    #    서로를 반박했다. 하드코딩 사고의 **일곱 번째 얼굴**이고 기전은 ① 과 같다:
-    #    표는 계산, 본문은 문자열. 얼어붙게 둘 값은 **"옛 세대" 라고 라벨한 이력**뿐이다.
-    # 🔴 하위 `vc/` 가 없으면(= 이 폴더가 곧 밸류체인이면) 자기 보고서를 본다.
-    #    한쪽만 보면 `--out …/vc` 로 렌더한 게이트에서 이 절이 "못 셌다" 로 비어 버리고,
-    #    비어 있는 자리에 다음 사람이 다시 문자열을 박게 된다.
-    vc_src = vc if vc else {k: v for k, v in reports.items() if k in ("A8", "L3")}
-    if vc_src.get("A8") and vc_src.get("L3"):
-        g8 = ea.golden_recall_denominators(vc_src["A8"]["rows"])
-        g3 = ea.golden_recall_denominators(vc_src["L3"]["rows"])
-        by_qid = {r["question_id"]: r for r in vc_src["A8"]["rows"]}
-        stable = " · ".join(
-            f'{qid} {len(by_qid[qid].get("golden_in_evidence") or [])}/'
-            f'{len(by_qid[qid].get("golden") or [])}'
-            for qid in sorted(VC_FAN_IN) if qid in by_qid)
-        recall = (f'밸류체인 골든 근거가 A8 **{g8["hit"]}/{g8["denominator_raw"]}** vs '
-                  f'L3 {g3["hit"]}/{g3["denominator_raw"]}')
-        fan_in = f'열거 문항의 회수는 {stable} 다' if stable else "열거 문항 목록이 비었다"
-    else:
-        recall = "밸류체인 골든 근거를 못 셌다 (산출물 없음)"
-        fan_in = "열거 문항의 회수도 못 셌다"
-    o.append("🔴 **A8 의 정당화를 정답률에 싣지 않는다** — n=12 에서 Δ 가 문항 하나(Q-110)에 "
-             "매달리고, **옛 세대(v2)에서 두 라운드 연속 뒤집혔다**(6→5→6/12 · L3 도 4→5). "
-             f"정본 축은 **근거 완결성**이다(§6): {recall} 이고, {fan_in}. "
-             "검색은 닿고 생성이 흔들리는 것이라 hop 의 기전은 무손상이다.\n")
-    # 🔴 그리고 이 정답률에는 부풀림이 하나 들어 있다 — 계산으로 확인해서 쓴다.
-    #    🔴 하위 `vc/` 폴더가 있으면 그것을, 없으면(= 이 폴더가 곧 밸류체인이면) 자기
-    #    보고서를 본다. 한쪽만 보면 `--out …/vc` 로 렌더한 게이트에서 이 경고가 사라진다.
-    inflation_source = vc.get("A8") or (reports.get("A8") if not vc else None)
-    if inflation_source:
-        inflated = sorted(
-            r["question_id"] for r in inflation_source["rows"]
-            if r.get("correct") and r["question_id"] in ea.JUDGED_CORRECT_ARITHMETIC_WRONG)
-        if inflated:
-            r8v = ea._rate(inflation_source["rows"])
-            o.append(f'🔴 **그 정답률에는 부풀림 {len(inflated)}건이 들어 있다** '
-                     f'({" ".join(inflated)}) — judge 가 수치 자기일관성을 안 보므로 '
-                     f'답변 안의 자릿수 오류가 정답으로 통과한다. 수치 자기일관성을 '
-                     f'기준에 넣으면 밸류체인 12 의 A8 은 '
-                     f'{r8v["correct"]}/{r8v["n_scored"]} 가 아니라 '
-                     f'{r8v["correct"] - len(inflated)}/{r8v["n_scored"]} 다. '
-                     f'🔴 **그리드 72 · 전체 88 에는 이 결함이 0건이다.**\n')
-    if vc.get("A8") and vc.get("L3"):
-        c8 = vc["A8"]["totals"]["cost_won"]
-        c3 = vc["L3"]["totals"]["cost_won"]
-        o.append(f'🔴 **"한계 비용 0" 은 그리드에 한정된 말이다.** 발주처 hop 이 발화하는 '
-                 f'밸류체인 12문항에서는 A8 {c8:,.1f}원 vs L3 {c3:,.1f}원 = '
-                 f'**{c8 - c3:+,.1f}원({(c8 / c3 - 1) * 100:+.0f}%)** 이다 — 발주처 블록이 '
-                 f'근거에 실리므로 토큰이 는다. 정확한 진술은 "발주처를 지목하지 않은 질의에서 '
-                 f'한계 비용 0, 지목한 질의에서 +{(c8 / c3 - 1) * 100:.0f}%" 다.\n')
-    o.append("A2 를 뺀 기준(\"Δ 0 이면 뺀다\")이 A8 에 오지 않는 이유는 A2 가 **모든 질의에** "
-             "임베딩 비용을 물리면서 Δ 0 이었던 것과 달리, A8 은 **발주처를 지목한 질의에서만** "
-             "비용과 이득이 동시에 생기기 때문이다.\n")
-    o.append("**제출 후보에서 `A0`·`A1` 을 배제한다.** 🔴 이것은 *제거 지시가 아니다* — "
-             "`_gather_meta` 는 `uses_bm25=False` 에서만 도달하므로 **A8 안에 떼어낼 'A0' "
-             "구성요소가 없다.** 뜻은 사다리의 그 두 칸을 제출 구성 후보에서 뺀다는 것이고, "
-             f'근거는 `A1` 이 그리드 최저({arms.get("A1", {}).get("correct", "?")}/'
-             f'{arms.get("A1", {}).get("n_scored", "?")} = '
-             f'{_pct(arms.get("A1", {}).get("rate"))})이고 `A0` 이 가성비 최악이라는 것이다 '
-             f'({arms.get("A0", {}).get("arm_cost_won", 0):,.0f}원에 '
-             f'{_pct(arms.get("A0", {}).get("rate"))} vs A1b '
-             f'{arms.get("A1b", {}).get("arm_cost_won", 0):,.0f}원에 '
-             f'{_pct(arms.get("A1b", {}).get("rate"))}).\n')
-
-    # --- 12. measured 42 — v1 과 비교 가능한 유일한 축 ---
-    # 🔴 제목과 셀 라벨을 `measured 42 중 그리드 36` 으로 통일한다. `measured_dev_cohort()`
-    #    는 42개 ID 를 주지만 `_grid_rate` 가 `grid_rows` 로 한 번 더 걸러 **36** 이 된다
-    #    (정보한계 6문항 제외). 예전 표는 분모 36 을 "measured 42" 로 라벨링해서, 같은
-    #    보고서 안에서 같은 코호트를 42 와 36 두 이름으로 불렀다 — 코호트/분모 혼용은 이
-    #    프로젝트가 가장 조심하는 실패 유형이고, 표 라벨은 문서로 옮겨 적힐 때 값보다
-    #    먼저 떨어진다. (값은 안 바뀐다.)
-    o.append("\n## 12. `measured 42 중 그리드 36` 코호트 — v1 과 비교 가능한 유일한 축\n")
-    o.append("🔴 **이것은 재생(replay)이다.** Task 7 의 measured 42 는 답변 42/42 가 A7 과 "
-             "바이트 동일이고 토큰 167,914 가 전 항목 일치했다. 온도 0.0 하에 타당하나 "
-             "**'현재 시스템의 독립 측정' 이 아니다** — 새로 얻은 정보는 '현재 코드가 그 "
-             "42문항에 같은 요청을 만든다' 는 사실뿐이다.\n")
-    try:
-        from scripts.validate_evalset import measured_dev_cohort
-        wanted = set(measured_dev_cohort())
-    except Exception:                                     # noqa: BLE001
-        wanted = set()
-    o.append("🔴 **'v1 42문항' 이라는 이름의 기준선이 둘 있다 — 섞으면 Δ 가 2배로 부푼다.**\n")
-    o.append("| 출처 | 무엇 | grid | 이 표에서 |")
-    o.append("|---|---|---|---|")
-    ph_path = ROOT / "artifacts" / "eval" / "error_analysis.json"
-    if ph_path.exists():
-        ph = json.loads(ph_path.read_text(encoding="utf-8"))
-        g = ph["crosstab"]["grid_overall"]
-        o.append(f'| `artifacts/eval/error_analysis.json` | **Phase H v1** — 체인 hop · '
-                 f'스키마 필드가 붙기 **전** | {g["correct"]}/{g["n_scored"]} '
-                 f'({_pct(g["rate"])}) | 쓰지 않는다 |')
-    v1 = _load_report(ROOT / "artifacts" / "ablation", "A6")
-    if v1:
-        g = v1["crosstab"]["grid_overall"]
-        o.append(f'| `artifacts/ablation/A6/report.json` | **Ablation v1 A6** — 사다리의 '
-                 f'그때 완성 구성 | {g["correct"]}/{g["n_scored"]} ({_pct(g["rate"])}) '
-                 f'| ✅ **이것과 비교한다** |')
-    o.append("\nT7 이 보고한 `+38.9%p` 는 위쪽(Phase H v1, 19/36)과의 차이다 — 그것은 "
-             "**시스템 전체가 좋아진 폭**이다. 아래 표가 재는 것은 **같은 사다리의 완성 "
-             "구성끼리**(Ablation v1 A6 vs v2 A8) 이고, 두 수를 더하거나 섞으면 안 된다.\n")
-    if wanted and full:
-        o.append("| 구성 | 코호트 | 정답 / 채점 | 정답률 | Δ(v1 A6) |")
-        o.append("|---|---|---|---|---|")
-        base_rate = _exact_rate(v1["crosstab"]["grid_overall"]) if v1 else None
-        if v1:
-            g = v1["crosstab"]["grid_overall"]
-            o.append(f'| **Ablation v1 A6** (2026-08-09) | measured 42 중 그리드 '
-                     f'{g["n_scored"]} | {g["correct"]}/{g["n_scored"]} '
-                     f'| {_pct(_exact_rate(g))} | — |')
-        for arm in ladder:
-            r = _grid_rate(reports[arm]["rows"], wanted)
-            o.append(f'| v2 {arm} | measured 42 중 그리드 {r["n_scored"]} '
-                     f'| {r["correct"]}/{r["n_scored"]} '
-                     f'| {_pct(_exact_rate(r))} | {_pp(base_rate, _exact_rate(r))} |')
-        o.append(f'\n🔴 **분모는 {len(wanted)} 가 아니라 그리드 36 이다.** '
-                 f'`measured_dev_cohort()` 는 {len(wanted)}개 ID 를 주지만 정보한계 6문항이 '
-                 "그리드 밖이라 채점 대상은 36 이다. 이 표의 코호트 이름과 §12b·원장의 "
-                 "`dev_grid_measured36` 은 **같은 것**을 가리킨다.\n")
-
-        # 🔴 12b. 뒤집힘을 두 성분으로 가른다 — 코호트 효과와 증설 효과는 다른 것이다.
-        o.append("\n### 12b. 🔴 `A0→A1` 뒤집힘을 두 성분으로 가른다\n")
-        o.append('"문항이 42→88 로 늘자 부호가 뒤집혔다" 는 **절반만 맞다.** 그리드 72문항을 '
-                 "v1 이 실제로 잰 36문항(`measured`)과 증설된 36문항으로 갈라 보면 "
-                 "**동일 코호트가 이미 뒤집혀 있다.**\n")
-        o.append("| 구간 | A0 | A1 | Δ(A0→A1) |")
-        o.append("|---|---|---|---|")
-        v1_a0, v1_a1 = (_load_report(ROOT / "artifacts" / "ablation", a)
-                        for a in ("A0", "A1"))
-        if v1_a0 and v1_a1:
-            g0 = v1_a0["crosstab"]["grid_overall"]
-            g1 = v1_a1["crosstab"]["grid_overall"]
-            o.append(f'| **v1** measured 36 | {g0["correct"]}/{g0["n_scored"]} '
-                     f'| {g1["correct"]}/{g1["n_scored"]} '
-                     f'| {_pp(_exact_rate(g0), _exact_rate(g1))} |')
-        # 🔴 이 분해는 `A0`·`A1` 산출물이 **이 세대 폴더 안에** 있을 때만 성립한다.
-        #    부분 세대(`--out artifacts/ablation/v3` 처럼 LOO·진단 arm 만 담긴 폴더)에서
-        #    무방비로 색인하면 `KeyError: 'A0'` 으로 보고서 전체가 죽는다 — 실제로 죽었다.
-        #    다른 세대의 A0/A1 을 끌어와 채우지 않는다. 그것이야말로 이 절이 경고하는
-        #    **세대 혼합**이고, 그렇게 만든 Δ 는 어느 시스템의 것도 아니다.
-        if all(a in reports for a in ("A0", "A1")):
-            for label, keep in (("**v2** measured 36 (동일 코호트)", True),
-                                ("**v2** 증설 36", False)):
-                cells = []
-                for arm in ("A0", "A1"):
-                    rows_ = [r for r in ea.grid_rows(reports[arm]["rows"])
-                             if (r["question_id"] in wanted) == keep]
-                    cells.append(ea._rate(rows_))
-                o.append(f'| {label} | {cells[0]["correct"]}/{cells[0]["n_scored"]} '
-                         f'| {cells[1]["correct"]}/{cells[1]["n_scored"]} '
-                         f'| {_pp(_exact_rate(cells[0]), _exact_rate(cells[1]))} |')
-        else:
-            missing = [a for a in ("A0", "A1") if a not in reports]
-            o.append(f'| 🔴 이 세대에 없다 (`{"`·`".join(missing)}`) | — | — | — |')
-            o.append("\n🔴 **이 세대 폴더에는 `A0`·`A1` 산출물이 없어 분해를 못 한다.** "
-                     "다른 세대의 값을 끌어와 채우지 않는다 — 이 절의 요지가 **세대를 "
-                     "섞지 말라**는 것이므로, 섞어서 채운 표는 이 절의 결론을 거짓으로 "
-                     "만든다. 분해가 필요하면 그 세대 폴더에 `--report` 를 돌린다 "
-                     "(`artifacts/ablation/v2`).\n")
-        if all(a in reports for a in ("A0", "A1")):
-            o.append("\n**두 성분이 같은 방향이고 크기가 다르다.** 동일 36문항에서 v1 은 "
-                     "`+2.8%p` 였는데 v2 는 음수다 — 그 몫은 **문항 증설이 아니라 v1→v2 코드 "
-                     "변화**다. 🔴 **어느 커밋이 원인인지는 v2 산출물로 특정할 수 없다** "
-                     "(v1 이후 파이프라인이 여러 트랙에서 바뀌었고, 이 트랙은 arm 플래그만 "
-                     "변수로 뒀다). 특정하려면 커밋별 재측정이 필요하고 그것은 별개 작업이다.\n")
-
-    # --- 13. 읽을 때 주의 ---
-    o.append("\n## 13. 이 표를 읽을 때 주의할 것\n")
-    o.append("- **`Δ(A5→A6)` · `Δ(A6→A7)` · `Δ(A7→A8)` 은 88문항 그리드에서 정의상 0 이다.** "
-             "A6(Verifier)은 경고만 붙이고 답을 갈아엎지 않으며(LLM 0회), A7 은 플래그가 "
-             "없고, A8 의 발주처 hop 은 그리드 88문항에서 발화가 0건이다. 셋 다 "
-             "**생성 프롬프트가 A5 와 바이트 동일**임을 LLM 0회로 확인했다.\n")
-    o.append("- `DATA_LIMIT` 은 정답률 분모에서 뺀다. 정보한계 문항은 `answerable=false` 로 "
-             "따로 세고, 지어내면 `HALLUCINATION` 으로 잡는다 (§4).\n")
-    o.append("- 근본 원인 히스토그램은 **그리드 기준**이다 (`root_cause_histogram_grid`). "
-             "전체 88 기준을 쓰면 회귀 트랙이 섞여 겨냥 건수가 부푼다.\n")
-    # 🔴 이 문단의 실측 수치도 문자열이었다 — 재실행으로 방향까지 뒤집혔는데(옛 문자열은
-    # "A0 3.73초 vs A5·A8 0.02~0.03초") 갱신되지 않았다. 하드코딩 사고의 네 번째 얼굴이다.
-    # 이제 산출물에서 읽는다. 값이 없으면 수를 쓰지 않는다.
-    lat = [(a, c.get("latency_s_mean_recorded", c.get("latency_s_mean")))
-           for a, c in arms.items()]
-    lat = sorted(((a, v) for a, v in lat if v is not None), key=lambda t: -t[1])
-    o.append("- 🔴 **기록된 지연을 '평균 응답 시간' 으로 인용하지 않는다.** 그 값은 응답 "
-             "파일에 저장된 벽시계 시간의 평균인데, 그 파일을 만들 때 요청 캐시가 적중했다면 "
-             "파이프라인이 ~1ms 에 끝난 시간이 저장돼 있다. **캐시 적중률이 arm 마다 다르므로 "
-             "arm 사이 비교가 성립하지 않고, 세대가 바뀌면 순서까지 뒤집힌다** — 실제로 이 "
-             "문단의 수치가 한 번 뒤집혔다."
-             + (" 현 세대 실측: "
-                + " · ".join(f"`{a}` {v:.2f}초" for a, v in lat[:3])
-                + (f" … `{lat[-1][0]}` {lat[-1][1]:.2f}초" if len(lat) > 3 else "")
-                if lat else " 현 세대 산출물에 값이 없다.")
-             + " 진짜 응답 시간은 캐시 없이 다시 재야 나온다 (제출 후, 배포 리허설에서).\n")
-    # 🔴 A3 의 겨냥 건수를 **손으로 적지 않는다.** 종전에는 "겨냥점 1건 (Q-094, rank 8·9)"
-    #    이 문자열로 박혀 있었고, Q-094 가 리랭커 없이 정답이 된 뒤에도 그대로 렌더됐다.
-    #    상수가 단일 원천이므로 거기서 센다 (I-6 과 같은 뿌리 — 문자열이 상수를 복제한 경우).
-    a3 = next((ids for arm, ids, _ in ea.TARGETED_BY_MANUAL_REVIEW if arm == "A3"), ())
-    o.append("- **A2·A3 는 v1 에서 실측으로 제외했다** — A2 는 dense 가 top_k 에 31건을 "
-             "새로 올렸는데 골든 0건, A3 는 겨냥점 1건. "
-             + (f"**현 세대 A3 겨냥 {len(a3)}건**: {' '.join(a3)}.\n" if a3 else
-                "🔴 **현 세대 A3 겨냥은 0건이다** — v1 의 `WRONG_SECTION` 도, 그 뒤 신규 "
-                "섹터에서 섰던 `RANKING/LOW_RANK`(Q-094)도 리랭커 없이 해소됐다. Q-094 는 "
-                "다문서 질의 분해만으로 맞았고 원 진단이 틀렸다 "
-                "(`docs/pipeline/05-reranker.md §E-4`). **잴 대상이 사라진 것이지 "
-                "못 한 것이 아니다.**\n"))
-
-    # --- 14. heldout — 게이트 I 의 마지막 항목 ---
-    o.append("\n## 14. heldout 최종 측정 — 일반화 낙폭\n")
-    if not held:
-        o.append("🔴 **아직 열지 않았다.** `evalset/heldout.jsonl` 18문항은 최종 구성 "
-                 "1회용이고, 이 트랙은 그것을 열지 않았다. 게이트 I 의 6번째 항목은 "
-                 "여기서 비어 있다.\n")
-    else:
-        dev = held["dev_grid"]
-        # 🔴 "이번이 두 번째" 를 하드코딩하지 않는다 — 바로 앞이 `use` 를 동적으로 찍으므로
-        #    3회째가 되면 한 문단 안에서 모순이 생긴다. 이력은 `HELDOUT_HISTORY` 가 든다.
-        prior = [h for h in HELDOUT_HISTORY if h["use"] < (held.get("use") or 0)]
-        prior_note = " · ".join(f'{h["use"]}회 {h["arm"]} {h["correct"]}/{h["n_scored"]}'
-                                for h in prior) or "없음"
-        ordinal = {1: "첫", 2: "두", 3: "세"}.get(held.get("use"), str(held.get("use")))
-        o.append(f'🔴 **{held["use"]}회째 사용이다.** 앞선 사용: {prior_note}. '
-                 f'이번이 {ordinal} 번째이자 최종 구성 `{held["arm"]}` 1회다. '
-                 "arm 별로 돌리지 않았다 — 그러면 heldout 이 개발셋이 되고 되돌릴 수 없다. "
-                 f'원장 `{HELDOUT_LEDGER}` 이 `artifacts/` 아래 **어디에라도** 있으면 러너가 '
-                 "유료 실행을 거부한다 — `--out` 으로 우회되지 않는다 "
-                 "(`scripts/ablation.py::assert_heldout_unused`).\n")
-        o.append("🔴 **낙폭은 축마다 다르게 나온다.** dev 쪽 분모가 v1 36 → v2 72 로 "
-                 "늘었으므로 세 축을 다 낸다 — 하나만 적으면 그것이 '그 낙폭' 으로 굳고, "
-                 "가장 유리한 축이 뽑히기 쉽다. heldout 쪽 18문항만 두 판에서 동일하다.\n")
-        # 🔴 이 절의 dev 쪽 수는 **원장이 얼어붙은 시점**의 것이다. heldout 은 다시 못 재므로
-        # 원장을 갱신하지 않는 것이 옳지만, 그 결과 dev 수가 §2·§12 와 갈린다. 라벨이 없으면
-        # 같은 문서 안에서 모순으로 읽힌다 (재검토 B C1 — 실제로 그 상태였다).
-        live = arms.get(held.get("arm")) or {}
-        if live.get("n_scored") and (
-                live.get("correct") != dev.get("correct")
-                or live.get("n_scored") != dev.get("n_scored")):
-            o.append(
-                f'🔴 **이 절의 dev 수는 얼어붙은 값이다.** heldout 을 측정한 시점의 dev 는 '
-                f'**{dev["correct"]}/{dev["n_scored"]}** 이었고, 지금 dev 는 '
-                f'**{live["correct"]}/{live["n_scored"]}** 이다(§2·§12). 원장을 갱신하지 '
-                "않는 이유는 **heldout 을 다시 못 재기 때문**이다 — 새 dev 와 옛 heldout 을 "
-                "짝지으면 그 낙폭은 어느 시스템의 것도 아니다. **이 절의 낙폭은 그 시점의 "
-                "시스템에 대한 판정이고, 현재 시스템의 일반화 추정치가 아니다.** 현재 시스템의 "
-                "값을 알려면 새 홀드아웃이 필요하다.\n")
-        o.append("| 축 | 구성 | dev 그리드 | heldout | 낙폭 |")
-        o.append("|---|---|---|---|---|")
-        v1 = held["v1"]
-        o.append(f'| v1 · dev 36 | {v1["arm"]} | {_frac(v1["dev_grid"])} '
-                 f'| {_frac(v1["heldout"])} | {_pp_of(v1["gap_pp"])} |')
-        o.append(f'| **v2 · dev 72 (증설 후 · 이번 판의 축)** | **{held["arm"]}** '
-                 f'| {_frac(dev)} | **{_frac(held)}** | **{_pp_of(held["gap_pp"])}** |')
-        m36 = held.get("dev_grid_measured36") or {}
-        if m36.get("n_scored"):
-            o.append(f'| v2 · measured 36 (v1 과 같은 문항 · dev 쪽이 **재생**) '
-                     f'| {held["arm"]} | {_frac(m36)} | {_frac(held)} '
-                     f'| **{_pp_of(m36["gap_pp"])}** |')
-        else:
-            o.append("| 🔴 v2 · measured 36 | — | **구할 수 없었다** "
-                     f'({m36.get("unavailable")}) | — | **판정 불가** |')
-        o.append(f'\n🔴 **비교 축.** {held["axis_caveat"]}\n')
-        if m36.get("n_scored"):
-            o.append(f'🔴 **가장 큰 낙폭은 `measured 36` 축의 {_pp_of(m36["gap_pp"])} 다** — '
-                     "dev 쪽을 v1 과 나란히 읽는 유일한 축이므로 **판정은 이 수로 해야 한다.** "
-                     f'다만 이 축의 dev 값은 {m36["caveat"]} (§12).\n')
-        if held.get("same_failures_as_v1"):
-            o.append("🔴 **정답 집합이 v1 과 문항 단위로 완전히 같다** — "
-                     f'{_frac(held)} 이고 틀린 문항도 같은 '
-                     f'{", ".join(held["wrong_ids"])} 다. 그러므로 '
-                     f'`{_pp_of(v1["gap_pp"])} → {_pp_of(held["gap_pp"])}` 로 낙폭이 좁아진 '
-                     "몫은 **일반화가 좋아진 것이 아니라 dev 쪽 정답률이 내려간 것**이다 "
-                     "(문항 증설로 84.7%). 좁아진 낙폭을 개선으로 읽으면 안 된다.\n")
-            o.append("🔴 **그러나 이것은 재생이 아니다 — 독립 유료 측정이다.** 답변 텍스트가 "
-                     "**18/18 전부 다르고**(v1 A6 시점 코드와 프롬프트가 달라 요청 캐시 적중 0) "
-                     "토큰도 79,326 → 95,984 로 늘었다. 정답 집합만 같다. 그래서 이 15/18 은 "
-                     "**이 판에서 유일한 독립 측정치**이고, `measured 36`(dev 쪽이 재생)과 "
-                     "성격이 다르다.\n")
-        o.append(f'**판정** — {held.get("verdict") or "—"}\n')
-        if held.get("gate_retired_after_this_run"):
-            o.append(f'🔴 **이 게이트는 이번이 마지막 사용이다.** {held["gate_retirement_reason"]}\n')
-        o.append(f'실지출 **{held["spent_won"] or 0:,.1f}원** (상한 1,000원) · '
-                 f'arm 비용 {held["arm_cost_won"] or 0:,.1f}원 · '
-                 f'실패 단계 `{json.dumps(held["failure_histogram"], ensure_ascii=False)}` · '
-                 f'근본 원인 `{json.dumps(held["root_cause_histogram"], ensure_ascii=False)}`\n')
     return "\n".join(o) + "\n"
 
 

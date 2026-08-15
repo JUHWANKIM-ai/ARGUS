@@ -2804,3 +2804,62 @@ def test_the_error_matrix_carries_the_upstream_warning_on_its_own():
     with_warning = ea.render_matrix([], report)
     assert "상류 장애 1건" in with_warning and "Q-049" in with_warning
     assert "상류 장애" not in ea.render_matrix([], empty)
+
+
+# --- 게이트 보고서의 절 분해 (v4 B1) ------------------------------------------
+
+
+def test_the_gate_report_is_assembled_from_section_functions():
+    """🔴 `render_gate` 는 933줄짜리 함수 하나였다. 다시 그렇게 자라지 않게 고정한다.
+
+    합격 조건은 미학이 아니다 — **절 함수가 순수해야** 절 단위 테스트가 가능하고,
+    **순서가 문서의 순서여야** 게이트 문서의 목차가 코드에서 읽힌다.
+    """
+    import inspect
+
+    from scripts import ablation as runner
+
+    order = [
+        runner._gate_arm_flags, runner._gate_cost, runner._gate_cumulative,
+        runner._gate_by_axis, runner._gate_by_track, runner._gate_loo,
+        runner._gate_diagnostic_arms, runner._gate_valuechain,
+        runner._gate_failure_stages, runner._gate_flipped, runner._gate_targeting,
+        runner._gate_targeting_vs_loo, runner._gate_paper_comparison,
+        runner._gate_knee, runner._gate_measured42, runner._gate_reading_notes,
+        runner._gate_heldout,
+    ]
+    body = inspect.getsource(runner.render_gate)
+    seen = [name for name in (f.__name__ for f in order) if f"{name}(c" in body]
+    assert seen == [f.__name__ for f in order], "절의 호출 순서가 목록과 다르다"
+
+    # 🔴 어느 절도 문서를 **직접 쓰지 않는다** — 줄 목록만 돌려준다. 이것이 깨지면
+    #    절 하나가 몰래 디스크를 만지기 시작한 것이다.
+    for fn in order:
+        source = inspect.getsource(fn)
+        for forbidden in ("write_text(", "mkdir(", "print(", "open("):
+            assert forbidden not in source, f"{fn.__name__} 이 {forbidden} 을 쓴다"
+        assert source.rstrip().endswith("return out") or "return out," in source
+
+    # 🔴 절이 읽는 공용 상태는 **얼려 둔다.** 절이 그것을 고치면 뒤 절의 표가 조용히
+    #    달라지고 게이트 문서는 그 사실을 드러낼 방법이 없다 (숫자만 남는다).
+    assert runner._GateContext.__dataclass_params__.frozen
+
+    # `render_gate` 자체는 이제 조립만 한다. 933줄로 되돌아가면 여기서 걸린다.
+    assert len(body.splitlines()) < 120, "render_gate 가 다시 자랐다"
+
+
+def test_every_gate_section_is_reachable_from_the_real_v2_artifacts():
+    """실물로 한 번 관통시킨다 — 절 목록이 맞아도 인자가 어긋나면 여기서 죽는다."""
+    from scripts import ablation as runner
+
+    root = _Path(__file__).resolve().parents[1] / "artifacts" / "ablation" / "v2"
+    if not (root / "summary.json").exists():
+        pytest.skip(f"{root}/summary.json 이 없다 (gitignore 산출물)")
+    text = runner.render_gate(root, budget_cap=runner.BUDGET_WON)
+    # 절 머리(`## N.`)가 열넷 다 있어야 한다. 하나가 조용히 빠지면 여기서 걸린다.
+    for heading in ("## 0.", "## 1.", "## 2.", "## 3.", "## 4.", "## 5.", "## 6.",
+                    "## 7.", "## 8.", "## 9.", "### 9b.", "## 10.", "## 11.",
+                    "## 12.", "## 13.", "## 14."):
+        assert heading in text, f"{heading} 절이 사라졌다"
+    # 🔴 두 번 렌더해도 같은 문서다 — 절 함수가 공용 상태를 고치면 여기서 갈린다.
+    assert text == runner.render_gate(root, budget_cap=runner.BUDGET_WON)
