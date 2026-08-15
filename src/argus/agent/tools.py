@@ -11,6 +11,7 @@ fan-in/fan-out 완전 열거를 가능하게 한다 — 순위를 올리는 도�
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 
 from argus.agent import compute
@@ -35,13 +36,154 @@ REFERENCES_NAME = "references.jsonl"
 
 
 @lru_cache(maxsize=len(RECORD_GROUPS))
-def _group_records(group: str) -> dict[str, dict]:
+def _group_records_raw(group: str) -> dict[str, dict]:
     path = settings().artifacts_root / f"{group}_records.jsonl"
     if not path.exists():
         return {}
     with path.open(encoding="utf-8") as fh:
         rows = [json.loads(line) for line in fh if line.strip()]
     return {r["doc_id"]: r for r in rows}
+
+
+def _group_records(group: str) -> dict[str, dict]:
+    """정형 레코드. arm `A18`(`nary`)이면 n-ary 추출값이 덧붙은 **사본**을 돌려준다.
+
+    🔴 **두 사전을 따로 캐시한다.** `lru_cache` 를 arm 과 무관하게 하나만 두면
+    먼저 부른 arm 의 사전이 나중 arm 에 그대로 재생돼 **Δ 가 조용히 0** 이 된다 —
+    이 모듈이 아니라 `ablation.py` 가 통째로 막으려는 종류의 사고다.
+    """
+    from argus import ablation
+
+    return (_group_records_nary(group) if ablation.current().nary
+            else _group_records_raw(group))
+
+
+# --- A18 (`nary`) — `T1-targeted` 추출값을 근거에 덧붙인다 ------------------------
+#
+# 🔴 **코퍼스 파일은 안 고친다.** `scripts/build_nary.py` 가 새 파일 하나
+# (`artifacts/nary_records.jsonl`)만 쓰고, 합치는 것은 런타임에 여기서 사본 위에만
+# 일어난다. `*_records.jsonl` 을 고치면 BM25 색인 문자열이 갈려 v1~v4 측정이 전량
+# 무효가 되고, 되돌릴 수단이 없다 (`artifacts/` 는 gitignore 다).
+#
+# 🔴 **BM25 점수는 안 바뀐다.** 인덱스는 미리 빌드된 `*_bm25.json` 이고 여기서 바꾸는
+# 것은 검색 **뒤에** 프롬프트로 실리는 근거 문자열뿐이다. 그래서 `A18` 의 Δ 는
+# '검색이 달라졌다' 가 아니라 순수하게 '근거에 필드가 늘었다' 에 귀속된다.
+
+NARY_NAME = "nary_records.jsonl"
+
+#: 덧붙일 항목과 **그 항목이 이미 있는지 보는 정규식**. 합집합의 정의가 이 표다 —
+#: 규칙이 뽑아 `corpus/markdown.to_markdown` 이 이미 찍은 라벨이면 그 항목을 건너뛴다.
+#: 🔴 금액 라벨은 `record["amount_type"]` 이 정하므로 고정 문자열로 못 본다
+#: (`계약금액`·`투자금액`·`취득금액`… `_amount_line` 참조). 그래서 `…금액:` 으로 본다.
+_NARY_PRESENT = {
+    "amount": re.compile(r"^-\s*\S*금액\s*:", re.M),
+    "counterparty": re.compile(r"^-\s*계약상대\s*:", re.M),
+    "period": re.compile(r"^-\s*(기간|계약\s*시작일|계약\s*종료일)\s*:", re.M),
+    "subject": re.compile(r"^-\s*대상\s*:", re.M)}
+#: 항목당 줄 상한. 한 레코드에서 관계가 여러 건 나오면 값이 여러 개인데, 근거가
+#: 길어지면 `MAX_EVIDENCE` 아래에서 **다른 문서를 밀어낸다**. 앞의 몇 개만 싣는다.
+MAX_NARY_VALUES = 3
+
+
+#: 🔴 **모델이 라벨 자리에 값을 넣는다.** 실측 추출에서 `amount_label` 로
+#: `"USD 663,688,303"`·`"US$ 34,500,000"`·`"$100"` 이 나왔고, 그대로 쓰면 근거에
+#: `- USD 663,688,303: 663,688,303원 (7억원)` 같은 **필드명이 아닌 줄**이 실린다.
+#: 숫자가 섞였거나 지나치게 긴 라벨은 필드명이 아니므로 기본 라벨로 접는다.
+_LABEL_HAS_DIGIT = re.compile(r"\d")
+MAX_NARY_LABEL_CHARS = 12
+
+
+def _nary_amount_line(relation: dict) -> str | None:
+    amount = relation.get("amount")
+    if not isinstance(amount, int) or amount <= 0:
+        return None
+    label = " ".join(str(relation.get("amount_label") or "").split())
+    if (not label or _LABEL_HAS_DIGIT.search(label)
+            or len(label) > MAX_NARY_LABEL_CHARS):
+        label = "계약금액"
+    #: `_amount_line` 과 **같은 서식**이다 — 규칙이 찍은 줄과 모양이 다르면
+    #: `prompts.split_trillion_eok` 와 `critic._says_amount` 가 이 줄만 못 본다.
+    return f"- {label}: {amount:,}원 ({amount / 100_000_000:,.0f}억원)"
+
+
+def _nary_lines(relations: list[dict]) -> dict[str, list[str]]:
+    """관계 목록 -> 항목별 근거 줄. 중복은 **순서를 지키며** 접는다."""
+    out: dict[str, list[str]] = {}
+
+    def push(key: str, line: str | None) -> None:
+        if not line:
+            return
+        bucket = out.setdefault(key, [])
+        if line not in bucket and len(bucket) < MAX_NARY_VALUES:
+            bucket.append(line)
+
+    for relation in relations:
+        if not isinstance(relation, dict):
+            continue
+        push("amount", _nary_amount_line(relation))
+        if relation.get("counterparty"):
+            push("counterparty", f"- 계약상대: {relation['counterparty']}")
+        start, end = relation.get("period_start"), relation.get("period_end")
+        if start and end:
+            push("period", f"- 기간: {start} ~ {end}")
+        elif start:
+            push("period", f"- 계약 시작일: {start}")
+        elif end:
+            push("period", f"- 계약 종료일: {end}")
+        if relation.get("subject"):
+            push("subject", f"- 대상: {relation['subject']}")
+    return out
+
+
+@lru_cache(maxsize=1)
+def _nary_extract() -> dict[str, dict[str, list[str]]]:
+    """`{접수번호: {항목: [근거 줄]}}`. 파일이 없으면 빈 사전 — arm 이 조용히 no-op 이다."""
+    path = settings().artifacts_root / NARY_NAME
+    if not path.exists():
+        return {}
+    out: dict[str, dict[str, list[str]]] = {}
+    with path.open(encoding="utf-8") as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            lines = _nary_lines(row.get("relations") or [])
+            if lines:
+                out[str(row["rcept_no"])] = lines
+    return out
+
+
+def merge_nary(markdown: str, lines: dict[str, list[str]]) -> str:
+    """🔴 **합집합이다 — 덮어쓰지 않는다.** 규칙이 이미 찍은 항목은 건너뛴다.
+
+    규칙의 산출물을 LLM 산출물로 갈아치우면 `A18` 이 재는 것이 '추가' 가 아니라
+    '교체' 가 되고, `L2`(노드 속성 LOO)의 −15.3%p 와 겨냥이 겹쳐 Δ 의 귀속이 깨진다.
+    """
+    add = [line for key, values in lines.items()
+           if not _NARY_PRESENT[key].search(markdown or "")
+           for line in values]
+    if not add:
+        return markdown
+    return (markdown.rstrip("\n") + "\n" + "\n".join(add)) if markdown else "\n".join(add)
+
+
+@lru_cache(maxsize=len(RECORD_GROUPS))
+def _group_records_nary(group: str) -> dict[str, dict]:
+    """`A18` 전용 사본. 🔴 **원본 사전을 변형하지 않는다** — 같은 프로세스에서 다른
+    arm 을 이어 돌리면 그 arm 의 근거까지 오염되고, 그것은 조용히 일어난다."""
+    extract = _nary_extract()
+    if not extract:
+        return _group_records_raw(group)
+    out: dict[str, dict] = {}
+    for doc_id, record in _group_records_raw(group).items():
+        lines = extract.get(str(record.get("rcept_no")))
+        if not lines:
+            out[doc_id] = record
+            continue
+        merged = merge_nary(record.get("markdown", ""), lines)
+        out[doc_id] = record if merged == record.get("markdown", "") else {
+            **record, "markdown": merged}
+    return out
 
 
 @lru_cache(maxsize=len(RECORD_GROUPS))
@@ -63,19 +205,29 @@ def _index() -> Bm25Index | None:
     return _group_index("exchange")
 
 
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=2)
+def _by_rcept_cached(nary: bool) -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    for group in RECORD_GROUPS:
+        for record in (_group_records_nary(group) if nary
+                       else _group_records_raw(group)).values():
+            out.setdefault(record["rcept_no"], record)
+    return out
+
+
 def _by_rcept() -> dict[str, dict]:
     """접수번호 -> 레코드. **문서군 셋을 전부 덮는다.**
 
     `_records()` 와 다르다. `query_events` 모집단은 거래소공시로 묶어 둬야 하지만
     (§7.7 ②), 정정 체인은 문서군을 가리지 않는다 — 실측 Q-030 의 고려아연 유상증자
     철회는 `major` 체인이라 거래소 모집단만 보면 영원히 `레코드 없음` 이다.
+
+    🔴 `A18` 은 여기도 갈라야 한다 — `_gather_meta`·오라클 주입·정정 체인이 전부
+    이 사전을 지나므로, 여기만 안 갈면 arm 의 근거가 경로마다 달라진다.
     """
-    out: dict[str, dict] = {}
-    for group in RECORD_GROUPS:
-        for record in _group_records(group).values():
-            out.setdefault(record["rcept_no"], record)
-    return out
+    from argus import ablation
+
+    return _by_rcept_cached(ablation.current().nary)
 
 
 @lru_cache(maxsize=1)
