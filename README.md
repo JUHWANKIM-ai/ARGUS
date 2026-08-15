@@ -97,16 +97,29 @@ curl -sG "http://<공인 IP>/answer" \
 
 ## 3. 환경 구성 · 실행
 
-### 🔴 `requirements.txt` 는 아직 없다 — `TBD-2`
+### ✅ `requirements.txt` — 작성 완료 (2026-08-15)
 
-의존성 정의는 현재 [`pyproject.toml`](pyproject.toml) 하나다(`fastapi` · `uvicorn` ·
-`rank-bm25`, dev 로 `pytest` · `httpx`). 주최측은 `Dockerfile` 을 필수로 요구하지 않고
-**재현 가능한 환경 구성 정보**(`requirements.txt` 등)를 요구한다.
+[`requirements.txt`](requirements.txt) 가 런타임 의존성을 **고정 버전으로** 담는다.
+의존성 선언의 정본은 [`pyproject.toml`](pyproject.toml) 이고, `requirements.txt` 는
+**실제로 검증된 버전을 고정한 것**이다(검증 환경 Python 3.13.13 · 전량 테스트 통과).
 
-**지금 만들지 않는다.** 개발 환경이 Windows/conda 라 여기서 `pip freeze` 를 뜨면
-Windows 전용 휠(`pywin32` 등)과 conda 채널 빌드 문자열이 섞여 **Ubuntu 배포 서버에서
-설치되지 않는다.** → **08-25 배포 리허설 때 서버(Ubuntu 24.04 · venv)에서 `pip freeze` 로
-뽑아 커밋한다.** 그때가 코드 동결 시점이라 목록도 그 뒤로 움직이지 않는다.
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt
+pip install -e .                    # argus 패키지 자체 (src/ 레이아웃)
+```
+
+🔴 **`pip freeze` 로 뜨지 않았다.** Windows/conda 에서 뜨면 Windows 전용 휠(`pywin32` 등)과
+conda 채널 빌드 문자열이 섞여 **Ubuntu 배포 서버에서 설치되지 않는다.** 그래서
+`pyproject.toml` 선언에 검증 버전을 고정해 **손으로 작성**했다.
+
+🔴 **작성 과정에서 결함 하나를 찾았다.** 전 소스의 `import` 를 AST 로 전수 스캔한 결과
+**`pydantic` 이 [`src/argus/api/server.py`](src/argus/api/server.py) 에서 직접 쓰이는데
+`pyproject.toml` 에 선언돼 있지 않았다.** `fastapi` 가 끌어오므로 지금까지 우연히
+동작했지만 `fastapi` 가 의존을 바꾸면 조용히 깨진다. 선언에 추가했다.
+
+`numpy` 는 넣지 않았다 — `scripts/build_embeddings.py` 만 쓰고 그 arm(`A2` 임베딩)은
+측정 후 기각됐다. **서버 런타임 경로에 없다.**
 
 ### 개발 환경
 
@@ -192,7 +205,7 @@ python scripts/ablation.py --arm A8 --dry   # arm 별 기여도 측정. --dry �
 
 | # | 제출물 | 소재 | 상태 |
 |---|---|---|---|
-| 1 | 소스코드 + 환경 구성 정보 + `README.md` | 이 저장소 · 이 파일 | 코드·README 있음 / **환경 정의는 `TBD-2`** |
+| 1 | 소스코드 + 환경 구성 정보 + `README.md` | 이 저장소 · 이 파일 · `requirements.txt` | ✅ **완비** (2026-08-15) |
 | 2 | 기술 제안서 (자유 양식 · 분량 제한 없음) | [`docs/proposal/technical-proposal.md`](docs/proposal/technical-proposal.md) | 초안 |
 | 3 | End-point URL + API 명세서 | **이 파일 §1 · §2** | 명세 있음 / **URL 은 `TBD-1`** |
 | 4 | 전처리 산출물 (대용량은 스토리지 링크) | `artifacts/` · `evalset/` | 저장소에 있음 / **대용량 링크는 `TBD-3`** |
@@ -204,7 +217,7 @@ python scripts/ablation.py --arm A8 --dry   # arm 별 기여도 측정. --dry �
 | # | 미정 항목 | 채우는 주체 | 시점 |
 |---|---|---|---|
 | `TBD-1` | 평가용 End-point 공인 IP (§1) | 배포 담당(사용자) | **08-25 코드 동결 이후 배포 리허설.** 일정 정본은 [`docs/total_plan.md`](docs/total_plan.md) 일정표 — 날짜를 여기 박아 두지 않는다 |
-| `TBD-2` | `requirements.txt` (§3) | 배포 담당 | 같은 칸 — 서버 venv 에서 `pip freeze` |
+| ~~`TBD-2`~~ | ✅ **닫힘 (2026-08-15)** — `requirements.txt` 작성 완료. 🔴 `pip freeze` 가 아니라 `pyproject` 선언에 검증 버전을 고정해 손으로 썼다 | — | — |
 | `TBD-3` | 전처리 산출물 클라우드 스토리지 링크 (§6) | 배포 담당 | 같은 칸 — 동결 시 스냅샷 업로드 |
 | `TBD-4` | 주최측 발신 IP 대역 (§1) | **주최측 공지 대기** | 미정 |
 | `TBD-5` | 평가 서버 운영 일자·시간대 (§1) | **주최측 공지 대기** | 09-07 ~ 09-20 중 |

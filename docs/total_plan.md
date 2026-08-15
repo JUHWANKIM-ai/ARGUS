@@ -1544,9 +1544,29 @@ A8-lean  한전기술 - "종합 설계 용역을 맡아 … 구조적 안정성�
 
 ## 8. 참조
 
+> 🔴 **이 문서를 고치는 사람이 알아야 할 것 — `§1` 은 기계가 읽는다.**
+>
+> `scripts/build_site.py` 의 `parse_ssot()` 가 **`§1` 을 파싱해 웹사이트를 만든다.**
+> 값을 손으로 베끼지 않으므로 **여기를 고치면 사이트가 따라 바뀐다.** 대신 형식을 깨면
+> 빌드가 죽는다 — 그것이 의도다. 파서는 **검산 넷**을 돌린다:
+>
+> ```
+> 원장 행 합      ≠ 누적            → SsotMismatch
+> Phase 게이트 합  ≠ 총계            → SsotMismatch
+> 테스트 이력 꼬리  ≠ 헤드라인         → SsotMismatch   🔴 v3 의 열 번째 결함이 이것이었다
+> 크레딧 열 + 배분 밖 ≠ 누적          → SsotMismatch
+> ```
+>
+> **행을 더하면 합계도 같이 고쳐라.** 안 그러면 빌드가 거부한다.
+> 확인: `PYTHONIOENCODING=utf-8 python scripts/build_site.py`
+>
+> 🔴 **이 역참조가 이 저장소가 스무 번 겪은 결함의 예방책이다** — 사본이 있다는 사실을
+> **정본 쪽이 알아야** 한쪽만 갱신되는 일이 막힌다.
+
 | 문서 | 역할 |
 |---|---|
 | [policy.md](policy.md) | 방법론 — 무엇을 해야 하는가 |
+| `scripts/build_site.py` | 🔴 **`§1` 을 파싱한다** — 위 경고 참조. 산출물 `site/` (gitignore) |
 | [CONVENTION.md](CONVENTION.md) | 규정·예산 — 무엇을 할 수 없는가 |
 | [clova_payment.md](clova_payment.md) | 크레딧 운용 방침 |
 | [pipeline/](pipeline/) | Phase A~I 실행 문서 9종 |
