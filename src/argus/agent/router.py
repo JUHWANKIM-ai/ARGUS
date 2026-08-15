@@ -8,7 +8,7 @@ from functools import lru_cache
 
 from argus.agent.query import report_hints
 from argus.corpus.counterparty import canonical
-from argus.corpus.manifest import filter_docs, load_universe, resolve_company
+from argus.corpus.manifest import filter_docs, load_universe
 
 _YEAR = re.compile(r"(20\d{2})\s*년?")
 # '대비'·'와 '·'과 ' 는 뺐다.
@@ -71,11 +71,24 @@ def doc_group(question: str) -> str:
 @dataclass
 class Route:
     kind: str
+    #: 🔴 **분기 없음 — `pipeline.answer_question` 의 트레이스 문자열에만 실린다.**
     difficulty: str = "low"
     companies: list[str] = field(default_factory=list)
     years: list[int] = field(default_factory=list)
     use_cot: bool = False
+    #: 🔴 **계산은 되는데 소비자가 트레이스 문자열 하나뿐이다. 배선하지 마라.**
+    #:
+    #: `A10`(자기일관성)은 `ablation.Arm.sc_k` 만 보고 이 값을 **안 본다**. 즉 라우터가
+    #: *"이 문항은 SC 부적합"* 이라고 판정한 서술형 문항(`tests/test_router.py` 가 그
+    #: 판정을 고정한다)에서도 A10 은 k=3 표본을 샀다. **`A10` 의 Δ 는 그 조건에서
+    #: 측정된 값이다** — `_self_consistent` 에 이 필드를 물리면 그 측정이 무효가 된다.
+    #: 다음 세대가 이것을 '고쳐야 할 버그' 로 읽지 않도록 여기 못 박는다 (v4 조사 §3-2).
     use_sc: bool = False
+    #: 🔴 **어디서도 대입되지 않는다** — `route()` 가 이 인자를 안 넘긴다. 읽는 곳도 0.
+    #: 유일한 참조가 `test_router.py::assert r.by == "rule"` 인데 그것은 바꿀 수 없는
+    #: 기본값을 재는 동어반복이다. 지우지 않고 남기는 이유는 하나뿐이다 — 필드를 빼면
+    #: `Route` 의 모양이 바뀌고, v1~v4 산출물을 재현하는 코드가 그 모양에 걸려 있다.
+    #: **새 판정에 쓰지 마라. 쓰려면 먼저 `route()` 가 채우게 하고 테스트를 세워라.**
     by: str = "rule"
     group: str = "exchange"
     reason: str = ""

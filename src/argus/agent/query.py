@@ -313,6 +313,10 @@ def path_hints(question: str, paths, limit: int = 3) -> list[str]:
 
 #: 목차 필터가 걸린 hop 은 후보가 이미 수십 건으로 좁아져 있어 넓게 받아도 싸다.
 SECTION_TOP_K = (8, 10, 8, 10)
+#: 🔴 **`SECTION_TOP_K` 의 자리 이름이다 — 지우지 마라.** 코드 참조가 0건이라
+#: '죽은 상수' 로 보이지만, 이 줄이 없으면 위 4-튜플이 설명 없는 `(8, 10, 8, 10)` 이
+#: 되고 `section_plans` 의 hop 0~3 이 무엇이었는지 여기서 읽을 수 없게 된다.
+#: 아래 `SectionPlan(...)` 의 전략 이름과 **자리 순서가 같아야 한다**.
 SECTION_STRATEGIES = ("toc_narrow", "toc_corp", "doc_narrow", "corp_only")
 
 #: hop 0 이 동시에 볼 목차 경로 수. 실측으로 2 면 충분하다 — 병목 2건이 요구하는 짝은

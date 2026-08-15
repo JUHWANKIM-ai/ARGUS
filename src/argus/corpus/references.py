@@ -198,7 +198,13 @@ def extract_references(doc: dict) -> list[Reference]:
 
 
 def iter_all_references(doc_groups: tuple[str, ...] = ("exchange", "major")):
-    """코퍼스 전체를 훑어 REFERS_TO 를 낸다."""
+    """코퍼스 전체를 훑어 REFERS_TO 를 낸다. 🔴 **분석 전용 — 호출부가 0건이다.**
+
+    운영 경로도 러너도 이 함수를 안 부른다 (`extract_references` 를 문서 단위로 부른다).
+    지우지 않는 이유는 REFERS_TO 전수 통계가 `corrections.attach_related` 독스트링의
+    판정 근거(*"강한 엣지 출처 453건 중 해지는 11건뿐"*)이고, 그 수를 다시 세는 유일한
+    수단이 이 함수이기 때문이다. **새 코드에서 부르기 전에 비용을 재라 — 전수 훑기다.**
+    """
     for doc in load_manifest():
         if doc["doc_group"] in doc_groups:
             yield from extract_references(doc)

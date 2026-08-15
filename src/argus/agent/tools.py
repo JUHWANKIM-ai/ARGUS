@@ -19,7 +19,10 @@ from argus.config import settings
 from argus.corpus.counterparty import canonical, classify
 from argus.corpus.manifest import filter_docs, resolve_company
 from argus.corpus.sections import BLOB_NAME
-from argus.retrieve.bm25 import (SECTION_CHUNK_CHARS, Bm25Index,  # noqa: F401
+#: 🔴 `# noqa: F401` 이 붙어 있었는데 **다섯 이름이 전부 이 파일 안에서 직접 쓰인다.**
+#: 재수출이라고 오해시키는 주석이라 뗀다 (전수 확인: `tools.Bm25Index` 처럼 이 모듈을
+#: 통해 끌어 쓰는 소비자가 저장소에 0건이다).
+from argus.retrieve.bm25 import (SECTION_CHUNK_CHARS, Bm25Index,
                                  SectionBm25Index, norm_path, split_section)
 
 SECTION_INDEX_STEM = "section_index"

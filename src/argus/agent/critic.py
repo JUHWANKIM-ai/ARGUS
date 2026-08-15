@@ -1,10 +1,28 @@
 """근거 지지 판정. 생성보다 싸고 정확한 검증 수단.
 
-4단 검증이고 앞의 세 단계는 공짜다 (policy §6).
-  quick_check         — 근거 표기 정규식        LLM 0회
-  verify_calculation  — 결정적 재계산 대조      LLM 0회
-  verify_completeness — 근거 완전성 대조        LLM 0회
-  judge               — 근거 지지 판정          LLM 1회
+🔴 **머리말이 "4단 검증" 이라고만 적혀 있었다. 이 모듈은 다섯 가지를 한다** (v4 조사 §1-b).
+아래가 실제 책임이고, 새 코드를 어디에 놓을지는 이 목록으로 정한다.
+
+① 결정적 검사 넷 — 앞의 셋은 공짜다 (policy §6)
+    quick_check              — 근거 표기 정규식        LLM 0회
+    verify_calculation       — 결정적 재계산 대조      LLM 0회
+    verify_answer_arithmetic — 답변 내부 산술 대조      LLM 0회
+    verify_number_provenance — 답변 수의 출처 대조      LLM 0회
+    verify_completeness      — 근거 완전성 대조         LLM 0회
+② 금액·비율·배율 파싱 — `_money_spans`·`money_values`·`_scale_of`·`_to_float`·
+   `_bare_claims`. 🔴 저장소가 **단일 원천으로 선언한 자리**다.
+   `scripts/error_analysis._MONEY_RE` 는 사본이 아니라 **다른 갈래**다 (표지가 선택적이고
+   환산값과 원값을 둘 다 후보로 낸다). 합치면 후보 집합이 줄어 **채점이 뒤집힌다** —
+   v4 조사가 `C2` 로 명시 기각했다.
+③ 답변을 **고쳐 쓰는** 기계 — `substitute_recomputed`·`_rendered`·`unique_recomputed`·
+   `tool_result_reports`. 판정이 아니라 **변경**이다. A20·A24b 가 공유한다.
+④ LLM 판정자 — `judge`·`judge_open`. 이 모듈에서 LLM 을 부르는 유일한 자리다.
+⑤ 오프라인 채점·집계 헬퍼 — `aggregate_calculation`·`completeness_audit`.
+   운영 경로가 아니라 `scripts/error_analysis.py` 가 쓴다.
+
+🔴 **이 모듈은 arm 을 모른다.** `import ablation` 이 없고 플래그를 하나도 안 읽는다 —
+arm gating 은 전부 `pipeline._verify` 에 있다. **설계다.** 여기에 arm 분기를 넣으면
+검사의 결정성이 arm 에 딸리게 되고, 그러면 Δ 가 검사 변화인지 arm 변화인지 안 갈린다.
 """
 from __future__ import annotations
 
@@ -1265,7 +1283,21 @@ def _fmt_figures(values) -> str:
 
 def verify_completeness(question: str, answer: str, evidence,
                         *, companies: Sequence[str] | None = None) -> dict:
-    """근거가 **충분한가**를 본다. LLM 0회. `verify_calculation` 과 같은 반환 규격이다.
+    """근거가 **충분한가**를 본다. LLM 0회.
+
+    🔴 **`verify_calculation` 과 같은 반환 규격이 아니다** (종전 주석이 그렇게 적혀
+    있었고 틀렸다 — v4 조사 §2-b ③이 키를 세어 잡았다). 실제로 같은 것은 셋이다:
+    `verify_answer_arithmetic` · `verify_number_provenance` · `_tool_result_report`
+    (10키 동일). `verify_calculation` 은 거기에 `gated` 가 붙은 11키다.
+
+        이 함수(8키)  ok llm_calls checked skipped **gaps** failed_kinds
+                      failure_stage reason
+        나머지        ok llm_calls checked skipped **mismatches** failed_kinds
+                      failure_stage reason **recomputed hard_kinds**
+
+    `mismatches` 대신 `gaps` 이고 `recomputed`·`hard_kinds` 가 없다. 🔴 **합치지 마라** —
+    `gaps` 는 재계산 결과가 아니라 '근거에 없는 것' 의 목록이라 값의 성질이 다르다.
+    `pipeline._verdict` 가 이 둘을 각각 다르게 읽는다.
 
     `judge` 가 보는 축(지지)과 겹치지 않는다. 여기서 잡는 것은 넷이다.
 
