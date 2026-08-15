@@ -1,6 +1,7 @@
 """파이프라인 진입점. 고정 횟수 단계라 질문당 비용 상한이 계산된다."""
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Sequence
 
@@ -2045,6 +2046,108 @@ def _self_consistent(messages: list[dict], max_tokens: int, arm, first: str,
     return samples[picked]
 
 
+# --- A24 — `chat(tools=…)` 왕복 (🔴 게이트 F 의 유일한 미완이었다) -----------------
+# `TOOL_SPECS` 15종은 v1 부터 등록돼 있었는데 **`tools=` 가 `chat()` 에 한 번도 전달된
+# 적이 없다** — `ablation.py` 가 그 사실을 스스로 문서화해 뒀고 게이트 F 가 `[~]` 로
+# 남아 있었다. 여기가 그 미완을 닫는 자리다.
+#
+# 🔴 **왕복이 필수다.** 모델이 `toolCalls` 를 돌려주면 그 응답의 `content` 는 보통
+# 비어 있다. 실행 결과를 다시 넣어 한 번 더 부르지 않으면 **빈 답변이 나가고**, 우리는
+# 그 0점을 "function calling 은 효과가 없다" 로 읽는다 — 이 저장소가 최악으로 보는
+# **조용한 Δ** 의 정확히 같은 종류다.
+#
+# 🔴 **`tools` 와 `maxTokens` 는 동시 지정 불가다** (40001 · `docs/CONVENTION.md`).
+# 그래서 도구를 내미는 회차에는 길이 상한이 **없고**, 마지막 회차는 도구를 빼서 상한을
+# 되돌린다. 이것은 우리 선택이 아니라 API 제약이고, `A24` 의 Δ 에 그 몫이 섞인다.
+
+#: 도구를 내미는 회차의 상한. 마지막에 **도구 없는** 회차가 하나 더 붙으므로 생성
+#: 호출은 최대 `MAX_TOOL_ROUNDS + 1` = **2회**다.
+#:
+#: 🔴 **루프를 열어 두지 않는다** — `Budget` 의 호출 상한 6 과 토큰 상한 20,000 을 답변
+#: 단계 혼자 태우면 critic·검증이 굶고, 그것이 arm 효과로 오독된다 (이 파일 머리말:
+#: 고정 횟수 단계라 질문당 비용 상한이 계산된다).
+#:
+#: 🔴 **1 로 두면 도구 연쇄(`calc_total` → `calc_share`)는 못 한다.** 그것이 이 값의
+#: 유일한 대가이고, 대신 얻는 것이 둘이다: ① 마지막 회차에 도구를 빼므로 `maxTokens`
+#: 가 돌아와 **답변 길이 상한이 `A8` 과 같아진다**(40001 제약: `tools` 와 `maxTokens`
+#: 동시 지정 불가) ② 문항당 생성 호출이 정확히 1~2회로 못 박힌다.
+MAX_TOOL_ROUNDS = 1
+
+#: 도구 결과 한 건을 프롬프트에 실을 때의 글자 상한. `read_section`·`search_chunks` 는
+#: 수만 자를 돌려줄 수 있어 상한이 없으면 **토큰 상한 20,000 을 한 번에 태운다** —
+#: 그러면 `BudgetExceeded` 로 `UNANSWERABLE` 이 나가고 그것이 측정으로 굳는다.
+MAX_TOOL_RESULT_CHARS = 2_000
+
+
+def _tool_arguments(call: dict) -> dict:
+    """`toolCalls[i].function.arguments` 를 사전으로. HCX-005 는 **사전**을 돌려주지만
+    (실측 `notebooks/clova_verify.ipynb`), OpenAI 호환 서버는 JSON 문자열을 준다.
+    양쪽을 다 받는다 — 형태 하나를 가정하면 도구가 조용히 안 불린다."""
+    args = (call.get("function") or {}).get("arguments")
+    if isinstance(args, str):
+        try:
+            args = json.loads(args or "{}")
+        except json.JSONDecodeError:
+            return {}
+    return args if isinstance(args, dict) else {}
+
+
+def _answer_with_tools(messages: list[dict], max_tokens: int, arm, budget: Budget,
+                       trace: list[str]) -> str:
+    """`A24` — 도구를 내밀고, 모델이 부르면 실행해 결과를 되먹여 다시 부른다.
+
+    🔴 **첫 호출이 죽으면 그대로 올려보낸다** — `A8` 과 같은 경로(`UNANSWERABLE` +
+    표식)로 나가야 상류 장애와 arm 효과가 섞이지 않는다. 두 번째 회차부터는 이미 받아
+    둔 본문이 있으면 그것을 지키고 멈춘다 (`_self_consistent` 와 같은 규약).
+    """
+    convo = list(messages)
+    best = ""
+    for index in range(MAX_TOOL_ROUNDS + 1):
+        offer = index < MAX_TOOL_ROUNDS
+        if index and budget.remaining()["llm_calls"] <= 0:
+            # 🔴 **부르기 전에** 본다. 부르고 나서 세면 크레딧은 이미 나갔다.
+            trace.append(f"fc stop=budget_calls rounds={index} kept="
+                         f'{"partial" if best else "none"}')
+            if best:
+                return best
+            raise BudgetExceeded("LLM 호출 상한 — function calling 왕복을 마치지 못했다")
+        try:
+            result = chat(convo, max_tokens=max_tokens, temperature=arm.temperature,
+                          tools=tools.TOOL_SPECS if offer else None, tag="answer")
+            budget.spend_llm(result.prompt_tokens, result.completion_tokens)
+        except (BudgetExceeded, RuntimeError) as exc:
+            if not best:
+                raise
+            trace.append(f"fc stop={type(exc).__name__} rounds={index} kept=partial ({exc})")
+            return best
+
+        calls = result.tool_calls or []
+        trace.append(f"generate fc={index} offered={'y' if offer else 'n'} "
+                     f"calls={len(calls)} finish={result.finish} "
+                     f"tokens={result.prompt_tokens}+{result.completion_tokens}")
+        text = (result.text or "").strip()
+        if text:
+            best = text
+        if not calls:
+            return best
+
+        # 🔴 어시스턴트 회차를 **그대로** 되넣는다. `toolCalls` 를 빼면 뒤따르는
+        #    `role="tool"` 메시지가 붙을 자리를 잃는다.
+        convo.append({"role": "assistant", "content": result.text or "",
+                      "toolCalls": calls})
+        for call in calls:
+            name = ((call.get("function") or {}).get("name")) or ""
+            out = tools.execute(name, _tool_arguments(call))
+            payload = json.dumps(out, ensure_ascii=False, default=str)
+            if len(payload) > MAX_TOOL_RESULT_CHARS:
+                payload = payload[:MAX_TOOL_RESULT_CHARS] + "…(잘림)"
+            convo.append({"role": "tool", "toolCallId": call.get("id", ""),
+                          "name": name, "content": payload})
+            trace.append(f'fc tool={name or "?"} '
+                         f'{"error" if "error" in out else "ok"} chars={len(payload)}')
+    return best
+
+
 def answer_question(question_id: str, question: str) -> dict:
     budget = Budget()
     clean, warnings = sanitize_question(question)
@@ -2083,13 +2186,18 @@ def answer_question(question_id: str, question: str) -> dict:
                                          lean_rules=ablation.enabled("lean_rules"))
         max_tokens = 800 if r.use_cot else 300
         arm = ablation.current()
-        # 🔴 온도는 이제 `Arm` 이 들고 있다. **기본값이 0.0** 이라 `A10` 이외의 arm 에서
-        #    이 호출은 종전과 본문이 바이트 동일이고, 요청 캐시 키도 그대로다.
-        result = chat(messages, max_tokens=max_tokens,
-                      temperature=arm.temperature, tag="answer")
-        budget.spend_llm(result.prompt_tokens, result.completion_tokens)
-        answer = result.text
-        trace.append(f"generate tokens={result.prompt_tokens}+{result.completion_tokens}")
+        # 🔴 `A24` 는 여기서 갈린다 — 도구를 내밀고 왕복한다. 기본값(False)에서는 아래
+        #    `else` 가지가 종전과 글자 하나 다르지 않다.
+        if arm.function_calling:
+            answer = _answer_with_tools(messages, max_tokens, arm, budget, trace)
+        else:
+            # 🔴 온도는 이제 `Arm` 이 들고 있다. **기본값이 0.0** 이라 `A10` 이외의 arm 에서
+            #    이 호출은 종전과 본문이 바이트 동일이고, 요청 캐시 키도 그대로다.
+            result = chat(messages, max_tokens=max_tokens,
+                          temperature=arm.temperature, tag="answer")
+            budget.spend_llm(result.prompt_tokens, result.completion_tokens)
+            answer = result.text
+            trace.append(f"generate tokens={result.prompt_tokens}+{result.completion_tokens}")
         if arm.sc_k > 1:
             answer = _self_consistent(messages, max_tokens, arm, answer, budget, trace)
     except BudgetExceeded as exc:
