@@ -564,7 +564,10 @@ def _arm_names(cell: str) -> list[str]:
 ABLATION = "artifacts/ablation"
 #: 사다리 순서. **여기 있는 arm 중 그 세대에 실제로 있는 것만** 렌더된다.
 LADDER_ORDER = ("A0", "A1", "A1b", "A2", "A3", "A4", "A5", "A6", "A7", "A8")
-LOO_ORDER = ("L1", "L2", "L3", "L4", "L5")
+#: 🔴 **여기에 없는 LOO arm 은 크래시가 아니라 조용히 사라진다.** 새 LOO 를 세우면
+#: 반드시 더하라 — v4 의 `L6`·`L7`·`L8`(메타 축)이 그렇게 빠질 뻔했다.
+#: `L5` 는 v3 에서 기각돼 산출물이 없지만, "그 세대에 있는 것만 렌더" 하므로 남겨 둔다.
+LOO_ORDER = ("L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8")
 BASELINE_ARM = "A8"
 #: 분모 라벨은 **정의**라서 남긴다. 값은 언제나 산출물에서 센다.
 DENOMINATOR_DEFS = {
