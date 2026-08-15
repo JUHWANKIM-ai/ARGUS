@@ -11,7 +11,7 @@ from argus.agent.critic import (aggregate_calculation, judge, quick_check,
                                 substitute_recomputed, unique_recomputed,
                                 verify_answer_arithmetic, verify_calculation,
                                 verify_completeness, verify_number_provenance)
-from argus.agent.prompts import build_answer_messages
+from argus.agent.prompts import build_answer_messages, build_regeneration_messages
 from argus.agent.query import (SPLIT_TOP_K, STRATEGIES, path_hints, plan_hops,
                                plan_section_hops, report_hints, time_points)
 from argus.agent import router as router_module
@@ -1911,7 +1911,9 @@ def answer_question(question_id: str, question: str) -> dict:
         except RuntimeError as exc:
             trace.append(f"{_upstream_mark('critic', exc)} critic 생략: {exc}")
 
-    answer = _verify(clean, answer, evidence, r, trace)
+    # 🔴 `budget` 을 넘긴다 — `A20r` 의 재생성이 LLM 호출을 하나 더 쓰고, 그것이
+    #    게이트 F 의 `budget llm=` 에 잡혀야 한다. 나머지 arm 에서는 안 쓰인다.
+    answer = _verify(clean, answer, evidence, r, trace, budget)
     return _respond(question_id, question, evidence, trace, mask_pii(answer), budget)
 
 
@@ -1949,16 +1951,17 @@ def _evidence_records(evidence: str) -> list[dict]:
     return out
 
 
-def _verify(question: str, answer: str, evidence: str, r, trace: list[str]) -> str:
-    """A6. 결함이 있으면 답변에 경고를 붙이고 trace 에 판정을 남긴다.
+def _verdict(question: str, answer: str, evidence: str, records: list[dict], r,
+             arm) -> dict:
+    """답변 **하나**에 대한 검증 판정 한 벌. 부작용이 없다 — trace 도 안 건드린다.
 
-    🔴 `substitute_verified`(A20)가 켜져 있으면 경고를 붙이는 대신 **검사가 낸 유일한
-    재계산값으로 답변의 그 수치를 치환**한다. 꺼져 있으면 종전 동작 그대로다.
+    🔴 `A20r` 이 이것을 **두 번** 부른다 (원본 · 재생성본). 그래서 규칙을 여기 한 곳에만
+    둔다 — 재생성 전후를 다른 잣대로 재면 *"여전히 발화하면 원본을 쓴다"* 가 성립하지
+    않는다 (`critic.unique_recomputed` 를 한 곳에 둔 것과 같은 이유).
+
+    `records` 를 인자로 받는 것도 같은 이유다. 근거에서 되찾는 정형 레코드는 답변과
+    무관하므로 두 번 조회할 일이 없다.
     """
-    arm = ablation.current()
-    if not arm.verifier:
-        return answer
-
     # 레코드가 여러 건이면 **하나라도 설명되면 통과**다. 체인 안에서 원공시와 정정본의
     # 금액이 갈리므로(227,500 vs 114,800) 전건 일치를 요구하면 정답이 오답이 된다.
     #
@@ -1967,7 +1970,7 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str]) -> s
     # 체인 관용은 '같은 값의 다른 시점' 을 위한 것이고 자릿수 오류는 시점 문제가 아니다.
     # 판정을 `critic.aggregate_calculation()` 한 곳으로 모은다 — 규칙이 두 곳에 있으면 갈린다
     # (`scripts/error_analysis.verify_answer_calc` 도 같은 함수를 쓴다).
-    reports = [verify_calculation(answer, record) for record in _evidence_records(evidence)]
+    reports = [verify_calculation(answer, record) for record in records]
     agg = aggregate_calculation(reports)
     checked, calc_failed = agg["checked"], agg["failed"]
 
@@ -1984,8 +1987,13 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str]) -> s
     # 🔴 무조건 배선하면 플래그를 **끈** 상태에서도 각주가 늘어난다 — v3 세대 664 답변
     # 전수 대조로 확인했다(Step 0b). 그 자체가 답변 변화이고 `A20` 의 Δ 와 섞이므로
     # 배선도 플래그 뒤에 둔다.
+    #
+    # 🔴 **`A20r` 도 이 검사를 켠다.** 재생성에 실을 **사유의 원천**이 필요하고, 실측
+    # `Q-044` 는 정형 레코드가 0건이라 이 검사 없이는 발화조차 없다 — 그러면 `A20r` 의
+    # 겨냥이 그 문항에서 조용히 사라진다. `A20`·`A20r` 이 같은 판정을 읽고 **처분만**
+    # 갈리는 것이 두 arm 을 나란히 재는 설계의 전부다.
     arith_reports: list[dict] = []
-    if arm.substitute_verified:
+    if arm.substitute_verified or arm.regenerate_on_verify:
         arith = verify_answer_arithmetic(answer)
         arith_reports = [arith]
         checked = sorted({*checked, *arith["checked"]})
@@ -2004,27 +2012,14 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str]) -> s
 
     kinds = sorted({*(["calculation"] if calc_failed else []), *complete["failed_kinds"],
                     *(provenance["failed_kinds"] if provenance else [])})
-    # 🔴 게이트가 꺼진 arm 의 트레이스는 **바이트 동일**이어야 한다 — 필드를 무조건 찍으면
-    #    v3 세대 전 arm 의 `think_trace` 가 달라지고 저장 산출물과 대조가 안 된다.
-    gate = f'provenance_checked={",".join(provenance["checked"]) or "-"} ' if provenance else ""
-    trace.append(f'verify calc_checked={",".join(checked) or "-"} '
-                 f'complete_checked={",".join(complete["checked"]) or "-"} '
-                 f'{gate}ok={not kinds} kinds={",".join(kinds) or "-"}')
-    if not kinds:
-        return answer
-
-    # 🔴 A20 — 각주 대신 치환한다. 유일성 판정은 `critic.unique_recomputed` 한 곳에만 있고
-    # (`aggregate_calculation` 도 같은 함수를 쓴다) 여기서는 **레코드 판정 + 답변 산술
-    # 판정의 합집합**으로 부른다. 값이 갈리면 `None` 이 오고 치환은 일어나지 않는다.
-    substituted: list[str] = []
-    if arm.substitute_verified and calc_failed:
-        answer, substituted = substitute_recomputed(
-            answer, reports + arith_reports, unique_recomputed(reports + arith_reports))
-        if substituted:
-            trace.append(f'verify substituted={"; ".join(substituted)}')
 
     # 사유도 `aggregate_calculation` 이 정한 순서를 쓴다 — 자릿수 오류가 앞에 온다.
     # 손으로 첫 사유를 뽑으면 무해한 이웃이 먼저 실려 경고가 약해진다.
+    #
+    # 🔴 **이 목록이 `A20r` 이 재생성에 싣는 것 그대로다.** 각주와 프롬프트가 같은
+    # 목록을 읽어야 "각주로 본 것" 과 "모델에게 준 것" 이 갈리지 않는다. 원천이 둘이다 —
+    # ① 계산 불일치(`aggregate_calculation`·`verify_answer_arithmetic`)와
+    # ② 🔴 근거에 없는 수(`verify_number_provenance` = `A21` 의 판정).
     reasons = agg["reasons"][:1] if calc_failed else []
     if not reasons and arith_reports and arith_reports[0]["reason"]:
         reasons = [arith_reports[0]["reason"]]      # 레코드가 0건인 문항 (실측 Q-044)
@@ -2032,11 +2027,116 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str]) -> s
         reasons.append(complete["reason"])
     if provenance and provenance["reason"]:
         reasons.append(provenance["reason"])
+
+    return {"reports": reports, "arith_reports": arith_reports, "provenance": provenance,
+            "complete": complete, "checked": checked, "calc_failed": calc_failed,
+            "kinds": kinds, "reasons": reasons}
+
+
+def _regenerate_once(question: str, answer: str, evidence: str, records: list[dict],
+                     r, arm, trace: list[str], budget: Budget | None,
+                     verdict: dict) -> tuple[str, dict]:
+    """🔴 `A20r` — 실패 사유를 실어 **딱 한 번** 다시 생성한다. 돌려주는 것은
+    (채택한 답변, 그 답변의 판정) 짝이다.
+
+    🔴 **재생성본에 검사가 여전히 발화하면 원본과 원본의 판정을 그대로 돌려준다** —
+    그러면 호출부가 종전대로 각주를 붙인다. '더 나빠지면 원본' 을 판정 교체로 표현한
+    것이라 두 자리에서 규칙이 갈릴 여지가 없다.
+
+    🔴 **1회로 못 박는다.** 여기서 자기 자신을 다시 부르지 않는 것이 그 상한의 전부다 —
+    루프를 두면 문항당 비용 상한이 사라진다 (이 파일 머리말: 고정 횟수 단계).
+    """
+    if budget is None:
+        # 🔴 조용히 건너뛰면 **조용한 Δ 0** 이고, 세지 않고 부르면 게이트 F 가 거짓을
+        #    말한다. 둘 다 안 되므로 여기서 멈춘다.
+        raise ValueError(
+            "regenerate_on_verify 는 예산 계정이 필요합니다 — 재생성 호출을 아무도 세지 "
+            "않으면 게이트 F 의 `budget llm=` 이 거짓을 말합니다. `_verify(..., budget=)` "
+            "로 넘기십시오.")
+    if budget.remaining()["llm_calls"] <= 0:
+        # 🔴 **부르기 전에** 본다. 부르고 나서 세면 크레딧은 이미 나갔다.
+        trace.append("verify regen=skip_budget (LLM 호출 상한) kept=original")
+        return answer, verdict
+
+    use_cot = bool(getattr(r, "use_cot", False))
+    try:
+        result = chat(build_regeneration_messages(
+                          question, evidence, verdict["reasons"], answer,
+                          use_cot=use_cot, lean_rules=ablation.enabled("lean_rules")),
+                      max_tokens=800 if use_cot else 300,
+                      # 🔴 온도 0.0 을 유지한다 — 다양성을 사는 것은 `A10` 의 조작이다.
+                      temperature=0.0, tag="regenerate")
+        budget.spend_llm(result.prompt_tokens, result.completion_tokens)
+    except BudgetExceeded as exc:
+        trace.append(f"verify regen=skip_budget ({exc}) kept=original")
+        return answer, verdict
+    except RuntimeError as exc:
+        # 상류 장애로 답변을 잃지 않는다. 다만 **삼키지는 않는다** (`answer_question` 과 같은 규약).
+        trace.append(f"{_upstream_mark('regenerate', exc)} verify regen=skip_error kept=original: {exc}")
+        return answer, verdict
+
+    candidate = (result.text or "").strip()
+    if not candidate:
+        trace.append("verify regen=empty kept=original")
+        return answer, verdict
+
+    again = _verdict(question, candidate, evidence, records, r, arm)
+    kept = "regenerated" if not again["kinds"] else "original"
+    trace.append(f'verify regen=1 reasons={"; ".join(verdict["reasons"])} '
+                 f'kinds_after={",".join(again["kinds"]) or "-"} kept={kept}')
+    return (candidate, again) if kept == "regenerated" else (answer, verdict)
+
+
+def _verify(question: str, answer: str, evidence: str, r, trace: list[str],
+            budget: Budget | None = None) -> str:
+    """A6. 결함이 있으면 답변에 경고를 붙이고 trace 에 판정을 남긴다.
+
+    🔴 `substitute_verified`(A20)가 켜져 있으면 경고를 붙이는 대신 **검사가 낸 유일한
+    재계산값으로 답변의 그 수치를 치환**한다.
+    🔴 `regenerate_on_verify`(A20r)가 켜져 있으면 **실패 사유를 실어 한 번 재생성**한다.
+    둘 다 꺼져 있으면 종전 동작 그대로다 — 각주만 붙인다.
+    """
+    arm = ablation.current()
+    if not arm.verifier:
+        return answer
+
+    records = _evidence_records(evidence)
+    v = _verdict(question, answer, evidence, records, r, arm)
+
+    # 🔴 게이트가 꺼진 arm 의 트레이스는 **바이트 동일**이어야 한다 — 필드를 무조건 찍으면
+    #    v3 세대 전 arm 의 `think_trace` 가 달라지고 저장 산출물과 대조가 안 된다.
+    gate = (f'provenance_checked={",".join(v["provenance"]["checked"]) or "-"} '
+            if v["provenance"] else "")
+    trace.append(f'verify calc_checked={",".join(v["checked"]) or "-"} '
+                 f'complete_checked={",".join(v["complete"]["checked"]) or "-"} '
+                 f'{gate}ok={not v["kinds"]} kinds={",".join(v["kinds"]) or "-"}')
+    if not v["kinds"]:
+        return answer
+
+    # 🔴 A20r — 각주 대신 **사유를 실어 재생성 1회.** 치환보다 먼저 선다: 재생성이
+    #    결함을 지웠으면 치환할 것이 남아 있지 않다. `A20r` 은 `substitute_verified`
+    #    를 켜지 않으므로 현 구성에서 둘이 한 답변에 함께 손대는 일은 없다.
+    if arm.regenerate_on_verify:
+        answer, v = _regenerate_once(question, answer, evidence, records, r, arm,
+                                     trace, budget, v)
+        if not v["kinds"]:
+            return answer
+
+    # 🔴 A20 — 각주 대신 치환한다. 유일성 판정은 `critic.unique_recomputed` 한 곳에만 있고
+    # (`aggregate_calculation` 도 같은 함수를 쓴다) 여기서는 **레코드 판정 + 답변 산술
+    # 판정의 합집합**으로 부른다. 값이 갈리면 `None` 이 오고 치환은 일어나지 않는다.
+    substituted: list[str] = []
+    if arm.substitute_verified and v["calc_failed"]:
+        pool = v["reports"] + v["arith_reports"]
+        answer, substituted = substitute_recomputed(answer, pool, unique_recomputed(pool))
+        if substituted:
+            trace.append(f'verify substituted={"; ".join(substituted)}')
+
     # 🔴 치환했으면 그렇게 적는다. 고쳐 놓고 "결함이 발견되었습니다" 라고만 쓰면 각주가
     # 본문과 어긋난다. 접두사 `(주의:` 는 유지한다 — `strip_verify_tail` 이 그것을 읽는다.
     head = ("자동 검증에서 결함이 발견되어 재계산값으로 정정했습니다" if substituted
             else "자동 검증에서 결함이 발견되었습니다")
-    return answer + f'\n\n(주의: {head} — {"; ".join(reasons)})'
+    return answer + f'\n\n(주의: {head} — {"; ".join(v["reasons"])})'
 
 
 def _respond(question_id: str, question: str, evidence: str, trace: list[str],

@@ -20,7 +20,9 @@ import pytest
 
 from argus import ablation
 from argus.agent import critic, pipeline
+from argus.agent.budget import Budget
 from argus.agent.critic import verify_number_provenance
+from argus.agent.prompts import build_answer_messages
 from scripts import error_analysis as ea
 
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -917,3 +919,196 @@ def test_no_correct_answer_gets_a_new_footnote_from_the_gate():
     if not checked:
         pytest.skip("현 세대 전체 88 산출물이 없다")
     assert fired == [], f"정답 문항 거짓 경보: {fired}"
+
+
+# --- ⑨ A20r — 치환 대신 **사유를 실어 재생성 1회** (`R1-2`) ----------------------
+# 🔴 **`R1-9` 가 이 arm 의 설계를 바꿨다.** `A21`(출처 게이트)의 Δ 는 구조적으로 0 이다 —
+# `_verify` 의 유일한 출력은 각주이고 채점은 `score_closed`·`judge_open` 양쪽에서
+# `strip_verify_tail` 로 그 꼬리를 뗀다. 탐지 100% · 교정 0%. **그 판정을 소비하는
+# 자리가 이 arm 이다.** 그래서 재생성 프롬프트는 사유 **둘**을 함께 싣는다:
+#
+#   ① `aggregate_calculation` 의 reasons       계산 불일치 — `A20` 과 같은 원천
+#   ② `verify_number_provenance` 의 reason     근거에 없는 수 — `A21` 이 잡은 것
+#
+# 🔴 **온도 0.0 을 유지한다.** 사유를 안 실으면 결정적 재시도라 **같은 답이 나온다**
+# (SWE-Lancer S21·S22 실측 · AutoGen board agent 처방 G34·G36 · CAMEL C34). 온도를 올려
+# 다양성을 사는 것은 `A10`(SC k=3)의 조작이고, 이 arm 이 재는 것은 **진단 주입**이다.
+# 둘은 같은 축의 변형이 아니라 서로 다른 기전이라 통제 변수를 깨면 Δ 의 귀속이 무너진다.
+
+A20R_ARM = ablation.ARMS["A20r"]
+
+#: 합성 사례 하나로 **두 사유가 함께 서는 자리**를 만든다. 접수번호를 안 넣어 정형
+#: 레코드 조회(`_evidence_records`)를 0건으로 만들었다 — 코퍼스 인덱스에 기대지 않는다.
+REGEN_QUESTION = "계약금액이 얼마로 정정되었는가?"
+REGEN_EVIDENCE = "계약금액(원): 1,566,300,000,000\n계약금액(원): 1,842,200,000,000"
+#: ① 뺄셈이 틀렸고(`equation`) ② `1,843,200,000,000` 이 근거에 없다(`provenance`).
+REGEN_ANSWER = ("- 최초 공시 금액: 1,566,300,000,000원\n"
+                "- 최종 정정 금액: 1,843,200,000,000원\n"
+                "- 1,843,200,000,000 - 1,566,300,000,000 = 266,900,000,000원")
+REGEN_FIXED = "정정 후 계약금액은 1,842,200,000,000원입니다. (근거: 공시 본문)"
+REGEN_WORSE = "계약금액은 9,999,999,999,999원입니다."
+
+
+def _fake_chat(monkeypatch, replies):
+    """`pipeline.chat` 을 가로채 (messages, kwargs) 를 기록한다. 네트워크 0회 · 0원."""
+    seen = []
+
+    def _chat(messages, **kwargs):
+        seen.append((messages, kwargs))
+        return types.SimpleNamespace(text=replies[min(len(seen) - 1, len(replies) - 1)],
+                                     prompt_tokens=10, completion_tokens=5)
+
+    monkeypatch.setattr(pipeline, "chat", _chat)
+    return seen
+
+
+def _run_verify(arm, answer=REGEN_ANSWER, budget=None):
+    r = types.SimpleNamespace(companies=[], use_cot=False)
+    trace: list[str] = []
+    with ablation.use(arm):
+        out = pipeline._verify(REGEN_QUESTION, answer, REGEN_EVIDENCE, r, trace,
+                               Budget() if budget is None else budget)
+    return out, trace
+
+
+def _prompt_of(call) -> str:
+    return "\n".join(m["content"] for m in call[0])
+
+
+def test_regeneration_feeds_both_failure_reasons_back(monkeypatch):
+    """🔴 **이 태스크의 전부다.** 온도 0.0 · 같은 프롬프트로 다시 부르면 결정적이라 같은
+    답이 나온다 — 사유를 실어야 no-op 이 아니다.
+
+    🔴 그리고 **두 원천을 다 실어야 한다.** `A21` 의 판정을 소비하는 자리가 여기다.
+    """
+    seen = _fake_chat(monkeypatch, [REGEN_FIXED])
+    _run_verify(A20R_ARM)
+
+    assert len(seen) == 1, "🔴 재생성은 1회다"
+    _messages, kwargs = seen[0]
+    assert kwargs["temperature"] == 0.0, "🔴 통제 변수 — 온도를 올리는 것은 A10 의 조작이다"
+    prompt = _prompt_of(seen[0])
+    base = "\n".join(m["content"] for m in
+                     build_answer_messages(REGEN_QUESTION, REGEN_EVIDENCE))
+    assert prompt != base, "🔴 프롬프트가 실제로 달라야 한다 — 같으면 결정적 no-op 이다"
+    # ① 계산 불일치 — `A20` 과 같은 원천
+    assert "266,900,000,000" in prompt and "276,900,000,000" in prompt
+    # ② 🔴 `A21` 이 잡은 것 — 이 줄이 `R1-9` 의 판정을 소비한다는 증거다
+    assert "1,843,200,000,000원 이 근거에 없다" in prompt
+    # 무엇을 고치라는 것인지 — 앞선 답변을 함께 준다 (AutoGen board agent 처방)
+    assert REGEN_ANSWER in prompt
+
+
+def test_a_clean_regeneration_replaces_the_answer_body(monkeypatch):
+    """결함이 사라졌으면 **본문이 바뀌고 각주는 안 붙는다** — 고쳐 놓고 경고를 남기면
+    각주가 본문과 어긋난다 (`A20` 의 치환 각주와 같은 원칙)."""
+    _fake_chat(monkeypatch, [REGEN_FIXED])
+    out, trace = _run_verify(A20R_ARM)
+    assert out == REGEN_FIXED
+    assert "(주의:" not in out
+    assert any("kept=regenerated" in t for t in trace)
+
+
+def test_a_regeneration_that_still_fires_is_discarded(monkeypatch):
+    """🔴 **재생성이 더 나쁘면 원본을 쓴다.** 검사가 여전히 발화하면 원본 유지다.
+    그리고 🔴 **재생성은 1회로 못 박는다** — 무한 루프 방지."""
+    seen = _fake_chat(monkeypatch, [REGEN_WORSE])
+    out, trace = _run_verify(A20R_ARM)
+    assert len(seen) == 1, "🔴 재생성이 두 번 돌았다 — 상한이 안 걸렸다"
+    assert ea.strip_verify_tail(out) == REGEN_ANSWER, "더 나쁜 답을 채택했다"
+    assert "(주의:" in out, "원본을 유지했으면 종전대로 각주가 붙어야 한다"
+    assert any("kept=original" in t for t in trace)
+
+
+def test_a_clean_answer_is_never_regenerated(monkeypatch):
+    """검사가 안 서면 호출을 쓰지 않는다 — 발화한 문항만 재생성한다."""
+    seen = _fake_chat(monkeypatch, [REGEN_FIXED])
+    out, _ = _run_verify(A20R_ARM, answer=REGEN_FIXED)
+    assert seen == [] and out == REGEN_FIXED
+
+
+def test_regeneration_counts_on_the_budget(monkeypatch):
+    """🔴 게이트 F 는 `Budget.llm_calls` 를 읽는다 — 재생성을 안 세면 그 게이트가
+    거짓을 말한다 (`_respond` 가 그 수를 `budget llm=` 으로 찍는다)."""
+    _fake_chat(monkeypatch, [REGEN_FIXED])
+    budget = Budget()
+    _run_verify(A20R_ARM, budget=budget)
+    assert budget.llm_calls == 1
+    assert budget.tokens == 15
+
+
+def test_the_budget_stops_the_regeneration_before_it_spends(monkeypatch):
+    """상한이 다 찼으면 **부르기 전에** 멈춘다 — 부르고 나서 세면 크레딧이 이미 나갔다."""
+    seen = _fake_chat(monkeypatch, [REGEN_FIXED])
+    budget = Budget(max_llm_calls=1)
+    budget.spend_llm(1, 1)
+    out, trace = _run_verify(A20R_ARM, budget=budget)
+    assert seen == [], "🔴 상한을 넘겨 놓고 호출했다 — 크레딧이 나간다"
+    assert ea.strip_verify_tail(out) == REGEN_ANSWER
+    assert any("regen=skip_budget" in t for t in trace)
+
+
+def test_regeneration_refuses_to_run_without_a_budget(monkeypatch):
+    """🔴 예산 없이 돌면 호출을 아무도 안 세고 게이트 F 가 거짓을 말한다.
+    조용히 건너뛰면 그것은 **조용한 Δ 0** 이다 — 둘 다 안 된다."""
+    _fake_chat(monkeypatch, [REGEN_FIXED])
+    r = types.SimpleNamespace(companies=[], use_cot=False)
+    with ablation.use(A20R_ARM), pytest.raises(ValueError, match="예산"):
+        pipeline._verify(REGEN_QUESTION, REGEN_ANSWER, REGEN_EVIDENCE, r, [])
+
+
+def test_regeneration_is_not_wired_in_until_the_flag_is_on(monkeypatch):
+    """배선만으로 호출이 늘면 그 돈은 `A20r` 의 것이 아닌데 `A20`·`A21` 에 얹힌다."""
+    seen = _fake_chat(monkeypatch, [REGEN_FIXED])
+    for arm in (ablation.A8, A20_ARM, ablation.ARMS["A21"]):
+        _run_verify(arm)
+        assert seen == [], f"{arm.name} 이 재생성을 불렀다"
+
+
+def test_a20r_is_registered_as_a_side_branch_arm():
+    """🔴 `R1-1` 이 `A20` 을 등록하지 않아 `--arm A20` 이 안 돌았다. 같은 실수를 막는다."""
+    assert "A20r" in ablation.ARMS and "A20r" in ablation.RUN_ORDER
+    assert "A20r" not in ablation.LADDER and "A20r" not in ablation.LOO_REMOVED
+    assert "A20r" not in ablation.DIAGNOSTIC_ARMS
+    assert "A20r" in ablation.SIDE_ARMS      # 없으면 산출물 문서에 한 글자도 안 남는다
+    a8, a20r = ablation.flags("A8"), ablation.flags("A20r")
+    # 🔴 **두 칸이 움직인다.** `provenance_gate` 는 조작이 아니라 **입력**이다 — `R1-9` 가
+    #    그 게이트의 단독 Δ 가 구조적으로 0 임을 확인했으므로(각주만 내고 채점기가 그
+    #    꼬리를 뗀다) 이 arm 의 Δ 에 섞이지 않는다. 대신 이 arm 이 그 판정을 소비한다.
+    assert {k for k in a20r if a20r[k] != a8[k]} == {"regenerate_on_verify",
+                                                     "provenance_gate"}
+    # 🔴 `A20` 과 갈리는 자리 — **치환하지 않는다.** "치환 대신 재생성" 이 이 arm 의 정의다.
+    assert a20r["substitute_verified"] is False
+    order = list(ablation.RUN_ORDER)
+    assert order.index("A20") < order.index("A20r") < order.index("A2F")
+
+
+def test_the_regeneration_flag_is_off_by_default_and_depends_on_the_verifier():
+    """🔴 기본값이 곧 운영 경로다. 참이면 제출 구성이 문항마다 호출을 하나 더 쓴다."""
+    assert "regenerate_on_verify" in ablation.FLAG_NAMES
+    assert ablation.A8.regenerate_on_verify is False
+    assert ablation.current().regenerate_on_verify is False
+    assert "regenerate_on_verify" in ablation.FLAG_DEPENDENCIES["verifier"]
+    with pytest.raises(ValueError, match="regenerate_on_verify"):
+        replace(ablation.A0, name="bad", regenerate_on_verify=True)
+
+
+@pytest.mark.parametrize("qid,needle", [
+    ("Q-097", "207,684,631,210"),          # ① 계산 불일치 — `A20` 과 같은 원천
+    ("Q-018", "이 근거에 없다"),            # ② 🔴 `A21` 이 잡은 것
+])
+def test_the_real_targets_carry_their_reason_into_the_prompt(monkeypatch, qid, needle):
+    """🔴 합성 사례가 아니라 **저장 응답 원문**으로 확인한다. LLM 0회 · 지출 0원."""
+    loaded = _snapshot("v3/A8(88)")
+    if loaded is None:
+        pytest.skip("v3/A8(88) 산출물이 없다")
+    responses, rows = loaded
+    resp = responses[qid]
+    body = ea.strip_verify_tail(resp["answer"])
+    seen = _fake_chat(monkeypatch, ["재생성 답변입니다. (근거: 공시 본문)"])
+    r = types.SimpleNamespace(companies=rows.get(qid, {}).get("route_corps") or [],
+                              use_cot=False)
+    with ablation.use(A20R_ARM):
+        pipeline._verify(resp["question"], body, resp["retrieved_context"], r, [], Budget())
+    assert len(seen) == 1, f"{qid} 에서 재생성이 안 돌았다"
+    assert needle in _prompt_of(seen[0])

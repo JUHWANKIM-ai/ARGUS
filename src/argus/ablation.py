@@ -259,10 +259,12 @@ META_UNREACHABLE_FLAGS = ("hop_ladder", "chain_hop", "split_query", "counterpart
 #: 꺼진 arm 에서 치환 플래그를 켜면 코드가 도달하지 않는다.
 #: 🔴 `verifier -> provenance_gate` 도 같은 구조적 의존이다 — `A21` 의 게이트가
 #: `_verify` 안에 있으므로 검증 단계가 꺼진 arm 에서는 코드가 도달하지 않는다.
+#: 🔴 `verifier -> regenerate_on_verify` 도 같다 — `A20r` 의 재생성은 `_verify` 가
+#: 결함을 찾은 **뒤에** 서므로 검증 단계가 꺼지면 재생성이 한 번도 안 돈다.
 FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     "chain_hop": ("followup_hop",),
     "calc_values": ("lean_rules",),
-    "verifier": ("substitute_verified", "provenance_gate")}
+    "verifier": ("substitute_verified", "provenance_gate", "regenerate_on_verify")}
 
 #: 🔴 `golden_oracle=True` 에서 **읽히지 않는** 축. 검색 차선을 통째로 골든 주입으로
 #: 갈아치우므로 이 플래그들을 건드려도 근거가 한 글자도 안 바뀐다 —
@@ -344,6 +346,28 @@ class Arm:
     #: **넣지 않는다** — 골든 주입 위에서도 `_verify` 는 그대로 돌고, 실제로 현 세대
     #: `ORACLE` 에서 이 게이트가 한 건 발화한다(`Q-023`).
     provenance_gate: bool = False
+    #: 🔴 **`A20r` 전용.** 참이면 `pipeline._verify` 가 결함을 찾았을 때 각주를 붙이는
+    #: 대신 **실패 사유를 프롬프트에 실어 답변을 한 번만 다시 생성한다.**
+    #:
+    #: 🔴 **사유 주입이 이 플래그의 전부다.** 온도 0.0 에서 같은 프롬프트로 다시 부르면
+    #: 결정적이라 **같은 답이 나온다 — no-op 이다.** 독립 검토 둘이 초안의 그 결함을
+    #: 같이 찾았고(`base` `05df07b` · `multi_agent` `33c3d99`), 사유 되먹임은 AutoGen 의
+    #: board agent 처방이며(G34·G36 · CAMEL C34) **SWE-Lancer 가 *"사유를 안 넣으면 같은
+    #: 답이 반복된다"* 를 실측했다**(S21·S22).
+    #:
+    #: 🔴 **온도는 0.0 그대로다.** 다양성을 사는 조작은 `A10`(SC k=3)의 것이고 이 arm 이
+    #: 재는 것은 **진단 주입**이다. 둘은 같은 축의 변형이 아니라 서로 다른 기전이라
+    #: 나란히 재야 하고, 한쪽이 통제 변수를 깨면 그 비교가 성립하지 않는다.
+    #:
+    #: 🔴 **`substitute_verified`(A20)와 배타는 아니지만 `A20r` 은 그것을 켜지 않는다** —
+    #: 계획서가 *"치환 대신 재생성"* 으로 두 처분을 **나란히** 재라고 지시했다. 재생성이
+    #: 켜지면 `verify_answer_arithmetic` 배선은 `A20` 과 같이 선다 (사유의 원천이 필요하고,
+    #: 실측 `Q-044` 는 정형 레코드가 0건이라 그 검사 없이는 발화조차 없다).
+    #:
+    #: 🔴 재생성은 **1회**다. 두 번째를 열면 상한이 없어지고 문항당 비용이 흔들린다.
+    #: 🔴 재생성 결과에 검사가 **여전히 발화하면 원본을 쓴다.**
+    #: 🔴 `verifier=False` 와는 함께 켤 수 없다 (`FLAG_DEPENDENCIES`).
+    regenerate_on_verify: bool = False
 
     def __post_init__(self) -> None:
         if self.retrieval not in RETRIEVAL_MODES:
@@ -452,6 +476,21 @@ A20 = replace(A8, name="A20", substitute_verified=True)
 #: 🔴 `LADDER`·`LOO_REMOVED` 에 넣지 않는다 — `A8-lean`·`A20` 과 같은 곁가지다.
 A21 = replace(A8, name="A21", provenance_gate=True)
 
+# --- A20r — 치환 대신 **사유를 실어 재생성 1회** (사다리 밖 곁가지 · v4 신설) ------
+#: 🔴 **이 arm 은 `A8` 과 플래그가 둘 다르다.** 다른 곁가지와 갈리는 자리라 이유를 적는다.
+#: `provenance_gate` 는 **조작이 아니라 입력**이다 — `R1-9` 가 그 게이트의 단독 Δ 가
+#: **구조적으로 0** 임을 확인했다(`_verify` 의 유일한 출력이 각주이고 채점은
+#: `score_closed`·`judge_open` 양쪽에서 `strip_verify_tail` 로 그 꼬리를 뗀다.
+#: 탐지 100% · 교정 0%). 즉 그 플래그는 이 arm 의 Δ 에 자기 몫을 섞지 않고, **판정을
+#: 소비할 자리**를 여기 하나 만들 뿐이다. `A21` 의 `reason`
+#: (`"provenance: 답변 1,843,200,000,000원 이 근거에 없다"`)은 `A20` 의 재계산값과 달리
+#: 재생성 프롬프트에 **그대로 실을 수 있는 형태**라 겨냥이 겹치지 않고 합이 크다.
+#:
+#: 🔴 `substitute_verified` 는 **끈 채로 둔다** — 계획서가 *"치환 대신 재생성"* 으로
+#: 두 처분을 나란히 재라고 했다. 켜면 `Δ(A8→A20r)` 이 치환의 몫과 섞인다.
+#: 🔴 `LADDER`·`LOO_REMOVED` 에 넣지 않는다 — `A8-lean`·`A20`·`A21` 과 같은 곁가지다.
+A20R = replace(A8, name="A20r", regenerate_on_verify=True, provenance_gate=True)
+
 #: 실행 순서는 **A8 부터 역순**이다 (§I-4b) — 가장 비싼 구성을 먼저 확보해야
 #: 중간에 예산이 끊겨도 최신 성능을 안다. A2 계열은 사다리를 다 확보한 뒤 맨 끝이다 —
 #: G1 불허로 A2 를 버려도 앞의 여덟 칸이 그대로 남아야 한다.
@@ -462,8 +501,10 @@ A21 = replace(A8, name="A21", provenance_gate=True)
 #: 무엇을 잃는지의 순서다.
 #: 🔴 `A20` 은 `A8-lean` 바로 뒤다 — 같은 이유로 **채택 후보**이고, G1 미확정인 dense
 #: arm 과 진단 arm 보다 먼저 확보해야 한다.
+#: 🔴 `A20r` 은 `A20` 바로 뒤다 — **나란히 재는 짝**이라 둘 사이를 다른 arm 이 갈라
+#: 놓으면 정지선이 하나만 확보하고 끊길 때 그 비교가 통째로 사라진다.
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
-             "A8-lean", "A20", "A21", "A2F", "A2", "ORACLE")
+             "A8-lean", "A20", "A20r", "A21", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
 LADDER = ("A0", "A1", "A1b", "A4", "A5", "A6", "A7", "A8")
@@ -490,7 +531,7 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, A2, A2F,
-                         ORACLE, A8_LEAN, A20, A21)}
+                         ORACLE, A8_LEAN, A20, A20R, A21)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은

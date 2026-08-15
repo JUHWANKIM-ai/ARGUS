@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 
 CITATION_RE = re.compile(r"근거\s*:.*?접수번호\s*\d{14}", re.DOTALL)
 
@@ -257,6 +258,44 @@ def build_answer_messages(question: str, evidence: str, use_cot: bool = False,
     user = f"[공시 근거]\n{body}\n\n[질문]\n{question}"
     return [{"role": "system", "content": system},
             {"role": "user", "content": user}]
+
+
+#: 🔴 **`A20r` 전용 되먹임 지시.** 온도 0.0 에서 같은 프롬프트로 다시 부르면 결정적이라
+#: **같은 답이 나온다 — no-op 이다.** SWE-Lancer 가 그것을 실측했고(S21·S22), 사유를
+#: 되먹이는 것은 AutoGen 의 board agent 처방이다(G34·G36 · CAMEL C34).
+#:
+#: 🔴 **근거를 새로 주지 않는다.** 같은 근거로 다시 답하게 해야 이 arm 이 재는 것이
+#: '진단 주입' 하나로 남는다 — 근거를 늘리면 검색 조작이 섞인다.
+REGENERATE_INSTRUCTION = """앞선 답변에 대해 자동 검증이 아래 결함을 찾았습니다.
+
+{reasons}
+
+같은 [공시 근거]만 보고 다시 답하십시오.
+- 지적된 수치는 근거에서 다시 확인해 옮겨 적으십시오.
+- 근거에 없는 수치를 쓰지 마십시오.
+- 계산이 필요하면 근거의 원값으로 다시 계산해 식과 결과를 함께 적으십시오.
+- 검증이 지적하지 않은 부분은 그대로 두십시오."""
+
+
+def build_regeneration_messages(question: str, evidence: str, reasons: Sequence[str],
+                                previous_answer: str, use_cot: bool = False,
+                                lean_rules: bool = False) -> list[dict]:
+    """`A20r` — 실패 사유를 실어 한 번 더 부르는 프롬프트. 🔴 **사유가 이 함수의 전부다.**
+
+    앞의 두 메시지는 `build_answer_messages` 와 **바이트 동일**이다. 뒤에 앞선 답변과
+    검증 사유를 대화 턴으로 붙인다 — 그래야 모델이 무엇을 고치는지 알고, 프롬프트가
+    실제로 달라져 결정적 재시도가 no-op 이 되지 않는다.
+
+    🔴 `reasons` 는 **두 원천의 합**이다 (`pipeline._verdict` 가 그 순서를 정한다):
+      ① `aggregate_calculation` 의 reasons      계산 불일치 — `A20` 과 같은 원천
+      ② `verify_number_provenance` 의 reason    근거에 없는 수 — `A21` 이 잡은 것
+    `A21` 단독의 Δ 는 구조적으로 0 이다(각주뿐이고 채점이 그 꼬리를 뗀다). **그 판정을
+    소비하는 자리가 여기다** (`R1-9` 보고서).
+    """
+    reason_text = "\n".join(f"- {reason}" for reason in reasons if reason) or "- (사유 없음)"
+    return build_answer_messages(question, evidence, use_cot, lean_rules) + [
+        {"role": "assistant", "content": previous_answer or ""},
+        {"role": "user", "content": REGENERATE_INSTRUCTION.format(reasons=reason_text)}]
 
 
 def build_critic_messages(evidence: str, answer: str) -> list[dict]:
