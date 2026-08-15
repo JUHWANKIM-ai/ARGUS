@@ -1,13 +1,35 @@
+import copy
 import json
+from functools import lru_cache
 
 from argus.config import settings
 from argus.corpus.corrections import (
     _drop_cycles,
     attach_related,
-    build_chains,
     latest_of,
     parse_submit_clue,
 )
+from argus.corpus.corrections import build_chains as _build_chains
+
+
+@lru_cache(maxsize=None)
+def _chains_once(doc_group: str) -> dict[str, list[str]]:
+    return _build_chains(doc_group)
+
+
+def build_chains(doc_group: str = "exchange") -> dict[str, list[str]]:
+    """이 파일 안에서만 쓰는 `corrections.build_chains` 의 그룹별 1회 빌드 래퍼.
+
+    🔴 **단언은 한 글자도 바뀌지 않는다.** 이 파일은 같은 그룹의 체인을 18번 다시
+    지었고(exchange 만 열둘), 한 번 짓는 데 코퍼스 전량(`filter_docs`)을 훑는다 —
+    전량 24.9초 중 **3.9초**가 그 재계산이었다. 결과는 세 그룹 다 결정적이다
+    (`build_chains` 는 인자 하나만 보고 디스크 산출물을 읽는 순수 함수).
+
+    🔴 **깊은 사본을 돌려준다.** 원본을 그대로 주면 한 테스트가 체인 dict 를 고쳤을 때
+    뒤따르는 테스트가 오염된 값을 보고 순서 의존이 생긴다. 지금은 고치는 테스트가
+    없지만, 이 래퍼가 그 취약점을 만들지 않게 사본으로 끊는다.
+    """
+    return copy.deepcopy(_chains_once(doc_group))
 
 
 def test_chains_cover_all_corrections():
