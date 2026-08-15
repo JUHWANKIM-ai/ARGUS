@@ -2103,28 +2103,64 @@ def _tool_arguments(call: dict) -> dict:
 # 규율도 코드도 `critic` 것을 그대로 쓴다 (`critic.tool_result_reports` 머리말).
 
 
-def _numeric_tool_results(results: list[tuple[str, dict]]) -> list[tuple[str, float]]:
-    """치환에 쓸 수 있는 `(도구, 값)` 만. **계산 도구의 수치 `value` 뿐이다.**
+#: 🔴 **도구가 실제로 계산했다고 보는 최소 인자 수.** 이 아래면 도구는 계산한 것이
+#: 아니라 **모델이 타이핑한 수를 그대로 되돌려준 것**이고, 그 값은 독립된 근거가 아니다.
+#:
+#: 🔴 **실측이 이 상수를 만들었다** (`A24b` 1차 · `Q-047`). 모델이 근거의
+#: `97,146,675백만원` 을 **도구 인자에** `97,146,765` 로 잘못 옮겨 적고
+#: `calc_mean({"values": [97146765]})` 를 불렀다. 평균의 인자가 하나이므로 도구는
+#: 그 수를 그대로 돌려줬고, 치환이 **답변의 옳은 `97,146,675` 를 그 오타로 덮었다** —
+#: 🔴 **정답이 오답이 됐다.**
+#:
+#: 즉 전사 오류는 사라지지 않고 **답변에서 도구 인자로 자리를 옮길 뿐**이다. 도구
+#: 결과가 답변보다 믿을 만한 것은 **도구가 무언가를 계산했을 때뿐**이다.
+MIN_TOOL_OPERANDS = 2
 
-    `tools._num_result` 를 쓰는 5종(`calc_pct_change`·`calc_share`·`calc_total`·
-    `calc_mean`·`calc_cagr`)만 `value` 가 수치다. `calc_compare` 는 `"a"`/`"b"`/`"tie"`,
-    `calc_period` 는 `"8년 5개월"` 이고 검색 도구에는 `value` 키가 아예 없다.
 
-    🔴 **`CALC_TOOLS` 로 한 번 더 거른다.** 검색 도구가 언젠가 `value` 키를 갖게 되면
-    (`_num_result` 를 안 쓰는 자유형 반환이다) 그 값이 조용히 답변에 박힌다.
+def _tool_operands(args: dict) -> list[float]:
+    """도구 인자에 실린 수치들. 목록 인자(`values`)는 펼친다."""
+    out: list[float] = []
+    for value in (args or {}).values():
+        for item in (value if isinstance(value, (list, tuple)) else [value]):
+            if isinstance(item, bool) or not isinstance(item, (int, float)):
+                continue
+            out.append(float(item))
+    return out
+
+
+def _numeric_tool_results(results: list[tuple[str, dict, dict]]) -> list[tuple[str, float]]:
+    """치환에 쓸 수 있는 `(도구, 값)` 만. 문턱이 셋이다.
+
+    ① **계산 도구의 수치 `value`** 뿐이다. `tools._num_result` 를 쓰는 5종
+       (`calc_pct_change`·`calc_share`·`calc_total`·`calc_mean`·`calc_cagr`)만 `value`
+       가 수치다. `calc_compare` 는 `"a"`/`"b"`/`"tie"`, `calc_period` 는 `"8년 5개월"`
+       이고 검색 도구에는 `value` 키가 아예 없다.
+       🔴 **`CALC_TOOLS` 로 한 번 더 거른다** — 검색 도구가 언젠가 `value` 키를 갖게
+       되면(자유형 반환이다) 그 값이 조용히 답변에 박힌다.
+    ② 🔴 **수치 인자가 `MIN_TOOL_OPERANDS` 미만이면 계산이 아니다** (실측 `Q-047`).
+    ③ 🔴 **결과가 인자 중 하나와 같으면 계산한 값이 아니라 통과시킨 값이다.**
+       `calc_total({"values": [x, 0]})` 같은 자리다. ②만으로는 안 막힌다.
+       대가를 안다 — `calc_pct_change(100, 200) = 100%` 처럼 **정당한 계산이 우연히
+       인자와 같은** 경우도 함께 막는다. 답변을 고쳐 쓰는 조작이라 **확신할 수 없으면
+       손대지 않는 쪽**을 기본값으로 둔다.
     """
     out: list[tuple[str, float]] = []
-    for name, payload in results or ():
+    for name, args, payload in results or ():
         if name not in tools.CALC_TOOLS:
             continue
         value = (payload or {}).get("value")
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             continue
+        operands = _tool_operands(args)
+        if len(operands) < MIN_TOOL_OPERANDS:
+            continue
+        if any(abs(float(value) - operand) <= 1e-9 for operand in operands):
+            continue
         out.append((name, float(value)))
     return out
 
 
-def _substitute_tool_results(answer: str, results: list[tuple[str, dict]],
+def _substitute_tool_results(answer: str, results: list[tuple[str, dict, dict]],
                              trace: list[str]) -> str:
     """도구가 돌려준 값으로 답변의 그 수치를 갈아 끼운다. LLM 0회.
 
@@ -2150,7 +2186,7 @@ def _answer_with_tools(messages: list[dict], max_tokens: int, arm, budget: Budge
     🔴 `substitute_tool_results`(A24b)가 켜져 있으면 **마지막에 도구 결과로 답변의
     수치를 치환한다.** 꺼져 있으면(`A24`) 아래 한 줄은 종전과 글자 하나 다르지 않다.
     """
-    results: list[tuple[str, dict]] = []
+    results: list[tuple[str, dict, dict]] = []
     answer = _tool_round_trip(messages, max_tokens, arm, budget, trace, results)
     if arm.substitute_tool_results:
         answer = _substitute_tool_results(answer, results, trace)
@@ -2158,8 +2194,11 @@ def _answer_with_tools(messages: list[dict], max_tokens: int, arm, budget: Budge
 
 
 def _tool_round_trip(messages: list[dict], max_tokens: int, arm, budget: Budget,
-                     trace: list[str], results: list[tuple[str, dict]]) -> str:
-    """왕복 본체. 실행한 도구 결과를 `results` 에 **순서대로 쌓는다** (A24b 가 읽는다).
+                     trace: list[str], results: list[tuple[str, dict, dict]]) -> str:
+    """왕복 본체. 실행한 `(도구, 인자, 결과)` 를 `results` 에 **순서대로 쌓는다**.
+
+    🔴 **인자도 함께 쌓는다** — `A24b` 가 *"도구가 실제로 계산했는가"* 를 인자 수로
+    판정한다 (`MIN_TOOL_OPERANDS` · 실측 `Q-047`).
 
     🔴 **첫 호출이 죽으면 그대로 올려보낸다** — `A8` 과 같은 경로(`UNANSWERABLE` +
     표식)로 나가야 상류 장애와 arm 효과가 섞이지 않는다. 두 번째 회차부터는 이미 받아
@@ -2205,8 +2244,9 @@ def _tool_round_trip(messages: list[dict], max_tokens: int, arm, budget: Budget,
                       "toolCalls": calls})
         for call in calls:
             name = ((call.get("function") or {}).get("name")) or ""
-            out = tools.execute(name, _tool_arguments(call))
-            results.append((name, out))
+            args = _tool_arguments(call)
+            out = tools.execute(name, args)
+            results.append((name, args, out))
             payload = json.dumps(out, ensure_ascii=False, default=str)
             if len(payload) > MAX_TOOL_RESULT_CHARS:
                 payload = payload[:MAX_TOOL_RESULT_CHARS] + "…(잘림)"

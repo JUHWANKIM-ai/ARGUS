@@ -621,3 +621,55 @@ def test_percent_tool_results_respect_the_answers_rounding():
     answer, done = critic.substitute_recomputed("비중은 7.9%입니다.", bad,
                                                 critic.unique_recomputed(bad))
     assert answer == "비중은 7.6%입니다." and done
+
+
+# --- 🔴 **도구가 실제로 계산했는가** — 실측 `Q-047` 이 만든 문턱 -------------------
+# `A24b` 1차 측정에서 치환이 **정답을 오답으로 만들었다.** 모델이 근거의
+# `97,146,675백만원` 을 **도구 인자에** `97,146,765` 로 잘못 옮겨 적고
+# `calc_mean({"values": [97146765]})` 를 불렀다. 평균의 인자가 하나라 도구는 그 수를
+# 그대로 돌려줬고, 치환이 답변의 **옳은** 값을 그 오타로 덮었다.
+#
+# 🔴 **전사 오류는 사라지지 않고 답변에서 도구 인자로 자리를 옮길 뿐이다.**
+# 도구 결과가 답변보다 믿을 만한 것은 **도구가 무언가를 계산했을 때뿐**이다.
+
+def _call(name, args, cid="c"):
+    return {"id": cid, "type": "function",
+            "function": {"name": name, "arguments": args}}
+
+
+def test_identity_results_are_never_substituted(monkeypatch):
+    """🔴 실측 `Q-047` 의 재현 — 인자가 하나면 평균은 그 수 자신이다."""
+    text = "매출액은 97,146,675백만원입니다 [1]."
+    answer, trace = _tool_answer(monkeypatch, text,
+                                 call=_call("calc_mean", {"values": [97146765]}),
+                                 result={"value": 97146765.0, "rounded": 97146765.0,
+                                         "unit": "", "expr": "(97,146,765) / 1"})
+    assert answer == text, "치환이 정답을 오답으로 만들었다"
+    assert not any("tool_substituted" in t for t in trace)
+
+
+def test_a_result_equal_to_one_of_its_operands_is_never_substituted(monkeypatch):
+    """인자가 둘이어도 결과가 인자와 같으면 계산이 아니라 통과다."""
+    text = "합계는 97,146,675백만원입니다 [1]."
+    answer, trace = _tool_answer(monkeypatch, text,
+                                 call=_call("calc_total", {"values": [97146765, 0]}),
+                                 result={"value": 97146765.0, "rounded": 97146765.0,
+                                         "unit": "", "expr": "97,146,765 + 0"})
+    assert answer == text
+    assert not any("tool_substituted" in t for t in trace)
+
+
+def test_a_real_two_term_sum_is_still_substituted(monkeypatch):
+    """🔴 문턱이 겨냥까지 죽이면 안 된다 — `Q-044` 는 그대로 뒤집혀야 한다."""
+    answer, _ = _tool_answer(monkeypatch, "합계는 2,366,968억 원입니다 [1].")
+    assert answer == "합계는 2,365,868억 원입니다 [1]."
+
+
+def test_operands_are_counted_across_list_and_scalar_arguments():
+    assert pipeline._tool_operands({"values": [1, 2, 3]}) == [1.0, 2.0, 3.0]
+    assert pipeline._tool_operands({"part": 5, "whole": 10}) == [5.0, 10.0]
+    assert pipeline._tool_operands({"values": [7]}) == [7.0]
+    # 문자열·불리언은 피연산자가 아니다 (`calc_period` 의 날짜 · `include_stubs`).
+    assert pipeline._tool_operands({"start": "2025-07-24", "end": "2033-12-31"}) == []
+    assert pipeline._tool_operands({"a": True, "b": 3}) == [3.0]
+    assert pipeline.MIN_TOOL_OPERANDS == 2
