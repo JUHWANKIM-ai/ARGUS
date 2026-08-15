@@ -51,8 +51,8 @@ paper/
 artifacts/
 
 # 서비스 사이트 v2 — 🔴 **소스는 추적하고 생성물만 뺀다.**
-#   추적한다  site/app · site/components · package.json · tsconfig.json · next.config.ts
-#   뺀다      아래 넷. 전부 명령 하나로 다시 만들어진다.
+#   추적한다  site/app · site/components · site/lib · package.json · tsconfig.json · next.config.ts
+#   뺀다      아래 다섯. 전부 명령 하나로 다시 만들어진다.
 #
 # 🔴 `site/public/data/` 는 `python scripts/build_service_data.py` 의 산출물이다.
 #    커밋하면 `artifacts/` 가 움직일 때마다 사본이 하나 더 낡는다 — 그 결함을 열일곱 번 겪었다.
@@ -61,6 +61,8 @@ site/node_modules/
 site/.next/
 site/out/
 site/public/data/
+# TypeScript 증분 빌드 캐시 — 기계마다 다르고 매 빌드마다 바뀐다
+site/tsconfig.tsbuildinfo
 
 # SDD 작업공간 (플랜별 원장·브리프·리뷰패키지)
 .superpowers/

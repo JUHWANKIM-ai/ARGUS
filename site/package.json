@@ -9,6 +9,7 @@
     "dev:turbo": "next dev --turbopack",
     "build": "next build",
     "data": "python ../scripts/build_service_data.py",
+    "test": "node --test lib/*.test.ts",
     "lint": "next lint"
   },
   "dependencies": {
