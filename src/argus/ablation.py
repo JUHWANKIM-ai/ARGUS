@@ -418,6 +418,15 @@ ORACLE = replace(A8, name="ORACLE", golden_oracle=True)
 #: 인질 12건(전체 88 · 밸류체인 5/12)이고, 그 비대칭이 이 arm 의 판정 조건이다.
 A8_LEAN = replace(A8, name="A8-lean", lean_rules=True)
 
+# --- A20 — 검사가 낸 재계산값으로 답변을 치환한다 (사다리 밖 곁가지 · v4 신설) -----
+#: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 `pipeline._verify` 를 '각주만 붙이는
+#: 판정자' 에서 '재계산값으로 정정하는 교정자' 로 바꾼다. 🔴 **`LADDER`·`LOO_REMOVED`
+#: 에 넣지 않는다** (`A8-lean`·`ORACLE` 과 같은 곁가지다): 사다리의 칸이 아니라 같은
+#: 자리에서 검증 단계의 처분만 갈아 끼운 변형이다.
+#: 🔴 `verifier` 에 구조적으로 의존한다 (`FLAG_DEPENDENCIES`) — 검증 단계가 안 서면
+#: `_verify` 가 첫 줄에서 나가므로 Δ 가 조용히 0 이 된다.
+A20 = replace(A8, name="A20", substitute_verified=True)
+
 #: 실행 순서는 **A8 부터 역순**이다 (§I-4b) — 가장 비싼 구성을 먼저 확보해야
 #: 중간에 예산이 끊겨도 최신 성능을 안다. A2 계열은 사다리를 다 확보한 뒤 맨 끝이다 —
 #: G1 불허로 A2 를 버려도 앞의 여덟 칸이 그대로 남아야 한다.
@@ -426,8 +435,10 @@ A8_LEAN = replace(A8, name="A8-lean", lean_rules=True)
 #: 캐시로 0원에 재생되고, `A8-lean` 은 **채택 후보**라 G1 미확정인 dense arm(`A2`·`A2F`)과
 #: 진단 arm(`ORACLE`)보다 먼저 확보해야 한다. `--run` 이 정지선에 걸리면 이 순서가 곧
 #: 무엇을 잃는지의 순서다.
+#: 🔴 `A20` 은 `A8-lean` 바로 뒤다 — 같은 이유로 **채택 후보**이고, G1 미확정인 dense
+#: arm 과 진단 arm 보다 먼저 확보해야 한다.
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
-             "A8-lean", "A2F", "A2", "ORACLE")
+             "A8-lean", "A20", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
 LADDER = ("A0", "A1", "A1b", "A4", "A5", "A6", "A7", "A8")
@@ -454,7 +465,7 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, A2, A2F,
-                         ORACLE, A8_LEAN)}
+                         ORACLE, A8_LEAN, A20)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은

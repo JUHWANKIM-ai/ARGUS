@@ -543,7 +543,28 @@ def test_substitution_leaves_a_compound_notation_alone():
 
 # --- ⑥ arm 플래그와 파이프라인 배선 --------------------------------------------
 
-A20_ARM = replace(ablation.A8, name="A20", substitute_verified=True)
+A20_ARM = ablation.ARMS["A20"]
+
+
+def test_a20_is_registered_as_a_side_branch_arm():
+    """🔴 등록이 없으면 `--arm A20` 이 아예 안 돈다 (`R1-1` 이 플래그만 넣고 갔다).
+
+    `A8-lean`·`ORACLE` 과 같은 곁가지다 — 사다리의 칸도 LOO 도 아니고, 같은 자리에서
+    검증 단계의 처분만 갈아 끼운 변형이다. `LADDER`/`LOO_REMOVED` 에 넣으면 누적
+    곡선의 Δ(직전) 이 두 arm 의 차이가 아닌 것을 가리킨다.
+    """
+    assert "A20" in ablation.ARMS and "A20" in ablation.RUN_ORDER
+    assert "A20" not in ablation.LADDER
+    assert "A20" not in ablation.LOO_REMOVED
+    assert "A20" not in ablation.DIAGNOSTIC_ARMS
+    assert "A20" in ablation.SIDE_ARMS      # 없으면 산출물 문서에 한 글자도 안 남는다
+    # 단일 변수 조작 — 하나라도 더 바뀌면 Δ 가 '치환' 의 것이 아니다.
+    a8, a20 = ablation.flags("A8"), ablation.flags("A20")
+    assert {k for k in a20 if a20[k] != a8[k]} == {"substitute_verified"}
+    assert a20["substitute_verified"] is True
+    # 채택 후보라 dense·진단 arm 보다 먼저 확보한다.
+    order = list(ablation.RUN_ORDER)
+    assert order.index("A20") < order.index("A2F") < order.index("ORACLE")
 
 
 def test_the_substitution_flag_is_off_by_default_and_depends_on_the_verifier():
