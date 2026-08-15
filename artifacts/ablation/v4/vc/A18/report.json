@@ -1,0 +1,1833 @@
+{
+ "generated": "2026-08-15T16:58:13",
+ "split": "dev",
+ "cohort": "valuechain",
+ "n_cases": 12,
+ "n_analysed": 12,
+ "totals": {
+  "questions": 12,
+  "llm_calls": 22,
+  "prompt_tokens": 40375,
+  "completion_tokens": 3612,
+  "judge_tokens": 9799,
+  "total_tokens": 53786,
+  "cost_won": 377.6,
+  "cost_won_scope": "코호트 전 행(캐시 재생 포함)의 누적 재생 비용 — 이번 실행의 신규 지출이 아니다. 신규 지출은 report.this_run.spent_won",
+  "price_won_per_1k": 7.02,
+  "latency_s_total": 0.4,
+  "latency_s_mean": 0.03,
+  "hops_total": 4,
+  "steps_max": 6
+ },
+ "crosstab": {
+  "cells": {
+   "search_extract|closed|하": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "search_extract|closed|중": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "search_extract|closed|상": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "search_extract|open|하": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "search_extract|open|중": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "search_extract|open|상": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "multi_compare|closed|하": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "multi_compare|closed|중": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "multi_compare|closed|상": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "multi_compare|open|하": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "multi_compare|open|중": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "multi_compare|open|상": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "complex_reason|closed|하": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "complex_reason|closed|중": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "complex_reason|closed|상": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "complex_reason|open|하": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "complex_reason|open|중": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   },
+   "complex_reason|open|상": {
+    "n": 0,
+    "n_scored": 0,
+    "correct": 0,
+    "rate": null,
+    "data_limit": 0,
+    "stages": {}
+   }
+  },
+  "marginals": {
+   "task_type": {
+    "search_extract": {
+     "n": 0,
+     "n_scored": 0,
+     "correct": 0,
+     "rate": null,
+     "data_limit": 0,
+     "stages": {}
+    },
+    "multi_compare": {
+     "n": 0,
+     "n_scored": 0,
+     "correct": 0,
+     "rate": null,
+     "data_limit": 0,
+     "stages": {}
+    },
+    "complex_reason": {
+     "n": 0,
+     "n_scored": 0,
+     "correct": 0,
+     "rate": null,
+     "data_limit": 0,
+     "stages": {}
+    }
+   },
+   "answer_mode": {
+    "closed": {
+     "n": 0,
+     "n_scored": 0,
+     "correct": 0,
+     "rate": null,
+     "data_limit": 0,
+     "stages": {}
+    },
+    "open": {
+     "n": 0,
+     "n_scored": 0,
+     "correct": 0,
+     "rate": null,
+     "data_limit": 0,
+     "stages": {}
+    }
+   },
+   "difficulty": {
+    "하": {
+     "n": 0,
+     "n_scored": 0,
+     "correct": 0,
+     "rate": null,
+     "data_limit": 0,
+     "stages": {}
+    },
+    "중": {
+     "n": 0,
+     "n_scored": 0,
+     "correct": 0,
+     "rate": null,
+     "data_limit": 0,
+     "stages": {}
+    },
+    "상": {
+     "n": 0,
+     "n_scored": 0,
+     "correct": 0,
+     "rate": null,
+     "data_limit": 0,
+     "stages": {}
+    }
+   }
+  },
+  "grid_overall": {
+   "n": 0,
+   "n_scored": 0,
+   "correct": 0,
+   "rate": null,
+   "data_limit": 0,
+   "stages": {}
+  },
+  "info_limit": {
+   "n": 0,
+   "n_scored": 0,
+   "correct": 0,
+   "rate": null,
+   "data_limit": 0,
+   "stages": {}
+  },
+  "by_track": {
+   "valuechain": {
+    "n": 12,
+    "n_scored": 12,
+    "correct": 6,
+    "rate": 0.5,
+    "data_limit": 0,
+    "stages": {
+     "RETRIEVAL": 4,
+     "TOOL": 2
+    }
+   }
+  },
+  "overall": {
+   "n": 12,
+   "n_scored": 12,
+   "correct": 6,
+   "rate": 0.5,
+   "data_limit": 0,
+   "stages": {
+    "RETRIEVAL": 4,
+    "TOOL": 2
+   }
+  }
+ },
+ "new_sector_retrieval": {
+  "n": 0,
+  "threshold": 3,
+  "triggers_reranker_review": false,
+  "sectors": [
+   "게임",
+   "로봇",
+   "소비재·유통",
+   "자동차·모빌리티",
+   "철강",
+   "통신"
+  ],
+  "by_sector": {},
+  "question_ids": [],
+  "off_grid_n": 0,
+  "off_grid_question_ids": []
+ },
+ "difficulty_audit": [],
+ "failure_histogram": {
+  "RETRIEVAL": 4,
+  "TOOL": 2
+ },
+ "failure_histogram_grid": {},
+ "by_track_failures": {
+  "valuechain": {
+   "RETRIEVAL": 4,
+   "TOOL": 2
+  }
+ },
+ "scorer_r3": {
+  "a19_overridden": [
+   "Q-110"
+  ],
+  "a19_failed_kinds": {
+   "restatement": 1
+  },
+  "r3b_overridden": [],
+  "r3b_premise": 4,
+  "calc_checked_empty": 2,
+  "r32_candidates": [],
+  "safety": {}
+ },
+ "root_cause_histogram": {
+  "RETRIEVAL/MULTI_POINT_QUERY": 3,
+  "TOOL/TOOL": 2,
+  "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1
+ },
+ "root_cause_histogram_grid": {},
+ "arm_allocation_reconciliation": {
+  "authoritative": "manual",
+  "note": "자동 분류기는 A5 를 구조적으로 못 본다 — `verify_calculation` 이 답변 수치 중 최유리 값을 골라 비교하므로 10× 단위환산 오류가 `mismatch=False` 로 통과하고, TOOL 버킷이 그리드에서 0건이 된다. arm 확정은 원문 대조(`TARGETED_BY_MANUAL_REVIEW`)의 몫이다.",
+  "denominator_note": "자동 = 그리드만 0건 · 수동 = 전 트랙 6건",
+  "by_arm": [
+   {
+    "arm": "A4",
+    "auto_grid": 0,
+    "auto_all_tracks": 4,
+    "manual_all_tracks": 1
+   },
+   {
+    "arm": "A5",
+    "auto_grid": 0,
+    "auto_all_tracks": 2,
+    "manual_all_tracks": 2
+   },
+   {
+    "arm": "A6",
+    "auto_grid": 0,
+    "auto_all_tracks": 0,
+    "manual_all_tracks": 2
+   },
+   {
+    "arm": "—",
+    "auto_grid": 0,
+    "auto_all_tracks": 0,
+    "manual_all_tracks": 1
+   }
+  ],
+  "disagreements": [
+   {
+    "question_id": "Q-107",
+    "track": "valuechain",
+    "bucket": "RETRIEVAL/MULTI_POINT_QUERY",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-109",
+    "track": "valuechain",
+    "bucket": "TOOL/TOOL",
+    "auto_arm": "A5",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": false
+   },
+   {
+    "question_id": "Q-110",
+    "track": "valuechain",
+    "bucket": "RETRIEVAL/MULTI_POINT_QUERY",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-113",
+    "track": "valuechain",
+    "bucket": "RETRIEVAL/CHAIN_NOT_TRAVERSED",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-115",
+    "track": "valuechain",
+    "bucket": "TOOL/TOOL",
+    "auto_arm": "A5",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-117",
+    "track": "valuechain",
+    "bucket": "RETRIEVAL/MULTI_POINT_QUERY",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   }
+  ],
+  "n_disagreements": 6,
+  "n_compared": 6,
+  "critic_passed_wrong_answer": [
+   "Q-107",
+   "Q-110",
+   "Q-113",
+   "Q-115",
+   "Q-117"
+  ],
+  "per_question": [
+   {
+    "question_id": "Q-107",
+    "track": "valuechain",
+    "bucket": "RETRIEVAL/MULTI_POINT_QUERY",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-109",
+    "track": "valuechain",
+    "bucket": "TOOL/TOOL",
+    "auto_arm": "A5",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": false
+   },
+   {
+    "question_id": "Q-110",
+    "track": "valuechain",
+    "bucket": "RETRIEVAL/MULTI_POINT_QUERY",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-113",
+    "track": "valuechain",
+    "bucket": "RETRIEVAL/CHAIN_NOT_TRAVERSED",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-115",
+    "track": "valuechain",
+    "bucket": "TOOL/TOOL",
+    "auto_arm": "A5",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-117",
+    "track": "valuechain",
+    "bucket": "RETRIEVAL/MULTI_POINT_QUERY",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   }
+  ]
+ },
+ "citation_rate": 0.167,
+ "citation_rate_grid": null,
+ "by_doc_group": {
+  "exchange": {
+   "n": 12,
+   "n_scored": 12,
+   "correct": 6,
+   "rate": 0.5,
+   "data_limit": 0,
+   "stages": {
+    "RETRIEVAL": 4,
+    "TOOL": 2
+   }
+  }
+ },
+ "by_doc_group_grid": {},
+ "rows": [
+  {
+   "question_id": "Q-107",
+   "task_type": "complex_reason",
+   "answer_mode": "closed",
+   "difficulty": "상",
+   "doc_group": "exchange",
+   "track": "valuechain",
+   "sector": "원전",
+   "corp_name": [
+    "두산에너빌리티",
+    "한전기술"
+   ],
+   "answerable": true,
+   "answer_form": "number_won",
+   "correct": false,
+   "scored_by": "em:number_won",
+   "judge": null,
+   "first_failure": "RETRIEVAL",
+   "root_cause": "MULTI_POINT_QUERY",
+   "failure_why": "골든 2/4 건이 어떤 hop 후보에도 없다: ['20251216801147', '20251224800396']",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": true,
+   "gold_value_in_evidence": false,
+   "has_citation": false,
+   "route": "multi_compare",
+   "route_group": "exchange",
+   "route_corps": [
+    "대우건설,두산에너빌리티,두산퓨얼셀,우리기술,한전기술,현대건설"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 2,
+   "prompt_tokens": 4481,
+   "completion_tokens": 375,
+   "judge_tokens": 0,
+   "latency_s": 0.197,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 2291,
+     "completion_tokens": 355,
+     "latency_s": 8.492,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 2190,
+     "completion_tokens": 20,
+     "latency_s": 0.966,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20251216801147",
+    "20251216801163",
+    "20251212801320",
+    "20251224800396"
+   ],
+   "golden_rank": {
+    "20251212801320": 1,
+    "20251216801163": 2
+   },
+   "golden_in_candidates": [
+    "20251212801320",
+    "20251216801163"
+   ],
+   "golden_in_evidence": [
+    "20251216801163",
+    "20251212801320"
+   ],
+   "golden_evidence_all": false,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "equation",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "period",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": true,
+   "calc_reasons": [
+    "equation: 답변 1,250,850,298,678 + 2,081,254,239,072 + 1,715,754,987,100 = **4,967,110,535,840 vs 재계산 5,047,859,524,850",
+    "amount: 답변 4조 9,671억원 vs 재계산 4,928,968,079,043",
+    "amount: 답변 532,040,000,000원 vs 재계산 373,449,426,066"
+   ],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "equation",
+    "provenance"
+   ],
+   "numeric_reason": "equation: 답변 1,250,850,298,678 + 2,081,254,239,072 + 1,715,754,987,100 = **4,967,110,535,840 vs 재계산 5,047,859,524,850; provenance: 답변 2,081,254,239,072원 이 근거에 없다; provenance: 답변 4,967,110,535,840원 이 근거에 없다; provenance: 답변 4,967,110,535,840원 이 근거에 없다",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "체코 두코바니 5·6호기 원자력발전소 사업과 관련하여 한국수력원자력을 계약상대로 하여 공시된 단일판매·공급계약의 계약금액을 합산해 보겠습니다.\n\n1. **한전기술**: 체코 두코바니 5&6호기 종합설계용역, 1,250,850,298,678원\n2. **두산에너빌리티**: 신한울 원자력 발전소 3,4호기 관련 계약들\n   * 원자로 설비 공급 계약: 2,338,117,950,000원\n   * 터빈발전기 공급 계약: 532,040,000,000원\n   * Dukovany 5&6 Turbine Generator Supply Contract: 711,106,288,572원\n   총합: 2,081,254,239,072원\n3. **현대건설**: 신한울 3,4호기 주설비 공사, 1,715,754,987,100원\n\n각 금액을 더하면,\n- 1,250,850,298,678 + 2,081,254,239,072 + 1,715,754,987,100 = **4,967,110,535,840원**\n\n따라서, 체코 두코바니 5·6호기 원자력발전소 사업과 관련하여 한국수력원자력을 계약상대로 하여 공시된 단일판매·공급계약의 계약금액 합계는 **4,967,110,535,840원**(4조 9,671억원) 입니다.\n\n(근거: 각 보고서별 상세내역 참조)\n\n(주의: 근거 검증을 통과하지 못했습니다 — )\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — amount: 답변 4,967,110,535,840원 vs 재계산 490,881,723,100 (10^+1 배 자릿수 오류); amount: 답변 4,967,110,535,840원 vs 재계산 490,881,723,100 (10^+1 배 자릿수 오류); amount: 답변 4조 9,671억원 vs 재계산 490,881,723,100 (10^+1 배 자릿수 오류))",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"-\" period=none top_k=5 q=\"체코 두코바니 호기 원자력발전소 사업 관련해 한국수력원자력 하여 공시된 합계 얼마인\" n=5 top_score=78.143 ids=exchange_20251212801320,exchange_20250331802095,exchange_20231229800416,exchange_20230329801108,exchange_20230329801112 | hop=0 verdict=sufficient evidence=5 | hop=6 strat=counterparty tool=query_by_counterparty via=한국수력원자력 partners=6 corp=\"대우건설,두산에너빌리티,두산퓨얼셀,우리기술,한전기술,현대건설\" n=6 top_score=- ids=exchange_20250829800405,exchange_20251216801163,exchange_20240329800342,exchange_20260210900984,exchange_20251212801320,exchange_20231211800339 | generate tokens=2291+355 | 근거 표기 누락 — critic 호출 | critic supported=True reason= | verify calc_checked=amount complete_checked=- ok=False kinds=calculation | budget steps=2 hops=0 llm=2 tokens=4856"
+  },
+  {
+   "question_id": "Q-108",
+   "task_type": "complex_reason",
+   "answer_mode": "open",
+   "difficulty": "상",
+   "doc_group": "exchange",
+   "track": "valuechain",
+   "sector": "원전",
+   "corp_name": [
+    "두산에너빌리티",
+    "한전기술"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": false,
+   "route": "multi_compare",
+   "route_group": "exchange",
+   "route_corps": [
+    "두산에너빌리티",
+    "한전기술"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 2,
+   "prompt_tokens": 3987,
+   "completion_tokens": 422,
+   "judge_tokens": 2210,
+   "latency_s": 0.018,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 2031,
+     "completion_tokens": 377,
+     "latency_s": 8.799,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 1956,
+     "completion_tokens": 45,
+     "latency_s": 1.788,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20251216801147",
+    "20251216801163",
+    "20251212801320",
+    "20251224800396"
+   ],
+   "golden_rank": {
+    "20251216801147": 4,
+    "20251216801163": 5,
+    "20251224800396": 6
+   },
+   "golden_in_candidates": [
+    "20251216801147",
+    "20251216801163",
+    "20251224800396"
+   ],
+   "golden_in_evidence": [
+    "20251216801147",
+    "20251216801163",
+    "20251224800396"
+   ],
+   "golden_evidence_all": false,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "period"
+   ],
+   "calc_skipped": [
+    "equation",
+    "restatement",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [
+    "amount: 답변 7,111억 원 vs 재계산 1,250,850,298,678",
+    "period: 답변 12년 4개월 vs 재계산 12년 3개월"
+   ],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "체코 두코바니 5·6호기 원자력발전소 사업에서 두산에너빌리티와 한전기술이 공시한 계약들의 발주-수주 관계를 다음과 같이 정리할 수 있습니다:\n\n1. **두산에너빌리티**\n   - **Dukovany 5&6 NSSS Contract**: 두산에너빌리티는 2025년 12월 16일에 체코 두코바니 5·6호기에 대한 원자로 설비 공급 계약을 체결했습니다. 이는 총 4조 9,290억 원 규모이며, 기간은 12년 4개월입니다.\n   - **Dukovany 5&6 Turbine Generator Supply Contract**: 또한, 같은 날 터빈발전기 공급 계약도 체결하였으며, 계약 금액은 7,111억 원이고, 기간은 동일하게 12년 4개월입니다.\n\n2. **한전기술**\n   - **체코 두코바니 5&6호기 원자로계통설계용역**: 한전기술은 2025년 12월 24일에 두산에너빌리티로부터 받은 용역으로, 원자로 계통 설계를 담당하며, 계약 금액은 3,734억 원입니다.\n\n따라서, 두산에너빌리티는 원자로 설비와 터빈발전기의 제작 및 공급을 담당하고, 한전기술은 두산에너빌리티로부터 받은 용역을 통해 원자로 계통 설계를 담당함으로써, 두 회사는 체코 두코바니 5·6호기 원자력발전소 사업의 주요 부분을 공동으로 책임지고 있음을 알 수 있습니다. 이러한 구조는 두 회사 간의 긴밀한 협력 관계를 나타내며, 각각의 전문성을 바탕으로 프로젝트를 성공적으로 이끌어갈 것으로 기대됩니다.\n\n(근거: 각 보고서별 상세 내용 참조)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 정보가 제공된 근거 내에서 확인되며, 추가적인 허위 정보 없이 정확하게 정리되었습니다.)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"두산에너빌리티\" period=none top_k=5 q=\"체코 두코바니 호기 원자력발전소 사업 두산에너빌리티 한전기술 공시한 계약들 발주 수주 관계 어떻게 이어지는\" n=5 top_score=56.099 ids=exchange_20230329801112,exchange_20230329801108,exchange_20231211800611,exchange_20251216801147,exchange_20251216801163 | hop=0 strat=narrow tool=search_chunks corp=\"한전기술\" period=none top_k=5 q=\"체코 두코바니 호기 원자력발전소 사업 두산에너빌리티 한전기술 공시한 계약들 발주 수주 관계 어떻게 이어지는\" n=5 top_score=88.434 ids=exchange_20251224800396,exchange_20251027800516,exchange_20230330800844,exchange_20230105800282,exchange_20231229800432 | hop=0 verdict=sufficient evidence=10 | generate tokens=2031+377 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거 내에서 확인되며, 추가적인 허위 정보 없이 정확하게 정리되었습니다. | verify calc_checked=amount,period complete_checked=missing_corp ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=4409"
+  },
+  {
+   "question_id": "Q-109",
+   "task_type": "multi_compare",
+   "answer_mode": "closed",
+   "difficulty": "중",
+   "doc_group": "exchange",
+   "track": "valuechain",
+   "sector": "원전",
+   "corp_name": [
+    "두산에너빌리티",
+    "현대건설"
+   ],
+   "answerable": true,
+   "answer_form": "number_won",
+   "correct": false,
+   "scored_by": "em:number_won",
+   "judge": null,
+   "first_failure": "TOOL",
+   "root_cause": "TOOL",
+   "failure_why": "restatement: 답변 2,807,598,070,800원 (2조 7,078억원) vs 재계산 2,707,800,000,000",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": false,
+   "has_citation": true,
+   "route": "multi_compare",
+   "route_group": "exchange",
+   "route_corps": [
+    "대우건설,두산에너빌리티,두산퓨얼셀,우리기술,한전기술,현대건설"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 1,
+   "prompt_tokens": 2079,
+   "completion_tokens": 147,
+   "judge_tokens": 0,
+   "latency_s": 0.013,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 2079,
+     "completion_tokens": 147,
+     "latency_s": 3.799,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20231211800611",
+    "20231211800339"
+   ],
+   "golden_rank": {
+    "20231211800339": 1,
+    "20231211800611": 2
+   },
+   "golden_in_candidates": [
+    "20231211800339",
+    "20231211800611"
+   ],
+   "golden_in_evidence": [
+    "20231211800611",
+    "20231211800339"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": true,
+   "calc_reasons": [
+    "restatement: 답변 2,807,598,070,800원 (2조 7,078억원) vs 재계산 2,707,800,000,000"
+   ],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "provenance",
+    "restatement"
+   ],
+   "numeric_reason": "restatement: 답변 2,807,598,070,800원 (2조 7,078억원) vs 재계산 2,707,800,000,000; provenance: 답변 2,807,598,070,800원 이 근거에 없다",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "두 공시의 계약금액 합계를 구하기 위해 각 계약금액을 더하면 됩니다.\n\n현대건설의 계약금액: 1,715,754,987,100원\n두산에너빌리티의 계약금액: 1,091,844,082,700원\n\n따라서, 두 공시의 계약금액 합계는 **2,807,598,070,800원**(2조 7,078억원)입니다.\n\n근거: 현대건설 단일판매ㆍ공급계약체결 {2023-12-11}, 접수번호 20231211800339; 두산에너빌리티 단일판매ㆍ공급계약체결 {2023-12-11}, 접수번호 20231211800611",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"-\" period=ym:202312 top_k=5 q=\"한국수력원자력 발주한 신한울 원자력발전소 호기 주설비공사 2023 12 11 상장사 각각 공시했다 합계 얼마인\" n=5 top_score=90.711 ids=exchange_20231211800339,exchange_20231211800611,exchange_20231229800416,exchange_20231229800432,exchange_20231220800419 | hop=0 verdict=sufficient evidence=5 | hop=6 strat=counterparty tool=query_by_counterparty via=한국수력원자력 partners=6 corp=\"대우건설,두산에너빌리티,두산퓨얼셀,우리기술,한전기술,현대건설\" n=6 top_score=- ids=exchange_20250829800405,exchange_20231211800611,exchange_20240329800342,exchange_20230102900376,exchange_20250331802095,exchange_20231211800339 | generate tokens=2079+147 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=2226"
+  },
+  {
+   "question_id": "Q-110",
+   "task_type": "multi_compare",
+   "answer_mode": "open",
+   "difficulty": "상",
+   "doc_group": "exchange",
+   "track": "valuechain",
+   "sector": "건설",
+   "corp_name": [
+    "대우건설",
+    "두산에너빌리티",
+    "두산퓨얼셀",
+    "우리기술",
+    "한전기술",
+    "현대건설"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": false,
+   "scored_by": "judge+numeric",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": "RETRIEVAL",
+   "root_cause": "MULTI_POINT_QUERY",
+   "failure_why": "골든 1/6 건이 어떤 hop 후보에도 없다: ['20240329800342']",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": true,
+   "gold_value_in_evidence": true,
+   "has_citation": false,
+   "route": "complex_reason",
+   "route_group": "exchange",
+   "route_corps": [
+    "대우건설,두산에너빌리티,두산퓨얼셀,우리기술,한전기술,현대건설"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 2,
+   "prompt_tokens": 4465,
+   "completion_tokens": 455,
+   "judge_tokens": 2533,
+   "latency_s": 0.013,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 2246,
+     "completion_tokens": 414,
+     "latency_s": 9.638,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 2219,
+     "completion_tokens": 41,
+     "latency_s": 1.44,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20250829800405",
+    "20230329801108",
+    "20240329800342",
+    "20230102900376",
+    "20230417800192",
+    "20231211800339"
+   ],
+   "golden_rank": {
+    "20230329801108": 1,
+    "20230102900376": 4,
+    "20250829800405": 1,
+    "20230417800192": 5,
+    "20231211800339": 6
+   },
+   "golden_in_candidates": [
+    "20230102900376",
+    "20230329801108",
+    "20230417800192",
+    "20231211800339",
+    "20250829800405"
+   ],
+   "golden_in_evidence": [
+    "20250829800405",
+    "20230329801108",
+    "20230102900376",
+    "20230417800192",
+    "20231211800339"
+   ],
+   "golden_evidence_all": false,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": true,
+   "calc_reasons": [
+    "restatement: 답변 590,947,351,842원 (591억원) vs 재계산 59,100,000,000",
+    "amount: 답변 74,100,000,000원 vs 재계산 73,800,000,000"
+   ],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "restatement"
+   ],
+   "numeric_reason": "restatement: 답변 590,947,351,842원 (591억원) vs 재계산 59,100,000,000",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "한국수력원자력을 계약상대로 하는 단일판매∙공급계약을 공시한 상장사와 각 상장사의 역할은 다음과 같습니다.\n\n1. **두산에너빌리티**\n   - 역할: 신한울 원자력 발전소 3, 4호기의 원자로 설비 및 터빈발전기 공급\n   - 계약금액: 2,338,117,950,000원 + 532,040,000,000원 = **2,870,157,950,000원 (2조 8,701억원)**\n\n2. **우리기술**\n   - 역할: 신한울 3, 4호기 주설비 공사 일부 참여 및 자율공시로 인한 추가 계약\n   - 계약금액: 2,128,000,000원 + 4,504,279,117원 = **6,632,279,117원 (66억원)**\n   \n3. **한전기술**\n   - 역할: 새울 원자력발전소 3, 4호기 종합 설계 용역 및 2023년도 가동 원전 계통 설계 기술 용역\n   - 계약금액: 565,342,321,842원 + 25,605,030,000원 = **590,947,351,842원 (591억원)**\n\n4. **현대건설**\n   - 역할: 신한울 3, 4호기 주설비 공사\n   - 계약금액: 1,715,754,987,100원\n\n5. **대우건설**\n   - 역할: 홍천 양수발전소 1, 2호기 토건 공사\n   - 계약금액: 335,732,400,014원\n\n6. **두산퓨얼셀**\n   - 역할: 연료전지 시스템 공급\n   - 계약금액: 74,100,000,000원\n\n(근거: 각 회사별 단일판매ㆍ공급계약 체결 보고서들, 기준연월 다양, 접수번호 개별 확인 필요)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 답변 내용은 주어진 근거에서 확인할 수 있으며, 추가적인 허위 정보는 없습니다.)",
+   "think_trace": "route=complex_reason difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"-\" period=none top_k=5 q=\"한국수력원자력 하는 공시한 상장사 어디이며 각각 원전 사업 어떤 역할 맡고 있는\" n=5 top_score=34.917 ids=exchange_20230329801108,exchange_20231211800611,exchange_20250331802095,exchange_20230102900376,exchange_20230329801112 | hop=0 verdict=sufficient evidence=5 | hop=6 strat=counterparty tool=query_by_counterparty via=한국수력원자력 partners=6 corp=\"대우건설,두산에너빌리티,두산퓨얼셀,우리기술,한전기술,현대건설\" n=6 top_score=- ids=exchange_20250829800405,exchange_20230329801108,exchange_20231220800419,exchange_20260210900984,exchange_20230417800192,exchange_20231211800339 | generate tokens=2246+414 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 답변 내용은 주어진 근거에서 확인할 수 있으며, 추가적인 허위 정보는 없습니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=4920"
+  },
+  {
+   "question_id": "Q-111",
+   "task_type": "complex_reason",
+   "answer_mode": "closed",
+   "difficulty": "상",
+   "doc_group": "exchange",
+   "track": "valuechain",
+   "sector": "건설",
+   "corp_name": [
+    "대우건설",
+    "효성중공업"
+   ],
+   "answerable": true,
+   "answer_form": "number_won",
+   "correct": true,
+   "scored_by": "em:number_won",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": false,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": false,
+   "has_citation": false,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "대우건설,효성중공업"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 2,
+   "prompt_tokens": 2430,
+   "completion_tokens": 175,
+   "judge_tokens": 0,
+   "latency_s": 0.018,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1387,
+     "completion_tokens": 118,
+     "latency_s": 2.972,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 1043,
+     "completion_tokens": 57,
+     "latency_s": 1.667,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20230228801277",
+    "20241115800529",
+    "20241115800378"
+   ],
+   "golden_rank": {
+    "20241115800529": 1,
+    "20241115800378": 2,
+    "20230228801277": 3
+   },
+   "golden_in_candidates": [
+    "20230228801277",
+    "20241115800378",
+    "20241115800529"
+   ],
+   "golden_in_evidence": [
+    "20230228801277",
+    "20241115800529",
+    "20241115800378"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "equation"
+   ],
+   "calc_skipped": [
+    "restatement",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [
+    "amount: 답변 354,725,410,000원 vs 재계산 351,882,914,000"
+   ],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "새로 체결된 계약금액은 해지금액보다 **7,591,628,000원**(약 76억원) 적습니다.\n\n- 해지금액: 362,307,038,000원\n- 신규 계약금액: 354,725,410,000원\n\n따라서 차이는 다음과 같습니다.\n- 362,307,038,000 - 354,725,410,000 = **7,581,628,000원**\n\n(근거: 공급계약 해지 및 체결 관련 보고서들, 2024-11-15)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 계산 결과가 잘못되었습니다; 올바른 계산 결과는 7,581,628,000원이 아닌 7,591,628,000원입니다.)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"-\" period=ym:202411 top_k=5 q=\"경안리버시티개발 시행하 광주 경안 지구 도시개발사업 2024 11 15 기존 시공사와 도급계약 해지되고 같은 다른 건설사 시공계약 공시했다 새로 체결된 해지금액보다 얼마나 적은\" n=5 top_score=142.449 ids=exchange_20241115800529,exchange_20241115800378,exchange_20241128800504,exchange_20241106800473,exchange_20241115800453 | hop=0 verdict=sufficient evidence=5 | hop=6 strat=counterparty tool=query_by_counterparty via=경안리버시티개발 partners=2 corp=\"대우건설,효성중공업\" n=3 top_score=- ids=exchange_20241115800529,exchange_20241115800378,exchange_20230228801277 | generate tokens=1387+118 | 근거 표기 누락 — critic 호출 | critic supported=False reason=계산 결과가 잘못되었습니다; 올바른 계산 결과는 7,581,628,000원이 아닌 7,591,628,000원입니다. | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=2605"
+  },
+  {
+   "question_id": "Q-112",
+   "task_type": "multi_compare",
+   "answer_mode": "open",
+   "difficulty": "중",
+   "doc_group": "exchange",
+   "track": "valuechain",
+   "sector": "건설",
+   "corp_name": [
+    "대우건설",
+    "현대건설"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": true,
+   "has_citation": false,
+   "route": "multi_compare",
+   "route_group": "exchange",
+   "route_corps": [
+    "대우건설",
+    "현대건설"
+   ],
+   "n_hops": 0,
+   "n_steps": 4,
+   "n_llm_calls": 2,
+   "prompt_tokens": 2711,
+   "completion_tokens": 356,
+   "judge_tokens": 1521,
+   "latency_s": 0.024,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1436,
+     "completion_tokens": 310,
+     "latency_s": 7.186,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 1275,
+     "completion_tokens": 46,
+     "latency_s": 1.389,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20231214801332",
+    "20240415800078"
+   ],
+   "golden_rank": {
+    "20231214801332": 4,
+    "20240415800078": 7
+   },
+   "golden_in_candidates": [
+    "20231214801332",
+    "20240415800078"
+   ],
+   "golden_in_evidence": [
+    "20231214801332",
+    "20240415800078"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "share"
+   ],
+   "calc_skipped": [
+    "equation",
+    "restatement"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "대전 도안 2-2지구 공동주택 신축공사와 관련하여 다음과 같이 설명할 수 있습니다:\n\n1. **대우건설의 계약 해지**\n   - 대우건설은 2023년 12월 14일에 대전 도안 2-2지구 공동주택 신축공사에 대한 공급계약을 해지하였다고 공시하였습니다.\n   - 해지 금액은 1,147,665,603,998원으로, 이는 약 1조 1,477억원에 해당하는 규모이며, 매출액 대비 11.01% 비율을 차지했습니다.\n   - 계약 상대방은 '주식회사 유토개발2차'였습니다.\n\n2. **현대건설의 계약 체결**\n   - 이후, 2024년 4월 15일에는 현대건설이 동일한 프로젝트인 대전 도안 2-2지구 공동주택 신축공사의 새로운 계약을 체결했다고 공시하였습니다.\n   - 계약 금액은 1,558,826,903,000원으로, 이는 약 1조 5,588억원에 해당하며, 매출액 대비 5.26%를 나타냅니다.\n   - 계약 상대방 역시 동일하게 '주식회사 유토개발2차'로 확인됩니다.\n\n따라서, 대우건설이 먼저 계약을 해지한 후, 현대건설이 동일한 프로젝트를 새롭게 수주하여 계약을 체결한 것으로 보입니다. 이로 인해 해당 프로젝트가 대우건설에서 현대건설로 이전되었음을 알 수 있습니다.\n\n(근거: 각 공시별 상세 내용 참조)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 정보가 제공된 근거 내에서 확인되며, 추가적인 허위 정보 없이 정확하게 서술되었습니다.)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"현대건설\" period=ym:202312 top_k=3 q=\"대전 도안 지구 공동주택 신축공사 2023 12 대우건설 계약 해지 공시했고 2024 현대건설 같은 사업 공시했다 어떤 관계인지 설명하\" n=3 top_score=21.070 ids=exchange_20231211800339,exchange_20231218800101,exchange_20231201800010 | hop=0 strat=narrow tool=search_chunks corp=\"대우건설\" period=ym:202312 top_k=3 q=\"대전 도안 지구 공동주택 신축공사 2023 12 대우건설 계약 해지 공시했고 2024 현대건설 같은 사업 공시했다 어떤 관계인지 설명하\" n=3 top_score=79.279 ids=exchange_20231214801332,exchange_20231207800431,exchange_20231228801034 | hop=0 strat=narrow tool=search_chunks corp=\"현대건설\" period=ym:202404 top_k=3 q=\"대전 도안 지구 공동주택 신축공사 2023 12 대우건설 계약 해지 공시했고 2024 현대건설 같은 사업 공시했다 어떤 관계인지 설명하\" n=3 top_score=72.017 ids=exchange_20240415800078,exchange_20240418800570,exchange_20240430800940 | hop=0 strat=narrow tool=search_chunks corp=\"대우건설\" period=ym:202404 top_k=3 q=\"대전 도안 지구 공동주택 신축공사 2023 12 대우건설 계약 해지 공시했고 2024 현대건설 같은 사업 공시했다 어떤 관계인지 설명하\" n=1 top_score=17.886 ids=exchange_20240404800695 | hop=0 verdict=sufficient evidence=7 | generate tokens=1436+310 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거 내에서 확인되며, 추가적인 허위 정보 없이 정확하게 서술되었습니다. | verify calc_checked=amount,share complete_checked=missing_corp ok=True kinds=- | budget steps=4 hops=0 llm=2 tokens=3067"
+  },
+  {
+   "question_id": "Q-113",
+   "task_type": "complex_reason",
+   "answer_mode": "closed",
+   "difficulty": "상",
+   "doc_group": "exchange",
+   "track": "valuechain",
+   "sector": "건설",
+   "corp_name": [
+    "삼성E&A",
+    "삼성중공업"
+   ],
+   "answerable": true,
+   "answer_form": "number_won",
+   "correct": false,
+   "scored_by": "em:number_won",
+   "judge": null,
+   "first_failure": "RETRIEVAL",
+   "root_cause": "CHAIN_NOT_TRAVERSED",
+   "failure_why": "골든 1/4 건이 어떤 hop 후보에도 없다: ['20250718800275']",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": true,
+   "gold_value_in_evidence": false,
+   "has_citation": false,
+   "route": "multi_compare",
+   "route_group": "exchange",
+   "route_corps": [
+    "삼성E&A",
+    "삼성E&A,삼성중공업",
+    "삼성전자",
+    "삼성중공업"
+   ],
+   "n_hops": 2,
+   "n_steps": 6,
+   "n_llm_calls": 2,
+   "prompt_tokens": 4618,
+   "completion_tokens": 357,
+   "judge_tokens": 0,
+   "latency_s": 0.03,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 2390,
+     "completion_tokens": 314,
+     "latency_s": 7.36,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 2228,
+     "completion_tokens": 43,
+     "latency_s": 1.619,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20250718800275",
+    "20250924800260",
+    "20250721800070",
+    "20250924800262"
+   ],
+   "golden_rank": {
+    "20250924800262": 1,
+    "20250924800260": 1,
+    "20250721800070": 2
+   },
+   "golden_in_candidates": [
+    "20250721800070",
+    "20250924800260",
+    "20250924800262"
+   ],
+   "golden_in_evidence": [
+    "20250924800260",
+    "20250721800070",
+    "20250924800262"
+   ],
+   "golden_evidence_all": false,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "restatement",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [
+    "amount: 답변 499,950,000,000원 vs 재계산 909,590,000,000"
+   ],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "provenance"
+   ],
+   "numeric_reason": "provenance: 답변 1,728,750,000,000원 이 근거에 없다; provenance: 답변 1,728,750,000,000원 이 근거에 없다",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "두 회사의 정정 후 계약금액 합계를 구하기 위해 각각의 정정 후 금액을 확인하여 더하면 됩니다.\n\n1. 삼성E&A의 정정 후 계약금액: 1,328,800,000,000원\n2. 삼성중공업의 정정 후 계약금액: 499,950,000,000원\n\n따라서, 두 회사의 정정 후 계약금액 합계는 1,728,750,000,000원입니다.\n\n이제 최초 공시 때의 합계를 구해야 합니다. 최초 공시는 다음과 같습니다.\n\n1. 삼성E&A의 최초 공시 계약금액: 1,328,800,000,000원 (변동이 없으므로 동일)\n2. 삼성중공업의 최초 공시 계약금액: 392,590,000,000원\n\n따라서, 최초 공시 때의 계약금액 합계는 1,721,390,000,000원입니다.\n\n마지막으로 두 값의 차이를 계산합니다.\n\n- 증가분 = 1,728,750,000,000원 - 1,721,390,000,000원 = 7,360,000,000원\n\n따라서, 삼성전자가 발주한 평택 P4 Ph4(상동) 마감공사의 경우, 두 회사의 정정 후 계약금액 합계는 최초 공시 합계보다 **736억 원** 늘었습니다.\n\n근거: 각 회사의 공급계약 체결 보고서들, 2025년 9월 24일 정정공시 기준\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — missing_corp: 비교 질의인데 근거에 삼성전자 이(가) 없다)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"삼성중공업\" period=ym:202509 top_k=5 q=\"삼성전자 발주한 평택 Ph 상동 마감공사 삼성 삼성중공업 각각 공시했고 회사 모두 2025 24 정정공시 냈다 정정 합계 최초 합계보다 얼마나 늘었는\" n=3 top_score=60.518 ids=exchange_20250924800262,exchange_20250925800330,exchange_20250930800629 | hop=0 strat=narrow tool=search_chunks corp=\"삼성E&A\" period=ym:202509 top_k=5 q=\"삼성전자 발주한 평택 Ph 상동 마감공사 삼성 삼성중공업 각각 공시했고 회사 모두 2025 24 정정공시 냈다 정정 합계 최초 합계보다 얼마나 늘었는\" n=3 top_score=50.067 ids=exchange_20250924800260,exchange_20250925800332,exchange_20250926800514 | hop=0 strat=narrow tool=search_chunks corp=\"삼성전자\" period=ym:202509 top_k=5 q=\"삼성전자 발주한 평택 Ph 상동 마감공사 삼성 삼성중공업 각각 공시했고 회사 모두 2025 24 정정공시 냈다 정정 합계 최초 합계보다 얼마나 늘었는\" n=0 top_score=- ids=- | hop=5 strat=chain tool=get_history corp=\"삼성중공업\" rcept=20250925800330 latest=20251226800865 chain_length=3 n=2 top_score=- ids=exchange_20240614800117,exchange_20251226800865 | hop=0 verdict=insufficient evidence=8 reason=missing_corp:삼성전자 | hop=1 strat=relax_period tool=search_chunks corp=\"삼성중공업\" period=year:2025 top_k=8 q=\"삼성전자 발주한 평택 Ph 상동 마감공사 삼성 삼성중공업 각각 공시했고 회사 모두 2025 24 정정공시 냈다 정정 합계 최초 합계보다 얼마나 늘었는\" n=8 top_score=60.518 ids=exchange_20250924800262,exchange_20250721800070,exchange_20250327801172,exchange_20251212800879,exchange_20251226800865,exchange_20250925800330,exchange_20251128800865,exchange_20250123800869 | hop=1 verdict=insufficient evidence=13 reason=missing_corp:삼성전자 | hop=2 verdict=insufficient evidence=13 reason=missing_corp:삼성전자 | hop=3 strat=global skip=corp_scoped (기업 특정 질의에 근거 13건 확보 — 전역 검색은 오염) | hop=6 strat=counterparty tool=query_by_counterparty via=삼성전자 partners=2 corp=\"삼성E&A,삼성중공업\" n=4 top_score=- ids=exchange_20250924800260,exchange_20250924800262,exchange_20230629800360,exchange_20241024800562 | generate tokens=2390+314 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인되며, 접수번호 등의 정보도 정확히 기재되어 있습니다. | verify calc_checked=amount complete_checked=evidence_gap,stale_value,missing_corp ok=False kinds=missing_corp | budget steps=6 hops=2 llm=2 tokens=4975"
+  },
+  {
+   "question_id": "Q-114",
+   "task_type": "multi_compare",
+   "answer_mode": "open",
+   "difficulty": "상",
+   "doc_group": "exchange",
+   "track": "valuechain",
+   "sector": "건설",
+   "corp_name": [
+    "삼성E&A",
+    "삼성중공업"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": true,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": true,
+    "grounded": true,
+    "no_fabrication": true,
+    "reason": ""
+   },
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": false,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "삼성E&A,삼성중공업",
+    "삼성전자"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 2,
+   "prompt_tokens": 2840,
+   "completion_tokens": 206,
+   "judge_tokens": 1532,
+   "latency_s": 0.012,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1557,
+     "completion_tokens": 159,
+     "latency_s": 3.927,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 1283,
+     "completion_tokens": 47,
+     "latency_s": 1.482,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20231206800224",
+    "20240627800468",
+    "20231218800177",
+    "20260316801067",
+    "20250924800260"
+   ],
+   "golden_rank": {
+    "20231218800177": 4
+   },
+   "golden_in_candidates": [
+    "20231218800177"
+   ],
+   "golden_in_evidence": [
+    "20231218800177"
+   ],
+   "golden_evidence_all": false,
+   "golden_unreachable": [
+    "20231206800224",
+    "20240627800468",
+    "20250924800260"
+   ],
+   "calc_checked": [],
+   "calc_skipped": [
+    "amount",
+    "equation",
+    "period",
+    "restatement",
+    "share"
+   ],
+   "calc_gated_records": 5,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "삼성전자를 계약상대로 하는 공급계약을 공시한 상장사는 '**삼성E&A**, **삼성중공업**'입니다.\n\n평택·기흥 반도체 공장 건설에서의 공정 분담은 다음과 같이 나뉩니다.\n- **삼성 E&A**: 평택 V2L 상층 Ph3 하층 설계 및 마감공사, [P3 Ph4] 그린동 및 UT동, 옥상배기, UPW 마감 공사\n- **삼성 중공업**: [P3 Ph2] FAB 동 마감공사, [P3 Ph4] FAB 동 마감공사\n\n이는 공시된 정보들을 종합하여 파악할 수 있습니다. (근거: 각 공급계약 체결 보고서들, 기준연월 2023~2025)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 정보가 제공된 근거문서에서 확인할 수 있으며, 추가적인 허위정보 없이 정확하게 정리되어 있습니다.)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"삼성전자\" period=none top_k=5 q=\"삼성전자 하는 공시한 상장사 어디이며 평택 기흥 반도체 공장 건설 회사 공정 분담 어떻게 나뉘는\" n=2 top_score=32.455 ids=exchange_20250728800035,exchange_20250731800028 | hop=0 verdict=sufficient evidence=2 | hop=6 strat=counterparty tool=query_by_counterparty via=삼성전자 partners=2 corp=\"삼성E&A,삼성중공업\" n=4 top_score=- ids=exchange_20230517800369,exchange_20231121800248,exchange_20230629800360,exchange_20231218800177 | generate tokens=1557+159 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 정보가 제공된 근거문서에서 확인할 수 있으며, 추가적인 허위정보 없이 정확하게 정리되어 있습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=3046"
+  },
+  {
+   "question_id": "Q-115",
+   "task_type": "multi_compare",
+   "answer_mode": "closed",
+   "difficulty": "중",
+   "doc_group": "exchange",
+   "track": "valuechain",
+   "sector": "운송·물류",
+   "corp_name": [
+    "현대글로비스",
+    "현대오토에버"
+   ],
+   "answerable": true,
+   "answer_form": "number_won",
+   "correct": false,
+   "scored_by": "em:number_won",
+   "judge": null,
+   "first_failure": "TOOL",
+   "root_cause": "TOOL",
+   "failure_why": "equation: 답변 125,514 + 106,796,802 + 890,200 + 586,900 + 1,345,900 = 2,974,206,002 vs 재계산 109,745,316; amount: 답변 1,345,900,000,000원 vs 재계산 1,652,800,000,000; amount: 답변 1,345,900,000,000원 vs 재계산 3,365,500,000,000",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": true,
+   "gold_value_in_evidence": false,
+   "has_citation": false,
+   "route": "multi_compare",
+   "route_group": "exchange",
+   "route_corps": [
+    "현대글로비스",
+    "현대글로비스,현대로템,현대오토에버",
+    "현대오토에버",
+    "현대자동차"
+   ],
+   "n_hops": 2,
+   "n_steps": 6,
+   "n_llm_calls": 2,
+   "prompt_tokens": 4125,
+   "completion_tokens": 356,
+   "judge_tokens": 0,
+   "latency_s": 0.025,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 2134,
+     "completion_tokens": 309,
+     "latency_s": 7.375,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 1991,
+     "completion_tokens": 47,
+     "latency_s": 1.598,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20250117800487",
+    "20251128800125",
+    "20241231800103",
+    "20241203800532"
+   ],
+   "golden_rank": {
+    "20251128800125": 2,
+    "20250117800487": 1,
+    "20241203800532": 3,
+    "20241231800103": 5
+   },
+   "golden_in_candidates": [
+    "20241203800532",
+    "20241231800103",
+    "20250117800487",
+    "20251128800125"
+   ],
+   "golden_in_evidence": [
+    "20250117800487",
+    "20251128800125",
+    "20241231800103",
+    "20241203800532"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "equation"
+   ],
+   "calc_skipped": [
+    "period",
+    "restatement",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": true,
+   "calc_reasons": [
+    "equation: 답변 125,514 + 106,796,802 + 890,200 + 586,900 + 1,345,900 = 2,974,206,002 vs 재계산 109,745,316",
+    "amount: 답변 1,345,900,000,000원 vs 재계산 1,652,800,000,000",
+    "amount: 답변 1,345,900,000,000원 vs 재계산 3,365,500,000,000"
+   ],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "equation"
+   ],
+   "numeric_reason": "equation: 답변 125,514 + 106,796,802 + 890,200 + 586,900 + 1,345,900 = 2,974,206,002 vs 재계산 109,745,316",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "현대자동차를 계약상대로 하여 2025년에 공시된 계약들의 금액을 찾아보겠습니다.\n\n1. 현대오토에버의 경우\n- 'hCloud 서비스 제공 계약': 2025-07-31에 공시되었으며, 계약금액은 125,514,000,000원입니다.\n- '차세대 ERP 아태 및 유럽 롤인 프로젝트 계약': 2025-11-28에 공시되었고, 계약금액은 106,796,802,000원입니다.\n\n2. 현대글로비스의 경우\n- '완성차 해상운송계약' (2025-02-27): 890,200,000,000원\n- '완성차 해상운송계약' (2025-01-17, 정정본): 586,900,000,000원\n- '완성차 해상운송계약' (2025-01-17, 또 다른 정정본): 1,345,900,000,000원\n\n따라서, 2025년에 공시된 계약금액의 합계는 다음과 같습니다.\n- 125,514 + 106,796,802 + 890,200 + 586,900 + 1,345,900 = 2,974,206,002원\n\n따라서, 2025년에 공시된 계약금액의 총합은 **2,974,206,002원**(약 **2974억원**)입니다.\n(근거: 각 계약별 공시내용 참조)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 계약 금액과 관련된 정보가 정확하게 인용되어 있으며, 추가적인 허위 정보 없이 질문에 대한 답변을 제공하고 있습니다.)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — missing_corp: 비교 질의인데 근거에 현대자동차 이(가) 없다)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"현대오토에버\" period=year:2025 top_k=5 q=\"현대자동차 하는 현대글로비스 현대오토에버 공시했다 2025 년에 공시된 합계 얼마인\" n=2 top_score=72.148 ids=exchange_20250731800497,exchange_20251128800125 | hop=0 strat=narrow tool=search_chunks corp=\"현대글로비스\" period=year:2025 top_k=5 q=\"현대자동차 하는 현대글로비스 현대오토에버 공시했다 2025 년에 공시된 합계 얼마인\" n=4 top_score=58.713 ids=exchange_20250117800487,exchange_20250227800164,exchange_20250117800481,exchange_20250117800494 | hop=0 strat=narrow tool=search_chunks corp=\"현대자동차\" period=year:2025 top_k=5 q=\"현대자동차 하는 현대글로비스 현대오토에버 공시했다 2025 년에 공시된 합계 얼마인\" n=0 top_score=- ids=- | hop=0 verdict=insufficient evidence=6 reason=missing_corp:현대자동차 | hop=1 strat=relax_period tool=search_chunks corp=\"현대오토에버\" period=none top_k=8 q=\"현대자동차 하는 현대글로비스 현대오토에버 공시했다 2025 년에 공시된 합계 얼마인\" n=4 top_score=72.148 ids=exchange_20250731800497,exchange_20251128800125,exchange_20241203800532,exchange_20231115800491 | hop=1 strat=relax_period tool=search_chunks corp=\"현대글로비스\" period=none top_k=8 q=\"현대자동차 하는 현대글로비스 현대오토에버 공시했다 2025 년에 공시된 합계 얼마인\" n=8 top_score=59.679 ids=exchange_20241231800103,exchange_20250117800487,exchange_20240425800143,exchange_20231026800363,exchange_20250227800164,exchange_20250117800481,exchange_20260116800383,exchange_20241231800107 | hop=1 verdict=insufficient evidence=13 reason=missing_corp:현대자동차 | hop=2 verdict=insufficient evidence=13 reason=missing_corp:현대자동차 | hop=3 strat=global skip=corp_scoped (기업 특정 질의에 근거 13건 확보 — 전역 검색은 오염) | hop=6 strat=counterparty tool=query_by_counterparty via=현대자동차 partners=3 corp=\"현대글로비스,현대로템,현대오토에버\" n=3 top_score=- ids=exchange_20250117800487,exchange_20240326801565,exchange_20241203800532 | generate tokens=2134+309 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 계약 금액과 관련된 정보가 정확하게 인용되어 있으며, 추가적인 허위 정보 없이 질문에 대한 답변을 제공하고 있습니다. | verify calc_checked=amount complete_checked=missing_corp ok=False kinds=missing_corp | budget steps=6 hops=2 llm=2 tokens=4481"
+  },
+  {
+   "question_id": "Q-116",
+   "task_type": "multi_compare",
+   "answer_mode": "closed",
+   "difficulty": "하",
+   "doc_group": "exchange",
+   "track": "valuechain",
+   "sector": "원전",
+   "corp_name": [
+    "두산에너빌리티",
+    "두산퓨얼셀",
+    "한전기술"
+   ],
+   "answerable": true,
+   "answer_form": "list",
+   "correct": true,
+   "scored_by": "list_f1",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": null,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": null,
+   "has_citation": true,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "두산에너빌리티,두산퓨얼셀,한전기술"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 1,
+   "prompt_tokens": 1295,
+   "completion_tokens": 154,
+   "judge_tokens": 0,
+   "latency_s": 0.009,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1295,
+     "completion_tokens": 154,
+     "latency_s": 3.806,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20250923800193",
+    "20241212800740",
+    "20230727800471"
+   ],
+   "golden_rank": {
+    "20241212800740": 2,
+    "20250923800193": 5,
+    "20230727800471": 2
+   },
+   "golden_in_candidates": [
+    "20230727800471",
+    "20241212800740",
+    "20250923800193"
+   ],
+   "golden_in_evidence": [
+    "20250923800193",
+    "20241212800740",
+    "20230727800471"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "한국중부발전을 계약상대로 하는 단일판매∙공급계약을 공시한 상장사 세 곳 중, 계약금액이 가장 큰 계약을 공시한 곳은 '**두산에너빌리티**'입니다. 이는 '함안복합 파워블록 설치조건부 구매' 건으로, 계약 금액은 '**583,874,002,800원**(5,839억 원)'입니다. \n\n참고로 나머지 두 회사인 한전기술과 두산퓨얼셀의 계약 금액은 각각 780억 원, 490억 원입니다. \n(근거: [공급계약 체결] 두산에너빌리티 – 단일판매ㆍ공급계약 체결, 2025-09-23, 접수번호 20250923800193)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"-\" period=none top_k=5 q=\"한국중부발전 하는 공시한 상장사 가장 계약 곳은 어디인\" n=5 top_score=36.358 ids=exchange_20230628800045,exchange_20241212800740,exchange_20240722800037,exchange_20231120800519,exchange_20250923800193 | hop=0 verdict=sufficient evidence=5 | hop=6 strat=counterparty tool=query_by_counterparty via=한국중부발전 partners=3 corp=\"두산에너빌리티,두산퓨얼셀,한전기술\" n=3 top_score=- ids=exchange_20230628800045,exchange_20230727800471,exchange_20241212800740 | generate tokens=1295+154 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=1449"
+  },
+  {
+   "question_id": "Q-117",
+   "task_type": "complex_reason",
+   "answer_mode": "open",
+   "difficulty": "상",
+   "doc_group": "exchange",
+   "track": "valuechain",
+   "sector": "원전",
+   "corp_name": [
+    "한전기술"
+   ],
+   "answerable": true,
+   "answer_form": "narrative",
+   "correct": false,
+   "scored_by": "judge",
+   "judge": {
+    "covers_key_points": false,
+    "grounded": false,
+    "no_fabrication": false,
+    "reason": "제시된 답변은 모범답안의 핵심인 '두 갈래 발주 구조'와 '2단 발주 구조'를 누락하고 있습니다."
+   },
+   "first_failure": "RETRIEVAL",
+   "root_cause": "MULTI_POINT_QUERY",
+   "failure_why": "골든 3/7 건이 어떤 hop 후보에도 없다: ['20260209801845', '20230330800844', '20251224800396']",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": true,
+   "gold_value_in_evidence": true,
+   "has_citation": false,
+   "route": "closed_lookup",
+   "route_group": "exchange",
+   "route_corps": [
+    "한전기술"
+   ],
+   "n_hops": 0,
+   "n_steps": 2,
+   "n_llm_calls": 2,
+   "prompt_tokens": 3603,
+   "completion_tokens": 290,
+   "judge_tokens": 2003,
+   "latency_s": 0.007,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1903,
+     "completion_tokens": 228,
+     "latency_s": 5.612,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 1700,
+     "completion_tokens": 62,
+     "latency_s": 1.882,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20230417800192",
+    "20241212800740",
+    "20260209801845",
+    "20250729800143",
+    "20230330800844",
+    "20251224800396",
+    "20251212801320"
+   ],
+   "golden_rank": {
+    "20241212800740": 1,
+    "20230417800192": 3,
+    "20251212801320": 1,
+    "20250729800143": 3
+   },
+   "golden_in_candidates": [
+    "20230417800192",
+    "20241212800740",
+    "20250729800143",
+    "20251212801320"
+   ],
+   "golden_in_evidence": [
+    "20230417800192",
+    "20241212800740",
+    "20250729800143",
+    "20251212801320"
+   ],
+   "golden_evidence_all": false,
+   "golden_unreachable": [],
+   "calc_checked": [],
+   "calc_skipped": [
+    "amount",
+    "equation",
+    "period",
+    "restatement",
+    "share"
+   ],
+   "calc_gated_records": 7,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": false,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "골든 요점이 금액 3건을 명시하는데 답변에 금액 표기가 하나도 없다",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": false,
+    "blocking": false
+   },
+   "answer": "한전기술이 공시한 단일판매·공급계약의 발주 구조를 살펴보면 크게 두 가지 갈래로 나눌 수 있습니다:\n\n1. **한국수력원자력㈜로부터의 발주를 받는 경우**\n    - '2023년도 가동원전 계통설계 기술용역', '2023년도 가동원전 긴급지원 기술용역', '2024년도 가동원전 긴급지원 기술용역' 등 세 건이 이에 해당됩니다.\n    \n2. **한국전력 자회사들로부터의 발주를 받는 경우**\n    - '신서천화력 건설사업 설계기술용역'(한국중부발전), '울산그린 1복합 건설 설계기술용역'(한국동서발전), 그리고 '신호남 및 신일산 복합 건설사업 설계기술용역'(한국동서발전) 등이 여기에 속합니다.\n\n따라서 발주 구조는 '**한국수력원자력과 한국전력 자회사들**'이라는 두 갈래로 구분할 수 있으며, 이는 제시된 계약상대의 정보를 통해 확인할 수 있습니다.\n(근거: 각 보고서별 계약상대 항목)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 답변은 제공된 근거 내에서 계약 상대방을 기반으로 발주 구조를 두 가지로 나누어 설명하고 있으며, 이는 근거에 명시된 정보에 기반하여 정확하게 서술되었습니다.)",
+   "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한전기술\" period=none top_k=5 q=\"한전기술 공시한 보면 발주 구조 갈래 나뉜다 어떤 갈래이며 근거 무엇인\" n=5 top_score=17.786 ids=exchange_20241212800740,exchange_20230307800271,exchange_20230417800192,exchange_20230417800224,exchange_20240415800074 | hop=0 verdict=sufficient evidence=5 | hop=4 strat=enumerate tool=query_events corp=\"한전기술\" subtype=단일판매공급계약체결 pool=27 groups=11 n=5 top_score=- ids=exchange_20251212801320,exchange_20260109800243,exchange_20250729800143,exchange_20251231800317,exchange_20251224800437 | generate tokens=1903+228 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 제공된 근거 내에서 계약 상대방을 기반으로 발주 구조를 두 가지로 나누어 설명하고 있으며, 이는 근거에 명시된 정보에 기반하여 정확하게 서술되었습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=3893"
+  },
+  {
+   "question_id": "Q-118",
+   "task_type": "multi_compare",
+   "answer_mode": "closed",
+   "difficulty": "중",
+   "doc_group": "exchange",
+   "track": "valuechain",
+   "sector": "건설",
+   "corp_name": [
+    "대우건설",
+    "효성중공업"
+   ],
+   "answerable": true,
+   "answer_form": "number_won",
+   "correct": true,
+   "scored_by": "em:number_won",
+   "judge": null,
+   "first_failure": null,
+   "root_cause": "",
+   "failure_why": "correct",
+   "critic_supported": true,
+   "critic_passed_wrong_answer": false,
+   "gold_value_in_evidence": false,
+   "has_citation": false,
+   "route": "multi_compare",
+   "route_group": "exchange",
+   "route_corps": [
+    "대우건설",
+    "대우건설,효성중공업",
+    "효성중공업"
+   ],
+   "n_hops": 0,
+   "n_steps": 3,
+   "n_llm_calls": 2,
+   "prompt_tokens": 3741,
+   "completion_tokens": 319,
+   "judge_tokens": 0,
+   "latency_s": 0.021,
+   "calls": [
+    {
+     "tag": "answer",
+     "prompt_tokens": 1902,
+     "completion_tokens": 277,
+     "latency_s": 6.576,
+     "finish": "stop"
+    },
+    {
+     "tag": "critic",
+     "prompt_tokens": 1839,
+     "completion_tokens": 42,
+     "latency_s": 1.495,
+     "finish": "stop"
+    }
+   ],
+   "golden": [
+    "20260325800110",
+    "20241227800803"
+   ],
+   "golden_rank": {
+    "20241227800803": 2,
+    "20260325800110": 1
+   },
+   "golden_in_candidates": [
+    "20241227800803",
+    "20260325800110"
+   ],
+   "golden_in_evidence": [
+    "20260325800110",
+    "20241227800803"
+   ],
+   "golden_evidence_all": true,
+   "golden_unreachable": [],
+   "calc_checked": [
+    "amount",
+    "restatement"
+   ],
+   "calc_skipped": [
+    "equation",
+    "period",
+    "share"
+   ],
+   "calc_gated_records": 0,
+   "calc_mismatch": false,
+   "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
+   "data_limit": {
+    "withheld": [],
+    "no_amount": [],
+    "shell_only": [],
+    "asks_value": true,
+    "blocking": false
+   },
+   "answer": "두 사업의 계약 금액 차이를 구하기 위해 각각의 계약 금액을 확인하겠습니다.\n\n1. 대우건설이 공시한 '수원당수2 B-1BL, A-1BL, A-3BL 통합형 민간참여 공공주택건설사업'의 계약 금액은 **297,418,374,320원**(2,974억 원)입니다.\n2. 효성중공업이 공시한 '수원당수 A-5BL 아파트 건설공사'의 계약 금액은 '**87,758,763,610원**(878억 원)'입니다.\n\n따라서 두 계약 금액의 차이는 다음과 같습니다.\n- 297,418,374,320원 - 87,758,763,610원 = **209659610710원**\n\n최종 답변:\n한국토지주택공사가 발주한 수원당수 지역 사업 중 대우건설이 공시한 수원당수2 통합형 민간참여 공공주택건설사업과 효성중공업이 공시한 수원당수 A-5BL 아파트 건설공사의 계약금액 차이는 **209,659,610,710원**입니다.\n(근거: 공급계약 체결 효성중공업, 대우건설 각 보고서, 기준연월 2023-12-01, 2026-03-25 등, 접수번호 각각 상이)",
+   "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"효성중공업\" period=none top_k=5 q=\"한국토지주택공사 발주한 수원당수 지역 사업 대우건설 공시한 통합형 민간참여 공공주택건설사업 효성중공업 BL 아파트 건설공사 차이 얼마인\" n=5 top_score=119.320 ids=exchange_20231201800455,exchange_20241227800803,exchange_20230919800314,exchange_20260212801029,exchange_20260102800499 | hop=0 strat=narrow tool=search_chunks corp=\"대우건설\" period=none top_k=5 q=\"한국토지주택공사 발주한 수원당수 지역 사업 대우건설 공시한 통합형 민간참여 공공주택건설사업 효성중공업 BL 아파트 건설공사 차이 얼마인\" n=5 top_score=159.937 ids=exchange_20260325800110,exchange_20251211800144,exchange_20241002800380,exchange_20251211800721,exchange_20230831800541 | hop=0 verdict=sufficient evidence=10 | hop=6 strat=counterparty tool=query_by_counterparty via=한국토지주택공사 partners=2 corp=\"대우건설,효성중공업\" n=4 top_score=- ids=exchange_20260325800110,exchange_20241227800803,exchange_20251211800721,exchange_20231201800455 | generate tokens=1902+277 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 수치가 근거에서 확인할 수 있으며, 정확한 계산을 통해 답변을 도출하였습니다. | verify calc_checked=amount complete_checked=missing_corp ok=True kinds=- | budget steps=3 hops=0 llm=2 tokens=4060"
+  }
+ ],
+ "arm": "A18",
+ "arm_config": {
+  "name": "A18",
+  "retrieval": "all",
+  "schema_fields": true,
+  "dense": false,
+  "hop_ladder": true,
+  "chain_hop": true,
+  "counterparty_hop": true,
+  "split_query": true,
+  "calc_values": true,
+  "verifier": true,
+  "followup_hop": true,
+  "meta_corp": true,
+  "meta_date": true,
+  "meta_group": true,
+  "golden_oracle": false,
+  "lean_rules": false,
+  "substitute_verified": false,
+  "provenance_gate": false,
+  "regenerate_on_verify": false,
+  "nary": true
+ }
+}

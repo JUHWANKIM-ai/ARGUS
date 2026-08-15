@@ -1,0 +1,24 @@
+{
+ "question_id": "Q-084",
+ "response": {
+  "question_id": "Q-084",
+  "question": "국민연금공단이 세아베스틸지주에 대해 2023년 8월과 2025년 7월에 각각 보고한 '이번 보유비율' 중 더 높은 값은 몇 %인가?",
+  "retrieved_context": "## [투자판단 관련 주요경영사항] OCI홀딩스 – 투자판단 관련 주요경영사항\n- 공시일: 2023-12-21 (접수번호 20231221800510)\n- 섹터: 신재생에너지\n- 확정일: 2023-12-21\n- 제목: 지주회사 전환 신고에 대한 회신 접수\n- 주요내용: 1. 제출사유 당사는 공정거래위원회로부터 2023년 9월 22일 기준으로 「독점규제 및 공정거래에 관한 법률」 (이하 '공정거래법'이라 함) 제17조 및 동법 시행령 제26조에 따른 지주회사의 요건 (이하 '해당 요건'이라 함)을 충족하여 지주회사로 전환됨을 통보 받았습니다. 2. 지주회사 전환 내용 1) 지주회사 - 대상회사 : 오씨아이홀딩스㈜ - 지주회사 전환일 : 2023년 9월 22일 2) 자회사: 10개사 (1) ㈜디씨알이 : 오씨아이홀딩스㈜ 100.00% 소유 (2) 부광약품㈜ : 오씨아이홀딩스㈜ 10.90% 소유 (3)…\n- 기타 투자판단과 관련한 중요사항: - 오씨아이홀딩스㈜는 2023년 5월 인적분할 이후 같은 해 9월 공개 매수 및 현물출자에 의한 유상증자를 완료하며, 현물출자 납입일인 9월 22일 기준으로 공정거래법상 지주회사의 성립요건을 모두 충족하여 지주회사로 전환되었습니다. - 공정거래법 제 18조에서 규정하고 있는 '지주회사 행위제한 요건'에 해당되는 사항에 대해서는 지주회사 전환일인 2023년 9월 22일로부터 2년 이내에 해소할 예정입니다. 다만, 동법 제 18조 제 6항에 의거하여 유예기간 연장을 신청할 수 있습니다. - 상기 2. 주요내용에 기재된 지분율은 2023…",
+  "think_trace": "route=multi_compare difficulty=high cot=True sc=True | hop=0 strat=narrow tool=search_chunks corp=\"세아베스틸지주\" period=ym:202308 top_k=3 q=\"국민연금공단 세아베스틸지주 대해 2023 월과 2025 월에 각각 보고한 이번 보유비율 높은 값은\" n=0 top_score=- ids=- | hop=0 strat=narrow tool=search_chunks corp=\"세아베스틸지주\" period=ym:202507 top_k=3 q=\"국민연금공단 세아베스틸지주 대해 2023 월과 2025 월에 각각 보고한 이번 보유비율 높은 값은\" n=0 top_score=- ids=- | hop=0 verdict=insufficient evidence=0 reason=no_candidate | hop=1 strat=relax_period tool=search_chunks corp=\"세아베스틸지주\" period=year:2023 top_k=8 q=\"국민연금공단 세아베스틸지주 대해 2023 월과 2025 월에 각각 보고한 이번 보유비율 높은 값은\" n=0 top_score=- ids=- | hop=1 verdict=insufficient evidence=0 reason=no_candidate | hop=2 strat=corp_only tool=search_chunks corp=\"세아베스틸지주\" period=none top_k=10 q=\"국민연금공단 세아베스틸지주 대해 월과 월에 각각 보고 이번 보유비율 높은 값은\" n=0 top_score=- ids=- | hop=2 verdict=insufficient evidence=0 reason=no_candidate | hop=3 strat=global tool=search_chunks corp=\"-\" period=none top_k=10 q=\"국민연금공단 세아베스틸지주 대해 월과 월에 각각 보고 이번 보유비율 높은 값은\" n=1 top_score=10.263 ids=exchange_20231221800510 | hop=3 verdict=insufficient evidence=1 reason=few:1<2,missing_field:보유비율 | generate tokens=922+177 | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=5 hops=3 llm=1 tokens=1099",
+  "answer": "제공된 공시에는 국민연금공단의 세아베스틸지주에 대한 보유 비율 정보가 포함되어 있지 않습니다. 따라서 질문에 대한 답변을 도출하기 위해서는 추가적인 자료가 필요합니다.\n\n세아베스틸지주에 대한 국민연금공단의 보유 비율을 확인하려면 다음과 같은 방법을 고려해야 합니다:\n\n1. 국민연금공단의 공식 웹사이트나 관련 금융 정보 플랫폼에서 해당 기간 동안의 주식 보유 현황을 검색합니다.\n2. 금융감독원의 전자공시시스템(DART) 또는 한국거래소(KRX) 등에서 제공하는 자료를 통해 국민연금공단의 지분 변동을 확인합니다.\n\n이러한 경로를 통해 원하는 정보를 찾아보시기 바랍니다.\n\n공시에서 확인되지 않는 내용이므로, 정확한 답변을 제공할 수 없습니다.\n(근거: 투자판단 관련 주요경영사항, 2023-12-21, 접수번호 20231221800510)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 922,
+   "completion_tokens": 177,
+   "latency_s": 4.898,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 922,
+ "completion_tokens": 177,
+ "llm_calls": 1,
+ "latency_s": 4.917,
+ "ts": "2026-08-15T16:55:02"
+}

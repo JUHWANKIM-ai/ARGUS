@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-092",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출 답변에는 사업부문별 실제 매출액 규모나 차이가 얼마인지 나타나 있지 않습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 3197,
+   "completion_tokens": 42,
+   "latency_s": 1.672,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 3197,
+ "completion_tokens": 42
+}

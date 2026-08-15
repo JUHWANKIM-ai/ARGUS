@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-045",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출답변이 모범답안 요소를 전혀 포함하지 않고 있으며, 질문에서 요구한 정보 중 일부만 제공하고 있음",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 3734,
+   "completion_tokens": 48,
+   "latency_s": 1.847,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 3734,
+ "completion_tokens": 48
+}

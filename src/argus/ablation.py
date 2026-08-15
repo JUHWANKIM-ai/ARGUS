@@ -30,7 +30,32 @@
 
 LOO 는 **A8**(= 완성 구성)에서 플래그 하나만 되돌린다 —
 `L1 = A8 − chain_hop`, `L2 = A8 − schema_fields`, `L3 = A8 − counterparty_hop`,
-`L4 = A8 − followup_hop`.
+`L4 = A8 − followup_hop`, `L6 = A8 − corp_name`, `L7 = A8 − rcept_dt`,
+`L8 = A8 − group`.
+
+## 🔴 메타 축 LOO (`L6`·`L7`·`L8`) — v3 의 *"구조적으로 측정 불가"* 가 틀렸다
+
+v3 는 메타 프리필터(`corp_name`·접수일·인덱스 군)를 *"플래그로 표현할 자리가 없다"* 는
+이유로 LOO 표에서 비워 뒀다. 그런데 표현 자리는 있었다 — **`search_chunks` 의 인자**다.
+
+    pipeline  `args = {"query": …, "top_k": …, **cell}` + `corp_name` + `group`
+    tools     `filters["corp_name"]` · `prefix["rcept_dt"]` · `_group_index(group)`
+    LOO       **그 인자를 넘기지 않는다**
+
+그래서 이 셋은 검색 단계를 끄는 것이 아니라 **필터 축 하나를 안 거는 것**이다. 축이
+빠지면 BM25 는 그대로 돌고 후보 집합만 넓어진다 — `A1`(BM25 도입)과 방향이 반대다.
+
+    `meta_corp`   `corp_name` 필터        — 기업 축
+    `meta_date`   `ym`·`year`·`rcept_dt`  — 접수일 접두 축 (사업연도 `base_year` 는 **아니다**)
+    `meta_group`  `group`                 — 인덱스 군 축 (빠지면 `exchange` 로 떨어진다)
+
+🔴 **`base_year`·`doc_subtype` 은 건드리지 않는다.** 정기공시의 사업연도는 접수일이 아니고
+(`query.plan_section_hops` 주석 1번), 함께 떼면 `L7` 이 단일 변수 조작이 아니게 된다.
+
+🔴 **`META_UNREACHABLE_FLAGS` 에 넣을 수 없다.** 저 목록은 `True = 그 구성요소를 켠다`
+전제로 '켜져 있으면 예외' 를 던지는데, 메타 축 플래그는 **기본값이 `True`(= 축을 넘긴다)**
+라서 넣는 순간 `A0` 자신이 즉시 예외가 된다. 대신 `META_UNREACHABLE_AXES` 가
+`ORACLE_UNREACHABLE_FLAGS` 와 같은 **'기본값에서 움직였는가'** 형태로 막는다.
 
 ## 🔴 `followup_hop` 을 `chain_hop` 에서 떼어낸 이유 — 두 엣지가 한 hop 에 섞여 있었다
 
@@ -242,6 +267,17 @@ RETRIEVAL_MODES = ("meta", "exchange", "all")
 META_UNREACHABLE_FLAGS = ("hop_ladder", "chain_hop", "split_query", "counterparty_hop",
                           "followup_hop")
 
+#: 🔴 `retrieval="meta"` 에서 **기본값에서 움직이면 안 되는** 축. 뜻은
+#: `META_UNREACHABLE_FLAGS` 와 같고 **검사 형태만 다르다** — 저 목록은 `True = 켠다` 를
+#: 전제로 '켜져 있으면 예외' 인데, 메타 축 LOO 플래그는 기본값이 `True`(= 축을 넘긴다)라
+#: 같은 목록에 넣으면 `A0` 자신이 즉시 예외가 된다. 그래서
+#: `ORACLE_UNREACHABLE_FLAGS` 와 같은 '기본값에서 움직였는가' 형태로 검사한다.
+#:
+#: 근거는 코드다: `_gather_meta` 는 `search_chunks` 를 **한 번도 부르지 않고**
+#: `filter_docs` 만 쓴다. 이 축들은 `search_chunks` 인자에서만 떨어지므로 `A0` 에서
+#: 끄면 근거가 한 글자도 안 바뀐다 — `META_UNREACHABLE_FLAGS` 와 똑같은 **조용한 Δ 0**.
+META_UNREACHABLE_AXES = ("meta_corp", "meta_date", "meta_group")
+
 #: 🔴 **플래그 사이의 도달 의존.** 키가 꺼지면 값들도 반드시 함께 꺼져야 한다 —
 #: 부모 hop 안에서만 읽히는 플래그라 부모 없이 켜면 `META_UNREACHABLE_FLAGS` 와 똑같이
 #: **Δ 가 조용히 0** 이 된다. `__post_init__` 이 이 사전으로 막고, LOO 의 '단일 변수 조작'
@@ -275,8 +311,12 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
 #: `L1 + golden_oracle` 처럼 **오라클 위에서 검색 LOO 를 흉내내는 것**이다. 그 Δ 는
 #: 정의상 0 이고, 0 을 "그 구성요소는 기여가 없다" 로 읽는 사고가 이 모듈의 존재 이유다.
 #: 기준값은 `Arm` 의 **필드 기본값**이다 (= A8, 머리말 참조 — 전방참조가 필요 없다).
+#: 🔴 메타 축 셋도 여기 있다. `golden_oracle` 은 exchange 계열에서 `search_chunks` 를
+#: 아예 안 부르고, 정기공시에서는 `doc_id` 로 골든 문서를 못박아 부르므로 `corp_name` ·
+#: 접수일 접두 · `group` 어느 것도 후보 집합을 안 바꾼다.
 ORACLE_UNREACHABLE_FLAGS = ("retrieval", "dense", "hop_ladder", "chain_hop",
-                            "split_query", "counterparty_hop", "followup_hop")
+                            "split_query", "counterparty_hop", "followup_hop",
+                            "meta_corp", "meta_date", "meta_group")
 
 
 @dataclass(frozen=True)
@@ -300,6 +340,22 @@ class Arm:
     calc_values: bool = True
     verifier: bool = True
     followup_hop: bool = True
+    #: 🔴 **메타 축 LOO 셋 (`L6`·`L7`·`L8`) · v4 신설.** 다른 플래그와 달리 검색 단계를
+    #: 끄는 것이 아니라 **`search_chunks` 에 그 인자를 안 넘긴다.** BM25 는 그대로 돌고
+    #: 후보 집합만 넓어진다 (머리말 §메타 축 LOO 참조).
+    #:
+    #: 🔴 기본값 `True` 가 종전 동작이다 — 스위치를 안 건드린 운영 경로는 인자가 한 개도
+    #: 안 빠진다. `META_UNREACHABLE_AXES`·`ORACLE_UNREACHABLE_FLAGS` 가 도달 불가 자리를
+    #: 막는다 (`retrieval="meta"` 는 `filter_docs` 만 쓰고, `golden_oracle` 은 골든 주입).
+    #:
+    #: `meta_corp`  — `corp_name` 필터 (`tools.search_chunks` → `filters["corp_name"]`)
+    meta_corp: bool = True
+    #: `meta_date`  — 접수일 접두 (`ym`·`year`·`rcept_dt` → `prefix["rcept_dt"]`).
+    #: 🔴 정기공시의 `base_year`(사업연도)는 **다른 축**이라 함께 떼지 않는다.
+    meta_date: bool = True
+    #: `meta_group` — 인덱스 군 (`group`). 빠지면 `tools.search_chunks` 의
+    #: `target = group if group in RECORD_GROUPS else "exchange"` 가 exchange 로 떨어진다.
+    meta_group: bool = True
     #: 🔴 **ORACLE 전용 · 진단용이고 제출 구성이 될 수 없다** (평가 시점에 골든이 없다).
     #: 참이면 `pipeline.answer_question` 이 검색 대신 골든 근거를 싣는다. 기본값 False 가
     #: G1 격리(`dense`)와 같은 역할을 한다 — 스위치를 안 건드린 운영 경로는 골든을
@@ -368,6 +424,28 @@ class Arm:
     #: 🔴 재생성 결과에 검사가 **여전히 발화하면 원본을 쓴다.**
     #: 🔴 `verifier=False` 와는 함께 켤 수 없다 (`FLAG_DEPENDENCIES`).
     regenerate_on_verify: bool = False
+    #: 🔴 **`A18`(= `T1-targeted`) 전용.** 참이면 `agent/tools._group_records` 가
+    #: `artifacts/nary_records.jsonl` 의 LLM 추출값을 근거 마크다운에 **덧붙인다.**
+    #: 기본값 `False` 가 종전 동작이고, 파일이 없으면 켜도 아무 일이 안 일어난다.
+    #:
+    #: 🔴 **덮어쓰기가 아니라 합집합이다.** 규칙이 이미 뽑은 라벨(`금액`·`계약상대`·
+    #: `기간`·`대상`)이 그 레코드의 마크다운에 있으면 그 항목은 **건너뛴다.** 규칙의
+    #: 산출물을 LLM 산출물로 갈아치우면 이 arm 이 재는 것이 '추가' 가 아니라 '교체' 가
+    #: 되고, `L2`(노드 속성 LOO)의 −15.3%p 와 겨냥이 겹쳐 Δ 의 귀속이 깨진다.
+    #:
+    #: 🔴 **코퍼스 파일은 한 바이트도 안 바뀐다.** 덧붙임은 런타임에 사본 위에서만
+    #: 일어난다 — `artifacts/*_records.jsonl` 을 고치면 BM25 색인 문자열이 갈려
+    #: v1~v4 의 측정이 전량 무효가 된다. 그래서 **BM25 점수도 안 바뀐다**: 색인은
+    #: 미리 빌드된 파일이고 이 플래그는 검색 **뒤에** 실리는 근거 문자열만 건드린다.
+    #:
+    #: 🔴 `META_UNREACHABLE_FLAGS`·`ORACLE_UNREACHABLE_FLAGS` 에 **넣지 않는다** —
+    #: `_gather_meta`(pipeline.py:1465)도 `_oracle_evidence`(1820)도 `tools._record_of`
+    #: 로 같은 레코드를 읽으므로 두 경로 모두에서 코드가 도달한다.
+    #:
+    #: 🔴 **겨냥 0 인데도 세운 유일한 arm 이다** (계획서 §13 ③ · 사용자 판단).
+    #: `R0-1` 이 238건 중 새로 회수 가능 13건 · 그중 평가셋 골든 **0건**을 실측했고
+    #: **Δ = 0 을 예측으로 박아 뒀다.** 그 예외임을 제안서 §7 이 명시해야 한다.
+    nary: bool = False
 
     def __post_init__(self) -> None:
         if self.retrieval not in RETRIEVAL_MODES:
@@ -379,6 +457,15 @@ class Arm:
                     f"retrieval='meta' 는 `_gather_meta` 뒤에서 즉시 반환하므로 {on} 은 "
                     f"켜도 코드가 도달하지 않습니다 — Δ 가 조용히 0 이 됩니다 (arm {self.name!r}). "
                     f"BM25 이후 arm 에 붙이십시오.")
+            fields = type(self).__dataclass_fields__
+            moved = [f for f in META_UNREACHABLE_AXES
+                     if getattr(self, f) != fields[f].default]
+            if moved:
+                raise ValueError(
+                    f"retrieval='meta' 는 `filter_docs` 만 쓰고 `search_chunks` 를 한 번도 "
+                    f"부르지 않으므로 {moved} 를 기본값에서 움직여도 근거가 안 바뀝니다 — "
+                    f"Δ 가 조용히 0 이 됩니다 (arm {self.name!r}). 메타 축 LOO 는 BM25 arm "
+                    f"위에서 재십시오.")
         for parent, children in FLAG_DEPENDENCIES.items():
             if getattr(self, parent):
                 continue
@@ -438,6 +525,16 @@ L3 = replace(A8, name="L3", counterparty_hop=False)
 #: 1문항(Q-035)임을 사전 실측으로 확인했다(머리말). 그 15원으로 "REFERS_TO 는 이 코호트에서
 #: 기여 0" 을 주장이 아니라 측정으로 바꾼다.
 L4 = replace(A8, name="L4", followup_hop=False)
+#: 🔴 **메타 축 LOO 셋 (v4 신설).** `L5` 는 v3 가 기각한 이름이라 **비워 두고 건너뛴다** —
+#: 재사용하면 v3 산출물의 `L5` 와 같은 칸으로 읽힌다.
+#:
+#: 이 셋이 `LOO_REMOVED` 에 들어가는 것이 핵심이다. 곁가지(`A20`·`A21`…)와 달리
+#: **LOO 표의 빈칸을 메우는 것**이고, 제안서 §6 의 기여도 곡선이 그 공백을 안고 있다.
+#: 🔴 Δ 는 크게 음수일 것이 거의 확실하다 — 메타 프리필터가 `A0` 의 본체이기 때문이고,
+#: 그래서 이 셋은 '뺄 후보' 가 아니라 **'A0 의 기여를 A8 위에서 다시 재는 것'** 이다.
+L6 = replace(A8, name="L6", meta_corp=False)
+L7 = replace(A8, name="L7", meta_date=False)
+L8 = replace(A8, name="L8", meta_group=False)
 
 # --- A2 — 임베딩 하이브리드 (사다리 밖 곁가지) ----------------------------------
 A2 = replace(A1B, name="A2", dense=True)            # §I-2 자리: A1b + dense
@@ -491,6 +588,24 @@ A21 = replace(A8, name="A21", provenance_gate=True)
 #: 🔴 `LADDER`·`LOO_REMOVED` 에 넣지 않는다 — `A8-lean`·`A20`·`A21` 과 같은 곁가지다.
 A20R = replace(A8, name="A20r", regenerate_on_verify=True, provenance_gate=True)
 
+# --- A18 — `T1-targeted` n-ary 추출 (사다리 밖 곁가지 · v4 신설) ------------------
+#: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 `schema_matched=False` 238건의 근거에
+#: `artifacts/nary_records.jsonl` 의 LLM 추출값을 **덧붙인다**(합집합 · 덮어쓰기 아님).
+#: 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** — `A8-lean`·`A20`·`A21` 과 같은 곁가지다.
+#:
+#: 🔴 **이 저장소의 "겨냥 0 이면 세우지 않는다" 규칙을 의도적으로 예외 처리한 유일한 arm**
+#: 이다 (계획서 §13 ③ · 사용자 판단 2026-08-14). 사유는 *"`T1` 은 논문 아이디어 10편 중
+#: 하나라 제안서에서 안 재고 기각보다 재고 기각이 강하다"* 이고, **그 예외임을 제안서
+#: §7 에 명시**해야 한다 — 기준을 조용히 바꾼 것으로 읽히면 다른 기각의 신뢰도가 함께
+#: 떨어진다.
+#:
+#: 🔴 **Δ = 0 이 예측으로 먼저 박혔다** (`R0-1` `2c0558b` · 계획서 §9pre). 근거 넷:
+#: ① 현 실패 6문항 중 `schema_matched=False` 근거를 가진 것은 `Q-087` 하나이고 그 정답은
+#: `schema_matched=True` 레코드에 있다 ② `T1` 이 새로 회수 가능한 13 레코드 중 평가셋
+#: 골든이 **0건** ③ 밸류체인은 근거·골든 양쪽에 false 레코드가 0건 ④ `Q-101` 은 이미 정답.
+#: **틀리면 238건 판정 전체를 재검토하라** (계획서 §9pre 의 어긋남 표).
+A18 = replace(A8, name="A18", nary=True)
+
 #: 실행 순서는 **A8 부터 역순**이다 (§I-4b) — 가장 비싼 구성을 먼저 확보해야
 #: 중간에 예산이 끊겨도 최신 성능을 안다. A2 계열은 사다리를 다 확보한 뒤 맨 끝이다 —
 #: G1 불허로 A2 를 버려도 앞의 여덟 칸이 그대로 남아야 한다.
@@ -503,8 +618,14 @@ A20R = replace(A8, name="A20r", regenerate_on_verify=True, provenance_gate=True)
 #: arm 과 진단 arm 보다 먼저 확보해야 한다.
 #: 🔴 `A20r` 은 `A20` 바로 뒤다 — **나란히 재는 짝**이라 둘 사이를 다른 arm 이 갈라
 #: 놓으면 정지선이 하나만 확보하고 끊길 때 그 비교가 통째로 사라진다.
-RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
-             "A8-lean", "A20", "A20r", "A21", "A2F", "A2", "ORACLE")
+#: 🔴 `L6`·`L7`·`L8` 은 `L4` 바로 뒤다 — LOO 는 한 덩어리로 확보해야 표가 완성된다.
+#: 🔴 `A18` 은 `A21` 뒤 · dense 앞이다 — **채택 후보가 아니라 기각 예정 arm**이라
+#: (`R0-1` 겨냥 0 · Δ=0 예측) 채택 후보 넷(`A8-lean`·`A20`·`A20r`·`A21`)을 먼저
+#: 확보한 뒤에 선다. 그래도 G1 미확정인 dense·진단 arm 보다는 앞이다 — 이쪽은
+#: **제안서 §7 의 논거**로 반드시 필요하고 저쪽은 아니다.
+RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
+             "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
+             "A8-lean", "A20", "A20r", "A21", "A18", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
 LADDER = ("A0", "A1", "A1b", "A4", "A5", "A6", "A7", "A8")
@@ -519,7 +640,14 @@ LOO_REMOVED = {"L1": "CHAIN_HOP 전체 (정정체인 550엣지 + 관련공시 �
                #    둘 다 출처가 `※ 관련공시` 셀이라 `include_followups` 가 같이 가린다.
                #    값은 그대로 옳지만 라벨이 낡으면 Δ 의 뜻이 잘못 인용된다.
                "L4": "관련공시 REFERS_TO 계열 — 후속공시(역방향) + 해지→원계약"
-                     "(순방향) 둘 다 (정정체인은 유지)"}
+                     "(순방향) 둘 다 (정정체인은 유지)",
+               # 🔴 메타 축 셋 (v4). '검색을 끈다' 가 아니라 '필터 인자를 안 넘긴다' 이므로
+               #    라벨에 그 사실을 적는다 — "기업 축" 이라고만 적으면 BM25 까지 끈 것으로
+               #    읽힌다.
+               "L6": "search_chunks 의 corp_name 필터 (기업 축 · BM25 는 그대로)",
+               "L7": "search_chunks 의 접수일 접두 ym·year·rcept_dt "
+                     "(사업연도 base_year 는 유지)",
+               "L8": "search_chunks 의 group 인자 (인덱스 군 축 — exchange 로 떨어진다)"}
 
 #: dense 를 켜는 arm. G1 이 불허로 확정되면 **이 둘만 빼면 된다.**
 DENSE_ARMS = ("A2", "A2F")
@@ -530,8 +658,8 @@ DENSE_ARMS = ("A2", "A2F")
 DIAGNOSTIC_ARMS = ("ORACLE",)
 
 ARMS: dict[str, Arm] = {a.name: a for a in
-                        (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, A2, A2F,
-                         ORACLE, A8_LEAN, A20, A20R, A21)}
+                        (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, L6, L7, L8,
+                         A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은

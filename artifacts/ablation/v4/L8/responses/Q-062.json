@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-062",
+ "response": {
+  "question_id": "Q-062",
+  "question": "한화솔루션이 2026년 3월 26일 결의한 유상증자에서 채무상환자금으로 조달하려는 금액은 얼마인가?",
+  "retrieved_context": "## [투자판단 관련 주요경영사항] 한화솔루션 – 투자판단 관련 주요경영사항\n- 공시일: 2026-03-20 (접수번호 20260320800727)\n- 섹터: 신재생에너지\n- 확정일: 2026-03-20\n- 제목: 기업활력 제고를 위한 특별법에 따른 공동사업재편계획 승인 심사 신청\n- 주요내용: 당사는 『기업활력 제고를 위한 특별법』에 따른 석유화학 산업 경쟁력 제고 정책에 부응하고, 국내 석유화학 산업의 구조적 공급과잉 해소 및 경쟁력 강화를 위한 산업 구조개편에 참여하기 위하여, 2026년 3월 20일 산업통상부에 롯데케미칼㈜, DL케미칼㈜, 여천NCC㈜와 공동으로 사업재편계획 승인 심사를 신청하였습니다. 사업재편계획(안)은 국내 석유화학 산업의 구조적 과잉 문제로 지적되어 온 납사 크래커(NCC) 설비의 합리화를 위해, 당사 여수 PE 및 석유수지사업을 여천NCC(주)에 현물출자한 뒤, 한화솔루션(주)와 DL케미칼(주…\n- 기타 투자판단과 관련한 중요사항: - 상기 사업재편계획은 각 정부기관의 심사 절차가 진행중인 사안으로 기관 별 심사결과 등에 따라 승인 여부, 추진 일정, 재무적 영향, 정부의 지원사항 등이 달라질 수 있습니다. 당사는 승인 결과를 포함한 주요 사항이 확정되는 즉시, 관련 규정에 따라 추가 공시를 통해 안내드릴 예정입니다.\n\n## [기재정정] [신규 시설투자] 한화솔루션 – 신규시설투자등 — CA 제조설비\n- 공시일: 2023-02-16 (접수번호 20230216800315)\n- 섹터: 신재생에너지\n- 투자금액: 430,000,000,000원 (4,300억원)\n- 자기자본 대비: 7.21%\n- 기간: 2021-12-21 ~ 2024-12-31 (3년 0개월)\n- 확정일: 2023-02-16\n\n## [투자판단 관련 주요경영사항] 한화솔루션 – 투자판단 관련 주요경영사항\n- 공시일: 2024-02-22 (접수번호 20240222800238)\n- 섹터: 신재생에너지\n- 금액: 500,000,000,000원 (5,000억원)\n- 확정일: 2024-02-22\n\n## [투자판단 관련 주요경영사항] 한화솔루션 – 투자판단 관련 주요경영사항\n- 공시일: 2025-03-25 (접수번호 20250325800910)\n- 섹터: 신재생에너지\n- 확정일: 2025-03-25\n- 제목: 자금보충 합의 체결\n- 주요내용: ○ 개요 당사는 해외 종속회사인 Hanwha Q CELLS Americas Holdings Corp.이 차주로써 조달하는 신종자본대출 (이하 \"대출약정\") (총 대출약정금액 금 사천오백억원 상당 미달러화) 관련, 대주인 키스온제오차 주식회사, 키스온제육차 주식회사, 필릭스대신큐아 주식회사 (이하 총칭하여 \"SPC\")와 자금보충에 관한 합의서를 체결하기로 결정 ○ 세부내역 Hanwha Q CELLS Americas Holdings Corp.는 신종자본대출에 대한 원리금을 각 SPC에 지급하고, 각 SPC는 Hanwha Q CELLS …\n- 기타 투자판단과 관련한 중요사항: - 상기 2.주요내용의 자금보충에 관한 합의서 체결 예정일은 진행 과정에서 변경될 수 있습니다.",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"한화솔루션\" period=ym:202603 top_k=5 q=\"한화솔루션 2026 26 결의한 유상증자 채무상환자금 조달하려 금액 얼마인\" n=1 top_score=19.960 ids=exchange_20260320800727 | hop=0 verdict=insufficient evidence=1 reason=missing_field:금액 | hop=1 strat=relax_period tool=search_chunks corp=\"한화솔루션\" period=year:2026 top_k=8 q=\"한화솔루션 2026 26 결의한 유상증자 채무상환자금 조달하려 금액 얼마인\" n=1 top_score=19.960 ids=exchange_20260320800727 | hop=1 verdict=insufficient evidence=1 reason=missing_field:금액 | hop=2 strat=corp_only tool=search_chunks corp=\"한화솔루션\" period=none top_k=10 q=\"한화솔루션 결의 유상증자 채무상환자금 조달하려\" n=4 top_score=29.881 ids=exchange_20230216800315,exchange_20240222800238,exchange_20250325800910,exchange_20260320800727 | hop=2 verdict=sufficient evidence=4 | generate tokens=1259+66 | 근거 표기 누락 — critic 호출 | critic supported=False reason=답변이 질문과 직접적으로 관련이 없으며, 제공된 근거에는 유상증자에 대한 언급이 없습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=3 hops=2 llm=2 tokens=2393",
+  "answer": "공시에서 한화솔루션이 2026년 3월 26일에 결의한 유상증자와 관련된 내용을 찾을 수 없습니다. 따라서 질문에 대한 답변을 제공할 수 없습니다.\n\n더 자세한 정보를 얻기 위해서는 해당 날짜에 해당하는 구체적인 공시나 보도자료를 확인하는 것이 필요합니다. (근거: 없음)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 답변이 질문과 직접적으로 관련이 없으며, 제공된 근거에는 유상증자에 대한 언급이 없습니다.)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 1259,
+   "completion_tokens": 66,
+   "latency_s": 1.874,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 1021,
+   "completion_tokens": 47,
+   "latency_s": 1.481,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 2280,
+ "completion_tokens": 113,
+ "llm_calls": 2,
+ "latency_s": 3.369,
+ "ts": "2026-08-15T16:56:14"
+}

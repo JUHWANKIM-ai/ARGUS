@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-08-15T13:43:56",
+  "generated": "2026-08-15T16:58:13",
   "cohort": "valuechain",
   "n_cases": 12,
   "question_ids": [
@@ -17,8 +17,8 @@
    "Q-117",
    "Q-118"
   ],
-  "budget_won": 1500.0,
-  "stop_won": 1200.0,
+  "budget_won": 12000.0,
+  "stop_won": 9600.0,
   "price_won_per_1k": 7.02,
   "index_snapshot": {
    "artifacts/exchange_bm25.json": "e43eceee9d54d8d8:1044414",
@@ -38,6 +38,7 @@
   "spent_won": 123.6,
   "spent_won_source": "arm·코호트별 run.json 합 (하위 폴더 포함)",
   "spent_won_by_arm": {
+   "A18": 0.0,
    "A20": 0.0,
    "A20r": 123.6,
    "A21": 0.0,
@@ -51,8 +52,8 @@
   "fresh_completion_tokens": 0,
   "cache_stats_are_this_process": true,
   "this_run": {
-   "A21": {
-    "arm": "A21",
+   "A18": {
+    "arm": "A18",
     "n_run": 12,
     "stopped_at": null,
     "spent_won": 0.0,
@@ -67,7 +68,7 @@
       "prompt_tokens": 4481,
       "completion_tokens": 375,
       "judge_tokens": 0,
-      "latency_s": 0.194
+      "latency_s": 0.197
      },
      {
       "question_id": "Q-108",
@@ -79,7 +80,7 @@
       "prompt_tokens": 3987,
       "completion_tokens": 422,
       "judge_tokens": 2210,
-      "latency_s": 0.015
+      "latency_s": 0.018
      },
      {
       "question_id": "Q-109",
@@ -103,7 +104,7 @@
       "prompt_tokens": 4465,
       "completion_tokens": 455,
       "judge_tokens": 2533,
-      "latency_s": 0.012
+      "latency_s": 0.013
      },
      {
       "question_id": "Q-111",
@@ -115,7 +116,7 @@
       "prompt_tokens": 2430,
       "completion_tokens": 175,
       "judge_tokens": 0,
-      "latency_s": 0.016
+      "latency_s": 0.018
      },
      {
       "question_id": "Q-112",
@@ -139,7 +140,7 @@
       "prompt_tokens": 4618,
       "completion_tokens": 357,
       "judge_tokens": 0,
-      "latency_s": 0.031
+      "latency_s": 0.03
      },
      {
       "question_id": "Q-114",
@@ -151,7 +152,7 @@
       "prompt_tokens": 2840,
       "completion_tokens": 206,
       "judge_tokens": 1532,
-      "latency_s": 0.011
+      "latency_s": 0.012
      },
      {
       "question_id": "Q-115",
@@ -163,7 +164,7 @@
       "prompt_tokens": 4125,
       "completion_tokens": 356,
       "judge_tokens": 0,
-      "latency_s": 0.026
+      "latency_s": 0.025
      },
      {
       "question_id": "Q-116",
@@ -203,16 +204,7 @@
      }
     ]
    }
-  },
-  "stale_parents": [
-   {
-    "path": "artifacts/ablation/v4/summary.json",
-    "stored_won": 93.1,
-    "actual_won": 216.7,
-    "gap_won": 123.6,
-    "prescription": "`--arm` 없이 코호트만 주는 재집계`(--offline)`로 artifacts/ablation/v4/summary.json 를 다시 쓴다 (LLM 0회 · 0원). 그 파일의 `spent_won` 은 하위 폴더를 포함하는 재귀 합이라 하위 코호트를 유료로 돌리면 반드시 낡는다."
-   }
-  ]
+  }
  },
  "summary": {
   "arms": {
@@ -223,8 +215,8 @@
     "rate_reported": null,
     "n_grid": 0,
     "data_limit": 0,
-    "overall": 0.583,
-    "overall_correct": 7,
+    "overall": 0.5,
+    "overall_correct": 6,
     "overall_n_scored": 12,
     "info_limit_correct": 0,
     "info_limit_n": 0,
@@ -233,11 +225,11 @@
      "valuechain": {
       "n": 12,
       "n_scored": 12,
-      "correct": 7,
-      "rate": 0.583,
+      "correct": 6,
+      "rate": 0.5,
       "data_limit": 0,
       "stages": {
-       "RETRIEVAL": 3,
+       "RETRIEVAL": 4,
        "TOOL": 2
       }
      }
@@ -248,15 +240,15 @@
     "latency_s_mean_recorded": 0.03,
     "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
     "failures": {
-     "RETRIEVAL": 3,
+     "RETRIEVAL": 4,
      "TOOL": 2
     },
     "failures_all": {
-     "RETRIEVAL": 3,
+     "RETRIEVAL": 4,
      "TOOL": 2
     },
     "root_causes": {
-     "RETRIEVAL/MULTI_POINT_QUERY": 2,
+     "RETRIEVAL/MULTI_POINT_QUERY": 3,
      "TOOL/TOOL": 2,
      "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1
     },
@@ -273,11 +265,15 @@
      "calc_values": true,
      "verifier": true,
      "followup_hop": true,
+     "meta_corp": true,
+     "meta_date": true,
+     "meta_group": true,
      "golden_oracle": false,
      "lean_rules": false,
      "substitute_verified": false,
      "provenance_gate": false,
-     "regenerate_on_verify": false
+     "regenerate_on_verify": false,
+     "nary": false
     },
     "golden_evidence_all": 0,
     "golden_evidence_hit": 0,
@@ -301,8 +297,8 @@
     "rate_reported": null,
     "n_grid": 0,
     "data_limit": 0,
-    "overall": 0.583,
-    "overall_correct": 7,
+    "overall": 0.5,
+    "overall_correct": 6,
     "overall_n_scored": 12,
     "info_limit_correct": 0,
     "info_limit_n": 0,
@@ -311,11 +307,11 @@
      "valuechain": {
       "n": 12,
       "n_scored": 12,
-      "correct": 7,
-      "rate": 0.583,
+      "correct": 6,
+      "rate": 0.5,
       "data_limit": 0,
       "stages": {
-       "RETRIEVAL": 3,
+       "RETRIEVAL": 4,
        "TOOL": 2
       }
      }
@@ -326,15 +322,15 @@
     "latency_s_mean_recorded": 0.03,
     "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
     "failures": {
-     "RETRIEVAL": 3,
+     "RETRIEVAL": 4,
      "TOOL": 2
     },
     "failures_all": {
-     "RETRIEVAL": 3,
+     "RETRIEVAL": 4,
      "TOOL": 2
     },
     "root_causes": {
-     "RETRIEVAL/MULTI_POINT_QUERY": 2,
+     "RETRIEVAL/MULTI_POINT_QUERY": 3,
      "TOOL/TOOL": 2,
      "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1
     },
@@ -351,11 +347,15 @@
      "calc_values": true,
      "verifier": true,
      "followup_hop": true,
+     "meta_corp": true,
+     "meta_date": true,
+     "meta_group": true,
      "golden_oracle": false,
      "lean_rules": false,
      "substitute_verified": true,
      "provenance_gate": false,
-     "regenerate_on_verify": false
+     "regenerate_on_verify": false,
+     "nary": false
     },
     "golden_evidence_all": 0,
     "golden_evidence_hit": 0,
@@ -429,11 +429,15 @@
      "calc_values": true,
      "verifier": true,
      "followup_hop": true,
+     "meta_corp": true,
+     "meta_date": true,
+     "meta_group": true,
      "golden_oracle": false,
      "lean_rules": false,
      "substitute_verified": false,
      "provenance_gate": true,
-     "regenerate_on_verify": true
+     "regenerate_on_verify": true,
+     "nary": false
     },
     "golden_evidence_all": 0,
     "golden_evidence_hit": 0,
@@ -457,8 +461,8 @@
     "rate_reported": null,
     "n_grid": 0,
     "data_limit": 0,
-    "overall": 0.583,
-    "overall_correct": 7,
+    "overall": 0.5,
+    "overall_correct": 6,
     "overall_n_scored": 12,
     "info_limit_correct": 0,
     "info_limit_n": 0,
@@ -467,11 +471,11 @@
      "valuechain": {
       "n": 12,
       "n_scored": 12,
-      "correct": 7,
-      "rate": 0.583,
+      "correct": 6,
+      "rate": 0.5,
       "data_limit": 0,
       "stages": {
-       "RETRIEVAL": 3,
+       "RETRIEVAL": 4,
        "TOOL": 2
       }
      }
@@ -482,15 +486,15 @@
     "latency_s_mean_recorded": 0.03,
     "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
     "failures": {
-     "RETRIEVAL": 3,
+     "RETRIEVAL": 4,
      "TOOL": 2
     },
     "failures_all": {
-     "RETRIEVAL": 3,
+     "RETRIEVAL": 4,
      "TOOL": 2
     },
     "root_causes": {
-     "RETRIEVAL/MULTI_POINT_QUERY": 2,
+     "RETRIEVAL/MULTI_POINT_QUERY": 3,
      "TOOL/TOOL": 2,
      "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1
     },
@@ -507,11 +511,97 @@
      "calc_values": true,
      "verifier": true,
      "followup_hop": true,
+     "meta_corp": true,
+     "meta_date": true,
+     "meta_group": true,
      "golden_oracle": false,
      "lean_rules": false,
      "substitute_verified": false,
      "provenance_gate": true,
-     "regenerate_on_verify": false
+     "regenerate_on_verify": false,
+     "nary": false
+    },
+    "golden_evidence_all": 0,
+    "golden_evidence_hit": 0,
+    "golden_total": 0,
+    "golden_unreachable": 0,
+    "golden_recall": {
+     "hit": 34,
+     "denominator_raw": 46,
+     "unreachable": 3,
+     "unreachable_missed": 3,
+     "denominator_adjusted": 43,
+     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
+    },
+    "diagnostic": false,
+    "diagnostic_note": null
+   },
+   "A18": {
+    "correct": 0,
+    "n_scored": 0,
+    "rate": null,
+    "rate_reported": null,
+    "n_grid": 0,
+    "data_limit": 0,
+    "overall": 0.5,
+    "overall_correct": 6,
+    "overall_n_scored": 12,
+    "info_limit_correct": 0,
+    "info_limit_n": 0,
+    "hallucination": 0,
+    "tracks": {
+     "valuechain": {
+      "n": 12,
+      "n_scored": 12,
+      "correct": 6,
+      "rate": 0.5,
+      "data_limit": 0,
+      "stages": {
+       "RETRIEVAL": 4,
+       "TOOL": 2
+      }
+     }
+    },
+    "tokens": 53786,
+    "arm_cost_won": 377.6,
+    "llm_calls": 22,
+    "latency_s_mean_recorded": 0.03,
+    "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+    "failures": {
+     "RETRIEVAL": 4,
+     "TOOL": 2
+    },
+    "failures_all": {
+     "RETRIEVAL": 4,
+     "TOOL": 2
+    },
+    "root_causes": {
+     "RETRIEVAL/MULTI_POINT_QUERY": 3,
+     "TOOL/TOOL": 2,
+     "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1
+    },
+    "citation_rate": 0.167,
+    "flags": {
+     "name": "A18",
+     "retrieval": "all",
+     "schema_fields": true,
+     "dense": false,
+     "hop_ladder": true,
+     "chain_hop": true,
+     "counterparty_hop": true,
+     "split_query": true,
+     "calc_values": true,
+     "verifier": true,
+     "followup_hop": true,
+     "meta_corp": true,
+     "meta_date": true,
+     "meta_group": true,
+     "golden_oracle": false,
+     "lean_rules": false,
+     "substitute_verified": false,
+     "provenance_gate": false,
+     "regenerate_on_verify": false,
+     "nary": true
     },
     "golden_evidence_all": 0,
     "golden_evidence_hit": 0,
@@ -551,6 +641,11 @@
       "correct": 0,
       "n": 0,
       "rate": null
+     },
+     "A18": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
      }
     },
     "중": {
@@ -573,6 +668,11 @@
       "correct": 0,
       "n": 0,
       "rate": null
+     },
+     "A18": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
      }
     },
     "상": {
@@ -592,6 +692,11 @@
       "rate": null
      },
      "A21": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A18": {
       "correct": 0,
       "n": 0,
       "rate": null
@@ -619,6 +724,11 @@
       "correct": 0,
       "n": 0,
       "rate": null
+     },
+     "A18": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
      }
     },
     "open": {
@@ -638,6 +748,11 @@
       "rate": null
      },
      "A21": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A18": {
       "correct": 0,
       "n": 0,
       "rate": null
@@ -665,6 +780,11 @@
       "correct": 0,
       "n": 0,
       "rate": null
+     },
+     "A18": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
      }
     },
     "multi_compare": {
@@ -684,6 +804,11 @@
       "rate": null
      },
      "A21": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A18": {
       "correct": 0,
       "n": 0,
       "rate": null
@@ -709,6 +834,11 @@
       "correct": 0,
       "n": 0,
       "rate": null
+     },
+     "A18": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
      }
     }
    }
@@ -730,6 +860,10 @@
     "A21": {
      "correct": 0,
      "n": 0
+    },
+    "A18": {
+     "correct": 0,
+     "n": 0
     }
    },
    "중": {
@@ -748,6 +882,10 @@
     "A21": {
      "correct": 0,
      "n": 0
+    },
+    "A18": {
+     "correct": 0,
+     "n": 0
     }
    },
    "상": {
@@ -764,6 +902,10 @@
      "n": 0
     },
     "A21": {
+     "correct": 0,
+     "n": 0
+    },
+    "A18": {
      "correct": 0,
      "n": 0
     }

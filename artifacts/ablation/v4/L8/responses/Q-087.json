@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-087",
+ "response": {
+  "question_id": "Q-087",
+  "question": "이마트가 2024년 6월 4일 공시한 에스에스지닷컴 지분 매매계약은 그해 11월 정정됐다. 정정으로 확정된 매수인은 누구인가?",
+  "retrieved_context": "## [투자판단 관련 주요경영사항] 이마트 – 투자판단 관련 주요경영사항\n- 정정체인: 1/2 (원공시 · 대체됨)\n- 공시일: 2024-06-04 (접수번호 20240604800108)\n- 섹터: 소비재·유통\n- 확정일: 2024-06-04\n- 제목: 투자자 보유 (주)에스에스지닷컴 지분 매매계약에 관한 사항\n- 주요내용: 당사와 주식회사 신세계(\"신세계\", 당사 및 신세계를 통칭하여 \"대주주\")는 주식회사 에스에스지닷컴(\"대상회사\")의 투자자인 Convergent TradeChannels Kft.(\"AEPⅠ\"), Commercial TradeGroup L.P.(\"AEPⅡ\"), BRAXA Asia Fund I, L.P.(\"BRVⅠ\"), 브락사아시아투 유한회사(\"BRVⅡ\"; AEPⅠ, AEP Ⅱ, BRVⅠ 및 BRVⅡ를 통칭하여 \"매도인\")와 매도인이 소유한 대상회사의 주식(이하 \"대상주식\")에 관한 계약을 체결함 1) 매도인 : AEPⅠ, AEPⅡ, …\n- 기타 투자판단과 관련한 중요사항: ○ 2024년 12월 31일까지 당사를 포함한 대주주가 매도인에게 매수인을 지정통지하지 않을 경우, 대주주는 대상회사에 대한 각각의 지분비율에 따라 대상주식 전체의 매수의무를 부담할 예정이고, 당사가 대상주식을 매수하게 될 경우 당사가 부담할 주식매매대금은 2023 사업연도말 자기자본의 2.5%이상에 해당하여, 타법인 주식 및 출자증권 취득 결정 공시를 할 예정입니다. (자기자본 : 13,834,230,770,289원) ○ 본 계약내용은 협의진행 경과에 따라 변동될 수 있습니다.\n\n## [기재정정] [투자판단 관련 주요경영사항] 이마트 – 투자판단 관련 주요경영사항\n- 정정체인: 2/2 (최신본)\n- 공시일: 2024-11-14 (접수번호 20241114800538)\n- 섹터: 소비재·유통\n- 매매금액: 1,150,000,000,000원 (11,500억원)\n- 확정일: 2024-11-14",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"이마트\" period=ym:202406 top_k=5 q=\"이마트 2024 공시한 에스에스지닷컴 지분 매매계약 그해 11 정정됐다 정정 확정된 매수인 누구인\" n=1 top_score=70.119 ids=exchange_20240604800108 | hop=5 strat=chain tool=get_history corp=\"이마트\" rcept=20240604800108 latest=20241114800538 chain_length=2 n=1 top_score=- ids=exchange_20241114800538 | hop=0 verdict=sufficient evidence=2 | generate tokens=1101+103 | 근거 표기 누락 — critic 호출 | critic supported=True reason=답변은 원공시와 정정공시에 명시된 내용을 바탕으로 매수인 정보가 제공되지 않았음을 정확히 설명합니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=2 tokens=2023",
+  "answer": "정정공시로 확정된 매수인에 대한 정보는 공시에서 확인되지 않습니다.\n\n원공시와 정정공시 모두 '2024년 12월 31일까지 당사를 포함한 대주주가 매도인에게 매수인을 지정통지하지 않을 경우'에 대한 내용을 포함하고 있으나, 실제 매수인이 누구인지에 대한 내용은 포함되어 있지 않습니다. 따라서, 정정으로 확정된 매수인에 대한 정보를 제공해드릴 수 없습니다.\n\n추가로 궁금하신 내용이 있으시다면 말씀해 주시기 바랍니다."
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 1101,
+   "completion_tokens": 103,
+   "latency_s": 2.687,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 769,
+   "completion_tokens": 50,
+   "latency_s": 1.566,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1870,
+ "completion_tokens": 153,
+ "llm_calls": 2,
+ "latency_s": 0.009,
+ "ts": "2026-08-15T16:55:05"
+}

@@ -1,6 +1,6 @@
 # Phase H — 3축 교차집계 (dev)
 
-생성 2026-08-15 13:43 · 자동 생성물 (`scripts/error_analysis.py`)
+생성 2026-08-15 16:58 · 자동 생성물 (`scripts/error_analysis.py`)
 
 셀 표기 = `정답/채점대상` + 실패단계. **채점 대상에서 DATA_LIMIT 은 뺐다.**
 

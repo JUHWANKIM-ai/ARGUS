@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-15T15:27:28",
+ "generated": "2026-08-15T17:00:14",
  "split": "dev",
  "cohort": "safety",
  "n_cases": 12,
@@ -341,7 +341,7 @@
  "arm_allocation_reconciliation": {
   "authoritative": "manual",
   "note": "자동 분류기는 A5 를 구조적으로 못 본다 — `verify_calculation` 이 답변 수치 중 최유리 값을 골라 비교하므로 10× 단위환산 오류가 `mismatch=False` 로 통과하고, TOOL 버킷이 그리드에서 0건이 된다. arm 확정은 원문 대조(`TARGETED_BY_MANUAL_REVIEW`)의 몫이다.",
-  "denominator_note": "자동 = 그리드만 0건 · 수동 = 전 트랙 6건",
+  "denominator_note": "자동 = 그리드만 0건 · 수동 = 전 트랙 7건",
   "by_arm": [
    {
     "arm": "A4",
@@ -353,7 +353,7 @@
     "arm": "A5",
     "auto_grid": 0,
     "auto_all_tracks": 0,
-    "manual_all_tracks": 2
+    "manual_all_tracks": 3
    },
    {
     "arm": "A6",
@@ -1494,10 +1494,14 @@
   "calc_values": true,
   "verifier": true,
   "followup_hop": true,
+  "meta_corp": true,
+  "meta_date": true,
+  "meta_group": true,
   "golden_oracle": false,
   "lean_rules": false,
   "substitute_verified": false,
   "provenance_gate": true,
-  "regenerate_on_verify": true
+  "regenerate_on_verify": true,
+  "nary": false
  }
 }

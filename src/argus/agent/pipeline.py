@@ -1239,6 +1239,40 @@ def _join_section_evidence(picked: list[dict]) -> str:
     return "\n\n".join(out)
 
 
+#: 🔴 **메타 축 LOO (`L6`·`L7`·`L8`) 가 떼는 `search_chunks` 인자.** 축마다 뜻이 하나여야
+#: 단일 변수 조작이 성립한다:
+#:
+#:   `corp_name`         → `tools.search_chunks` 의 `filters["corp_name"]`
+#:   `ym`·`year`·`rcept_dt` → 셋 다 `prefix["rcept_dt"]` 로 접히므로 **같은 축**이다
+#:   `group`             → `_group_index(target)` · 빠지면 `exchange` 로 떨어진다
+#:
+#: 🔴 `base_year`·`doc_subtype` 은 **안 넣는다.** 정기공시의 사업연도는 접수일이 아니고
+#: (`query.plan_section_hops` 주석 1번 — '2023년 사업보고서' 는 2024-03 접수), 함께 떼면
+#: `L7` 이 접수일 축 하나의 Δ 를 못 낸다.
+_META_AXIS_KEYS: dict[str, tuple[str, ...]] = {
+    "meta_corp": ("corp_name",),
+    "meta_date": ("ym", "year", "rcept_dt"),
+    "meta_group": ("group",)}
+
+
+def _search_args(args: dict, arm=None) -> dict:
+    """arm 의 메타 축 LOO 를 반영해 `search_chunks` 인자에서 축을 뗀다. LLM 0회.
+
+    🔴 **인자를 안 넘기는 것이 조작의 전부다.** 검색 단계를 끄는 것이 아니므로 BM25 는
+    그대로 돌고 후보 집합만 넓어진다 — v3 가 *"구조적으로 측정 불가"* 라고 적은 메타
+    프리필터를 재는 자리가 여기다 (`ablation` 머리말 §메타 축 LOO).
+
+    🔴 기본 arm(`A8`)에서는 **받은 사전을 그대로 돌려준다.** 한 키도 안 떼고 복사도 안
+    하므로 스위치를 안 건드린 경로의 검색 인자는 바이트 하나 다르지 않다.
+    """
+    arm = arm or ablation.current()
+    dropped = {key for flag, keys in _META_AXIS_KEYS.items()
+               if not getattr(arm, flag) for key in keys}
+    if not dropped:
+        return args
+    return {k: v for k, v in args.items() if k not in dropped}
+
+
 def _drain_report_cells(plan, cells: list[dict], corps: list, quota: dict,
                         taken: int, budget: Budget, trace: list[str],
                         take) -> tuple[int, bool]:
@@ -1274,7 +1308,7 @@ def _drain_report_cells(plan, cells: list[dict], corps: list, quota: dict,
                 args["corp_name"] = corp
             if path:
                 args["path"] = path
-            out = tools.execute("search_chunks", args)
+            out = tools.execute("search_chunks", _search_args(args))
             if "error" in out:
                 trace.append(f'hop={plan.hop} strat={plan.strategy} '
                              f'tool=search_chunks group=periodic skip=tool_error '
@@ -1367,7 +1401,7 @@ def _gather_sections(r, question: str, budget: Budget,
                     args["corp_name"] = corp
                 if path:
                     args["path"] = path
-                out = tools.execute("search_chunks", args)
+                out = tools.execute("search_chunks", _search_args(args))
                 if "error" in out:
                     trace.append(f'hop={plan.hop} strat={plan.strategy} '
                                  f'tool=search_chunks group=periodic skip=tool_error '
@@ -1594,7 +1628,7 @@ def _gather_evidence(r, question: str = "",
                     args["group"] = group
                 if corp:
                     args["corp_name"] = corp
-                out = tools.execute("search_chunks", args)
+                out = tools.execute("search_chunks", _search_args(args))
                 if "error" in out:
                     trace.append(f'hop={plan.hop} strat={plan.strategy} '
                                  f'tool=search_chunks corp="{corp or "-"}" '

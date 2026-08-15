@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-15T13:43:56",
+ "generated": "2026-08-15T16:58:13",
  "split": "dev",
  "cohort": "valuechain",
  "n_cases": 12,
@@ -258,11 +258,11 @@
    "valuechain": {
     "n": 12,
     "n_scored": 12,
-    "correct": 7,
-    "rate": 0.583,
+    "correct": 6,
+    "rate": 0.5,
     "data_limit": 0,
     "stages": {
-     "RETRIEVAL": 3,
+     "RETRIEVAL": 4,
      "TOOL": 2
     }
    }
@@ -270,11 +270,11 @@
   "overall": {
    "n": 12,
    "n_scored": 12,
-   "correct": 7,
-   "rate": 0.583,
+   "correct": 6,
+   "rate": 0.5,
    "data_limit": 0,
    "stages": {
-    "RETRIEVAL": 3,
+    "RETRIEVAL": 4,
     "TOOL": 2
    }
   }
@@ -298,18 +298,31 @@
  },
  "difficulty_audit": [],
  "failure_histogram": {
-  "RETRIEVAL": 3,
+  "RETRIEVAL": 4,
   "TOOL": 2
  },
  "failure_histogram_grid": {},
  "by_track_failures": {
   "valuechain": {
-   "RETRIEVAL": 3,
+   "RETRIEVAL": 4,
    "TOOL": 2
   }
  },
+ "scorer_r3": {
+  "a19_overridden": [
+   "Q-110"
+  ],
+  "a19_failed_kinds": {
+   "restatement": 1
+  },
+  "r3b_overridden": [],
+  "r3b_premise": 4,
+  "calc_checked_empty": 2,
+  "r32_candidates": [],
+  "safety": {}
+ },
  "root_cause_histogram": {
-  "RETRIEVAL/MULTI_POINT_QUERY": 2,
+  "RETRIEVAL/MULTI_POINT_QUERY": 3,
   "TOOL/TOOL": 2,
   "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1
  },
@@ -322,7 +335,7 @@
    {
     "arm": "A4",
     "auto_grid": 0,
-    "auto_all_tracks": 3,
+    "auto_all_tracks": 4,
     "manual_all_tracks": 1
    },
    {
@@ -364,6 +377,15 @@
     "critic_passed_wrong_answer": false
    },
    {
+    "question_id": "Q-110",
+    "track": "valuechain",
+    "bucket": "RETRIEVAL/MULTI_POINT_QUERY",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
     "question_id": "Q-113",
     "track": "valuechain",
     "bucket": "RETRIEVAL/CHAIN_NOT_TRAVERSED",
@@ -391,10 +413,11 @@
     "critic_passed_wrong_answer": true
    }
   ],
-  "n_disagreements": 5,
-  "n_compared": 5,
+  "n_disagreements": 6,
+  "n_compared": 6,
   "critic_passed_wrong_answer": [
    "Q-107",
+   "Q-110",
    "Q-113",
    "Q-115",
    "Q-117"
@@ -417,6 +440,15 @@
     "manual_arm": "—",
     "agree": false,
     "critic_passed_wrong_answer": false
+   },
+   {
+    "question_id": "Q-110",
+    "track": "valuechain",
+    "bucket": "RETRIEVAL/MULTI_POINT_QUERY",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
    },
    {
     "question_id": "Q-113",
@@ -453,11 +485,11 @@
   "exchange": {
    "n": 12,
    "n_scored": 12,
-   "correct": 7,
-   "rate": 0.583,
+   "correct": 6,
+   "rate": 0.5,
    "data_limit": 0,
    "stages": {
-    "RETRIEVAL": 3,
+    "RETRIEVAL": 4,
     "TOOL": 2
    }
   }
@@ -552,6 +584,17 @@
     "amount: 답변 4조 9,671억원 vs 재계산 4,928,968,079,043",
     "amount: 답변 532,040,000,000원 vs 재계산 373,449,426,066"
    ],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "equation",
+    "provenance"
+   ],
+   "numeric_reason": "equation: 답변 1,250,850,298,678 + 2,081,254,239,072 + 1,715,754,987,100 = **4,967,110,535,840 vs 재계산 5,047,859,524,850; provenance: 답변 2,081,254,239,072원 이 근거에 없다; provenance: 답변 4,967,110,535,840원 이 근거에 없다; provenance: 답변 4,967,110,535,840원 이 근거에 없다",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -655,9 +698,17 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [
-    "amount: 답변 7,111억 vs 재계산 1,250,850,298,678",
+    "amount: 답변 7,111억 원 vs 재계산 1,250,850,298,678",
     "period: 답변 12년 4개월 vs 재계산 12년 3개월"
    ],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -745,6 +796,17 @@
    "calc_reasons": [
     "restatement: 답변 2,807,598,070,800원 (2조 7,078억원) vs 재계산 2,707,800,000,000"
    ],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "provenance",
+    "restatement"
+   ],
+   "numeric_reason": "restatement: 답변 2,807,598,070,800원 (2조 7,078억원) vs 재계산 2,707,800,000,000; provenance: 답변 2,807,598,070,800원 이 근거에 없다",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -773,19 +835,19 @@
    ],
    "answerable": true,
    "answer_form": "narrative",
-   "correct": true,
-   "scored_by": "judge",
+   "correct": false,
+   "scored_by": "judge+numeric",
    "judge": {
     "covers_key_points": true,
     "grounded": true,
     "no_fabrication": true,
     "reason": ""
    },
-   "first_failure": null,
-   "root_cause": "",
-   "failure_why": "correct",
+   "first_failure": "RETRIEVAL",
+   "root_cause": "MULTI_POINT_QUERY",
+   "failure_why": "골든 1/6 건이 어떤 hop 후보에도 없다: ['20240329800342']",
    "critic_supported": true,
-   "critic_passed_wrong_answer": false,
+   "critic_passed_wrong_answer": true,
    "gold_value_in_evidence": true,
    "has_citation": false,
    "route": "complex_reason",
@@ -862,6 +924,16 @@
     "restatement: 답변 590,947,351,842원 (591억원) vs 재계산 59,100,000,000",
     "amount: 답변 74,100,000,000원 vs 재계산 73,800,000,000"
    ],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "restatement"
+   ],
+   "numeric_reason": "restatement: 답변 590,947,351,842원 (591억원) vs 재계산 59,100,000,000",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -959,6 +1031,14 @@
    "calc_reasons": [
     "amount: 답변 354,725,410,000원 vs 재계산 351,882,914,000"
    ],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1056,6 +1136,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1158,6 +1246,16 @@
    "calc_reasons": [
     "amount: 답변 499,950,000,000원 vs 재계산 909,590,000,000"
    ],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "provenance"
+   ],
+   "numeric_reason": "provenance: 답변 1,728,750,000,000원 이 근거에 없다; provenance: 답변 1,728,750,000,000원 이 근거에 없다",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1259,6 +1357,14 @@
    "calc_gated_records": 5,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1366,6 +1472,16 @@
     "amount: 답변 1,345,900,000,000원 vs 재계산 1,652,800,000,000",
     "amount: 답변 1,345,900,000,000원 vs 재계산 3,365,500,000,000"
    ],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "equation"
+   ],
+   "numeric_reason": "equation: 답변 125,514 + 106,796,802 + 890,200 + 586,900 + 1,345,900 = 2,974,206,002 vs 재계산 109,745,316",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1445,17 +1561,25 @@
    "golden_evidence_all": true,
    "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
     "equation",
     "period",
-    "restatement",
     "share"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1562,6 +1686,14 @@
    "calc_gated_records": 7,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": false,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "골든 요점이 금액 3건을 명시하는데 답변에 금액 표기가 하나도 없다",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1645,17 +1777,25 @@
    "golden_evidence_all": true,
    "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
     "equation",
     "period",
-    "restatement",
     "share"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1680,10 +1820,14 @@
   "calc_values": true,
   "verifier": true,
   "followup_hop": true,
+  "meta_corp": true,
+  "meta_date": true,
+  "meta_group": true,
   "golden_oracle": false,
   "lean_rules": false,
   "substitute_verified": true,
   "provenance_gate": false,
-  "regenerate_on_verify": false
+  "regenerate_on_verify": false,
+  "nary": false
  }
 }

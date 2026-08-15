@@ -1,0 +1,24 @@
+{
+ "question_id": "Q-093",
+ "response": {
+  "question_id": "Q-093",
+  "question": "크래프톤이 2025년 12월에 공시한 신기술사업투자조합 출자 결정은 2026년 3월에 정정됐다. 정정으로 무엇이 바뀌었는지 출자금액 변동 여부와 함께 설명해줘.",
+  "retrieved_context": "## [기재정정] [투자판단 관련 주요경영사항] 크래프톤 – 투자판단 관련 주요경영사항\n- 공시일: 2026-03-06 (접수번호 20260306801011)\n- 섹터: 게임\n- 출자금액: 200,000,000,000원 (2,000억원)\n- 확정일: 2026-03-06\n\n## [투자판단 관련 주요경영사항] 크래프톤 – 투자판단 관련 주요경영사항\n- 공시일: 2025-12-19 (접수번호 20251219800469)\n- 섹터: 게임\n- 출자금액: 200,000,000,000원 (2,000억원)\n- 확정일: 2025-12-19",
+  "think_trace": "route=complex_reason difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"크래프톤\" period=ym:202512 top_k=3 q=\"크래프톤 2025 12 월에 공시한 신기술사업투자조합 출자 결정 2026 정정됐다 정정 바뀌었는지 출자금액 변동 여부 함께\" n=2 top_score=67.929 ids=exchange_20260306801011,exchange_20251219800469 | hop=0 strat=narrow tool=search_chunks corp=\"크래프톤\" period=ym:202603 top_k=3 q=\"크래프톤 2025 12 월에 공시한 신기술사업투자조합 출자 결정 2026 정정됐다 정정 바뀌었는지 출자금액 변동 여부 함께\" n=2 top_score=67.929 ids=exchange_20260306801011,exchange_20251219800469 | hop=0 verdict=sufficient evidence=2 | generate tokens=643+239 | verify calc_checked=amount complete_checked=- ok=True kinds=- | budget steps=2 hops=0 llm=1 tokens=882",
+  "answer": "정정 전후의 내용을 비교하여 변경 여부를 확인해 보겠습니다.\n\n1. 최초 공시 정보 (2025-12-19):\n    - 출자금액: 200,000,000,000원 (2,000억 원)\n\n2. 정정 후 공시 정보 (2026-03-06):\n    - 출자금액: 200,000,000,000원 (2,000억 원)\n\n두 공시의 내용을 비교해 보면, 출자금액은 변동이 없습니다. 따라서 정정에 의해 출자금액이 달라진 것은 없습니다.\n\n따라서, 크래프톤의 2025년 12월 공시는 2026년 3월 정정을 통해 출자금액에는 변화가 없었습니다.\n\n(근거: [기재정정] [투자판단 관련 주요경영사항] 크래프톤 – 투자판단 관련 주요경영사항, 2026-03-06, 접수번호 20260306801011; [투자판단 관련 주요경영사항] 크래프톤 – 투자판단 관련 주요경영사항, 2025-12-19, 접수번호 20251219800469)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 643,
+   "completion_tokens": 239,
+   "latency_s": 5.526,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 643,
+ "completion_tokens": 239,
+ "llm_calls": 1,
+ "latency_s": 5.54,
+ "ts": "2026-08-15T16:48:19"
+}

@@ -111,7 +111,8 @@ def test_loo_arms_differ_from_a8_by_exactly_one_flag():
     선언 밖에서 플래그가 둘 이상 움직이면 단일 변수 조작이 깨진 것이다.
     """
     for name, flag in (("L1", "chain_hop"), ("L2", "schema_fields"),
-                       ("L3", "counterparty_hop"), ("L4", "followup_hop")):
+                       ("L3", "counterparty_hop"), ("L4", "followup_hop"),
+                       ("L6", "meta_corp"), ("L7", "meta_date"), ("L8", "meta_group")):
         arm = ablation.ARMS[name]
         diff = {f for f in FLAGS if getattr(arm, f) != getattr(ablation.A8, f)}
         allowed = {flag} | set(ablation.FLAG_DEPENDENCIES.get(flag, ()))
@@ -179,6 +180,111 @@ def test_every_loo_arm_has_a_label_for_the_report():
     assert loo, "LOO arm 이 없다"
     assert set(ablation.LOO_REMOVED) == loo
     assert all(ablation.LOO_REMOVED[n] for n in loo), "빈 라벨이 있다"
+
+
+# --- 메타 축 LOO — `L6`(기업) · `L7`(접수일) · `L8`(인덱스 군) ---------------------
+# 🔴 v3 는 이 셋을 *"구조적으로 측정 불가"* 로 적고 LOO 표를 비워 뒀다. 표현 자리는
+# `search_chunks` 의 **인자**였다. 아래 검사가 그 배선을 못 박는다 — 인자가 안 떨어지면
+# Δ 가 조용히 0 이 되고 우리는 그것을 "메타 프리필터는 기여가 없다" 로 읽는다.
+
+def test_meta_axis_arms_exist_and_complete_the_loo_table():
+    for name in ("L6", "L7", "L8"):
+        assert name in ablation.ARMS and name in ablation.LOO_REMOVED
+        assert name in ablation.RUN_ORDER
+    #: 🔴 `L5` 는 v3 가 기각한 이름이라 재사용하지 않는다 — 같은 칸으로 읽힌다.
+    assert "L5" not in ablation.ARMS
+
+
+@pytest.mark.parametrize("arm,dropped", [
+    ("A8", set()),
+    ("L6", {"corp_name"}),
+    ("L7", {"ym", "year", "rcept_dt"}),
+    ("L8", {"group"}),
+])
+def test_meta_axes_are_dropped_from_the_search_arguments(arm, dropped):
+    """🔴 **플래그가 배선 안 되면 조용한 no-op 이다.** 축이 실제로 인자에서 떨어지는지
+    `_search_args` 를 직접 본다. 다른 키는 하나도 안 건드려야 단일 변수 조작이다."""
+    args = {"query": "q", "top_k": 5, "corp_name": "삼성전자", "ym": "202506",
+            "year": 2025, "rcept_dt": "20250601", "group": "holding",
+            "base_year": "2023", "doc_subtype": "annual", "path": "III. 재무"}
+    with ablation.use(arm):
+        out = pipeline._search_args(args)
+    assert set(args) - set(out) == dropped, (arm, sorted(set(args) - set(out)))
+    assert all(out[k] == args[k] for k in out), "남은 인자의 값이 바뀌었다"
+
+
+def test_the_default_arm_gets_the_very_same_arguments_object():
+    """🔴 회귀 방어. `A8` 에서 사전을 새로 만들면 키 순서가 흔들릴 수 있다 —
+    같은 객체를 그대로 돌려주는 것이 '한 바이트도 안 바뀐다' 의 증명이다."""
+    args = {"query": "q", "top_k": 5, "corp_name": "삼성전자", "group": "holding"}
+    with ablation.use("A8"):
+        assert pipeline._search_args(args) is args
+
+
+def test_l7_keeps_the_fiscal_year_axis():
+    """🔴 접수연도 ≠ 사업연도. `base_year` 까지 떼면 `L7` 이 접수일 축 하나의 Δ 를
+    못 낸다 (`query.plan_section_hops` 주석 1번 — '2023년 사업보고서' 는 2024-03 접수)."""
+    with ablation.use("L7"):
+        out = pipeline._search_args({"base_year": "2023", "doc_subtype": "annual",
+                                     "rcept_dt": "20240320"})
+    assert out == {"base_year": "2023", "doc_subtype": "annual"}
+
+
+def _search_calls(arm: str, question: str) -> tuple[list[dict], str]:
+    """진짜 경로를 한 번 태우고 `search_chunks` 가 **실제로 받은 인자**를 모은다.
+
+    🔴 스텁이 아니라 **가로채고 그대로 넘긴다** — 도구가 인자를 받아 실제로 동작하는지도
+    같이 확인해야 한다 (`test_get_history_really_accepts_the_flag_without_stubbing`
+    이 같은 이유로 있다). LLM 0회 · I/O 만.
+    """
+    seen: list[dict] = []
+    real = pipeline.tools.execute
+
+    def _spy(name, args):
+        if name == "search_chunks":
+            seen.append(dict(args))
+        return real(name, args)
+
+    with ablation.use(arm), pytest.MonkeyPatch.context() as mp:
+        mp.setattr(pipeline.tools, "execute", _spy)
+        evidence, _ = pipeline._gather_evidence(route(question), question, Budget())
+    return seen, evidence
+
+
+def test_l6_really_stops_passing_the_corp_filter_on_a_live_search():
+    """🔴 인자가 안 떨어지면 Δ 가 조용히 0 이 되고 우리는 그것을 "기업 축은 기여가
+    없다" 로 읽는다. 진짜 검색 경로에서 그 인자를 직접 본다."""
+    on, _ = _search_calls("A8", HOLDING_Q)
+    off, _ = _search_calls("L6", HOLDING_Q)
+    assert on and any("corp_name" in a for a in on)
+    assert off and not any("corp_name" in a for a in off)
+    #: 축이 빠지면 후보 집합이 넓어진다 — 근거가 같으면 조작이 아무것도 안 한 것이다.
+    assert [a.get("query") for a in on] == [a.get("query") for a in off], \
+        "질의 자체는 안 바뀌어야 단일 변수 조작이다"
+
+
+def test_l7_really_stops_passing_the_receipt_date_prefix_on_a_live_search():
+    on, _ = _search_calls("A8", HOLDING_Q)
+    off, _ = _search_calls("L7", HOLDING_Q)
+    assert any({"ym", "year", "rcept_dt"} & set(a) for a in on)
+    assert not any({"ym", "year", "rcept_dt"} & set(a) for a in off)
+
+
+def test_l8_really_stops_passing_the_group_argument_on_a_live_search():
+    on, _ = _search_calls("A8", HOLDING_Q)
+    off, _ = _search_calls("L8", HOLDING_Q)
+    assert any(a.get("group") == "holding" for a in on)
+    assert not any("group" in a for a in off)
+
+
+@pytest.mark.parametrize("axis", ablation.META_UNREACHABLE_AXES)
+def test_meta_axes_cannot_be_moved_on_an_arm_that_never_calls_search_chunks(axis):
+    """🔴 `A0` 은 `filter_docs` 만 쓰고 `ORACLE` 은 골든을 주입한다 — 어느 쪽에서도
+    이 축은 후보 집합을 안 바꾼다. 켜면 **조용한 Δ 0** 이므로 예외로 막는다."""
+    with pytest.raises(ValueError):
+        replace(ablation.A0, name="A0-meta", **{axis: False})
+    with pytest.raises(ValueError):
+        replace(ablation.ORACLE, name="ORACLE-meta", **{axis: False})
 
 
 # --- A8 — 발주처 2-hop 은 **BM25 이후 단계**에 선다 -------------------------------

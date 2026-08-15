@@ -1,6 +1,6 @@
 # Phase H — 3축 교차집계 (dev)
 
-생성 2026-08-15 13:43 · 자동 생성물 (`scripts/error_analysis.py`)
+생성 2026-08-15 16:58 · 자동 생성물 (`scripts/error_analysis.py`)
 
 셀 표기 = `정답/채점대상` + 실패단계. **채점 대상에서 DATA_LIMIT 은 뺐다.**
 
@@ -46,7 +46,7 @@
 
 | 단계 | 건수 | 비고 |
 |---|---|---|
-| RETRIEVAL | 3 |  |
+| RETRIEVAL | 4 |  |
 | TOOL | 2 |  |
 
 ## 근본 원인 — 6단계만으로는 arm 이 안 갈린다 (**그리드만**)
@@ -61,6 +61,7 @@
 |---|---|---|---|
 | RETRIEVAL/MULTI_POINT_QUERY | 1 | Q-107 | valuechain |
 | TOOL/TOOL | 1 | Q-109 | valuechain |
+| RETRIEVAL/MULTI_POINT_QUERY | 1 | Q-110 | valuechain |
 | RETRIEVAL/CHAIN_NOT_TRAVERSED | 1 | Q-113 | valuechain |
 | TOOL/TOOL | 1 | Q-115 | valuechain |
 | RETRIEVAL/MULTI_POINT_QUERY | 1 | Q-117 | valuechain |
@@ -73,29 +74,30 @@
 
 | arm | 자동(그리드) | 자동(전 트랙) | **수동 정본(전 트랙)** |
 |---|---|---|---|
-| A4 | 0 | 3 | **1** |
+| A4 | 0 | 4 | **1** |
 | A5 | 0 | 2 | **2** |
 | A6 | 0 | 0 | **2** |
 | — | 0 | 0 | **1** |
 
-**불일치 5/5건** — 문항 단위로 적는다. 사람이 기억으로 잇던 자리이고, 그 기억이 두 번 틀렸다.
+**불일치 6/6건** — 문항 단위로 적는다. 사람이 기억으로 잇던 자리이고, 그 기억이 두 번 틀렸다.
 
 | 문항 | track | 자동 버킷 | 자동 arm | **수동 정본 arm** |
 |---|---|---|---|---|
 | Q-107 | valuechain | `RETRIEVAL/MULTI_POINT_QUERY` | A4 | **—** |
 | Q-109 | valuechain | `TOOL/TOOL` | A5 | **—** |
+| Q-110 | valuechain | `RETRIEVAL/MULTI_POINT_QUERY` | A4 | **—** |
 | Q-113 | valuechain | `RETRIEVAL/CHAIN_NOT_TRAVERSED` | A4 | **—** |
 | Q-115 | valuechain | `TOOL/TOOL` | A5 | **—** |
 | Q-117 | valuechain | `RETRIEVAL/MULTI_POINT_QUERY` | A4 | **—** |
 
-critic 이 오답을 통과시킨 문항 (귀속 단계와 무관하게 센다): Q-107 Q-113 Q-115 Q-117
+critic 이 오답을 통과시킨 문항 (귀속 단계와 무관하게 센다): Q-107 Q-110 Q-113 Q-115 Q-117
 
 
 ## 트랙별 (합치지 않는다)
 
 | track | 정답/채점대상 | 정답률 | DATA_LIMIT | 비고 |
 |---|---|---|---|---|
-| valuechain | 7/12 | 0.583 | 0 | 현재 시스템이 원리상 못 푸는 문항 포함 (Q-117) |
+| valuechain | 6/12 | 0.500 | 0 | 현재 시스템이 원리상 못 푸는 문항 포함 (Q-117) |
 
 ## 정보한계 문항 (answerable=false)
 

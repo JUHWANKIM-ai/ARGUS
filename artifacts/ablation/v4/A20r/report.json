@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-15T13:42:23",
+ "generated": "2026-08-15T16:57:45",
  "split": "dev",
  "cohort": "full",
  "n_cases": 88,
@@ -157,10 +157,12 @@
    "complex_reason|open|중": {
     "n": 4,
     "n_scored": 4,
-    "correct": 4,
-    "rate": 1.0,
+    "correct": 3,
+    "rate": 0.75,
     "data_limit": 0,
-    "stages": {}
+    "stages": {
+     "GENERATION": 1
+    }
    },
    "complex_reason|open|상": {
     "n": 4,
@@ -196,10 +198,12 @@
     "complex_reason": {
      "n": 24,
      "n_scored": 24,
-     "correct": 24,
-     "rate": 1.0,
+     "correct": 23,
+     "rate": 0.958,
      "data_limit": 0,
-     "stages": {}
+     "stages": {
+      "GENERATION": 1
+     }
     }
    },
    "answer_mode": {
@@ -217,11 +221,11 @@
     "open": {
      "n": 36,
      "n_scored": 36,
-     "correct": 34,
-     "rate": 0.944,
+     "correct": 33,
+     "rate": 0.917,
      "data_limit": 0,
      "stages": {
-      "GENERATION": 2
+      "GENERATION": 3
      }
     }
    },
@@ -237,10 +241,12 @@
     "중": {
      "n": 24,
      "n_scored": 24,
-     "correct": 24,
-     "rate": 1.0,
+     "correct": 23,
+     "rate": 0.958,
      "data_limit": 0,
-     "stages": {}
+     "stages": {
+      "GENERATION": 1
+     }
     },
     "상": {
      "n": 24,
@@ -259,12 +265,12 @@
   "grid_overall": {
    "n": 72,
    "n_scored": 72,
-   "correct": 68,
-   "rate": 0.944,
+   "correct": 67,
+   "rate": 0.931,
    "data_limit": 0,
    "stages": {
     "TOOL": 1,
-    "GENERATION": 2,
+    "GENERATION": 3,
     "VERIFY": 1
    }
   },
@@ -280,12 +286,12 @@
    "grid": {
     "n": 72,
     "n_scored": 72,
-    "correct": 68,
-    "rate": 0.944,
+    "correct": 67,
+    "rate": 0.931,
     "data_limit": 0,
     "stages": {
      "TOOL": 1,
-     "GENERATION": 2,
+     "GENERATION": 3,
      "VERIFY": 1
     }
    },
@@ -309,12 +315,12 @@
   "overall": {
    "n": 88,
    "n_scored": 88,
-   "correct": 84,
-   "rate": 0.955,
+   "correct": 83,
+   "rate": 0.943,
    "data_limit": 0,
    "stages": {
     "TOOL": 1,
-    "GENERATION": 2,
+    "GENERATION": 3,
     "VERIFY": 1
    }
   }
@@ -339,42 +345,57 @@
  "difficulty_audit": [],
  "failure_histogram": {
   "TOOL": 1,
-  "GENERATION": 2,
+  "GENERATION": 3,
   "VERIFY": 1
  },
  "failure_histogram_grid": {
   "TOOL": 1,
-  "GENERATION": 2,
+  "GENERATION": 3,
   "VERIFY": 1
  },
  "by_track_failures": {
   "grid": {
    "TOOL": 1,
-   "GENERATION": 2,
+   "GENERATION": 3,
    "VERIFY": 1
   },
   "info_limit": {},
   "regression": {}
  },
+ "scorer_r3": {
+  "a19_overridden": [
+   "Q-034"
+  ],
+  "a19_failed_kinds": {
+   "provenance": 1
+  },
+  "r3b_overridden": [],
+  "r3b_premise": 26,
+  "calc_checked_empty": 45,
+  "r32_candidates": [
+   "Q-101"
+  ],
+  "safety": {}
+ },
  "root_cause_histogram": {
   "TOOL/TOOL": 1,
-  "GENERATION/REASONING": 2,
+  "GENERATION/REASONING": 3,
   "VERIFY/VERIFY": 1
  },
  "root_cause_histogram_grid": {
   "TOOL/TOOL": 1,
-  "GENERATION/REASONING": 2,
+  "GENERATION/REASONING": 3,
   "VERIFY/VERIFY": 1
  },
  "arm_allocation_reconciliation": {
   "authoritative": "manual",
   "note": "자동 분류기는 A5 를 구조적으로 못 본다 — `verify_calculation` 이 답변 수치 중 최유리 값을 골라 비교하므로 10× 단위환산 오류가 `mismatch=False` 로 통과하고, TOOL 버킷이 그리드에서 0건이 된다. arm 확정은 원문 대조(`TARGETED_BY_MANUAL_REVIEW`)의 몫이다.",
-  "denominator_note": "자동 = 그리드만 4건 · 수동 = 전 트랙 6건",
+  "denominator_note": "자동 = 그리드만 5건 · 수동 = 전 트랙 6건",
   "by_arm": [
    {
     "arm": "A4",
-    "auto_grid": 2,
-    "auto_all_tracks": 2,
+    "auto_grid": 3,
+    "auto_all_tracks": 3,
     "manual_all_tracks": 1
    },
    {
@@ -413,6 +434,15 @@
     "critic_passed_wrong_answer": true
    },
    {
+    "question_id": "Q-034",
+    "track": "grid",
+    "bucket": "GENERATION/REASONING",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
+    "critic_passed_wrong_answer": true
+   },
+   {
     "question_id": "Q-087",
     "track": "grid",
     "bucket": "VERIFY/VERIFY",
@@ -431,11 +461,12 @@
     "critic_passed_wrong_answer": false
    }
   ],
-  "n_disagreements": 3,
-  "n_compared": 4,
+  "n_disagreements": 4,
+  "n_compared": 5,
   "critic_passed_wrong_answer": [
    "Q-018",
    "Q-023",
+   "Q-034",
    "Q-087"
   ],
   "per_question": [
@@ -455,6 +486,15 @@
     "auto_arm": "A4",
     "manual_arm": "A4",
     "agree": true,
+    "critic_passed_wrong_answer": true
+   },
+   {
+    "question_id": "Q-034",
+    "track": "grid",
+    "bucket": "GENERATION/REASONING",
+    "auto_arm": "A4",
+    "manual_arm": "—",
+    "agree": false,
     "critic_passed_wrong_answer": true
    },
    {
@@ -483,12 +523,12 @@
   "exchange": {
    "n": 35,
    "n_scored": 35,
-   "correct": 31,
-   "rate": 0.886,
+   "correct": 30,
+   "rate": 0.857,
    "data_limit": 0,
    "stages": {
     "TOOL": 1,
-    "GENERATION": 2,
+    "GENERATION": 3,
     "VERIFY": 1
    }
   },
@@ -521,12 +561,12 @@
   "exchange": {
    "n": 32,
    "n_scored": 32,
-   "correct": 28,
-   "rate": 0.875,
+   "correct": 27,
+   "rate": 0.844,
    "data_limit": 0,
    "stages": {
     "TOOL": 1,
-    "GENERATION": 2,
+    "GENERATION": 3,
     "VERIFY": 1
    }
   },
@@ -622,17 +662,25 @@
    "golden_evidence_all": true,
    "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
     "equation",
     "period",
-    "restatement",
     "share"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -720,6 +768,14 @@
    "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -811,8 +867,16 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [
-    "amount: 답변 1,148억 vs 재계산 227,500,000,000"
+    "amount: 답변 1,148억 원 vs 재계산 227,500,000,000"
    ],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -906,6 +970,14 @@
    "calc_reasons": [
     "amount: 답변 64,400,000,000원 vs 재계산 58,300,000,000"
    ],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -997,6 +1069,14 @@
    "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1087,6 +1167,14 @@
    "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1169,15 +1257,23 @@
    "golden_unreachable": [],
    "calc_checked": [
     "amount",
-    "period"
+    "period",
+    "restatement"
    ],
    "calc_skipped": [
-    "equation",
-    "restatement"
+    "equation"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1270,6 +1366,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [
@@ -1356,6 +1460,14 @@
    "calc_gated_records": 2,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1436,17 +1548,25 @@
    "golden_evidence_all": true,
    "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
     "equation",
     "period",
-    "restatement",
     "share"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1523,6 +1643,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [
@@ -1625,6 +1753,17 @@
    "calc_reasons": [
     "restatement: 답변 1,843,200,000,000원 (1조 8,422억원) vs 재계산 1,842,200,000,000; restatement: 답변 1,843,200,000,000원 (1조 8,422억원) vs 재계산 1,842,200,000,000"
    ],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "provenance",
+    "restatement"
+   ],
+   "numeric_reason": "restatement: 답변 1,843,200,000,000원 (1조 8,422억원) vs 재계산 1,842,200,000,000; provenance: 답변 276,900,000,000원 이 근거에 없다; provenance: 답변 1,843,200,000,000원 이 근거에 없다; provenance: 답변 276,900,000,000원 이 근거에 없다",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1710,6 +1849,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [
@@ -1796,6 +1943,14 @@
    "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -1915,6 +2070,14 @@
     "amount: 답변 1,102,000,000,000원 vs 재계산 905,200,000,000",
     "amount: 답변 1,102,000,000,000원 vs 재계산 912,000,000,000"
    ],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -2004,17 +2167,25 @@
    "golden_evidence_all": true,
    "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
     "equation",
     "period",
-    "restatement",
     "share"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -2094,6 +2265,14 @@
    "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -2180,6 +2359,14 @@
    "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -2263,6 +2450,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [
@@ -2353,6 +2548,14 @@
    "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [
@@ -2447,6 +2650,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -2539,6 +2750,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -2562,19 +2781,19 @@
    ],
    "answerable": true,
    "answer_form": "narrative",
-   "correct": true,
-   "scored_by": "judge",
+   "correct": false,
+   "scored_by": "judge+numeric",
    "judge": {
     "covers_key_points": true,
     "grounded": true,
     "no_fabrication": true,
     "reason": ""
    },
-   "first_failure": null,
-   "root_cause": "",
-   "failure_why": "correct",
+   "first_failure": "GENERATION",
+   "root_cause": "REASONING",
+   "failure_why": "provenance: 답변 757,900,000,000원 이 근거에 없다",
    "critic_supported": true,
-   "critic_passed_wrong_answer": false,
+   "critic_passed_wrong_answer": true,
    "gold_value_in_evidence": true,
    "has_citation": false,
    "route": "multi_compare",
@@ -2635,17 +2854,27 @@
    "golden_evidence_all": true,
    "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
     "equation",
     "period",
-    "restatement",
     "share"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": false,
+   "numeric_failed_kinds": [
+    "provenance"
+   ],
+   "numeric_reason": "provenance: 답변 757,900,000,000원 이 근거에 없다",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -2747,6 +2976,14 @@
    "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [
      "20241015800258"
@@ -2807,6 +3044,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -2863,6 +3108,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -2921,6 +3174,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -2979,6 +3240,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -3054,6 +3323,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -3112,6 +3389,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -3188,6 +3473,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -3272,6 +3565,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -3353,6 +3654,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -3445,6 +3754,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -3527,6 +3844,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -3608,6 +3933,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -3695,6 +4028,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -3784,6 +4125,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -3861,6 +4210,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -3948,6 +4305,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -4029,6 +4394,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -4111,6 +4484,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -4198,6 +4579,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -4274,16 +4663,24 @@
    "golden_evidence_all": true,
    "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
     "equation",
-    "period",
-    "restatement"
+    "period"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -4371,6 +4768,14 @@
    "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -4455,6 +4860,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -4528,19 +4941,27 @@
    "golden_evidence_all": true,
    "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
     "equation",
     "period",
-    "restatement",
     "share"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [
-    "amount: 답변 285억 vs 재계산 27,850,000,000"
+    "amount: 답변 285억 원 vs 재계산 27,850,000,000"
    ],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -4621,6 +5042,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -4702,17 +5131,25 @@
    "golden_evidence_all": true,
    "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
     "equation",
     "period",
-    "restatement",
     "share"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -4794,6 +5231,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [
@@ -4872,15 +5317,23 @@
    "calc_checked": [
     "amount",
     "period",
+    "restatement",
     "share"
    ],
    "calc_skipped": [
-    "equation",
-    "restatement"
+    "equation"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -4969,6 +5422,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -5069,6 +5530,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -5151,6 +5620,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -5235,6 +5712,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -5322,6 +5807,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [
@@ -5416,6 +5909,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -5492,6 +5993,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -5580,6 +6089,14 @@
    "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [
@@ -5666,6 +6183,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -5751,17 +6276,25 @@
    "golden_evidence_all": true,
    "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
     "equation",
     "period",
-    "restatement",
     "share"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -5852,6 +6385,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -5937,16 +6478,24 @@
    "golden_evidence_all": true,
    "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
     "equation",
-    "restatement",
     "share"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -6029,6 +6578,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -6116,6 +6673,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -6208,6 +6773,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -6294,6 +6867,14 @@
    "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -6370,6 +6951,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [
@@ -6467,6 +7056,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -6543,6 +7140,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -6625,6 +7230,14 @@
    "calc_gated_records": 2,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -6704,6 +7317,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -6792,6 +7413,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": true,
    "data_limit": {
     "withheld": [],
     "no_amount": [
@@ -6868,16 +7497,24 @@
    "golden_evidence_all": true,
    "golden_unreachable": [],
    "calc_checked": [
-    "amount"
+    "amount",
+    "restatement"
    ],
    "calc_skipped": [
     "equation",
-    "period",
-    "restatement"
+    "period"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -6961,6 +7598,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -7049,6 +7694,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -7145,6 +7798,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -7239,6 +7900,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [
@@ -7330,6 +7999,14 @@
    "calc_gated_records": 3,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -7415,6 +8092,14 @@
    "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -7490,15 +8175,23 @@
    "golden_unreachable": [],
    "calc_checked": [
     "amount",
-    "period"
+    "period",
+    "restatement"
    ],
    "calc_skipped": [
-    "equation",
-    "restatement"
+    "equation"
    ],
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": true,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -7575,6 +8268,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [
@@ -7668,6 +8369,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -7759,6 +8468,14 @@
    "calc_gated_records": 1,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -7835,6 +8552,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -7917,6 +8642,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -8010,6 +8743,14 @@
    "calc_reasons": [
     "amount: 답변 101,836,451,885원 vs 재계산 372,324,339,860"
    ],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": false,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -8068,6 +8809,14 @@
    "calc_gated_records": 0,
    "calc_mismatch": false,
    "calc_reasons": [],
+   "numeric_ok": true,
+   "numeric_failed_kinds": [],
+   "numeric_reason": "",
+   "covers_key_amounts_ok": true,
+   "covers_key_amounts_premise": false,
+   "covers_key_amounts_reason": "",
+   "calc_checked_empty": true,
+   "amount_asked_but_absent": false,
    "data_limit": {
     "withheld": [],
     "no_amount": [],
@@ -8092,10 +8841,14 @@
   "calc_values": true,
   "verifier": true,
   "followup_hop": true,
+  "meta_corp": true,
+  "meta_date": true,
+  "meta_group": true,
   "golden_oracle": false,
   "lean_rules": false,
   "substitute_verified": false,
   "provenance_gate": true,
-  "regenerate_on_verify": true
+  "regenerate_on_verify": true,
+  "nary": false
  }
 }

@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-010",
+ "response": {
+  "question_id": "Q-010",
+  "question": "카카오가 2025년 5월에 결의한 제14회 전환사채 발행의 주요 조건을 정리해줘.",
+  "retrieved_context": "## [투자판단 관련 주요경영사항] OCI홀딩스 – 투자판단 관련 주요경영사항\n- 공시일: 2023-12-21 (접수번호 20231221800510)\n- 섹터: 신재생에너지\n- 확정일: 2023-12-21\n- 제목: 지주회사 전환 신고에 대한 회신 접수\n- 주요내용: 1. 제출사유 당사는 공정거래위원회로부터 2023년 9월 22일 기준으로 「독점규제 및 공정거래에 관한 법률」 (이하 '공정거래법'이라 함) 제17조 및 동법 시행령 제26조에 따른 지주회사의 요건 (이하 '해당 요건'이라 함)을 충족하여 지주회사로 전환됨을 통보 받았습니다. 2. 지주회사 전환 내용 1) 지주회사 - 대상회사 : 오씨아이홀딩스㈜ - 지주회사 전환일 : 2023년 9월 22일 2) 자회사: 10개사 (1) ㈜디씨알이 : 오씨아이홀딩스㈜ 100.00% 소유 (2) 부광약품㈜ : 오씨아이홀딩스㈜ 10.90% 소유 (3)…\n- 기타 투자판단과 관련한 중요사항: - 오씨아이홀딩스㈜는 2023년 5월 인적분할 이후 같은 해 9월 공개 매수 및 현물출자에 의한 유상증자를 완료하며, 현물출자 납입일인 9월 22일 기준으로 공정거래법상 지주회사의 성립요건을 모두 충족하여 지주회사로 전환되었습니다. - 공정거래법 제 18조에서 규정하고 있는 '지주회사 행위제한 요건'에 해당되는 사항에 대해서는 지주회사 전환일인 2023년 9월 22일로부터 2년 이내에 해소할 예정입니다. 다만, 동법 제 18조 제 6항에 의거하여 유예기간 연장을 신청할 수 있습니다. - 상기 2. 주요내용에 기재된 지분율은 2023…",
+  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"카카오\" period=ym:202505 top_k=5 q=\"카카오 2025 월에 결의한 14 전환사채 발행 주요 조건\" n=0 top_score=- ids=- | hop=0 verdict=insufficient evidence=0 reason=no_candidate | hop=1 strat=relax_period tool=search_chunks corp=\"카카오\" period=year:2025 top_k=8 q=\"카카오 2025 월에 결의한 14 전환사채 발행 주요 조건\" n=0 top_score=- ids=- | hop=1 verdict=insufficient evidence=0 reason=no_candidate | hop=2 strat=corp_only tool=search_chunks corp=\"카카오\" period=none top_k=10 q=\"카카오 월에 결의 전환사채 발행 주요 조건\" n=0 top_score=- ids=- | hop=2 verdict=insufficient evidence=0 reason=no_candidate | hop=3 strat=global tool=search_chunks corp=\"-\" period=none top_k=10 q=\"카카오 월에 결의 전환사채 발행 주요 조건\" n=1 top_score=10.738 ids=exchange_20231221800510 | hop=3 verdict=insufficient evidence=1 reason=few:1<2 | generate tokens=905+129 | 근거 표기 누락 — critic 호출 | critic supported=False reason=제공된 답변은 질문과 관련이 없으며, 주어진 공시의 내용을 반영하지 않고 있다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=4 hops=3 llm=2 tokens=1805",
+  "answer": "질문에 대해 답변드리겠습니다. 그러나 주어진 공시 내용은 OCI 홀딩스의 지주회사 전환 신고와 관련된 것으로, 카카오의 제14회 전환사채 발행 조건에 대한 정보는 포함되어 있지 않습니다. 따라서 질문에 대한 답변을 제공할 수 없습니다.\n\n카카오의 제14회 전환사채 발행 조건은 별도의 공시 자료를 통해 확인해야 합니다. 이러한 자료는 금융감독원 전자공시시스템(DART)에서 검색하거나, 카카오의 공식 홈페이지나 IR 페이지 등을 참고하시면 됩니다.\n\n추가적인 정보가 필요하시다면 말씀해 주세요. 최선을 다해 도와드리겠습니다. \n(근거: 공시 없음)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 제공된 답변은 질문과 관련이 없으며, 주어진 공시의 내용을 반영하지 않고 있다.)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 905,
+   "completion_tokens": 129,
+   "latency_s": 3.229,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 728,
+   "completion_tokens": 43,
+   "latency_s": 1.337,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1633,
+ "completion_tokens": 172,
+ "llm_calls": 2,
+ "latency_s": 4.755,
+ "ts": "2026-08-15T16:52:53"
+}

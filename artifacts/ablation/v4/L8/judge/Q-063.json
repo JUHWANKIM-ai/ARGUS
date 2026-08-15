@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-063",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출답변이 모범답안의 정보를 전혀 포함하지 않고 있습니다.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 1547,
+   "completion_tokens": 38,
+   "latency_s": 1.23,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1547,
+ "completion_tokens": 38
+}

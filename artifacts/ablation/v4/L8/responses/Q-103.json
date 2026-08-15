@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-103",
+ "response": {
+  "question_id": "Q-103",
+  "question": "두산로보틱스가 2023년 8월에 결정한 유상증자에서 조달 자금을 용도별로 어떻게 나눴는지 알려줘.",
+  "retrieved_context": "## [투자판단 관련 주요경영사항] 두산로보틱스 – 투자판단 관련 주요경영사항\n- 공시일: 2025-02-05 (접수번호 20250205800058)\n- 섹터: 로봇\n- 확정일: 2025-02-05\n- 제목: 자동차 제조용 협동 로봇 판매를 위한 양해각서(MOU) 체결\n- 주요내용: 당사는 태국 소재 로보틱스 솔루션 개발 전문 기업인 VRNJ Co.,Ltd.(이하 VRNJ)와 향후 2년간 태국소재 자동차 및 연관 산업 부품업체를 포함하여 인도네시아, 필리핀, 베트남 등 아시아지역에 당사 협동 로봇을 판매하는 MOU 계약을 아래와 같이 체결하였습니다. 1) 상대방 : VRNJ Co., Ltd. 2) 계약 내용 : 협동 로봇 300대 - 판매대상 제조공정 : Parts finishing Palletizing Injection/Inspection Pick&Place 3) 계약기간 : 2025년 2월 5일 ~ 2026…\n- 기타 투자판단과 관련한 중요사항: 가. 상기 MOU건 관련하여 1차 PO 발주서(협동로봇 60대)는 기 수령하였습니다. 나. 상기 '3. 이사회결의일(결정일) 또는 사실확인일' 은 MOU 계약 체결일입니다.",
+  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산로보틱스\" period=ym:202308 top_k=5 q=\"두산로보틱스 2023 월에 결정한 유상증자 조달 자금 용도별 어떻게 나눴는지\" n=0 top_score=- ids=- | hop=0 verdict=insufficient evidence=0 reason=no_candidate | hop=1 strat=relax_period tool=search_chunks corp=\"두산로보틱스\" period=year:2023 top_k=8 q=\"두산로보틱스 2023 월에 결정한 유상증자 조달 자금 용도별 어떻게 나눴는지\" n=0 top_score=- ids=- | hop=1 verdict=insufficient evidence=0 reason=no_candidate | hop=2 strat=corp_only tool=search_chunks corp=\"두산로보틱스\" period=none top_k=10 q=\"두산로보틱스 월에 결정 유상증자 조달 자금 용도별 어떻게 나눴는지\" n=1 top_score=26.229 ids=exchange_20250205800058 | hop=2 verdict=insufficient evidence=1 reason=few:1<2 | hop=3 strat=global skip=corp_scoped (기업 특정 질의에 근거 1건 확보 — 전역 검색은 오염) | generate tokens=728+175 | 근거 표기 누락 — critic 호출 | critic supported=False reason=제공된 답변은 질문과 관련이 없으며, 제시된 근거와는 무관합니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=3 hops=2 llm=2 tokens=1537",
+  "answer": "요청하신 정보는 주어진 공시에서 직접적으로 확인되지 않습니다. \n\n주어진 공시는 두산로보틱스가 태국의 VRNJ Co., Ltd.와의 MOU 체결에 관한 것으로, 2023년 8월의 유상증자와 관련된 자금 용도에 대한 내용은 포함되어 있지 않습니다. 따라서, 질문에 대한 답변을 제공하기 위해서는 추가적인 정보가 필요합니다.\n\n유상증자에 따른 자금 배분 내역을 확인하려면 다음과 같은 방법을 고려할 수 있습니다:\n\n1. 금융감독원 전자공시시스템(DART)에서 두산로보틱스의 과거 공시를 검색하여 유상증자와 관련된 상세 내용을 찾아볼 수 있습니다.\n2. 회사의 공식 홈페이지나 IR 자료를 통해 유상증자의 목적 및 자금 사용 계획을 확인하는 방법도 있을 것입니다.\n\n위의 방법을 통해 추가 정보를 확인해 보시기 바랍니다. \n(근거: 없음)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 제공된 답변은 질문과 관련이 없으며, 제시된 근거와는 무관합니다.)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 728,
+   "completion_tokens": 175,
+   "latency_s": 4.167,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 591,
+   "completion_tokens": 43,
+   "latency_s": 1.709,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1319,
+ "completion_tokens": 218,
+ "llm_calls": 2,
+ "latency_s": 5.891,
+ "ts": "2026-08-15T16:55:50"
+}

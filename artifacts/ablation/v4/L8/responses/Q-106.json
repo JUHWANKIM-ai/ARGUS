@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-106",
+ "response": {
+  "question_id": "Q-106",
+  "question": "(주)두산이 두산로보틱스에 대해 보고한 보유비율이 상장 이후 어떻게 변해 왔는지 각 보고서를 근거로 설명해줘.",
+  "retrieved_context": "## [투자판단 관련 주요경영사항] 두산로보틱스 – 투자판단 관련 주요경영사항\n- 공시일: 2025-02-05 (접수번호 20250205800058)\n- 섹터: 로봇\n- 확정일: 2025-02-05\n- 제목: 자동차 제조용 협동 로봇 판매를 위한 양해각서(MOU) 체결\n- 주요내용: 당사는 태국 소재 로보틱스 솔루션 개발 전문 기업인 VRNJ Co.,Ltd.(이하 VRNJ)와 향후 2년간 태국소재 자동차 및 연관 산업 부품업체를 포함하여 인도네시아, 필리핀, 베트남 등 아시아지역에 당사 협동 로봇을 판매하는 MOU 계약을 아래와 같이 체결하였습니다. 1) 상대방 : VRNJ Co., Ltd. 2) 계약 내용 : 협동 로봇 300대 - 판매대상 제조공정 : Parts finishing Palletizing Injection/Inspection Pick&Place 3) 계약기간 : 2025년 2월 5일 ~ 2026…\n- 기타 투자판단과 관련한 중요사항: 가. 상기 MOU건 관련하여 1차 PO 발주서(협동로봇 60대)는 기 수령하였습니다. 나. 상기 '3. 이사회결의일(결정일) 또는 사실확인일' 은 MOU 계약 체결일입니다.",
+  "think_trace": "route=closed_lookup difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산로보틱스\" period=none top_k=5 q=\"두산 두산로보틱스 대해 보고한 보유비율 상장 이후 어떻게 변해 왔는지 근거\" n=1 top_score=25.816 ids=exchange_20250205800058 | hop=0 verdict=insufficient evidence=1 reason=few:1<2,missing_field:보유비율 | hop=1 strat=relax_period tool=search_chunks corp=\"두산로보틱스\" period=none top_k=8 q=\"두산 두산로보틱스 대해 보고한 보유비율 상장 이후 어떻게 변해 왔는지 근거\" n=1 top_score=25.816 ids=exchange_20250205800058 | hop=1 verdict=insufficient evidence=1 reason=few:1<2,missing_field:보유비율 | hop=2 strat=corp_only tool=search_chunks corp=\"두산로보틱스\" period=none top_k=10 q=\"두산 두산로보틱스 대해 보고 보유비율 상장 이후 어떻게 변해 왔는지 근거\" n=1 top_score=25.816 ids=exchange_20250205800058 | hop=2 verdict=insufficient evidence=1 reason=few:1<2,missing_field:보유비율 | hop=2 stop=stalled (2회 연속 새 후보 없음) | generate tokens=727+166 | 근거 표기 누락 — critic 호출 | critic supported=False reason=제공된 근거에서는 두산로보틱스의 협동 로봇 판매 MOU 체결에 대한 내용만 있고, ㈜두산의 보유 비율 변화에 대한 내용은 없으므로 답변은 근거에 기반하지 않았습니다. | verify calc_checked=- complete_checked=- ok=True kinds=- | budget steps=3 hops=2 llm=2 tokens=1541",
+  "answer": "공시된 정보에는 ㈜두산의 두산로보틱스에 대한 보유 비율 변화에 관한 내용이 포함되어 있지 않습니다. 따라서, 해당 질문에 대한 답변을 제공할 수 없습니다.\n\n㈜두산의 두산로보틱스에 대한 보유 비율 변화를 확인하려면 다음과 같은 추가 정보가 필요합니다:\n\n1. 과거 보고서들에서의 두산로보틱스 보유 비율 정보\n2. 각 보고서 간의 변화 내역\n\n이러한 정보를 통해 정확한 변동 사항을 파악할 수 있습니다. 주주 현황 및 보유 비율은 정기적인 사업보고서나 주요 경영 사항 공시 등을 통해 확인할 수 있으므로, 관련된 이전 보고서들을 검토해야 합니다.\n\n따라서, 현재 제공된 공시 자료만으로는 ㈜두산의 두산로보틱스에 대한 보유 비율 변화를 알 수 없습니다. 다른 보고서나 자료를 참고하여 주시기 바랍니다. (근거: 없음)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 제공된 근거에서는 두산로보틱스의 협동 로봇 판매 MOU 체결에 대한 내용만 있고, ㈜두산의 보유 비율 변화에 대한 내용은 없으므로 답변은 근거에 기반하지 않았습니다.)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 727,
+   "completion_tokens": 166,
+   "latency_s": 3.967,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 582,
+   "completion_tokens": 66,
+   "latency_s": 1.922,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1309,
+ "completion_tokens": 232,
+ "llm_calls": 2,
+ "latency_s": 5.903,
+ "ts": "2026-08-15T16:56:03"
+}
