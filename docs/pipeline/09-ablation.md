@@ -180,7 +180,7 @@ L2 = A6 − (병목 2위 요소)
 | ~~A2~~ | ~~임베딩 하이브리드~~ | ⏭ **v1 에서 건너뜀** → v3 에서 실측 (§I-5c) |
 | ~~A3~~ | ~~Re-ranker~~ | ⏭ **조건부 건너뜀** |
 | **A4** | + Agent 루프 (ReAct 사다리 + **정정체인 hop**) | 실행 |
-| **A5** | + 계산 Tool (14종 function calling) | 실행 |
+| **A5** | + 계산 Tool — 🔴 **function calling 이 아니다**(§I-5f ② · `TOOL_SPECS` 15종 등록 · `tools=` 미전달) | 실행 |
 | **A6** | + Verifier (`verify_calculation` + `verify_completeness`) | 실행 |
 
 **A2 를 건너뛰는 이유는 G1 미확정이 아니라 실측이다.** Phase H 에서 A2 가 겨냥할 실패가 **0건**이었다 —
