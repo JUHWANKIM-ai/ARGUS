@@ -402,7 +402,7 @@ _tool_arguments             11줄   "
 
 |#|처방|위험도|공수|무엇이 좋아지는가|
 |---|---|---|---|---|
-|**B1**|🔴 **`scripts/ablation.py::render_gate`(933줄)를 절별 함수로 쪼갠다.** 14개 `# --- N.` 절이 이미 경계다. 각 절 → `_gate_cost(...)`·`_gate_ladder(...)` … 로 **순수 추출**|🟡 **저 — 운영 경로 아님(러너 산출물)**. 🔴 검증: 쪼개기 전후 `gate_I.md` **바이트 동일**|4~6h|현재 이 함수는 **읽을 수도 테스트할 수도 없다.** 절 단위 테스트가 가능해지고, 게이트 항목 추가가 함수 추가가 된다|
+|**B1**|🔴 **`scripts/ablation.py::render_gate`(933줄)를 절별 함수로 쪼갠다.** 14개 `# --- N.` 절이 이미 경계다. 각 절 → `_gate_cost(...)`·`_gate_ladder(...)` … 로 **순수 추출**|🟡 **저 — 운영 경로 아님(러너 산출물)**. 🔴 합격 조건이 이미 있다: `test_the_regenerated_v2_gate_reads_the_way_the_documents_quote_it` 이 실물 `v2` 로 렌더해 문장을 단언한다. **v2·v3·v4 세 root 를 쪼개기 전후로 렌더해 바이트 대조**하면 된다 (LLM 0회)|4~6h|현재 이 함수는 **읽을 수도 테스트할 수도 없다.** 절 단위 테스트가 가능해지고, 게이트 항목 추가가 함수 추가가 된다|
 |**B2**|🔴 **`pipeline.py` 의 실험 전용 310줄을 `agent/arms.py`(가칭)로 이동** — `_gather_golden`·`_oracle_section_blocks`·도구 왕복 5종·`_self_consistent`·`_sc_key`. **순수 이동 + import**|🟡 **저~중 — 운영 경로 파일을 건드린다.** 🔴 심볼은 `pipeline` 에 재노출해야 한다 (테스트가 `pipeline._offer_tools` 등으로 부른다)|3~4h|**운영 경로가 12% 짧아진다.** 물증은 한 글자도 안 지운다 — 자리만 옮긴다|
 |**B3**|검사 반환 규격 공장 `critic._report(...)` 도입 — 손으로 짓는 5곳을 한 생성자로 (§2-b ③)|🟡 **저 — 키 집합이 바뀌면 안 된다.** 🔴 `verify_completeness` 는 **다른 규격이므로 합치지 않는다**|2~3h|새 검사를 붙일 때 키 누락이 **불가능**해진다. `_verdict` 의 조용한 오판정 경로가 닫힌다|
 |**B4**|`scripts/ablation_report.py::pct`·`delta` 를 `scripts/ablation` 것으로 대체 (§2-b ④)|🟢 **없음 — 본문 바이트 동일**|30m|서식 규칙이 한 곳|
