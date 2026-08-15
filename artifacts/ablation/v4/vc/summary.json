@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-08-15T22:38:31",
+  "generated": "2026-08-16T00:32:33",
   "cohort": "valuechain",
   "n_cases": 12,
   "question_ids": [
@@ -17,8 +17,8 @@
    "Q-117",
    "Q-118"
   ],
-  "budget_won": 2000.0,
-  "stop_won": 1600.0,
+  "budget_won": 300.0,
+  "stop_won": 240.0,
   "price_won_per_1k": 7.02,
   "index_snapshot": {
    "artifacts/exchange_bm25.json": "e43eceee9d54d8d8:1044414",
@@ -35,7 +35,7 @@
    "data/dart-disclosures/manifest.jsonl": "04750795e1a2d5c3:2419214",
    "data/dart-disclosures/universe.csv": "96560165c836b10e:10674"
   },
-  "spent_won": 1319.9,
+  "spent_won": 1479.4,
   "spent_won_source": "arm·코호트별 run.json 합 (하위 폴더 포함)",
   "spent_won_by_arm": {
    "A10": 510.2,
@@ -45,178 +45,171 @@
    "A21": 0.0,
    "A22": 221.8,
    "A24": 464.3,
+   "A24b": 159.5,
+   "A24b+A20": 0.0,
    "A8": 0.0
   },
-  "this_process_spent_won": 464.3,
-  "cache_hits": 2,
-  "cache_misses": 32,
+  "this_process_spent_won": 0.0,
+  "cache_hits": 33,
+  "cache_misses": 0,
   "cache_bypassed": 0,
-  "fresh_prompt_tokens": 62279,
-  "fresh_completion_tokens": 3865,
+  "fresh_prompt_tokens": 0,
+  "fresh_completion_tokens": 0,
   "cache_stats_are_this_process": true,
   "this_run": {
-   "A24": {
-    "arm": "A24",
+   "A24b+A20": {
+    "arm": "A24b+A20",
     "n_run": 12,
     "stopped_at": null,
-    "spent_won": 464.3,
+    "spent_won": 0.0,
     "runs": [
      {
       "question_id": "Q-107",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 0,
-      "spent_won": 52.66,
+      "request_cache_hits": 3,
+      "spent_won": 0.0,
       "llm_calls": 3,
-      "prompt_tokens": 6997,
-      "completion_tokens": 505,
+      "prompt_tokens": 6748,
+      "completion_tokens": 300,
       "judge_tokens": 0,
-      "latency_s": 14.646
+      "latency_s": 0.209
      },
      {
       "question_id": "Q-108",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 0,
-      "spent_won": 76.81,
-      "llm_calls": 3,
-      "prompt_tokens": 8112,
-      "completion_tokens": 567,
-      "judge_tokens": 2263,
-      "latency_s": 21.269
+      "request_cache_hits": 3,
+      "spent_won": 0.0,
+      "llm_calls": 2,
+      "prompt_tokens": 3987,
+      "completion_tokens": 422,
+      "judge_tokens": 2210,
+      "latency_s": 0.018
      },
      {
       "question_id": "Q-109",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 0,
-      "spent_won": 43.33,
-      "llm_calls": 3,
-      "prompt_tokens": 5978,
-      "completion_tokens": 194,
+      "request_cache_hits": 2,
+      "spent_won": 0.0,
+      "llm_calls": 2,
+      "prompt_tokens": 4258,
+      "completion_tokens": 134,
       "judge_tokens": 0,
-      "latency_s": 7.237
+      "latency_s": 0.014
      },
      {
       "question_id": "Q-110",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 0,
-      "spent_won": 53.16,
+      "request_cache_hits": 3,
+      "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 4503,
-      "completion_tokens": 498,
-      "judge_tokens": 2571,
-      "latency_s": 13.796
+      "prompt_tokens": 4465,
+      "completion_tokens": 455,
+      "judge_tokens": 2533,
+      "latency_s": 0.014
      },
      {
       "question_id": "Q-111",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 0,
-      "spent_won": 27.95,
+      "request_cache_hits": 3,
+      "spent_won": 0.0,
       "llm_calls": 3,
       "prompt_tokens": 3851,
       "completion_tokens": 131,
       "judge_tokens": 0,
-      "latency_s": 7.289
+      "latency_s": 0.017
      },
      {
       "question_id": "Q-112",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 2,
-      "spent_won": 12.26,
+      "request_cache_hits": 3,
+      "spent_won": 0.0,
       "llm_calls": 2,
       "prompt_tokens": 2711,
       "completion_tokens": 356,
       "judge_tokens": 1521,
-      "latency_s": 10.694
+      "latency_s": 0.031
      },
      {
       "question_id": "Q-113",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 0,
-      "spent_won": 19.14,
-      "llm_calls": 1,
-      "prompt_tokens": 2390,
-      "completion_tokens": 336,
+      "request_cache_hits": 3,
+      "spent_won": 0.0,
+      "llm_calls": 3,
+      "prompt_tokens": 7087,
+      "completion_tokens": 329,
       "judge_tokens": 0,
-      "latency_s": 19.029
+      "latency_s": 0.038
      },
      {
       "question_id": "Q-114",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 0,
-      "spent_won": 32.2,
+      "request_cache_hits": 3,
+      "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 2845,
-      "completion_tokens": 205,
-      "judge_tokens": 1537,
-      "latency_s": 9.053
+      "prompt_tokens": 2840,
+      "completion_tokens": 206,
+      "judge_tokens": 1532,
+      "latency_s": 0.012
      },
      {
       "question_id": "Q-115",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 0,
-      "spent_won": 45.81,
+      "request_cache_hits": 3,
+      "spent_won": 0.0,
       "llm_calls": 3,
-      "prompt_tokens": 6230,
-      "completion_tokens": 295,
+      "prompt_tokens": 6207,
+      "completion_tokens": 238,
       "judge_tokens": 0,
-      "latency_s": 10.799
+      "latency_s": 0.029
      },
      {
       "question_id": "Q-116",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 0,
-      "spent_won": 18.43,
-      "llm_calls": 2,
-      "prompt_tokens": 2433,
-      "completion_tokens": 192,
+      "request_cache_hits": 1,
+      "spent_won": 0.0,
+      "llm_calls": 1,
+      "prompt_tokens": 1295,
+      "completion_tokens": 154,
       "judge_tokens": 0,
-      "latency_s": 8.479
+      "latency_s": 0.01
      },
      {
       "question_id": "Q-117",
       "cached": false,
       "judge_cached": false,
-      "request_cache_hits": 0,
-      "spent_won": 41.63,
+      "request_cache_hits": 3,
+      "spent_won": 0.0,
       "llm_calls": 2,
-      "prompt_tokens": 3617,
-      "completion_tokens": 295,
-      "judge_tokens": 2018,
-      "latency_s": 9.167
+      "prompt_tokens": 3603,
+      "completion_tokens": 290,
+      "judge_tokens": 2003,
+      "latency_s": 0.008
      },
      {
       "question_id": "Q-118",
       "cached": false,
       "judge_cached": null,
-      "request_cache_hits": 0,
-      "spent_won": 40.96,
+      "request_cache_hits": 3,
+      "spent_won": 0.0,
       "llm_calls": 3,
-      "prompt_tokens": 5613,
-      "completion_tokens": 222,
+      "prompt_tokens": 5640,
+      "completion_tokens": 255,
       "judge_tokens": 0,
-      "latency_s": 9.322
+      "latency_s": 0.026
      }
     ]
    }
-  },
-  "stale_parents": [
-   {
-    "path": "artifacts/ablation/v4/summary.json",
-    "stored_won": 8157.0,
-    "actual_won": 8621.3,
-    "gap_won": 464.3,
-    "prescription": "`--arm` 없이 코호트만 주는 재집계`(--offline)`로 artifacts/ablation/v4/summary.json 를 다시 쓴다 (LLM 0회 · 0원). 그 파일의 `spent_won` 은 하위 폴더를 포함하는 재귀 합이라 하위 코호트를 유료로 돌리면 반드시 낡는다."
-   }
-  ]
+  }
  },
  "summary": {
   "arms": {
@@ -288,6 +281,9 @@
      "nary": false,
      "multi_hub": false,
      "function_calling": false,
+     "calc_tools_only": false,
+     "calc_queries_only": false,
+     "substitute_tool_results": false,
      "sc_k": 1,
      "temperature": 0.0
     },
@@ -374,6 +370,9 @@
      "nary": false,
      "multi_hub": false,
      "function_calling": false,
+     "calc_tools_only": false,
+     "calc_queries_only": false,
+     "substitute_tool_results": false,
      "sc_k": 1,
      "temperature": 0.0
     },
@@ -460,6 +459,9 @@
      "nary": false,
      "multi_hub": false,
      "function_calling": false,
+     "calc_tools_only": false,
+     "calc_queries_only": false,
+     "substitute_tool_results": false,
      "sc_k": 1,
      "temperature": 0.0
     },
@@ -546,6 +548,9 @@
      "nary": false,
      "multi_hub": false,
      "function_calling": false,
+     "calc_tools_only": false,
+     "calc_queries_only": false,
+     "substitute_tool_results": false,
      "sc_k": 1,
      "temperature": 0.0
     },
@@ -636,6 +641,9 @@
      "nary": false,
      "multi_hub": true,
      "function_calling": false,
+     "calc_tools_only": false,
+     "calc_queries_only": false,
+     "substitute_tool_results": false,
      "sc_k": 1,
      "temperature": 0.0
     },
@@ -726,6 +734,9 @@
      "nary": false,
      "multi_hub": false,
      "function_calling": false,
+     "calc_tools_only": false,
+     "calc_queries_only": false,
+     "substitute_tool_results": false,
      "sc_k": 3,
      "temperature": 0.7
     },
@@ -812,6 +823,9 @@
      "nary": true,
      "multi_hub": false,
      "function_calling": false,
+     "calc_tools_only": false,
+     "calc_queries_only": false,
+     "substitute_tool_results": false,
      "sc_k": 1,
      "temperature": 0.0
     },
@@ -902,6 +916,187 @@
      "nary": false,
      "multi_hub": false,
      "function_calling": true,
+     "calc_tools_only": false,
+     "calc_queries_only": false,
+     "substitute_tool_results": false,
+     "sc_k": 1,
+     "temperature": 0.0
+    },
+    "golden_evidence_all": 0,
+    "golden_evidence_hit": 0,
+    "golden_total": 0,
+    "golden_unreachable": 0,
+    "golden_recall": {
+     "hit": 34,
+     "denominator_raw": 46,
+     "unreachable": 3,
+     "unreachable_missed": 3,
+     "denominator_adjusted": 43,
+     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
+    },
+    "diagnostic": false,
+    "diagnostic_note": null
+   },
+   "A24b": {
+    "correct": 0,
+    "n_scored": 0,
+    "rate": null,
+    "rate_reported": null,
+    "n_grid": 0,
+    "data_limit": 0,
+    "overall": 0.417,
+    "overall_correct": 5,
+    "overall_n_scored": 12,
+    "info_limit_correct": 0,
+    "info_limit_n": 0,
+    "hallucination": 0,
+    "tracks": {
+     "valuechain": {
+      "n": 12,
+      "n_scored": 12,
+      "correct": 5,
+      "rate": 0.417,
+      "data_limit": 0,
+      "stages": {
+       "RETRIEVAL": 4,
+       "TOOL": 3
+      }
+     }
+    },
+    "tokens": 65761,
+    "arm_cost_won": 461.6,
+    "llm_calls": 28,
+    "latency_s_mean_recorded": 0.03,
+    "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+    "failures": {
+     "RETRIEVAL": 4,
+     "TOOL": 3
+    },
+    "failures_all": {
+     "RETRIEVAL": 4,
+     "TOOL": 3
+    },
+    "root_causes": {
+     "RETRIEVAL/MULTI_POINT_QUERY": 3,
+     "TOOL/TOOL": 3,
+     "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1
+    },
+    "citation_rate": 0.167,
+    "flags": {
+     "name": "A24b",
+     "retrieval": "all",
+     "schema_fields": true,
+     "dense": false,
+     "hop_ladder": true,
+     "chain_hop": true,
+     "counterparty_hop": true,
+     "split_query": true,
+     "calc_values": true,
+     "verifier": true,
+     "followup_hop": true,
+     "meta_corp": true,
+     "meta_date": true,
+     "meta_group": true,
+     "golden_oracle": false,
+     "lean_rules": false,
+     "substitute_verified": false,
+     "provenance_gate": false,
+     "regenerate_on_verify": false,
+     "nary": false,
+     "multi_hub": false,
+     "function_calling": true,
+     "calc_tools_only": true,
+     "calc_queries_only": true,
+     "substitute_tool_results": true,
+     "sc_k": 1,
+     "temperature": 0.0
+    },
+    "golden_evidence_all": 0,
+    "golden_evidence_hit": 0,
+    "golden_total": 0,
+    "golden_unreachable": 0,
+    "golden_recall": {
+     "hit": 34,
+     "denominator_raw": 46,
+     "unreachable": 3,
+     "unreachable_missed": 3,
+     "denominator_adjusted": 43,
+     "note": "`denominator_raw` 가 정본이다. `denominator_adjusted` 는 `UNREACHABLE_GOLDEN` 표시분 중 **이 arm 이 회수하지 못한 것**만 뺀 값이고 **정답률과는 무관하다**. 회수된 표시분은 도달 가능이 증명된 것이라 빼지 않는다 — 그래서 오라클에서도 분자가 분모를 넘지 않는다."
+    },
+    "diagnostic": false,
+    "diagnostic_note": null
+   },
+   "A24b+A20": {
+    "correct": 0,
+    "n_scored": 0,
+    "rate": null,
+    "rate_reported": null,
+    "n_grid": 0,
+    "data_limit": 0,
+    "overall": 0.417,
+    "overall_correct": 5,
+    "overall_n_scored": 12,
+    "info_limit_correct": 0,
+    "info_limit_n": 0,
+    "hallucination": 0,
+    "tracks": {
+     "valuechain": {
+      "n": 12,
+      "n_scored": 12,
+      "correct": 5,
+      "rate": 0.417,
+      "data_limit": 0,
+      "stages": {
+       "RETRIEVAL": 4,
+       "TOOL": 3
+      }
+     }
+    },
+    "tokens": 65761,
+    "arm_cost_won": 461.6,
+    "llm_calls": 28,
+    "latency_s_mean_recorded": 0.04,
+    "latency_s_note": "응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** '평균 응답 시간' 으로 인용하지 않는다.",
+    "failures": {
+     "RETRIEVAL": 4,
+     "TOOL": 3
+    },
+    "failures_all": {
+     "RETRIEVAL": 4,
+     "TOOL": 3
+    },
+    "root_causes": {
+     "RETRIEVAL/MULTI_POINT_QUERY": 3,
+     "TOOL/TOOL": 3,
+     "RETRIEVAL/CHAIN_NOT_TRAVERSED": 1
+    },
+    "citation_rate": 0.167,
+    "flags": {
+     "name": "A24b+A20",
+     "retrieval": "all",
+     "schema_fields": true,
+     "dense": false,
+     "hop_ladder": true,
+     "chain_hop": true,
+     "counterparty_hop": true,
+     "split_query": true,
+     "calc_values": true,
+     "verifier": true,
+     "followup_hop": true,
+     "meta_corp": true,
+     "meta_date": true,
+     "meta_group": true,
+     "golden_oracle": false,
+     "lean_rules": false,
+     "substitute_verified": true,
+     "provenance_gate": false,
+     "regenerate_on_verify": false,
+     "nary": false,
+     "multi_hub": false,
+     "function_calling": true,
+     "calc_tools_only": true,
+     "calc_queries_only": true,
+     "substitute_tool_results": true,
      "sc_k": 1,
      "temperature": 0.0
     },
@@ -963,6 +1158,16 @@
       "correct": 0,
       "n": 0,
       "rate": null
+     },
+     "A24b": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A24b+A20": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
      }
     },
     "중": {
@@ -1005,6 +1210,16 @@
       "correct": 0,
       "n": 0,
       "rate": null
+     },
+     "A24b": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A24b+A20": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
      }
     },
     "상": {
@@ -1044,6 +1259,16 @@
       "rate": null
      },
      "A24": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A24b": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A24b+A20": {
       "correct": 0,
       "n": 0,
       "rate": null
@@ -1091,6 +1316,16 @@
       "correct": 0,
       "n": 0,
       "rate": null
+     },
+     "A24b": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A24b+A20": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
      }
     },
     "open": {
@@ -1130,6 +1365,16 @@
       "rate": null
      },
      "A24": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A24b": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A24b+A20": {
       "correct": 0,
       "n": 0,
       "rate": null
@@ -1177,6 +1422,16 @@
       "correct": 0,
       "n": 0,
       "rate": null
+     },
+     "A24b": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A24b+A20": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
      }
     },
     "multi_compare": {
@@ -1216,6 +1471,16 @@
       "rate": null
      },
      "A24": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A24b": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A24b+A20": {
       "correct": 0,
       "n": 0,
       "rate": null
@@ -1261,6 +1526,16 @@
       "correct": 0,
       "n": 0,
       "rate": null
+     },
+     "A24b": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
+     },
+     "A24b+A20": {
+      "correct": 0,
+      "n": 0,
+      "rate": null
      }
     }
    }
@@ -1298,6 +1573,14 @@
     "A24": {
      "correct": 0,
      "n": 0
+    },
+    "A24b": {
+     "correct": 0,
+     "n": 0
+    },
+    "A24b+A20": {
+     "correct": 0,
+     "n": 0
     }
    },
    "중": {
@@ -1332,6 +1615,14 @@
     "A24": {
      "correct": 0,
      "n": 0
+    },
+    "A24b": {
+     "correct": 0,
+     "n": 0
+    },
+    "A24b+A20": {
+     "correct": 0,
+     "n": 0
     }
    },
    "상": {
@@ -1364,6 +1655,14 @@
      "n": 0
     },
     "A24": {
+     "correct": 0,
+     "n": 0
+    },
+    "A24b": {
+     "correct": 0,
+     "n": 0
+    },
+    "A24b+A20": {
      "correct": 0,
      "n": 0
     }

@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-15T22:38:31",
+ "generated": "2026-08-16T00:32:33",
  "split": "dev",
  "cohort": "valuechain",
  "n_cases": 12,
@@ -1890,6 +1890,9 @@
   "nary": false,
   "multi_hub": false,
   "function_calling": true,
+  "calc_tools_only": false,
+  "calc_queries_only": false,
+  "substitute_tool_results": false,
   "sc_k": 1,
   "temperature": 0.0
  }
