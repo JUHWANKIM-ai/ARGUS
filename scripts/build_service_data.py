@@ -60,6 +60,8 @@ ALLOWED_READS: frozenset[str] = frozenset({
     f"{CORPUS}/holding_records.jsonl",    # 지분공시     (건수만 센다)
     f"{CORPUS}/references.jsonl",         # 정정 체인 — 추적 실패 사유가 여기 있다
     f"{CORPUS}/counterparty_graph.json",  # 거래관계 그래프
+    f"{CORPUS}/periodic_sections.jsonl",  # 정기공시 목차 — 요약재무정보의 위치
+    f"{CORPUS}/periodic_sections.txt",    # 🔴 926MB. 통째로 읽지 않는다 — offset seek 만
     ROSTER,                               # 70개사 명부 (UTF-8 BOM)
 })
 
@@ -92,6 +94,14 @@ def read_csv(rel: str) -> list[dict]:
     return list(csv.DictReader(read_text(rel).splitlines()))
 
 
+def open_seekable(rel: str):
+    """🔴 926MB 짜리 본문은 통째로 읽지 않는다 — 목차가 준 offset 만큼만 집는다.
+
+    게이트는 `read_text()` 와 같다. 여는 방식이 다를 뿐이다.
+    """
+    return _guard(rel).open("rb")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. 필드 게이트 — 🔴 모르는 필드가 붙으면 죽는다 (규율 ③)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -120,6 +130,11 @@ SOURCE_REFERENCE = frozenset({
 })
 SOURCE_NODE = frozenset({"canonical", "display", "kind", "count", "partners"})
 SOURCE_PAIR = frozenset({"a", "b", "via"})
+SOURCE_PERIODIC = frozenset({
+    "chunk_id", "doc_id", "corp_code", "corp_name", "sector", "doc_subtype", "base_year",
+    "base_month", "rcept_dt", "is_correction", "path", "level", "n_chars", "n_tables",
+    "is_stub", "is_container", "text_offset", "text_bytes",
+})
 
 #: 🔴 **실어도 되는 것.** 여기 없는 것은 화면에 가지 않는다. 원문(`raw_rows`·`markdown`)과
 #: 내부 표시(`schema_matched`·`is_latest`)는 의도적으로 뺐다 — 코퍼스 재배포가 아니다.
@@ -138,6 +153,8 @@ COMPANY_FIELDS = frozenset({
 })
 HUB_FIELDS = frozenset({"name", "canonical", "kind", "count", "partners"})
 PAIR_FIELDS = frozenset({"a", "b", "via"})
+#: 🔴 `source_rcept_no` 를 함께 싣는다 — 수만 싣고 출처를 안 싣으면 검산할 방법이 없다.
+FINANCIAL_FIELDS = frozenset({"period", "basis", "revenue", "operating_income", "source_rcept_no"})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -186,6 +203,7 @@ def load_sources() -> dict:
 
     return {"roster": roster, "exchange": exchange, "references": references,
             "nodes": nodes, "pairs": pairs, "other_counts": other_counts,
+            "financials": load_financials(),
             "dates": [r["rcept_dt"] for r in exchange] + other_dates}
 
 
@@ -250,6 +268,167 @@ def resolve_chain(record: dict, by_rcept: dict, ref_edges: list[dict]) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # 6. 빌드
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5b. 재무 요약 — 🔴 정기공시의 「요약재무정보」 표에서 **그대로 옮긴다**
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# 🔴 **이 절의 규율은 하나다: 못 읽으면 비운다.** 매출액을 잘못 실으면 이 사이트 전체를
+# 못 믿게 된다. 그래서 아래 넷이 모두 갖춰졌을 때만 값을 싣는다.
+#
+#     ① 연결/별도가 **문서에 적혀 있다**          (`가. 요약연결재무정보` 류)
+#     ② 단위가 **문서에 적혀 있다**               (`(단위 : 백만원)`)
+#     ③ 기간 머리행이 있고 **어느 칸인지** 안다    (`| | 2026.1.1~2026.3.31 | …`)
+#     ④ 그 칸의 값이 수다
+#
+# ③ 이 가장 중요하다. 기간을 모르는 매출액은 **뜻이 없다** — 분기 매출을 연간으로 읽으면
+# 네 배 틀린다. 실제로 이 조건 때문에 70개사 중 20곳이 비었고, **그 20곳을 채우려고
+# 조건을 무르게 하지 않았다.**
+
+SUMMARY_PATH = "III. 재무에 관한 사항 > 1. 요약재무정보"
+#: 문서가 적은 단위. 여기 없는 단위가 나오면 **곱하지 않고 비운다**(규율 ④).
+UNIT_MULTIPLIER = {"원": 1, "천원": 1_000, "백만원": 1_000_000, "억원": 100_000_000}
+_UNIT_RE = re.compile(r"\(단위\s*[:：]\s*([가-힣]+)")
+_YEAR = re.compile(r"20\d\d")
+_NUMERIC = re.compile(r"^\(?[△▲\-]?[\d,]+\)?$")
+#: 매출을 가리키는 표기들. 🔴 앞에서 자르지 않고 **정확히 일치**할 때만 받는다 —
+#: `매출원가`·`매출채권` 이 매출로 잡히면 안 된다.
+_REVENUE_LABELS = frozenset({
+    "매출액", "매출", "수익", "영업수익", "수익(매출액)", "매출액(수익)",
+    "매출액(영업수익)", "영업수익(매출액)",
+})
+
+
+def _cells(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def _number(cell: str, multiplier: int) -> int | None:
+    """표 한 칸을 원 단위 정수로. 🔴 수가 아니면 `None` — 0 으로 만들지 않는다."""
+    token = cell.replace(" ", "")
+    if not _NUMERIC.match(token):
+        return None
+    negative = token.startswith("(") or token[:1] in {"△", "▲", "-"}
+    digits = token.strip("()").lstrip("△▲-").replace(",", "")
+    if not digits.isdigit():
+        return None
+    return (-int(digits) if negative else int(digits)) * multiplier
+
+
+def _is_period_cell(cell: str) -> bool:
+    """`2026.01.01~2026.03.31` 처럼 **기간**을 적은 칸인가.
+
+    🔴 `2026년 3월말` 같은 **시점**은 거른다 — 그것은 재무상태표의 기준일이지
+    손익계산서의 기간이 아니다. 시점을 기간으로 읽으면 엉뚱한 칸을 집는다.
+    """
+    token = cell.replace(" ", "")
+    return "~" in token and bool(_YEAR.search(token)) and not token.endswith("말")
+
+
+def _clean_period(cell: str) -> str:
+    """문서가 적은 기간 표기를 그대로 쓰되 앞머리(`제53기 1분기(`)만 떼고 공백을 고른다."""
+    text = " ".join(cell.split())
+    start = _YEAR.search(text)
+    if start:
+        text = text[start.start():]
+    return text.strip("()[] ").strip()[:40]
+
+
+def parse_summary(text: str) -> dict[str, dict]:
+    """「요약재무정보」 본문에서 연결/별도별 (기간·매출·영업이익)을 뽑는다."""
+    multiplier: int | None = None
+    basis: str | None = None
+    period: str | None = None
+    column: int | None = None
+    found: dict[str, dict] = {}
+
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if not line.startswith("|"):
+            flat = line.replace(" ", "")
+            unit = _UNIT_RE.search(flat)
+            if unit:
+                multiplier = UNIT_MULTIPLIER.get(unit.group(1))
+            if "요약" in flat and "재무" in flat:
+                #: 표가 바뀌면 기간·칸도 다시 잡는다 — 앞 표의 칸을 물려쓰면 어긋난다.
+                if "연결" in flat:
+                    basis, period, column = "연결", None, None
+                elif "별도" in flat:
+                    basis, period, column = "별도", None, None
+            continue
+
+        cells = _cells(line)
+        if len(cells) < 2:
+            continue
+
+        hit = next((i for i, c in enumerate(cells) if _is_period_cell(c)), None)
+        if hit is not None:
+            period, column = _clean_period(cells[hit]), hit
+            continue
+
+        if basis is None or multiplier is None or column is None or column >= len(cells):
+            continue
+        label = cells[0].strip("[]ㆍ- ").replace(" ", "")
+        if label in _REVENUE_LABELS:
+            field = "revenue"
+        elif label.startswith("영업이익") or label.startswith("영업손익"):
+            field = "operating_income"
+        else:
+            continue
+        value = _number(cells[column], multiplier)
+        if value is None:
+            continue
+        slot = found.setdefault(basis, {"period": period, "revenue": None,
+                                        "operating_income": None})
+        if slot[field] is None:
+            slot[field] = value
+    return found
+
+
+def pick_summary(found: dict[str, dict], rcept_no: str) -> dict | None:
+    """🔴 연결을 먼저 본다 — 사람이 "그 회사 매출" 이라 할 때 뜻하는 것이 연결이다."""
+    for basis in ("연결", "별도"):
+        slot = found.get(basis)
+        if not slot or not slot["period"] or not slot["revenue"] or slot["revenue"] <= 0:
+            continue
+        operating = slot["operating_income"]
+        #: 🔴 영업이익이 매출을 넘으면 엉뚱한 칸을 집었다는 뜻이다. 의심스러우면 비운다.
+        if operating is not None and abs(operating) > slot["revenue"]:
+            operating = None
+        return gate({
+            "period": slot["period"], "basis": basis, "revenue": slot["revenue"],
+            "operating_income": operating, "source_rcept_no": rcept_no,
+        }, FINANCIAL_FIELDS, "재무 요약")
+    return None
+
+
+def load_financials() -> dict[str, dict]:
+    """회사(corp_code) → 재무 요약. 뽑히지 않은 회사는 **아예 들어오지 않는다**."""
+    latest: dict[str, dict] = {}
+    for row in read_jsonl(f"{CORPUS}/periodic_sections.jsonl"):
+        gate(row, SOURCE_PERIODIC, "정기공시 목차")
+        if row["path"] != SUMMARY_PATH:
+            continue
+        current = latest.get(row["corp_code"])
+        #: 가장 최근 정기보고서 하나만 본다 — 옛 수치를 최신인 양 싣지 않는다.
+        if current is None or (row["rcept_dt"], row["doc_id"]) > (current["rcept_dt"],
+                                                                  current["doc_id"]):
+            latest[row["corp_code"]] = row
+
+    out: dict[str, dict] = {}
+    with open_seekable(f"{CORPUS}/periodic_sections.txt") as handle:
+        for code, row in latest.items():
+            handle.seek(int(row["text_offset"]))
+            body = handle.read(int(row["text_bytes"])).decode("utf-8", errors="replace")
+            #: `doc_id` 는 `periodic_<접수번호>` 다 — 접두사를 떼면 DART 문서 번호가 된다.
+            rcept_no = str(row["doc_id"]).rsplit("_", 1)[-1]
+            summary = pick_summary(parse_summary(body), rcept_no)
+            if summary:
+                out[code] = summary
+    return out
 
 
 def build(src: dict) -> dict[str, object]:
@@ -342,8 +521,9 @@ def build(src: dict) -> dict[str, object]:
             #: 🔴 `resolved=false` 도 담는다. 감추면 이 회사가 실제보다 깨끗해 보인다.
             "corrections": mine,
             "partners": partners,
-            #: 🔴 재무 요약은 다음 파도에서 정기공시에서 뽑는다. **지금 지어내지 않는다.**
-            "financials": None,
+            #: 🔴 정기공시의 「요약재무정보」에서 뽑히면 싣고, 안 뽑히면 `None` 이다.
+            #: 화면은 `None` 인 칸을 아예 그리지 않는다 — 빈 칸이 틀린 수보다 낫다.
+            "financials": src["financials"].get(row["corp_code"]),
         }
 
     # ── 메타 ─────────────────────────────────────────────────────────────────
@@ -361,6 +541,9 @@ def build(src: dict) -> dict[str, object]:
             "corrections": len(corrections),
             "contracts": len(src["exchange"]),
             "partners": len(hubs),
+            #: 🔴 재무 요약이 **확인된** 회사 수. 화면이 "70개사 중 몇 곳" 을 정직하게
+            #: 쓸 수 있어야 한다 — 못 뽑은 곳을 조용히 빼면 다 되는 것처럼 보인다.
+            "financials": sum(1 for d in details.values() if d["financials"]),
         },
     }
 
@@ -394,7 +577,10 @@ def main() -> int:
           f"계약 {meta['counts']['contracts']}건 · "
           f"정정 {meta['counts']['corrections']}건 · "
           f"거래상대 {meta['counts']['partners']}곳")
+    filled = sum(1 for name, payload in files.items()
+                 if name.startswith("company/") and payload.get("financials"))
     print(f"  기간 {meta['ranges']['from']} ~ {meta['ranges']['to']} · LLM 0회 · 0원")
+    print(f"  재무 요약 {filled}개사 확인 · {meta['ranges']['companies'] - filled}개사는 비움")
     return 0
 
 

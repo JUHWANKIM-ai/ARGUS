@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -221,11 +222,67 @@ def test_every_company_has_its_own_file(built, companies):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def test_financials_are_null_not_invented(built, companies):
-    """🔴 재무 요약은 다음 파도에서 채운다. 지금 비어 있는 것이 정직한 상태다."""
-    for c in companies[:5]:
-        detail = _load(built, f"company/{c['slug']}.json")
-        assert detail["financials"] is None
+#: 🔴 정기공시의 「요약재무정보」에서 **눈으로 대조한** 값(2026-08-16).
+#: 원문 표의 행과 단위를 사람이 직접 읽어 확인했다 — 파서가 조용히 어긋나면 여기서 깨진다.
+VERIFIED_FINANCIALS = {
+    #: 삼성전자 · 백만원 단위 표 · `매출액 133,873,444` · `영업이익 57,232,797`
+    "삼성전자": (133_873_444_000_000, 57_232_797_000_000),
+    #: 대우건설 · **원** 단위 표 · `매출액 1,951,410,038,476` · `영업이익(손실) 255,631,837,181`
+    "대우건설": (1_951_410_038_476, 255_631_837_181),
+    #: 한화에어로스페이스 · 백만원 · `매출액 5,751,023` · `영업이익(영업손실) 638,892`
+    "한화에어로스페이스": (5_751_023_000_000, 638_892_000_000),
+}
+
+
+def _detail_by_name(built, companies, name):
+    slug = next(c["slug"] for c in companies if c["name"] == name)
+    return _load(built, f"company/{slug}.json")
+
+
+@pytest.mark.parametrize("name", sorted(VERIFIED_FINANCIALS))
+def test_financials_match_the_document_that_was_read_by_hand(built, companies, name):
+    """🔴 단위 환산이 어긋나면 매출이 백만 배 틀린다. 세 회사를 손으로 대조해 못박는다."""
+    revenue, operating = VERIFIED_FINANCIALS[name]
+    financials = _detail_by_name(built, companies, name)["financials"]
+    assert financials is not None, f"{name} 의 재무 요약이 비었다"
+    assert financials["revenue"] == revenue
+    assert financials["operating_income"] == operating
+
+
+def test_financials_are_either_labelled_or_empty(built, companies):
+    """🔴 **기간을 모르는 매출액은 뜻이 없다** — 분기 매출을 연간으로 읽으면 네 배 틀린다.
+
+    그래서 값을 실을 때는 기간·기준(연결/별도)·출처 접수번호가 반드시 함께 온다.
+    못 갖추면 통째로 `None` 이다. 어림수도 0도 쓰지 않는다.
+    """
+    filled = 0
+    for c in companies:
+        financials = _load(built, f"company/{c['slug']}.json")["financials"]
+        if financials is None:
+            continue
+        filled += 1
+        assert set(financials) == {"period", "basis", "revenue", "operating_income",
+                                   "source_rcept_no"}, c["name"]
+        assert financials["basis"] in {"연결", "별도"}, c["name"]
+        assert re.search(r"20\d\d", financials["period"]), c["name"]
+        assert financials["revenue"] > 0, c["name"]
+        assert financials["source_rcept_no"].isdigit(), c["name"]
+        operating = financials["operating_income"]
+        #: 영업이익이 매출을 넘으면 엉뚱한 칸을 집었다는 뜻이다 — 그런 짝은 싣지 않는다.
+        assert operating is None or abs(operating) <= financials["revenue"], c["name"]
+    assert filled, "재무 요약이 하나도 안 뽑혔다 — 파서가 죽었는지 보라"
+    assert filled < len(companies), "🔴 전부 뽑혔다 — 못 뽑은 것을 지어내고 있지 않은지 보라"
+
+
+def test_the_body_of_the_periodic_corpus_is_never_republished(built):
+    """🔴 926MB 본문에서 가져오는 것은 **수 둘과 기간 표기**뿐이다.
+
+    산출물의 재무 칸에 문장이 실리면 코퍼스 재배포다. 기간 표기는 40자를 넘지 않는다.
+    """
+    for path in (built / "company").glob("*.json"):
+        financials = json.loads(path.read_text(encoding="utf-8"))["financials"]
+        if financials:
+            assert len(financials["period"]) <= 40, path.name
 
 
 def test_unresolved_corrections_are_kept_and_marked(corrections):
