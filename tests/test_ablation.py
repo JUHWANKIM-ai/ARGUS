@@ -354,9 +354,22 @@ def test_a2_arms_differ_from_their_baseline_by_exactly_the_dense_flag():
         assert diff == ["dense"], (name, diff)
 
 
-def test_default_arm_is_the_full_configuration():
-    """스위치를 안 건드린 운영 경로가 곧 A8 여야 '기본값 = 제출 구성' 이 성립한다."""
-    assert ablation.current() == ablation.A8
+def test_default_arm_is_the_submission_configuration():
+    """🔴 스위치를 안 건드린 운영 경로가 곧 **제출 구성**이어야 한다.
+
+    v4 (2026-08-15) 에서 `A8` → `A20r` 로 바꿨다. 새 채점기 실측에서 `A20r` 만
+    밸류체인 `Q-110` 의 10× 재진술 오류를 고친다 (7/12 대 6/12). 그리드·전체는
+    `A20` 과 같고, 문항당 약 2원이 더 든다.
+
+    🔴 이 값을 바꾸면 **평가 서버도 다시 배포해야 한다** — `api/server.py` 는 arm 을
+    지정하지 않으므로 이것이 곧 주최측이 받는 답변의 구성이다.
+    """
+    assert ablation.current() == ablation.A20R
+    assert ablation.current().name == "A20r"
+    # 🔴 `A8` 과의 차이는 검증 단계 플래그 둘뿐이다 — 검색·생성 경로는 같다.
+    diff = [f for f in ablation.FLAG_NAMES
+            if getattr(ablation.A20R, f) != getattr(ablation.A8, f)]
+    assert diff == ["provenance_gate", "regenerate_on_verify"], diff
 
 
 def test_the_default_arm_kept_the_v1_flag_set():

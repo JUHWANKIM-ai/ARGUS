@@ -867,11 +867,16 @@ def test_the_provenance_gate_is_not_wired_in_until_the_flag_is_on(monkeypatch):
     assert len(calls) == 1
 
 
-def test_the_gate_flag_is_off_by_default_and_depends_on_the_verifier():
-    """🔴 기본값이 곧 운영 경로다. 참이면 제출 구성이 게이트를 켠 채로 답한다."""
+def test_the_gate_flag_is_on_in_the_submission_configuration():
+    """🔴 기본값이 곧 운영 경로다. v4 에서 제출 구성이 `A8` → `A20r` 로 바뀌었으므로
+    게이트는 **켜진 채로** 답한다 — 근거에 없는 12자리 이상 수치를 잡는다.
+
+    🔴 단독 Δ 는 0 이다(`A21` 실측). 값은 `A20r` 의 재생성이 그 판정을 **사유로 받아**
+    다시 쓰는 데 있다. 그래서 `regenerate_on_verify` 와 함께만 의미가 있다.
+    """
     assert "provenance_gate" in ablation.FLAG_NAMES
-    assert ablation.A8.provenance_gate is False
-    assert ablation.current().provenance_gate is False
+    assert ablation.A8.provenance_gate is False          # 사다리 끝 arm 은 그대로
+    assert ablation.current().provenance_gate is True
     assert "provenance_gate" in ablation.FLAG_DEPENDENCIES["verifier"]
     with pytest.raises(ValueError, match="provenance_gate"):
         replace(ablation.A0, name="bad", provenance_gate=True)
@@ -1084,11 +1089,15 @@ def test_a20r_is_registered_as_a_side_branch_arm():
     assert order.index("A20") < order.index("A20r") < order.index("A2F")
 
 
-def test_the_regeneration_flag_is_off_by_default_and_depends_on_the_verifier():
-    """🔴 기본값이 곧 운영 경로다. 참이면 제출 구성이 문항마다 호출을 하나 더 쓴다."""
+def test_the_regeneration_flag_is_on_in_the_submission_configuration():
+    """🔴 기본값이 곧 운영 경로다. v4 에서 제출 구성이 `A8` → `A20r` 로 바뀌었으므로
+    **검사가 발화한 문항에서만** 호출을 하나 더 쓴다 — 전 문항이 아니다.
+
+    실측: 발화 37 / 100문항 · 추가 지출 216.7원. 그 대가로 밸류체인 6 → 7/12 다.
+    """
     assert "regenerate_on_verify" in ablation.FLAG_NAMES
-    assert ablation.A8.regenerate_on_verify is False
-    assert ablation.current().regenerate_on_verify is False
+    assert ablation.A8.regenerate_on_verify is False     # 사다리 끝 arm 은 그대로
+    assert ablation.current().regenerate_on_verify is True
     assert "regenerate_on_verify" in ablation.FLAG_DEPENDENCIES["verifier"]
     with pytest.raises(ValueError, match="regenerate_on_verify"):
         replace(ablation.A0, name="bad", regenerate_on_verify=True)
