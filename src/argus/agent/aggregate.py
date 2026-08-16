@@ -349,6 +349,66 @@ def fix_unit_parens(answer: str) -> tuple[str, list[str]]:
     return body + tail, fixed
 
 
+# --- A38 — 자기정합: 답변이 스스로와 어긋나지 않는가 -------------------------------
+#
+# 🔴 **규약 「추론 논리성」을 재는 결정적 수단이다.** 그 지표를 직접 잴 방법이 없다고
+# `docs/goldenset-review-2026-08-16.md` §3 에 적었는데, closed judge 진단이 길을 냈다.
+#
+# 진단 결과(2026-08-16 · closed 69문항에 judge 를 걸어 봄): EM 과 갈린 7건 중 **여섯이
+# 오탐**이었다 — 하나는 긴 정기공시 섹션에서 값을 못 찾은 것이고 다섯은 거절 문항에
+# 요점 대조를 건 적용 착오다. **judge 는 이 축의 도구가 아니다.**
+#
+# 그런데 그 하나가 진짜였다:
+#
+#     Q-111  머리말 "7,591,628,000원 적습니다"
+#            풀이   "362,307,038,000 − 354,725,410,000 = 7,581,628,000원"   ← 골든
+#
+# **답변이 자기와 모순인데** EM 도(골든 문자열이 어딘가 있으므로) 우리 수치검사도
+# (식 자체는 맞으므로) 못 잡았다. 그리고 이것은 **결정적으로 잡힌다** — 저장 답변
+# 132건 전수에서 검출 1건 · 오탐 0건이다.
+
+#: 답변이 스스로 쓴 식. 좌변 두 항과 우변 결과.
+_SELF_EQ = re.compile(r"([\d,]{7,})\s*([+\-−])\s*([\d,]{7,})\s*=\s*\**\s*([\d,]{7,})")
+
+#: 같은 양을 가리키는 것으로 볼 근접도. 자릿수가 같고 5% 이내면 오타로 본다.
+#: 🔴 넓히면 서로 다른 금액 둘을 같은 것으로 오인한다 — 오탐이 곧 새 오답이다.
+_SELF_NEAR = 0.05
+
+
+def fix_self_contradiction(answer: str) -> tuple[str, list[str]]:
+    """답변이 **스스로 쓴 식과 어긋나는 수**를 식 결과로 맞춘다. LLM 0회.
+
+    사유·실측은 위 구역 주석에 적었다.
+
+    🔴 **식 결과를 믿는 근거**: 좌변 두 항은 근거에서 옮겨 적은 값이고
+    `critic.verify_answer_arithmetic` 이 이미 그 식의 성립을 확인한다. 어긋나는 쪽은
+    식을 안 거친 서술 수치다 — `Q-111` 에서도 식 결과가 골든과 일치했다.
+
+    🔴 **각주는 안 건드린다** (`substitute` 와 같은 규율). 각주는 검사기가 무엇을
+    봤는가의 기록이다.
+    """
+    body, tail = _split_tail(answer or "")
+    equations = list(_SELF_EQ.finditer(body))
+    if not equations:
+        return answer, []
+
+    fixed: list[str] = []
+    for match in equations:
+        result = int(match.group(4).replace(",", ""))
+        operands = {int(match.group(1).replace(",", "")),
+                    int(match.group(3).replace(",", ""))}
+        for text in set(_ANSWER_NUM.findall(body)):
+            value = int(text.replace(",", ""))
+            if value == result or value in operands:
+                continue
+            if len(str(value)) != len(str(result)):
+                continue
+            if 0 < abs(value - result) / result < _SELF_NEAR:
+                body = body.replace(text, f"{result:,}")
+                fixed.append(f"{text} -> {result:,}")
+    return body + tail, fixed
+
+
 def _conclusion(answer: str) -> str:
     """답변이 **최종 답으로 내세우는** 대목. 없으면 본문 전체.
 

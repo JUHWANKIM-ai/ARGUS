@@ -2637,6 +2637,15 @@ def answer_question(question_id: str, question: str) -> dict:
         answer, repaired = aggregate.fix_unit_parens(answer)
         if repaired:
             trace.append(f'unit_paren fixed={len(repaired)} {" · ".join(repaired)}')
+
+    # 🔴 A38 — 답변이 **스스로 쓴 식과 어긋나는 수**를 맞춘다. 규약 「추론 논리성」.
+    #    closed judge 진단이 이 자리를 찾았다 — EM 도 수치검사도 못 잡는 자기모순이다.
+    if ablation.enabled("self_consistency_fix"):
+        from argus.agent import aggregate
+
+        answer, aligned = aggregate.fix_self_contradiction(answer)
+        if aligned:
+            trace.append(f'self_align fixed={len(aligned)} {" · ".join(aligned)}')
     answer, cited = ablation.attach_citation(answer, evidence, provenance=provenance)
     if cited:
         trace.append(f'citation attached={",".join(cited)}')

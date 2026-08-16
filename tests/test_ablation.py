@@ -358,7 +358,7 @@ def test_default_arm_is_the_submission_configuration():
     """🔴 스위치를 안 건드린 운영 경로가 곧 **제출 구성**이어야 한다.
 
     v4 에서 `A8` → `A20r`, 규약 감사에서 `A20r` → `A25+A26`, 재감사에서 → `A28`,
-    **v5 에서 → `A34`**.
+    **v5 에서 → `A34` → 정확성 개선 둘을 얹어 `A37`**.
 
     🔴 **v5 는 성적을 잰 세대다.** `A28` 이 틀리던 14문항 중 12건을 잡았다:
     그리드 66→72/72 · 전체 82→88/88 · 밸류체인 7→10/12 · 안전성 9→12/12 ·
@@ -376,8 +376,11 @@ def test_default_arm_is_the_submission_configuration():
     🔴 이 값을 바꾸면 **평가 서버도 다시 배포해야 한다** — `api/server.py` 는 arm 을
     지정하지 않으므로 이것이 곧 주최측이 받는 답변의 구성이다.
     """
-    assert ablation.current() == ablation.A34
-    assert ablation.current().name == "A34"
+    assert ablation.current() == ablation.A38
+    assert ablation.current().name == "A38"
+    # 🔴 v5 정확성 개선 둘. 성적은 안 움직이고 규약 「정확성」 축만 움직인다.
+    assert ablation.current().fix_unit_parens is True
+    assert ablation.current().counterparty_exempt is True
     # 🔴 v5 가 켠 여덟 스위치. 하나라도 빠지면 잰 성적이 아니다.
     for flag in ("speculation_gate", "identifier_gate", "reverse_chain",
                  "aggregate_line", "substitute_aggregate", "substitute_verified",
