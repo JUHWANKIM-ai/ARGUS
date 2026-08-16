@@ -1584,8 +1584,13 @@ def _citation_source(record: dict) -> dict | None:
     #    정기 히트는 `{chunk_id, doc_id, path, score}` 다. 그대로 쓰면 인용이
     #    `(근거: 공시, 접수번호 …)` 로 빈약해져 **되읽기보다 못해진다.** 그래서 여기서
     #    정본을 조회해 채운다 — 색인·레코드 조회라 LLM 0회다.
-    if record.get("path") is not None:                      # 정기공시 섹션
-        source = _periodic_meta(str(record.get("doc_id") or ""))
+    # 🔴 **`doc_id` 접두로 가른다.** 처음에는 `path` 유무로 갈랐는데, 정기공시가 섹션
+    #    검색이 아니라 매니페스트 경로(`_gather_meta`)로 들어오면 `path` 가 없어 정형으로
+    #    빠지고 `_record_of` 도 `None` 이라 보고서명이 `공시` 로 떨어졌다 (실측 Q-105).
+    #    §5 「근거 표시」는 **공시명**을 요구하는데 '공시' 는 공시명이 아니다.
+    doc_id = str(record.get("doc_id") or "")
+    if doc_id.startswith(PERIODIC_DOC_PREFIX) or record.get("path") is not None:
+        source = _periodic_meta(doc_id)
         label = _PERIODIC_LABEL.get(source.get("doc_subtype") or "", "정기보고서")
         if source.get("base_year"):
             label = f'{label} {source["base_year"]}'
