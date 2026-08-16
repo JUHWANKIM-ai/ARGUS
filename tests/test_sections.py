@@ -211,7 +211,8 @@ def test_offsets_point_at_the_right_text(built):
     raw = (built / sections.BLOB_NAME).read_bytes()
     for line in lines[:200]:
         record = json.loads(line)
-        text = raw[record["text_offset"]:record["text_offset"] + record["text_bytes"]].decode("utf-8")
+        blob = raw[record["text_offset"]:record["text_offset"] + record["text_bytes"]]
+        text = blob.decode("utf-8")
         assert len(text) == record["n_chars"]
         assert text.startswith(record["path"].split(" > ")[-1])
 

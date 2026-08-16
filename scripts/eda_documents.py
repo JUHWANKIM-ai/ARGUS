@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from argus.config import settings  # noqa: E402
 from argus.corpus.html_doc import extract_rows, read_document, strip_markup  # noqa: E402
-from argus.corpus.manifest import filter_docs, load_manifest  # noqa: E402
+from argus.corpus.manifest import load_manifest  # noqa: E402
 
 # ---------------------------------------------------------------- 정규식
 

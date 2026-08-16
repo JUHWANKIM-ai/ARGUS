@@ -157,10 +157,11 @@ def render_estimate(chars: dict, chars_per_token: float, measured: bool) -> str:
     lines.append(row("축소안: 정형 3종만",
                      sum(chars[g]["n"] for g in RECORD_GROUPS),
                      sum(chars[g]["chars"] for g in RECORD_GROUPS)))
+    vectors = int((RSS_GATE_MB - RSS_USED_MB) * 1024 * 1024 / (embed.EMBED_DIM * 2))
     lines.append(f"\n상주 게이트 {RSS_GATE_MB:.0f}MB · BM25 인덱스가 이미 "
                  f"{RSS_USED_MB:.0f}MB 사용 -> dense 여유 "
                  f"**{RSS_GATE_MB - RSS_USED_MB:.0f}MB** "
-                 f"= float16 {int((RSS_GATE_MB - RSS_USED_MB) * 1024 * 1024 / (embed.EMBED_DIM * 2)):,}벡터")
+                 f"= float16 {vectors:,}벡터")
     return "\n".join(lines)
 
 

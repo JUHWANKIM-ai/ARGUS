@@ -1632,9 +1632,10 @@ def _gather_meta(r, question: str, group: str, trace: list[str], take) -> str | 
         docs += filter_docs(corp_name=corp, doc_group=group, year=year)
     if "ym" in period:
         docs = [d for d in docs if str(d.get("rcept_dt", ""))[:6] == period["ym"]] or docs
+    ids = ",".join(str(d.get("doc_id") or "?") for d in docs[:MAX_EVIDENCE]) or "-"
     trace.append(f'hop=0 strat=meta tool=filter_docs corp="{",".join(r.companies) or "-"}" '
                  f'period={_fmt_period(period)} group={group} n={len(docs)} top_score=- '
-                 f'ids={",".join(str(d.get("doc_id") or "?") for d in docs[:MAX_EVIDENCE]) or "-"}')
+                 f'ids={ids}')
 
     sections: list[dict] = []
     for doc in docs:
@@ -2833,7 +2834,8 @@ def _regenerate_once(question: str, answer: str, evidence: str, records: list[di
         return answer, verdict
     except RuntimeError as exc:
         # 상류 장애로 답변을 잃지 않는다. 다만 **삼키지는 않는다** (`answer_question` 과 같은 규약).
-        trace.append(f"{_upstream_mark('regenerate', exc)} verify regen=skip_error kept=original: {exc}")
+        trace.append(f"{_upstream_mark('regenerate', exc)} verify regen=skip_error "
+                     f"kept=original: {exc}")
         return answer, verdict
 
     candidate = (result.text or "").strip()

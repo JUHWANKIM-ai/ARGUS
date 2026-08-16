@@ -4,8 +4,6 @@
 낸 것이다 (`artifacts/audit/audit_responses.jsonl`). 지어낸 입력으로 통과하는 테스트는
 "우리 정규식이 우리 예시를 먹는다" 만 증명한다.
 """
-from dataclasses import replace
-
 import pytest
 
 from argus import ablation

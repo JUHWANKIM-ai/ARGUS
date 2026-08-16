@@ -114,8 +114,9 @@ def test_all_tools_failing_yields_limitation_without_llm(monkeypatch):
 def test_search_receives_month_period_filter(monkeypatch):
     """Route 의 기간이 search_chunks 로 전달되지 않으면 Task 0 의 랭킹 개선이 소실된다."""
     captured = []
-    monkeypatch.setattr(pipeline.tools, "execute",
-                        lambda name, args: captured.append((name, args)) or {"count": 0, "chunks": []})
+    monkeypatch.setattr(
+        pipeline.tools, "execute",
+        lambda name, args: captured.append((name, args)) or {"count": 0, "chunks": []})
     question = "HD현대일렉트릭이 2023년 1월에 체결한 변압기 공급계약의 계약금액은 얼마인가?"
     pipeline._gather_evidence(route(question), question)
 
@@ -126,8 +127,9 @@ def test_search_receives_month_period_filter(monkeypatch):
 
 def test_search_falls_back_to_year_when_no_month(monkeypatch):
     captured = []
-    monkeypatch.setattr(pipeline.tools, "execute",
-                        lambda name, args: captured.append((name, args)) or {"count": 0, "chunks": []})
+    monkeypatch.setattr(
+        pipeline.tools, "execute",
+        lambda name, args: captured.append((name, args)) or {"count": 0, "chunks": []})
     question = "삼성전자의 2025년 공급계약"
     pipeline._gather_evidence(route(question), question)
 

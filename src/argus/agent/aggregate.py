@@ -96,10 +96,6 @@ def _op(question: str) -> str:
 #: 이유로, 연도(2025)나 비율(2.93)이 금액으로 잡히면 안 된다.
 _ANSWER_NUM = re.compile(r"\d{1,3}(?:,\d{3})+")
 
-#: 답변 뒤에 붙는 우리 부속물. 치환 대상을 찾을 때 **본문만 본다** — 각주와 근거 표기는
-#: 우리가 쓴 것이라 거기서 수를 고르면 우리 글을 우리가 고치는 꼴이 된다.
-_TAIL = re.compile(r"\n*\((?:근거|주의)[:：]")
-
 #: 결론 문장을 여는 말. 🔴 **첫 판은 배율 범위(0.5~2배)로 후보를 좁혔는데 그것이
 #: 틀린 잣대였다** — `Q-113` 에서 모델이 1,237,510,000,000 을 냈고(정답 526,570,000,000)
 #: 2.35배라 가드에 걸려 치환이 안 돌았다. 모델의 오차 크기는 우리가 못 정한다.
@@ -144,17 +140,26 @@ def substitute(answer: str, records, question: str, route) -> tuple[str, str]:
     if len(candidates) != 1:
         return answer, ""
     wrong = candidates.pop()
-    body, tail = _split_tail(answer)
+    body, tail = split_tail(answer)
     return (body.replace(wrong, f"{total:,}") + _prune_notes(tail, wrong),
             f"{wrong} -> {total:,}")
 
 
 #: 우리가 답변 뒤에 붙이는 부속물. `(주의: …)` · `(근거: …)`.
+#:
+#: 🔴 **이 규칙의 유일한 정의다.** 2026-08-16 리팩토링 전에는 같은 정규식이 **세 번**
+#: 적혀 있었다 — `aggregate._TAIL` · `aggregate._NOTE` · `reasoning._TAIL`. 각주 형식이
+#: 바뀌면 그중 둘이 조용히 낡는다. *"규칙이 두 곳에 있으면 갈린다"* 는 이 저장소가
+#: 열 번 겪은 실패 양식이고, 내가 하루 만에 그것을 다시 만들었다.
 _NOTE = re.compile(r"\n*\((?:주의|근거)[:：]")
 
 
-def _split_tail(answer: str) -> tuple[str, str]:
-    """본문과 우리 부속물을 가른다. 부속물이 없으면 `(answer, "")`."""
+def split_tail(answer: str) -> tuple[str, str]:
+    """본문과 우리 부속물을 가른다. 부속물이 없으면 `(answer, "")`.
+
+    🔴 **본문만 보는 이유**: 각주와 근거 표기는 **우리가 쓴 것**이라, 거기서 수를 골라
+    고치면 우리 글을 우리가 고치는 꼴이 된다 — 각주는 검사기가 무엇을 봤는가의 기록이다.
+    """
     hit = _NOTE.search(answer or "")
     return (answer, "") if not hit else (answer[:hit.start()], answer[hit.start():])
 
@@ -340,7 +345,7 @@ def fix_unit_parens(answer: str) -> tuple[str, list[str]]:
         fixed.append(f"{inner} -> {right}")
         return f"{match.group(1)}{match.group(2)}({right})"
 
-    body, tail = _split_tail(answer or "")
+    body, tail = split_tail(answer or "")
     body = _PAREN_UNIT.sub(_sub, body)
     # 🔴 고친 표기를 말하던 각주 항목도 뺀다. 안 빼면 각주가 답변에 없는 수를
     #    가리킨다 — `Q-097` 실측: 괄호를 2,077억으로 고쳤는데 각주는 20,768억을 말했다.
@@ -394,7 +399,7 @@ def fix_self_contradiction(answer: str) -> tuple[str, list[str]]:
     🔴 **각주는 안 건드린다** (`substitute` 와 같은 규율). 각주는 검사기가 무엇을
     봤는가의 기록이다.
     """
-    body, tail = _split_tail(answer or "")
+    body, tail = split_tail(answer or "")
     equations = list(_SELF_EQ.finditer(body))
     if not equations:
         return answer, []
@@ -423,7 +428,7 @@ def _conclusion(answer: str) -> str:
     거기 실린 수를 치환하면 우리 글을 우리가 고치는 꼴이고, 각주의 재계산값이
     치환 대상으로 잡히면 후보가 둘이 되어 침묵으로 빠진다.
     """
-    body = _TAIL.split(answer or "", 1)[0]
+    body, tail = split_tail(answer or "")
     for opener in _CONCLUSION:
         index = body.rfind(opener)
         if index >= 0:

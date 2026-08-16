@@ -1,4 +1,3 @@
-from pathlib import Path
 from argus.config import settings
 
 def test_settings_resolves_repo_root():

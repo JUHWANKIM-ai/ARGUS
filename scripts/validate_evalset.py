@@ -300,7 +300,8 @@ def check_unanswerable(rows: list[dict]) -> list[str]:
         if r.get("answerable"):
             continue
         if r.get("answer_form") != "refusal":
-            bad.append(f"{r['question_id']}: answerable=false 인데 answer_form={r.get('answer_form')!r}")
+            bad.append(f"{r['question_id']}: answerable=false 인데 "
+                       f"answer_form={r.get('answer_form')!r}")
         if r.get("task_type") is not None or r.get("difficulty") is not None:
             bad.append(f"{r['question_id']}: 정보한계 문항은 그리드 밖이므로 "
                        "task_type·difficulty 가 null 이어야 한다")
@@ -810,7 +811,8 @@ def summarize(rows: list[dict], sectors: dict[str, str]) -> str:
         f"  과제유형    {dict(Counter(r['task_type'] for r in graded))}",
         f"  answer_form {dict(Counter(r['answer_form'] for r in rows))}",
         f"  정정 이력 추적 {sum(1 for r in rows if r.get('correction_tracking'))}문항 "
-        f"(그중 '상' {sum(1 for r in graded if r.get('correction_tracking') and r['difficulty'] == '상')})",
+        f"(그중 '상' "
+        f"{sum(1 for r in graded if r.get('correction_tracking') and r['difficulty'] == '상')})",
     ]
     corps = {n for r in rows for n in (r.get("corp_name") or [])}
     # 출력이 실행마다 흔들리면 보고서에 붙일 수 없어 섹터명으로 고정 정렬한다.

@@ -2574,9 +2574,10 @@ def _gate_targeting(c: _GateContext) -> tuple[list[str], list, dict]:
             same = "✓" if row["auto_all_tracks"] == row["manual_all_tracks"] else "**✗**"
             out.append(f'| {row["arm"]} | {row["auto_grid"]} | {row["auto_all_tracks"]} '
                      f'| {row["manual_all_tracks"]} | {same} |')
+        pairs = ", ".join(p["question_id"] + "(" + p["auto_arm"] + "→" + p["manual_arm"] + ")"
+                          for p in rec["disagreements"])
         out.append(f'\n불일치 **{rec["n_disagreements"]}/{rec["n_compared"]}건**'
-                 + (f' — {", ".join(p["question_id"] + "(" + p["auto_arm"] + "→" + p["manual_arm"] + ")" for p in rec["disagreements"])}'
-                    if rec["disagreements"] else "")
+                 + (f' — {pairs}' if rec["disagreements"] else "")
                  + ".\n")
         if rec.get("critic_passed_wrong_answer"):
             out.append("🔴 **critic 이 통과시킨 오답**: "

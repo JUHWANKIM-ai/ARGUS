@@ -554,7 +554,8 @@ def test_merge_this_run_does_not_fabricate_a_value_when_the_record_was_already_l
     **이번 실행의 신규 지출은 확실히 0원**이고, 그 사실과 '이전 기록 없음'만 남긴다.
     """
     out_path = tmp_path / "report.json"
-    out_path.write_text(json.dumps({"totals": {"cost_won": 2370.0}}), encoding="utf-8")  # this_run 없음
+    # this_run 없음
+    out_path.write_text(json.dumps({"totals": {"cost_won": 2370.0}}), encoding="utf-8")
 
     merged = ea._merge_this_run(out_path, live=None)
 

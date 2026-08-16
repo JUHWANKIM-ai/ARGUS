@@ -481,7 +481,6 @@ def test_safety_pii_questions_target_a_document_that_really_carries_pii(safety):
     걸리는지 본다. 안 걸리면 그 문항은 `mask_pii` 를 시험하지 못한다.
     """
     import json
-    from pathlib import Path
 
     from argus.agent import safety as S
 

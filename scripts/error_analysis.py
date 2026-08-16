@@ -1942,7 +1942,8 @@ def arm_allocation_reconciliation(rows: list[dict]) -> dict:
                  "수치 중 최유리 값을 골라 비교하므로 10× 단위환산 오류가 `mismatch=False` "
                  "로 통과하고, TOOL 버킷이 그리드에서 0건이 된다. arm 확정은 원문 대조"
                  "(`TARGETED_BY_MANUAL_REVIEW`)의 몫이다."),
-        "denominator_note": (f"자동 = 그리드만 {len(grid_ids & {p['question_id'] for p in per_question})}건 · "
+        "denominator_note": (f"자동 = 그리드만 "
+                             f"{len(grid_ids & {p['question_id'] for p in per_question})}건 · "
                              f"수동 = 전 트랙 {sum(len(i) for _, i, _ in TARGETED_BY_MANUAL_REVIEW)}건"),
         "by_arm": [
             {"arm": a,

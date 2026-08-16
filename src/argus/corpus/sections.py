@@ -88,7 +88,8 @@ def plain_text(fragment: str) -> str:
     return _BLANKS.sub("\n\n", s).strip()
 
 
-def _top_level(text: str, open_re: re.Pattern, close_re: re.Pattern) -> list[tuple[int, int, int, int]]:
+def _top_level(text: str, open_re: re.Pattern,
+               close_re: re.Pattern) -> list[tuple[int, int, int, int]]:
     """중첩을 건너뛰고 최상위 요소만 (여는태그시작, 내용시작, 내용끝, 닫는태그끝)."""
     events = [(m.start(), 1, m.end()) for m in open_re.finditer(text)]
     events += [(m.start(), -1, m.end()) for m in close_re.finditer(text)]
@@ -132,7 +133,8 @@ def render(fragment: str) -> str:
     """구간 -> 마크다운. 표는 파이프 테이블로 인라인한다 (CONVENTION §7.3)."""
     parts: list[str] = []
     cursor = 0
-    for tag_start, inner_start, inner_end, close_end in _top_level(fragment, _TABLE_OPEN, _TABLE_CLOSE):
+    for tag_start, inner_start, inner_end, close_end in _top_level(
+            fragment, _TABLE_OPEN, _TABLE_CLOSE):
         head = plain_text(fragment[cursor:tag_start])
         if head:
             parts.append(head)

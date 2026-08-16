@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import re
 
+from argus.agent import aggregate
+
 #: 거절 문구. `pipeline` 의 고지 상수와 모델이 제 문장으로 쓰는 형태를 함께 본다.
 _REFUSAL = ("확인되지 않습니다", "제공하지 않습니다", "제공해 드릴 수 없습니다",
             "판단을 생성하지 않습니다", "어느 기업을 말씀하시는지",
@@ -31,9 +33,6 @@ _REFUSAL = ("확인되지 않습니다", "제공하지 않습니다", "제공해
 #: 실질 답변으로 볼 금액. 콤마 세 자리 묶음 둘 이상 — 연도·비율을 거른다.
 _MONEY = re.compile(r"\d{1,3}(?:,\d{3}){2,}\s*원")
 
-#: 우리가 붙인 부속물. 거기 실린 수는 모델의 주장이 아니다.
-_TAIL = re.compile(r"\n*\((?:근거|주의)[:：]")
-
 #: `2023-12-22 1,102,000,000,000원` 처럼 날짜와 금액이 한 자리에 있는 대목.
 _DATED = re.compile(r"(20\d{2})[.\-/년]\s*(1[0-2]|0?[1-9])[.\-/월]?\s*"
                     r"(?:(3[01]|[12]\d|0?[1-9])\s*일?)?[^0-9]{0,40}?"
@@ -41,8 +40,11 @@ _DATED = re.compile(r"(20\d{2})[.\-/년]\s*(1[0-2]|0?[1-9])[.\-/월]?\s*"
 
 
 def body_of(answer: str) -> str:
-    """우리 부속물을 뗀 본문."""
-    return _TAIL.split(answer or "", 1)[0]
+    """우리 부속물을 뗀 본문. 거기 실린 수는 **모델의 주장이 아니다**.
+
+    🔴 규칙은 `aggregate.split_tail` 하나뿐이다 — 여기서 정규식을 다시 쓰지 않는다.
+    """
+    return aggregate.split_tail(answer or "")[0]
 
 
 def self_negating(answer: str) -> dict:
