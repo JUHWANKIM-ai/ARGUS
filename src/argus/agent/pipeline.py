@@ -1594,7 +1594,8 @@ def _citation_source(record: dict) -> dict | None:
         label = _PERIODIC_LABEL.get(source.get("doc_subtype") or "", "정기보고서")
         if source.get("base_year"):
             label = f'{label} {source["base_year"]}'
-        tail = str(record.get("path") or "")
+        # 청크가 `path` 를 들고 오면 그것을 쓰고, 없으면 청크 id 로 색인에서 찾은 것을 쓴다.
+        tail = str(record.get("path") or source.get("path") or "")
         raw = str(source.get("rcept_dt") or "")
     else:                                                   # 정형 레코드
         source = record if record.get("doc_subtype") or record.get("title") else {}
@@ -1612,10 +1613,27 @@ def _citation_source(record: dict) -> dict | None:
 
 
 def _periodic_meta(doc_id: str) -> dict:
-    """정기공시 **문서 단위** 메타(보고서 종류 · 사업연도 · 접수일). 섹션마다 같다."""
+    """정기공시 청크 id 로 **문서 메타 + 그 섹션의 목차 경로**를 찾는다. LLM 0회.
+
+    🔴 **`_take` 가 받는 것은 문서 id 가 아니라 청크 id 다** — 실측
+    `periodic_20250814003695#109` · `periodic_20250321001834#119/p0`. 처음엔 그대로
+    `_sections_of` 에 넘겨 빈 결과를 받았고, 그래서 보고서명이 `정기보고서` 로,
+    섹션경로가 빈칸으로 떨어졌다 (실측 Q-105).
+
+    문서 메타(종류·사업연도·접수일)는 섹션마다 같으므로 첫 행에서 읽고, **목차 경로만
+    청크 id 로 골라낸다.**
+    """
+    base = doc_id.split("#", 1)[0]
     index = tools._section_index()
-    rows = tools._sections_of(index, doc_id) if index else []
-    return rows[0] if rows else {}
+    rows = tools._sections_of(index, base) if index else []
+    if not rows:
+        return {}
+    chunk = doc_id.split("/", 1)[0]                 # `#119/p0` → `#119`
+    hit = (next((row for row in rows if row.get("chunk_id") == chunk), None)
+           # 조각이 더 쪼개진 형태(`#119/p0`)는 정확히 안 맞을 수 있다. 접두로 한 번 더 본다.
+           or next((row for row in rows
+                    if str(row.get("chunk_id") or "").startswith(chunk)), None))
+    return {**rows[0], "path": (hit or {}).get("path", "")}
 
 
 def _gather_evidence(r, question: str = "", budget: Budget | None = None,
