@@ -1,4 +1,4 @@
-import { clip, layoutHubs, selectHubs, type HubNode } from "../lib/hubLayout";
+import { layoutHubs, selectHubs, type HubNode } from "../lib/hubLayout";
 import { nameKey, shortName } from "../lib/format";
 
 type Props = {
@@ -27,7 +27,7 @@ const KIND_FILL: Record<string, string> = {
  */
 export default function HubGraph({ hubs, slugByName, minCount = 5, minPartners = 2, limit = 10 }: Props) {
   const chosen = selectHubs(hubs, { minCount, minPartners, limit });
-  const layout = layoutHubs(chosen);
+  const layout = layoutHubs(chosen, shortName);
 
   return (
     <figure className="graph">
@@ -64,7 +64,7 @@ export default function HubGraph({ hubs, slugByName, minCount = 5, minPartners =
                   처음 그렸을 때 둘이 붙어서 벌렸다. 이름은 11자에서 자른다 —
                   가장 큰 원(반지름 35) 옆에서 11자가 왼쪽 끝에 닿는 한계다. */}
               <text className="graph-hub-name" x={placed.x - placed.r - 12} y={placed.y - 5} textAnchor="end">
-                {clip(shortName(hub.name), 11)}
+                {placed.label}
               </text>
               <text className="graph-hub-sub" x={placed.x - placed.r - 12} y={placed.y + 16} textAnchor="end">
                 {hub.partners.length}개사에 발주
@@ -73,12 +73,11 @@ export default function HubGraph({ hubs, slugByName, minCount = 5, minPartners =
               {/* 수주사 — 우리 70개사면 그 회사 화면으로 간다 */}
               {placed.partners.map((p) => {
                 const slug = slugByName[nameKey(p.name)];
-                const label = clip(shortName(p.name), 20);
                 const dot = (
                   <>
                     <circle className="graph-partner-dot" cx={p.x} cy={p.y} r={p.r} />
                     <text className={slug ? "graph-partner-name is-link" : "graph-partner-name"} x={p.x + p.r + 10} y={p.y} dominantBaseline="central">
-                      {label}
+                      {p.label}
                     </text>
                   </>
                 );

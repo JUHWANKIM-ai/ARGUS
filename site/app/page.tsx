@@ -3,6 +3,7 @@ import companies from "../public/data/companies.json";
 import network from "../public/data/network.json";
 import CompanySearch from "../components/CompanySearch";
 import HubGraph from "../components/HubGraph";
+import Limits from "../components/Limits";
 import { slugIndex } from "../lib/format";
 import type { CompanySummary, Network } from "../lib/types";
 
@@ -80,6 +81,9 @@ export default function Home() {
             </a>
           </div>
         </section>
+
+        {/* 🔴 첫 화면에서부터 범위를 말한다. 그림이 그럴듯할수록 경계를 먼저 밝혀야 한다. */}
+        <Limits kinds={["universe", "network"]} />
       </div>
     </main>
   );

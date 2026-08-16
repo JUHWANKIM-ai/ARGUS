@@ -6,7 +6,9 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { GEOMETRY, bandHeight, clip, hubRadius, layoutHubs, selectHubs, type HubNode } from "./hubLayout.ts";
+import {
+  GEOMETRY, bandHeight, clip, hubRadius, layoutHubs, selectHubs, textWidth, type HubNode,
+} from "./hubLayout.ts";
 
 function hub(name: string, count: number, partners: string[]): HubNode {
   return { name, canonical: name, kind: "public", count, partners };
@@ -90,4 +92,30 @@ test("고른 허브는 건수 내림차순이다", () => {
 test("긴 이름은 자르고 짧은 이름은 그대로 둔다", () => {
   assert.equal(clip("한화에어로스페이스", 20), "한화에어로스페이스");
   assert.equal(clip("General Electricity Company of Libya", 10), "General E…");
+});
+
+test("한글은 라틴보다 넓게 잡는다 — 어림이 작으면 글자가 잘린다", () => {
+  assert.ok(textWidth("가나다", 13.5) > textWidth("abc", 13.5));
+  assert.equal(textWidth("가나다", 10), 30);
+});
+
+test("도면 폭은 가장 긴 이름에 맞춘다 — 남는 여백만큼 좁은 화면에서 글자가 작아진다", () => {
+  const short = layoutHubs([hub("가", 9, ["나", "다"])]);
+  const long = layoutHubs([hub("가", 9, ["아주아주아주아주긴수주사이름입니다", "다"])]);
+  assert.ok(long.width > short.width, "긴 이름이 있는데 폭이 안 늘었다");
+  assert.ok(long.width <= GEOMETRY.maxWidth, "상한을 넘었다");
+});
+
+test("가장 긴 이름이 도면 안에 들어간다", () => {
+  const layout = layoutHubs([hub("가", 9, ["LIG디펜스앤에어로스페이스", "한국항공우주"])]);
+  for (const p of layout.hubs[0].partners) {
+    const right = p.x + p.r + 10 + textWidth(p.label, 13.5);
+    assert.ok(right <= layout.width, `${p.label} 이 오른쪽으로 넘쳤다`);
+  }
+});
+
+test("이름 정리 함수를 주면 그 결과가 라벨이 된다", () => {
+  const layout = layoutHubs([hub("한국수력원자력(주)", 35, ["두산에너빌리티"])],
+    (s) => s.replace("(주)", ""));
+  assert.equal(layout.hubs[0].label, "한국수력원자력");
 });
