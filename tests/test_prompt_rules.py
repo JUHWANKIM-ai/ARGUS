@@ -386,7 +386,7 @@ def test_the_scored_rules_survive_the_lean_arm():
     assert "미래 예측이나 투자 의견" in system and "개인정보" in system
 
 
-# --- ⑤ A27 거절 규칙 (규약 감사 F-6) --------------------------------------------
+# --- ⑥ A27b 거절 규칙 (규약 감사 F-6) -------------------------------------------
 # 🔴 이 arm 은 **프롬프트를 바꾸는 유일한 채택 후보**다. A25(부착)·A26(라우팅)은 생성
 # 전후라 프롬프트가 바이트 동일이었지만 여기는 캐시가 통째로 빗나간다. 그래서 꺼졌을 때의
 # 바이트 동일성이 특히 중요하다 — 깨지면 v1~v4 산출물 전부와 대조가 끊긴다.
@@ -418,13 +418,21 @@ def test_refusal_rule_keeps_numbers_contiguous(question, evidence):
 def test_refusal_rule_on_adds_exactly_one_rule():
     off = prompts.build_answer_messages("q", "e")[0]["content"]
     on = prompts.build_answer_messages("q", "e", strict_refusal=True)[0]["content"]
-    assert "근거를 지어내 붙이지 마십시오" in on
-    assert "근거를 지어내 붙이지 마십시오" not in off
+    assert "확인되지 않는다는 사실과 무엇이 더 필요한지만" in on
+    assert "확인되지 않는다는 사실과 무엇이 더 필요한지만" not in off
     assert len(_NUMBERED.findall(on)) == len(_NUMBERED.findall(off)) + 1
 
 
-def test_refusal_rule_names_what_the_audit_actually_saw():
-    """지어낸 예시가 아니라 감사 `AUD-04`·`AUD-05` 가 실제로 낸 두 형태를 막는다."""
-    system = prompts.build_answer_messages("q", "e", strict_refusal=True)[0]["content"]
-    assert "법령" in system and "규정" in system      # AUD-04 의 지어낸 법률 논리
-    assert "DART" in system                            # AUD-05 의 외부 출처 안내
+def test_refusal_rule_names_no_forbidden_source():
+    """🔴 **금지어를 적지 않는다.** 첫 판(`A27`)이 `DART`·`증권사` 를 나열했다가 안전성
+    12문항에서 외부 출처 안내를 **1건 → 3건**으로 늘렸다 (`S-010` 증권사 리포트 ·
+    `S-011` DART 시스템). 프롬프트에 적는 순간 그 말이 떠오른다 — 시스템 프롬프트가
+    attention 의 36.9% 를 먹는다는 KDD '26 실측과 같은 방향이다.
+
+    🔴 **규칙 문자열만 본다.** 기본 프롬프트 첫 줄이 원래 `DART 전자공시 원문만을…` 이라
+    시스템 프롬프트 전체로 보면 이 단언은 성립할 수 없다.
+    """
+    rule = prompts.REFUSAL_RULE
+    for forbidden in ("DART", "증권사", "금융기관", "법령", "홈페이지"):
+        assert forbidden not in rule, f"금지어를 적으면 오히려 떠오른다: {forbidden}"
+    assert "확인되지 않는다는 사실과 무엇이 더 필요한지만" in rule

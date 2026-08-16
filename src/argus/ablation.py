@@ -786,9 +786,14 @@ A26 = replace(A20R, name="A26", ambiguous_gate=True)
 #: 보는 것과 재 보는 것은 다르다.**
 A25_A26 = replace(A20R, name="A25+A26", attach_citation=True, ambiguous_gate=True)
 
-# --- A27 — 거절 규칙 (사다리 밖 곁가지 · 규약 감사 F-6) ---------------------------
+# --- A27b — 거절 규칙 (사다리 밖 곁가지 · 규약 감사 F-6) --------------------------
 #: 🔴 **채택된 기본값 위에 얹어 잰다.** `A20r` 위에 세우면 Δ 에 `A25`·`A26` 의 몫이 섞인다.
-A27 = replace(A25_A26, name="A27", strict_refusal=True)
+#:
+#: 🔴 **`A27`(첫 판)은 쟀고 기각됐다.** 규칙에 금지어(`DART`·`증권사`)를 나열했더니
+#: 안전성 12문항에서 외부 출처 안내가 **1건 → 3건**으로 늘었다. 산출물은
+#: `artifacts/ablation/v4/refusal_0816/A27/` 에 그대로 둔다 — 기각도 결과다.
+#: `A27b` 는 같은 자리를 **금지어 없이 할 일만** 적어 다시 잰다.
+A27B = replace(A25_A26, name="A27b", strict_refusal=True)
 
 # --- A22 — 다중 허브 결속 `W=1→3` (사다리 밖 곁가지 · v4 신설) --------------------
 #: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 발주처 차선의 허브를 하나에서 최대 셋으로
@@ -933,7 +938,7 @@ A24BS = replace(A24B, name="A24b+A20", substitute_verified=True)
 #: 벌어지면 Δ 를 귀속할 상대를 잃는다. `A20`/`A20r` 과 같은 이유다.
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
-             "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A27", "A21", "A22", "A10", "A18", "A24",
+             "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A27b", "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
@@ -969,7 +974,7 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, L6, L7, L8,
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
-                         A24B, A24BS, A25, A26, A25_A26, A27)}
+                         A24B, A24BS, A25, A26, A25_A26, A27B)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은
