@@ -118,12 +118,49 @@ def test_citation_goes_before_the_verify_tail():
     assert out.endswith("(주의: 자동 검증에서 결함이 발견되었습니다 — 이유)")
 
 
+# --- 🔴 실측 Q-007 이 가르쳐 준 것 -----------------------------------------------
+# 첫 판은 짚을 근거를 못 고르면 `units` **전부**를 붙였다. 그래서 '청주 M15X' 하나를
+# 말하는 답변에 무관한 둘(용인 Fab · 투자판단)이 따라붙었고, 채점기가
+# `no_fabrication` 을 `false` 로 뒤집었다 — **근거를 더 대는 것이 늘 이득이 아니다.**
+
+SK_EVIDENCE = """## [신규 시설투자] SK하이닉스 – 신규시설투자등 — 청주 M15X 건설
+- 공시일: 2024-04-24 (접수번호 20240424800596)
+- 투자금액: 5,296,200,000,000원
+
+## [신규 시설투자] SK하이닉스 – 신규시설투자등 — 용인 반도체 클러스터 내 신규 Fab 건설
+- 공시일: 2024-07-26 (접수번호 20240726800615)
+- 투자금액: 9,411,500,000,000원
+
+## [투자판단 관련 주요경영사항] SK하이닉스 – 투자판단 관련 주요경영사항
+- 공시일: 2024-12-20 (접수번호 20241220800005)
+"""
+
+
+def test_matches_by_words_when_the_answer_carries_no_number():
+    """실측 Q-007 — 답이 금액을 한 번도 안 쓰고 **이름만** 말한다."""
+    answer = "SK하이닉스가 2024년 4월 24일에 공시한 신규 시설투자의 투자 대상은 '청주 M15X 건설'입니다."
+    out, cited = ablation.attach_citation(answer, SK_EVIDENCE, ARM)
+    assert cited == ["20240424800596"]                  # 무관한 둘이 따라붙지 않는다
+    assert "20240726800615" not in out and "20241220800005" not in out
+
+
+def test_falls_back_to_one_not_all_when_nothing_matches():
+    """짚을 수 없으면 검색 1순위 하나만. 전부 붙이면 Q-007 을 다시 잃는다."""
+    _, cited = ablation.attach_citation("무언가 답했습니다.", SK_EVIDENCE, ARM)
+    assert cited == ["20240424800596"]
+
+
 def test_caps_the_number_of_citations():
+    """짚힌 근거가 많아도 상한을 넘지 않는다 — 답변보다 인용이 길어지면 안 된다."""
     evidence = "".join(
-        f"## [공급계약 체결] 회사{i} – 계약 {i}\n- 공시일: 2025-01-0{i} (접수번호 2025010{i}80000{i})\n\n"
+        f"## [공급계약 체결] 회사{i} – 계약 {i}\n"
+        f"- 공시일: 2025-01-0{i} (접수번호 2025010{i}80000{i})\n"
+        f"- 계약금액: {i},111,111,111원\n\n"
         for i in range(1, 6))
-    out, cited = ablation.attach_citation("무언가 답했습니다.", evidence, ARM)
-    assert len(cited) == ablation.MAX_CITATIONS
+    answer = "계약금액은 각각 1,111,111,111원 · 2,111,111,111원 · 3,111,111,111원 · " \
+             "4,111,111,111원 · 5,111,111,111원입니다."
+    _, cited = ablation.attach_citation(answer, evidence, ARM)
+    assert len(cited) == ablation.MAX_CITATIONS == 3
 
 
 def test_no_evidence_means_no_citation():

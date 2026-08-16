@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import lru_cache
 
+from argus import ablation
 from argus.agent.query import report_hints
 from argus.corpus.counterparty import canonical
 from argus.corpus.manifest import filter_docs, load_universe
@@ -18,6 +19,22 @@ _COMPARE_HINT = ("비교", "중 어", "더 큰", "더 많", "vs")
 _CALC_HINT = ("증감률", "증가율", "감소율", "비중", "몇 %", "몇 퍼센트", "합계", "총액", "차이")
 _OPEN_HINT = ("정리해", "설명해", "어떻게 변화", "요약해", "알려줘")
 _EXISTS_HINT = ("존재하는가", "있는가", "있나")
+
+#: 🔴 **가리키는 대상이 없는 지시어** (`A26` · 규약 감사 F-3).
+#:
+#: 감사 `AUD-15` *"그 회사의 작년 실적 좀 알려줘"* 가 `out_of_universe` 로 갈려
+#: *"70개사 범위 안의 기업으로 질문해 주시면"* 이라고 답했다. **기업이 지목되지 않은
+#: 것인데 범위 밖이라고 말한다** — 사용자는 자기가 물은 회사가 70개사에 없다고 오해한다.
+#:
+#: 🔴 **`쿠팡` 과 `그 회사` 는 다르다.** 앞은 기업 토큰이 있는데 universe 밖이라 진짜
+#: '범위 밖' 이고(`AUD-01`), 뒤는 애초에 무엇을 묻는지 모르는 것이다. `CONVENTION §3 R4`
+#: 가 *"한계 고지 **또는 역질문**"* 을 요구하는 자리가 바로 뒤쪽이다.
+#:
+#: 🔴 **지시어만 본다.** '기업명처럼 생긴 토큰이 있는가' 를 판정하려면 NER 이 필요하고
+#: 그것을 잘못 하면 `쿠팡` 같은 진짜 범위 밖 질의를 역질문으로 뺏는다 — 지금 맞는 판정을
+#: 깨는 쪽이 더 나쁘다. 지시어 목록은 오탐이 0 이고, 실측된 결함을 정확히 덮는다.
+_DANGLING_REF = ("그 회사", "그 기업", "이 회사", "이 기업",
+                 "해당 회사", "해당 기업", "위 회사", "위 기업", "그곳")
 
 #: 제공 코퍼스 기간 2023.01~2026.03 (CONVENTION §2 G7).
 CORPUS_YEARS = range(2023, 2027)
@@ -507,6 +524,10 @@ def route(question: str) -> Route:
         # 답변 불가로 단락시키면 근거가 있는데도 못 찾는다 (해지 사례 404건 실재).
         if is_exists:
             return made("complex_reason", "high", cot=True, sc=True)
+        # 🔴 A26 — 가리키는 대상이 없는 지시어는 '범위 밖' 이 아니라 '지시대상 불명' 이다.
+        #    플래그가 꺼져 있으면(기본값) 아래 두 줄은 종전과 글자 하나 다르지 않다.
+        if ablation.enabled("ambiguous_gate") and any(k in question for k in _DANGLING_REF):
+            return made("unanswerable", reason="ambiguous_reference")
         return made("unanswerable", reason="out_of_universe")
 
     # 발주처는 universe 밖일 수 있다 — 한국수력원자력·한국중부발전 같은 공공기관이

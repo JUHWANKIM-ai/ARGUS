@@ -37,6 +37,15 @@ NO_SUCH_REPORT = (
     "어느 사업연도·보고서 종류를 확인해 드릴지 알려주시면 실재하는 공시로 답해 드리겠습니다."
 )
 
+#: 🔴 질문이 **무엇을 묻는지** 알 수 없는 경우 (`A26` · 규약 감사 F-3).
+#: `UNANSWERABLE` 을 쓰면 *"70개사 범위 안의 기업으로"* 라고 말하게 되는데, 기업이
+#: 지목되지 않은 질의에 그렇게 답하면 **사용자는 자기가 물은 회사가 범위 밖이라고
+#: 오해한다.** `CONVENTION §3 R4` 가 요구하는 것은 이 자리에서의 **역질문**이다.
+AMBIGUOUS_REFERENCE = (
+    "어느 기업을 말씀하시는지 질문에서 확인되지 않습니다. "
+    "기업명을 알려주시면 제공된 70개사 · 2023.01~2026.03 범위 안에서 확인해 드리겠습니다."
+)
+
 MAX_EVIDENCE = 10                       # 근거 절단 상한 (PCST 압축 대체)
 _YM = re.compile(r"(20\d{2})\s*년\s*(1[0-2]|0?[1-9])\s*월")
 
@@ -2288,6 +2297,10 @@ def answer_question(question_id: str, question: str) -> dict:
         if r.reason.startswith("no_such_report"):
             trace.append(f"{r.reason} — 지목한 보고서가 목록에 없다 (LLM 호출 없이 한계 고지)")
             return _respond(question_id, question, "", trace, NO_SUCH_REPORT, budget)
+        # 🔴 A26 — 범위 밖이 아니라 **무엇을 묻는지 모르는** 것이다. 역질문으로 되묻는다.
+        if r.reason == "ambiguous_reference":
+            trace.append("지시대상 불명 — LLM 호출 없이 역질문")
+            return _respond(question_id, question, "", trace, AMBIGUOUS_REFERENCE, budget)
         trace.append("범위 밖 — LLM 호출 없이 한계 고지")
         return _respond(question_id, question, "", trace, UNANSWERABLE, budget)
 

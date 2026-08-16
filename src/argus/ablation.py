@@ -526,6 +526,21 @@ class Arm:
     #: 🔴 `substitute_verified`(A20)와 **배타가 아니다.** 원천이 다르다(도구 결과 대
     #: 재계산값) — `A24b+A20` 이 그 결합을 재는 arm 이다.
     substitute_tool_results: bool = False
+    #: 🔴 **`A26` 의 알맹이 — 가리키는 대상이 없는 지시어를 '범위 밖' 과 가른다. LLM 0회.**
+    #:
+    #: 규약 감사 `F-3` 이 실측했다. `AUD-15` *"그 회사의 작년 실적 좀 알려줘"* 가
+    #: `out_of_universe` 로 갈려 *"70개사 범위 안의 기업으로 질문해 주시면"* 이라 답했다 —
+    #: **기업이 지목되지 않은 것인데 범위 밖이라고 말한다.** 사용자는 자기가 물은 회사가
+    #: 70개사에 없다고 오해하고, `CONVENTION §3 R4` 의 *"역질문"* 은 발화하지 않는다.
+    #:
+    #: 🔴 `NO_SUCH_REPORT` 와 **같은 종류의 구분**이다. v3 에서 *"기업도 연도도 범위 안인데
+    #: 그 보고서만 없는 경우"* 를 따로 가른 것과 축이 같고, 그때 적은 사유 — *"한계의
+    #: 종류가 다르면 고지도 달라야 한다"* — 가 여기에도 그대로 적용된다. 갈래가 하나
+    #: 빠져 있었을 뿐이다.
+    #:
+    #: 🔴 **겨냥은 작다.** 평가셋 88 에 이 형태가 몇 건인지는 재 봐야 안다. 그래도 세우는
+    #: 이유는 크레딧 0원(LLM 0회)이고 `§5` 「정보한계 대응」이 독립 지표라서다.
+    ambiguous_gate: bool = False
     #: 🔴 **`A25` 의 알맹이 — 근거 표기를 우리가 붙인다. LLM 0회.**
     #:
     #: 규약 감사(2026-08-16 · `docs/compliance-audit-2026-08-16.md` F-2)가 잰 값:
@@ -748,6 +763,12 @@ A18 = replace(A8, name="A18", nary=True)
 #: 금액 대조에 섞여 든다).
 A25 = replace(A20R, name="A25", attach_citation=True)
 
+# --- A26 — 지시대상 불명 갈래 (사다리 밖 곁가지 · 규약 감사 F-3) -------------------
+#: `A20r` 과 **플래그 하나만** 다르다. 사유는 `Arm.ambiguous_gate` 독스트링.
+#: 🔴 `A25` 와 **합치지 않는다** — 축이 다르다(인용 표기 대 라우팅 갈래). 둘을 한 arm 에
+#: 넣으면 Δ 를 어느 쪽에 귀속할지 모른다. 둘 다 채택되면 그때 합친 arm 을 따로 잰다.
+A26 = replace(A20R, name="A26", ambiguous_gate=True)
+
 # --- A22 — 다중 허브 결속 `W=1→3` (사다리 밖 곁가지 · v4 신설) --------------------
 #: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 발주처 차선의 허브를 하나에서 최대 셋으로
 #: 넓힌다. 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** — `A20`·`A21`·`A18` 과 같은 곁가지다.
@@ -891,7 +912,7 @@ A24BS = replace(A24B, name="A24b+A20", substitute_verified=True)
 #: 벌어지면 Δ 를 귀속할 상대를 잃는다. `A20`/`A20r` 과 같은 이유다.
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
-             "A8-lean", "A20", "A20r", "A25", "A21", "A22", "A10", "A18", "A24",
+             "A8-lean", "A20", "A20r", "A25", "A26", "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
@@ -927,7 +948,7 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, L6, L7, L8,
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
-                         A24B, A24BS, A25)}
+                         A24B, A24BS, A25, A26)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은
@@ -1150,6 +1171,21 @@ def _cite_numbers(text: str) -> set[str]:
     return {m.replace(",", "") for m in _CITE_NUM.findall(text or "")}
 
 
+#: 답변과 근거를 잇는 **말**. 숫자만으로는 못 잇는 답이 있다 — 실측 `Q-007` 은
+#: *"투자 대상은 '청주 M15X 건설'"* 이라 금액을 한 번도 안 쓴다. 3자 이상만 보는 것은
+#: 조사·접미사가 아무 블록에나 걸리는 것을 막기 위해서다.
+_CITE_TERM = re.compile(r"[0-9A-Za-z가-힣]{3,}")
+#: 어느 공시에나 나오는 말. 이것으로 이으면 전부 걸린다.
+_CITE_STOP = frozenset((
+    "공시일", "접수번호", "계약금액", "투자금액", "계약상대", "사업보고서", "분기보고서",
+    "반기보고서", "주식회사", "기재정정", "신규시설투자등", "단일판매공급계약체결",
+))
+
+
+def _cite_terms(text: str) -> set[str]:
+    return {t for t in _CITE_TERM.findall(text or "") if t not in _CITE_STOP}
+
+
 def _citation_units(evidence: str) -> list[dict]:
     """근거 블록 하나 = 인용 하나. 접수번호가 없는 블록은 인용할 수 없으므로 버린다."""
     units: list[dict] = []
@@ -1169,6 +1205,9 @@ def _citation_units(evidence: str) -> list[dict]:
             "tail": tail.strip(),
             "date": "-".join(date.groups()) if date else "",
             "numbers": _cite_numbers(block),
+            # 🔴 제목줄만 본다. 블록 본문 전체를 쓰면 정기공시 섹션(수천 자)이 아무
+            #    답변에나 걸려 선별이 무의미해진다.
+            "terms": _cite_terms(head),
         })
     return units
 
@@ -1206,13 +1245,18 @@ def attach_citation(answer: str, evidence: str, arm: Arm | None = None) -> tuple
     answer_numbers = _cite_numbers(answer)
     named = [u for u in units if u["rcept_no"] in answer]
     used = [u for u in units if u["numbers"] & answer_numbers]
-    # 🔴 거절인데 근거 수치도 안 쓴 답변에는 붙이지 않는다 (`F-6`). 수치를 썼다면 사실을
+    titled = [u for u in units if u["terms"] & _cite_terms(answer)]
+    # 🔴 거절인데 근거를 하나도 안 쓴 답변에는 붙이지 않는다 (`F-6`). 무언가 썼다면 사실을
     #    말한 것이므로 일부에 "확인되지 않습니다" 가 섞여 있어도 인용은 붙인다.
-    if not named and not used and any(k in answer for k in _CITE_REFUSAL):
+    if not (named or used or titled) and any(k in answer for k in _CITE_REFUSAL):
         return answer, []
 
-    picked = named or used or units
-    picked = picked[:MAX_CITATIONS]
+    # 🔴 **못 고르겠으면 하나만 붙인다.** 처음에는 `units` 전부를 붙였는데 실측에서
+    #    `Q-007` 이 `no_fabrication` 을 잃었다 — 답이 '청주 M15X' 하나를 말하는데 인용이
+    #    무관한 둘(용인 Fab · 투자판단)을 끌고 오자 채점기가 **없는 내용을 지어냈다**고
+    #    본 것이다. 근거를 더 대는 것이 늘 이득이 아니다. 짚어낸 것이 있으면 그것만,
+    #    없으면 검색 1순위 하나만 적는다.
+    picked = (named or used or titled or units[:1])[:MAX_CITATIONS]
     citation = "\n\n" + " ".join(_render_citation(u) for u in picked)
 
     head, sep, tail = answer.partition("\n\n(주의:")
