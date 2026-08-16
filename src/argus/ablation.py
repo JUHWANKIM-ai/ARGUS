@@ -314,7 +314,8 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     "counterparty_hop": ("multi_hub",),
     "function_calling": ("calc_tools_only", "calc_queries_only",
                          "substitute_tool_results"),
-    "verifier": ("substitute_verified", "provenance_gate", "regenerate_on_verify")}
+    "verifier": ("substitute_verified", "provenance_gate", "regenerate_on_verify"),
+    "aggregate_line": ("substitute_aggregate",)}
 
 #: 🔴 `golden_oracle=True` 에서 **읽히지 않는** 축. 검색 차선을 통째로 골든 주입으로
 #: 갈아치우므로 이 플래그들을 건드려도 근거가 한 글자도 안 바뀐다 —
@@ -596,6 +597,39 @@ class Arm:
     #: 🔴 `FLAG_DEPENDENCIES` 에 `chain_hop -> reverse_chain` 을 건다 — 체인 hop 이
     #: 꺼진 arm 에서 켜면 `_chain_seeds` 가 아예 안 불린다 (Δ 가 조용히 0).
     reverse_chain: bool = False
+    #: 🔴 **`A29a` 의 알맹이 — 집계를 우리가 계산해 근거에 한 줄로 싣는다. LLM 0회.**
+    #:
+    #: 사유·검산은 `agent/aggregate` 모듈 독스트링에 적었다. 요약하면: R0(2026-08-16)이
+    #: 오답 7건에서 **항이 근거에 다 있는데 합·차·몫만 틀린 것**을 실측했고, 그 항으로
+    #: 우리가 계산하면 일곱 건 다 골든이 정확히 나온다.
+    #:
+    #: 🔴 **`calc_values`(A5)와 축이 다르다.** `A5` 는 *"레코드 **하나 안**의 단위
+    #: 환산·기간을 근거에 박는다"* 이고 이쪽은 *"레코드 **여럿에 걸친** 집계를 박는다"*
+    #: 다. 그래서 `FLAG_DEPENDENCIES` 에 걸지 않는다 — `calc_values=False` 여도 레코드의
+    #: `amount` 필드는 그대로 있고 집계는 그 필드에서 나온다.
+    #:
+    #: 🔴 **근거 칸(`MAX_EVIDENCE`)을 안 먹는다.** 그것이 `A16`(칸 확대)·`A17`(블록
+    #: 확대)·열거 depth 확대가 기각된 사유를 피하는 자리다 — 실리는 것은 블록이 아니라
+    #: 한 줄이다.
+    #:
+    #: 🔴 **`META_UNREACHABLE_FLAGS`·`ORACLE_UNREACHABLE_FLAGS` 에 넣지 않는다** —
+    #: 근거 조립은 `_gather_meta` 조기 반환 **뒤**이고 골든 주입 위에서도 그대로 선다.
+    aggregate_line: bool = False
+    #: 🔴 **`A29s` 의 알맹이 — 답변의 틀린 합계를 결정적 집계값으로 치환한다. LLM 0회.**
+    #:
+    #: 사유·실측은 `agent/aggregate.substitute` 독스트링에 적었다. 요약하면: 집계 줄에
+    #: 정확한 값을 싣고 *"다시 계산하지 말라"* 는 지시까지 붙여도 모델이 **세 문항에서
+    #: 다 자기가 다시 더했다** (`Q-034`·`Q-109`·`Q-115`). 처분의 다섯 번째 갈래다 —
+    #: 각주(v3) · 치환(`A20`) · 재생성(`A20r`) · 부착(`A25`) · **집계 치환**.
+    #:
+    #: 🔴 **`substitute_verified`(A20)와 원천이 다르다.** 저쪽은 `critic` 이 답변에서
+    #: **식을 파싱해** 재계산한다 — `Q-109` 는 `=` 를 안 써서 식이 없어 안 걸린다.
+    #: 이쪽의 원천은 **근거의 `amount` 필드**라 답변의 형태와 무관하다. 배타가 아니다.
+    #:
+    #: 🔴 `aggregate_line` 이 꺼지면 이 플래그도 꺼져야 한다 (`FLAG_DEPENDENCIES`) —
+    #: 같은 규칙으로 계산한 총액을 쓰므로, 줄이 안 실린 근거 위에서 치환만 하면
+    #: 답변에 근거 없는 수가 생긴다.
+    substitute_aggregate: bool = False
     #: 🔴 **`A26` 의 알맹이 — 가리키는 대상이 없는 지시어를 '범위 밖' 과 가른다. LLM 0회.**
     #:
     #: 규약 감사 `F-3` 이 실측했다. `AUD-15` *"그 회사의 작년 실적 좀 알려줘"* 가
@@ -873,6 +907,52 @@ A32 = replace(A28, name="A32", identifier_gate=True)
 #: 질문 게이트(`pipeline._asks_original`)가 함께 걸린다. 사유는 `Arm.reverse_chain`.
 A33 = replace(A28, name="A33", reverse_chain=True)
 
+# --- A29a — 결정적 집계 한 줄 (사다리 밖 곁가지 · v5 오답 7건) ----------------------
+#: 🔴 **v5 에서 가장 큰 arm 이다.** 겨냥 `Q-018`·`Q-034`·`Q-097`·`Q-107`·`Q-109`·
+#: `Q-113`·`Q-115`. 사유는 `Arm.aggregate_line` 과 `agent/aggregate` 독스트링.
+A29A = replace(A28, name="A29a", aggregate_line=True)
+
+# --- A29a+A33 — 집계와 역방향 체인을 함께 (Q-113 은 둘 다 있어야 넘어간다) ----------
+#: 🔴 `A33` 단독 Δ 가 0 이었던 이유가 여기 있다 — 그 arm 은 `Q-113` 의 골든을 4/4 로
+#: 회수했지만 남은 실패가 **산술**이라 정답으로 안 뒤집혔다. 결합을 따로 세워 두지
+#: 않으면 `A33` 이 "기여 0" 으로 기각되고, 그러면 산술이 고쳐져도 회수가 부족해진다.
+A29A_A33 = replace(A28, name="A29a+A33", aggregate_line=True, reverse_chain=True)
+
+# --- A29a+A20 — 집계 한 줄 + 치환 (v5 실측이 이 결합을 요구했다) --------------------
+#: 🔴 **집계 줄만으로는 `Q-034` 가 안 뒤집혔다** (2026-08-16 실측). 정확한 값
+#: 817,900,000,000 을 근거에 싣고 *"다시 계산하지 말라"* 는 지시까지 붙였는데 모델은
+#: **여전히 자기가 더했다**(817,100,000,000). v4 의 발견이 여기서 한 번 더 확인됐다 —
+#: *"모델이 숫자를 손에 쥐는 순간 틀린다."*
+#:
+#: 🔴 **그런데 헛일이 아니었다.** 집계 줄이 모델에게 **식을 쓰게 만들었다**:
+#:
+#:     A28  답변 "합계는 757,900,000,000원"        식 없음 → equation 검사 미발화
+#:                                                → provenance 만 발화 (재계산값 없음)
+#:     A29a 답변 "72,200 + 398,800 + 346,900 = 817,100"
+#:                                                → equation 발화 · 재계산 **817,900,000,000**
+#:                                                → judge 세 축 전부 통과
+#:
+#: 즉 이 arm 이 판 것은 정답이 아니라 **고칠 수 있는 형태**다. 그리고 그 형태를 고치는
+#: 기전은 이미 측정으로 이겨 둔 것이 있다 — `A20`(`substitute_verified`).
+A29A_A20 = replace(A28, name="A29a+A20", aggregate_line=True, substitute_verified=True)
+
+# --- A29s — 집계 한 줄 + 집계 치환 (처분의 다섯 번째 갈래) --------------------------
+#: 🔴 `A20` 이 못 잡는 자리를 잡는다 — 저쪽은 답변의 **식**을 파싱하고 이쪽은 **근거의
+#: `amount` 필드**를 쓴다. `Q-109` 는 `=` 를 안 써서 식이 없다. 사유는
+#: `Arm.substitute_aggregate` 와 `agent/aggregate.substitute` 독스트링.
+A29S = replace(A28, name="A29s", aggregate_line=True, substitute_aggregate=True)
+
+# --- A29s+A20 — 두 치환을 함께 (원천이 다르므로 배타가 아니다) ----------------------
+A29S_A20 = replace(A28, name="A29s+A20", aggregate_line=True,
+                   substitute_aggregate=True, substitute_verified=True)
+
+# --- A29s+A20+A33 — v5 산술·검색 채택 후보 전량 -------------------------------------
+#: 🔴 `Q-113` 은 셋이 다 있어야 넘어간다 — `A33` 이 골든을 4/4 로 회수하고,
+#: 집계가 체인별 차의 합을 내고, 치환이 모델의 오기를 갈아 끼운다.
+A29S_A20_A33 = replace(A28, name="A29s+A20+A33", aggregate_line=True,
+                       substitute_aggregate=True, substitute_verified=True,
+                       reverse_chain=True)
+
 # --- A22 — 다중 허브 결속 `W=1→3` (사다리 밖 곁가지 · v4 신설) --------------------
 #: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 발주처 차선의 허브를 하나에서 최대 셋으로
 #: 넓힌다. 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** — `A20`·`A21`·`A18` 과 같은 곁가지다.
@@ -1017,7 +1097,9 @@ A24BS = replace(A24B, name="A24b+A20", substitute_verified=True)
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
              "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A27b", "A28",
-             "A31", "A32", "A33", "A21", "A22", "A10", "A18", "A24",
+             "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
+             "A29s", "A29s+A20", "A29s+A20+A33",
+             "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
@@ -1053,7 +1135,8 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, L6, L7, L8,
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
-                         A24B, A24BS, A25, A26, A25_A26, A27B, A28, A31, A32, A33)}
+                         A24B, A24BS, A25, A26, A25_A26, A27B, A28, A31, A32, A33,
+                         A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은

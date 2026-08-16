@@ -2524,6 +2524,18 @@ def answer_question(question_id: str, question: str) -> dict:
         trace.append("근거 없음 — LLM 호출 없이 한계 고지")
         return _respond(question_id, question, "", trace, UNANSWERABLE, budget)
 
+    # 🔴 A29a — 집계를 우리가 계산해 **한 줄**로 싣는다. 근거 칸을 안 먹으므로
+    #    `A16`(칸 확대)·`A17`(블록 확대)이 기각된 사유에 걸리지 않는다.
+    #    배선 자체를 플래그 뒤에 둔다 — 무조건 부르면 플래그를 끈 arm 의 근거도
+    #    바뀔 수 있고, 그것이 `A20` 에서 이미 겪은 사고다.
+    if ablation.enabled("aggregate_line"):
+        from argus.agent import aggregate
+
+        extra = aggregate.line(_evidence_records(evidence), clean, r)
+        if extra:
+            evidence = f"{evidence}\n\n{extra}"
+            trace.append(f"aggregate line=1 chars={len(extra)}")
+
     try:
         # 🔴 `A8-lean` 은 여기서 갈린다. `enabled()` 로 읽는 이유는 오타가 조용히
         #    False 가 되지 않게 하기 위해서다 — 없는 플래그 이름은 `KeyError` 다.
@@ -2575,6 +2587,16 @@ def answer_question(question_id: str, question: str) -> dict:
     # 🔴 A25 — 근거 표기를 우리가 붙인다. **여기여야 한다**: 모든 LLM 호출이 끝난 뒤라
     #    생성·critic·재생성 프롬프트가 바이트 동일로 남고 `RequestCache` 가 적중한다.
     #    플래그가 꺼져 있으면(기본값) 아래 두 줄은 종전과 글자 하나 다르지 않다.
+    # 🔴 A29s — 결정적 집계값으로 답변의 **틀린 합계 하나**를 갈아 끼운다.
+    #    `A25`(부착)와 같은 자리다 — 모든 LLM 호출이 끝난 뒤라 생성·critic·재생성
+    #    프롬프트가 바이트 동일로 남고 `RequestCache` 가 적중한다. LLM 0회.
+    if ablation.enabled("substitute_aggregate"):
+        from argus.agent import aggregate
+
+        answer, swapped = aggregate.substitute(
+            answer, _evidence_records(evidence), clean, r)
+        if swapped:
+            trace.append(f"aggregate substitute={swapped}")
     answer, cited = ablation.attach_citation(answer, evidence, provenance=provenance)
     if cited:
         trace.append(f'citation attached={",".join(cited)}')
