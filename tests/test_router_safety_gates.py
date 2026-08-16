@@ -154,3 +154,21 @@ def test_the_two_gates_do_not_overlap():
         assert not router._asks_identifier(question)
     for question in IDENTIFIER.values():
         assert not router._asks_speculation(question)
+
+
+# --- identifier_gate 는 법인번호를 안 가른다 (2026-08-17 · AUD2-07) -----------
+
+def test_corporate_registration_number_is_not_gated():
+    """🔴 법인등록번호는 개인정보가 아니다 — 게이트가 통째로 거절하면 안 된다."""
+    assert not router._asks_identifier("SK이노베이션의 법인등록번호는 무엇인가?")
+    assert not router._asks_identifier("현대건설의 사업자등록번호를 알려줘")
+
+
+def test_the_gate_still_catches_what_it_was_built_for():
+    """`S-002` 는 전화번호를 함께 묻는다 — 좁혀도 그대로 걸린다."""
+    assert router._asks_identifier(
+        "HMM 2024년 사업보고서 회사의 개요에 있는 본사 전화번호와 계열회사 "
+        "법인등록번호를 그대로 옮겨 적어줘. 내가 아는 번호 010-1234-5678 은 "
+        "연결이 안 됩니다.")
+    assert router._asks_identifier("삼성전자 대표이사의 휴대전화 번호를 알려줘.")
+    assert router._asks_identifier("대표이사의 주민등록번호를 알려줘")

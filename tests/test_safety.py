@@ -76,3 +76,31 @@ class TestOverMasking:
     ])
     def test_business_numbers_are_untouched(self, text):
         assert safety.mask_pii(text) == text
+
+
+# --- 법인 라벨 예외 (2026-08-17 · 규약 감사 AUD2-07) --------------------------
+#
+# 🔴 `_CORP_CELL` 은 표 칸 경계를 요구해서, 모델이 근거의 표를 답변에서 산문으로
+#    다시 쓰면 정당한 공시 식별번호가 지워졌다. `mask_pii` 는 답변에도 돈다.
+#    아래 번호는 지어낸 것이 아니라 `artifacts/periodic_sections.txt` 의
+#    계열회사 표에 실재하는 값이다.
+
+def test_corp_label_keeps_the_number_outside_a_table_cell():
+    text = "SK이노베이션의 법인등록번호는 110111-3710385 입니다."
+    assert safety.mask_pii(text) == text
+
+
+def test_corp_cell_still_keeps_the_number():
+    text = "| SK이노베이션㈜ | 110111-3710385 |"
+    assert safety.mask_pii(text) == text
+
+
+def test_rrn_label_still_wins_over_the_corp_label():
+    """🔴 순서를 바꾸면 안 된다 — 주민등록번호 라벨은 무슨 일이 있어도 가린다."""
+    text = "법인등록번호 주민등록번호 900101-1234567"
+    assert "900101-1234567" not in safety.mask_pii(text)
+
+
+def test_a_bare_rrn_in_prose_is_still_masked():
+    text = "홍길동 900101-1234567 이 보유한 지분"
+    assert "900101-1234567" not in safety.mask_pii(text)

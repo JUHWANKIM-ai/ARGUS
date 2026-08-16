@@ -31,6 +31,20 @@ _CORP_CELL = re.compile(r"(?:㈜|\(주\)|주식회사|유한회사|Co\.|Ltd|Inc)
 #: 라벨이 명시되면 표 칸이든 아니든 무조건 가린다. 이쪽이 우선이다.
 _RRN_LABEL = re.compile(r"주민(?:등록)?번호[^0-9\n]{0,6}$")
 
+#: 🔴 **법인 라벨이 붙으면 남긴다** (2026-08-17). `_CORP_CELL` 은 **표 칸 경계**를
+#: 요구해서, 모델이 근거의 표를 답변에서 산문·불릿으로 다시 쓰면 예외가 안 걸리고
+#: 정당한 공시 식별번호가 지워졌다 (`mask_pii` 는 답변에도 돈다).
+#:
+#:     근거   | SK이노베이션㈜ | 110111-3710385 |     -> `_CORP_CELL` 적중, 남는다
+#:     답변   법인등록번호는 110111-3710385 입니다     -> 칸이 없어 지워졌다
+#:
+#: 표 칸이 "이 번호는 법인의 것" 이라는 신호라면, **명시된 법인 라벨은 그보다 더 센
+#: 신호다.** 쓴 쪽이 스스로 법인번호라고 말한 것이다.
+#:
+#: 🔴 **`_RRN_LABEL` 이 여전히 먼저다.** 아래 `_mask_rrn` 의 순서를 바꾸지 마라 —
+#: *"주민등록번호"* 라고 적힌 자리는 무슨 일이 있어도 가린다. 미탐은 오탐보다 나쁘다.
+_CORP_LABEL = re.compile(r"(?:법인|사업자)등록번호[^0-9\n]{0,8}$")
+
 _INJECTION = (
     "이전 지시", "앞의 지시", "지시를 무시", "규칙을 무시", "시스템 프롬프트",
     "ignore all previous", "ignore previous", "disregard", "system prompt",
@@ -47,7 +61,9 @@ def _mask_rrn(match: re.Match) -> str:
     before = match.string[:match.start()]
     if _RRN_LABEL.search(before):
         return "******-*******"
-    return match.group(0) if _CORP_CELL.search(before) else "******-*******"
+    if _CORP_LABEL.search(before) or _CORP_CELL.search(before):
+        return match.group(0)
+    return "******-*******"
 
 
 def mask_pii(text: str) -> str:
