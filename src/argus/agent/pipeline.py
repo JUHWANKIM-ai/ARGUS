@@ -1077,7 +1077,8 @@ def _wants_enumeration(r, question: str, group: str) -> bool:
     return any(h in (question or "") for h in _ENUMERATION_HINT)
 
 
-def _enumerate_events(r, question: str, budget: Budget, trace: list[str], take) -> int:
+def _enumerate_events(r, question: str, budget: Budget, trace: list[str], take,
+                      extra: list[str] | None = None) -> int:
     """한 기업의 한 서식을 **계약상대별로 한 건씩** 담는다. LLM 0회 · 검색 0회 · 스텝 1.
 
     질문이 묻는 것이 "갈래" 이므로 담는 규칙도 갈래다 — 계약상대(canonical)로 묶고
@@ -1150,6 +1151,18 @@ def _enumerate_events(r, question: str, budget: Budget, trace: list[str], take) 
         members.sort(key=lambda e: (str(e.get("rcept_dt", "")), e.get("rcept_no", "")),
                      reverse=True)
     order = sorted(groups, key=lambda key: (-len(groups[key]), key))
+
+    # 🔴 A29c — 담을 칸이 모자라 버려지는 **분포**를 한 줄로 남긴다. `groups` 는 이미
+    #    만들어져 있고(pool 27 · 그룹 11), 담기는 것은 `MAX_ENUM_EVIDENCE`(5)뿐이다.
+    #    상한을 올리는 안은 `A16` 이고 `R0-3`(dac2bf0)이 이미 기각했다 — 그래서 칸이
+    #    아니라 줄로 낸다.
+    if extra is not None and ablation.enabled("partner_profile"):
+        from argus.agent import aggregate
+
+        profile = aggregate.partner_profile(groups)
+        if profile:
+            extra.append(profile)
+            trace.append(f"partner_profile groups={len(groups)} chars={len(profile)}")
 
     taken: list[str] = []
     depth = 0
@@ -1771,6 +1784,8 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
     # 겹칠 때 검색 차선의 도착 순서가 밀리고, 그러면 체인 씨앗(상위 2건)이 바뀐다.
     # 차선을 완전히 나눠야 검색 경로가 종전과 비트 단위로 같다.
     cp_picked: list[dict] = []
+    #: 🔴 A29c — 근거 **칸을 안 먹는** 한 줄들. 검색이 담지 못하고 버린 것을 남긴다.
+    extra_lines: list[str] = []
     cp_seen: set[str] = set()
     #: 발주처 차선이 최종 근거에 실을 수 있는 칸. `A22` 가 추가 허브를 결속할 때만
     #: 허브당 `MAX_EXTRA_HUB_EVIDENCE` 씩 늘어난다 — `W=1` 에서는 종전 상수 그대로다.
@@ -1984,7 +1999,7 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
     elif (arm.hop_ladder and picked and len(picked) < MAX_EVIDENCE
             and not _out_of_corpus_period(r, question)
             and _wants_enumeration(r, question, group)):
-        _enumerate_events(r, question, budget, trace, _take)
+        _enumerate_events(r, question, budget, trace, _take, extra_lines)
 
     # 발주처 hop. 사다리 **밖의 스텝 1개**이고, 검색이 예산을 다 쓴 뒤에 남는 것으로만
     # 움직인다 (제동 ④). 순서를 뒤로 미뤄도 담기는 레코드는 같다 — 그래프 조회라
@@ -2014,7 +2029,13 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
     if chain_ids:
         picked.sort(key=lambda p: 0 if p["doc_id"] in chain_ids else 1)
 
-    return _joined(), trace
+    # 🔴 A29c — 검색이 **담지 못하고 버린 것**을 한 줄로 남긴다. 근거 칸을 안 먹으므로
+    #    `A16`(칸 확대)·열거 depth 확대가 기각된 사유에 걸리지 않는다. 머리에 둔다 —
+    #    꼬리에 두면 안 읽힌다는 것을 `Q-023` 이 실측으로 보여 줬다(`_prepend`).
+    body = _joined()
+    if extra_lines and body:
+        body = "\n\n".join(extra_lines) + "\n\n" + body
+    return body, trace
 
 
 # --- ORACLE — 골든 근거 주입 (🔴 진단 전용 · 제출 구성이 될 수 없다) --------------

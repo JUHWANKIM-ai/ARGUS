@@ -189,6 +189,53 @@ def _ymd(record: dict) -> str:
     return f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}" if len(raw) >= 8 else raw
 
 
+#: 분포 줄에 담을 계약상대 수의 상한. 🔴 `MAX_ENUM_EVIDENCE`(5)와 **다른 축이다** —
+#: 저쪽은 근거 블록 칸이고 이쪽은 한 줄 안의 항목 수다. 11개 그룹이 약 120자에 들어간다.
+MAX_PARTNER_PROFILE = 12
+
+
+def partner_profile(groups: dict) -> str:
+    """계약상대별 공시 건수 분포를 한 줄로. LLM 0회 · 검색 0회.
+
+    🔴 `_enumerate_events` 는 이 사전을 **이미 만들어 놓고** `MAX_ENUM_EVIDENCE`(5)
+    칸만 담고 버린다. `Q-117` 은 그 버려진 분포를 묻는 문항이다 — 골든의 핵심이
+    *"발주 구조가 두 갈래"* 이고, 실측(`_enumerate_events` 독스트링)이 pool 27 ·
+    그룹 11 · 담을 칸 5 라 9번째 그룹부터 잘린다는 것을 이미 세어 뒀다.
+    근거 칸을 늘리는 것은 `A16` 이 기각한 자리이므로 **줄로 낸다.**
+    """
+    rows = [(name, members) for name, members in (groups or {}).items() if name]
+    if len(rows) < 2:
+        return ""
+    rows.sort(key=lambda x: (-len(x[1]), x[0]))
+    total = sum(len(m) for _, m in rows)
+    lines = [f"- [결정적 집계] 계약상대별 공시 분포 (전체 {total}건 · 상대 {len(rows)}곳)"]
+    for name, members in rows[:MAX_PARTNER_PROFILE]:
+        lines.append(f"  - {name}: {len(members)}건 — {_subject(members[0])}")
+    lines.append(f"  {_DIRECTIVE}")
+    return "\n".join(lines)
+
+
+def _subject(event: dict) -> str:
+    """대표 계약의 **대상**. 🔴 건수만으로는 갈래가 안 보인다.
+
+    `Q-117` 실측(2026-08-16): 건수 분포만 실었더니 답이 *"한국수력원자력과 나머지
+    기업들"* 로 갈렸다. 골든이 요구하는 갈래는 **재수주 구조**다 — 두산에너빌리티는
+    발주 공기업이 아니라 주기기 공급사이고, 그 표지가 계약명에 있다:
+
+        한국수력원자력   가동원전 계통설계 기술용역 …      (직접 수주)
+        두산에너빌리티   원자로계통 설계용역 …            (재수주 — 계약명이 전부 같다)
+
+    이름만으로는 그 구별이 안 서고 계약명이 그것을 그대로 말한다. 그래서 함께 싣는다.
+    """
+    title = str(event.get("title") or "")
+    tail = title.split("—", 1)[-1].strip() if "—" in title else title.strip()
+    return tail[:MAX_SUBJECT_CHARS] or "-"
+
+
+#: 대표 계약명 길이 상한. 11곳 × 44자 ≈ 480자로, 근거 블록 하나보다 작다.
+MAX_SUBJECT_CHARS = 44
+
+
 def _conclusion(answer: str) -> str:
     """답변이 **최종 답으로 내세우는** 대목. 없으면 본문 전체.
 

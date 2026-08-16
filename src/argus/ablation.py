@@ -270,7 +270,7 @@ RETRIEVAL_MODES = ("meta", "exchange", "all")
 #: 대해서만 "BM25 이후에 세워라" 라고 지시했고, 같은 구조적 의존이 나머지 셋에도 있다는
 #: 일반화는 하지 않았다. 이 상수가 그 일반화다.
 META_UNREACHABLE_FLAGS = ("hop_ladder", "chain_hop", "split_query", "counterparty_hop",
-                          "followup_hop", "reverse_chain")
+                          "followup_hop", "reverse_chain", "partner_profile")
 
 #: 🔴 `retrieval="meta"` 에서 **기본값에서 움직이면 안 되는** 축. 뜻은
 #: `META_UNREACHABLE_FLAGS` 와 같고 **검사 형태만 다르다** — 저 목록은 `True = 켠다` 를
@@ -310,6 +310,7 @@ META_UNREACHABLE_AXES = ("meta_corp", "meta_date", "meta_group")
 #: 도구를 안 내미는 arm 에서 켜면 코드가 도달하지 않는다 (`A24b` 의 하위 옵션들).
 FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     "chain_hop": ("followup_hop", "reverse_chain"),
+    "hop_ladder": ("partner_profile",),
     "calc_values": ("lean_rules",),
     "counterparty_hop": ("multi_hub",),
     "function_calling": ("calc_tools_only", "calc_queries_only",
@@ -332,7 +333,7 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
 ORACLE_UNREACHABLE_FLAGS = ("retrieval", "dense", "hop_ladder", "chain_hop",
                             "split_query", "counterparty_hop", "followup_hop",
                             "meta_corp", "meta_date", "meta_group", "multi_hub",
-                            "reverse_chain")
+                            "reverse_chain", "partner_profile")
 
 
 @dataclass(frozen=True)
@@ -659,6 +660,20 @@ class Arm:
     #: `_gather_meta` 도 `_oracle_evidence` 도 `tools._record_of` 로 같은 레코드를
     #: 읽으므로 두 경로 모두에서 코드가 도달한다 (`nary` 와 같은 판단).
     correction_fields: bool = False
+    #: 🔴 **`A29c` 의 알맹이 — 열거가 버리는 계약상대 분포를 한 줄로 남긴다. LLM 0회.**
+    #:
+    #: 사유·실측은 `agent/aggregate.partner_profile` 독스트링에 적었다. 요약하면:
+    #: `_enumerate_events` 는 계약상대 그룹 사전을 **이미 만들어 놓고** 다섯 칸만 담고
+    #: 버린다. `Q-117` 이 묻는 것이 바로 그 버려진 분포다(*"발주 구조가 두 갈래"*).
+    #:
+    #: 🔴 **상한을 안 올린다.** `MAX_ENUM_EVIDENCE` 를 올리려면 `MAX_EVIDENCE` 를 먼저
+    #: 올려야 하고 그것이 `A16` 이며 `R0-3`(dac2bf0)이 기각했다. 칸이 아니라 줄이다.
+    #:
+    #: 🔴 `META_UNREACHABLE_FLAGS`·`ORACLE_UNREACHABLE_FLAGS` 에 **넣는다** — 열거 hop 은
+    #: `_gather_meta` 조기 반환 아래에 있고 골든 주입은 그 차선을 안 탄다.
+    #: 🔴 `FLAG_DEPENDENCIES` 에 `hop_ladder -> partner_profile` 을 건다 — 열거 hop 이
+    #: 사다리 안에 있으므로 그것이 꺼진 arm 에서 켜면 코드가 도달하지 않는다.
+    partner_profile: bool = False
     #: 🔴 **`A26` 의 알맹이 — 가리키는 대상이 없는 지시어를 '범위 밖' 과 가른다. LLM 0회.**
     #:
     #: 규약 감사 `F-3` 이 실측했다. `AUD-15` *"그 회사의 작년 실적 좀 알려줘"* 가
@@ -1002,6 +1017,9 @@ A30 = replace(A28, name="A30", correction_fields=True)
 #: 🔴 **단독 Δ 를 먼저 다 확보하고 나서 결합을 잰다** (`A25+A26` 과 같은 규칙).
 #: 여섯 플래그의 겨냥이 서로 다른 문항이라 상호작용이 없을 것이라 보지만,
 #: **없을 것이라 보는 것과 재 보는 것은 다르다.**
+A29C = replace(A28, name="A29c", partner_profile=True)
+
+# --- A34 — v5 채택분 전량 결합 (새 운영 기본값 후보) --------------------------------
 A34 = replace(A28, name="A34",
               speculation_gate=True,      # Task 1 — S-003·S-004
               identifier_gate=True,       # Task 2 — S-002
@@ -1161,7 +1179,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
              "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A27b", "A28",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
-             "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A30", "A34",
+             "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30", "A34",
              "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1200,7 +1218,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
                          A24B, A24BS, A25, A26, A25_A26, A27B, A28, A31, A32, A33,
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
-                         A29B, A29_ALL, A30, A34)}
+                         A29B, A29_ALL, A29C, A30, A34)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은
