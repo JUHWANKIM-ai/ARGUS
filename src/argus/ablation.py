@@ -1215,6 +1215,10 @@ _CITE_REFUSAL = ("확인되지 않습니다", "확인할 수 없", "드릴 수 �
 #: 한 답변에 붙이는 인용 상한. 근거 칸은 최대 10건인데 그것을 다 적으면 답변보다
 #: 인용이 길어진다.
 MAX_CITATIONS = 3
+#: 거절 답변에서 **떼어낼** 근거 표기. 모델이 스스로 쓴 것까지 잡아야 하므로 `CITATION_RE`
+#: 보다 넓다 — `(근거: …, 20260310002820)` 처럼 '접수번호' 라는 말 없이 숫자만 적은 것도
+#: 거짓 귀속이다 (실측 `AUD-08` 이 그 형태로 썼다).
+_CITE_ANY = re.compile(r"\s*\(\s*근거\s*:[^()]*(?:\([^()]*\)[^()]*)*\)")
 
 
 def _cite_numbers(text: str) -> set[str]:
@@ -1315,20 +1319,32 @@ def attach_citation(answer: str, evidence: str, arm: Arm | None = None,
     if not arm.attach_citation:
         return answer, []
     from argus.agent.critic import quick_check       # 순환 import 회피 — 호출 시점에 든다
-    if not answer or quick_check(answer)["has_citation"]:
+    if not answer:
         return answer, []
 
     units = _citation_units(evidence, provenance)
-    if not units:
-        return answer, []
+    # 🔴 **모델이 쓴 근거 표기를 뺀 본문으로 판정한다.** 그러지 않으면 인용 안의 접수번호가
+    #    `named` 에 걸려 "근거를 짚었다" 로 읽히고, 거절 판정을 그대로 비켜간다 —
+    #    감사 `AUD-04` 가 정확히 그 모양이었다.
+    bare = _CITE_ANY.sub("", answer).rstrip()
+    bare_numbers = _cite_numbers(bare)
+    named = [u for u in units if u["rcept_no"] in bare]
+    used = [u for u in units if u["numbers"] & bare_numbers]
+    titled = [u for u in units if u["terms"] & _cite_terms(bare)]
 
-    answer_numbers = _cite_numbers(answer)
-    named = [u for u in units if u["rcept_no"] in answer]
-    used = [u for u in units if u["numbers"] & answer_numbers]
-    titled = [u for u in units if u["terms"] & _cite_terms(answer)]
-    # 🔴 거절인데 근거를 하나도 안 쓴 답변에는 붙이지 않는다 (`F-6`). 무언가 썼다면 사실을
-    #    말한 것이므로 일부에 "확인되지 않습니다" 가 섞여 있어도 인용은 붙인다.
-    if not (named or used or titled) and any(k in answer for k in _CITE_REFUSAL):
+    # 🔴 **거절에는 근거를 붙이지도, 남겨 두지도 않는다** (규약 감사 `F-6`).
+    #
+    # 감사 `AUD-04` 는 개인정보 요구를 옳게 거절해 놓고 *"(근거: 사업보고서 2025,
+    # 접수번호 20260310002820)"* 을 달았다. 그 보고서는 거절의 근거가 아니다 — 읽지도
+    # 않은 공시를 근거로 다는 **거짓 귀속**이고 §5 「근거 기반」에 걸린다.
+    #
+    # 🔴 프롬프트로 타이르는 길은 재 보고 접었다. `A27` 은 금지어를 나열했다가 외부 출처
+    # 안내를 1건 → 3건으로 **늘렸고**, 금지어를 뺀 `A27b` 도 개선이 1문항 안팎이라
+    # 잡음과 구별되지 않았다. **v4 의 교훈 그대로 — 말로 타이르지 말고 결정적으로 처분한다.**
+    if not (named or used or titled) and any(k in bare for k in _CITE_REFUSAL):
+        return bare, []
+
+    if quick_check(answer)["has_citation"] or not units:
         return answer, []
 
     # 🔴 **못 고르겠으면 하나만 붙인다.** 처음에는 `units` 전부를 붙였는데 실측에서

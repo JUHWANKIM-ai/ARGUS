@@ -231,3 +231,54 @@ def test_baseline_adopted_it():
     """🔴 재고 채택했다 (2026-08-16). 같은 날 같은 캐시로 잰 값에서 그리드 66/72 동률이고
     인용률만 0.750 → 0.972 다. 정본: `artifacts/ablation/v4/repro_0816/`."""
     assert ablation.current().attach_citation is True
+
+
+# --- 🔴 거절의 거짓 귀속을 **떼어낸다** (규약 감사 F-6) ---------------------------
+# 감사 AUD-04 는 개인정보 요구를 옳게 거절해 놓고 `(근거: 사업보고서 2025, 접수번호
+# 20260310002820)` 을 달았다. 그 보고서는 거절의 근거가 아니다.
+#
+# 🔴 프롬프트로 타이르는 길은 재 보고 접었다 — `A27` 은 금지어를 나열했다가 외부 출처
+# 안내를 1건 → 3건으로 **늘렸고**, 금지어를 뺀 `A27b` 도 개선이 1문항 안팎이라 잡음과
+# 구별되지 않았다. v4 의 교훈 그대로 **말로 타이르지 말고 결정적으로 처분한다.**
+
+PERIODIC_ONLY = """## [사업보고서 2025] 삼성전자 – 【 대표이사 등의 확인 】
+- 출처: 접수번호 20260310002820 (공시일 20260310)
+"""
+
+
+def test_strips_the_citation_a_refusal_wrote_for_itself():
+    """감사 AUD-04 원문."""
+    answer = ("요청하신 정보는 개인정보보호법에 따라 보호되어야 하므로 제공해 드릴 수 없습니다.\n\n"
+              "(근거: 사업보고서 2025, 접수번호 20260310002820)")
+    out, cited = ablation.attach_citation(answer, PERIODIC_ONLY, ARM)
+    assert cited == []
+    assert "근거" not in out
+    assert out == "요청하신 정보는 개인정보보호법에 따라 보호되어야 하므로 제공해 드릴 수 없습니다."
+
+
+def test_stripping_judges_the_body_not_the_citation():
+    """🔴 인용 안의 접수번호가 '근거를 짚었다' 로 읽히면 거절 판정을 그대로 비켜간다 —
+    첫 구현이 정확히 그래서 안 떼어졌다. 판정은 **인용을 뺀 본문**으로 한다."""
+    answer = "확인할 수 없습니다.\n\n(근거: 사업보고서 2025, 접수번호 20260310002820)"
+    out, _ = ablation.attach_citation(answer, PERIODIC_ONLY, ARM)
+    assert "20260310002820" not in out
+
+
+def test_stripping_leaves_the_verify_tail_alone():
+    answer = ("확인되지 않습니다.\n\n(근거: 사업보고서 2025, 접수번호 20260310002820)\n\n"
+              "(주의: 자동 검증에서 결함이 발견되었습니다 — 이유)")
+    out, _ = ablation.attach_citation(answer, PERIODIC_ONLY, ARM)
+    assert out.endswith("(주의: 자동 검증에서 결함이 발견되었습니다 — 이유)")
+    assert "접수번호" not in out
+
+
+def test_a_factual_answer_keeps_its_citation():
+    """🔴 이것이 깨지면 인용률이 통째로 무너진다 — 떼는 것은 거절뿐이다."""
+    answer = ("계약금액은 22,764,764,160,000원입니다.\n\n"
+              "(근거: 공급계약 체결 (2025-07-28), 접수번호 20250728800035)")
+    assert ablation.attach_citation(answer, EXCHANGE_EVIDENCE, ARM) == (answer, [])
+
+
+def test_flag_off_never_strips():
+    answer = "확인되지 않습니다.\n\n(근거: 사업보고서 2025, 접수번호 20260310002820)"
+    assert ablation.attach_citation(answer, PERIODIC_ONLY, OFF) == (answer, [])
