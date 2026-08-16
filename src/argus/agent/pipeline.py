@@ -2352,6 +2352,12 @@ def answer_question(question_id: str, question: str) -> dict:
     # 🔴 `budget` 을 넘긴다 — `A20r` 의 재생성이 LLM 호출을 하나 더 쓰고, 그것이
     #    게이트 F 의 `budget llm=` 에 잡혀야 한다. 나머지 arm 에서는 안 쓰인다.
     answer = _verify(clean, answer, evidence, r, trace, budget)
+    # 🔴 A25 — 근거 표기를 우리가 붙인다. **여기여야 한다**: 모든 LLM 호출이 끝난 뒤라
+    #    생성·critic·재생성 프롬프트가 바이트 동일로 남고 `RequestCache` 가 적중한다.
+    #    플래그가 꺼져 있으면(기본값) 아래 두 줄은 종전과 글자 하나 다르지 않다.
+    answer, cited = ablation.attach_citation(answer, evidence)
+    if cited:
+        trace.append(f'citation attached={",".join(cited)}')
     return _respond(question_id, question, evidence, trace, mask_pii(answer), budget)
 
 

@@ -526,6 +526,27 @@ class Arm:
     #: 🔴 `substitute_verified`(A20)와 **배타가 아니다.** 원천이 다르다(도구 결과 대
     #: 재계산값) — `A24b+A20` 이 그 결합을 재는 arm 이다.
     substitute_tool_results: bool = False
+    #: 🔴 **`A25` 의 알맹이 — 근거 표기를 우리가 붙인다. LLM 0회.**
+    #:
+    #: 규약 감사(2026-08-16 · `docs/compliance-audit-2026-08-16.md` F-2)가 잰 값:
+    #: 실질 답변 8건 중 규약 형식(`CONVENTION §7.5`)을 지킨 것이 **3건**이었고,
+    #: 우리 채점기의 `citation_rate` 도 `A20r` 에서 **0.765**(그리드 0.750)다.
+    #:
+    #: 🔴 **기전은 `A20` 과 같다.** v4 의 단일 발견이 *"모델이 숫자를 손에 쥐는 순간
+    #: 틀린다"* 였고 `A20` 이 이긴 이유는 재계산값을 **근거에서 우리가 직접 읽어** 모델의
+    #: 타이핑을 안 거쳤기 때문이다. **접수번호는 14자리 숫자다** — 감사에서 정확히 같은
+    #: 병이 나왔다. `AUD-08` 은 옮겨 적었으나 라벨을 빠뜨렸고 `AUD-11` 은 아예 안 적고
+    #: *"(근거: 각 보고서별 상세내역 참조)"* 로 뭉갰다. **그래서 접수번호도 타이핑시키지
+    #: 않는다.** 처분의 네 번째 갈래다 — 각주(v3) · 치환(`A20`) · 재생성(`A20r`) · **부착**.
+    #:
+    #: 🔴 **왜 `critic` 이 못 막았나.** `quick_check` 는 누락을 정확히 발화하는데(감사에서
+    #: 8건 중 7건 발화) 처분으로 부르는 `judge` 는 *"근거가 답을 뒷받침하나"* 만 보고
+    #: **표기 형식을 고치지 않아** `supported=True` 로 통과시킨다. 탐지 100% · 교정 0% 가
+    #: 인용 축에서 되풀이된 것이다.
+    #:
+    #: 🔴 **부착은 LLM 호출을 하나도 안 쓴다.** 그래서 생성 프롬프트가 바이트 동일이고
+    #: `RequestCache` 가 전부 적중한다 — 이 arm 의 재측정은 **생성 크레딧 0원**이다.
+    attach_citation: bool = False
     #: 🔴 **`A10` 전용 — 자기일관성(Self-Consistency) 표본 수 `k`.** 1이 종전 동작이고,
     #: 스위치를 안 건드린 운영 경로는 답변 생성 호출이 **정확히 한 번**이다.
     sc_k: int = 1
@@ -712,6 +733,21 @@ A20R = replace(A8, name="A20r", regenerate_on_verify=True, provenance_gate=True)
 #: **틀리면 238건 판정 전체를 재검토하라** (계획서 §9pre 의 어긋남 표).
 A18 = replace(A8, name="A18", nary=True)
 
+# --- A25 — 근거 표기 결정적 부착 (사다리 밖 곁가지 · 규약 감사 F-2) ----------------
+#: `A20r`(운영 기본값)과 **플래그 하나만** 다르다. 사유·기전·비용은 `Arm.attach_citation`
+#: 독스트링에 적었다.
+#:
+#: 🔴 **겨냥이 실측으로 박혀 있다** — `A20r` 의 `citation_rate` 0.765(그리드 0.750)이고,
+#: 감사 16문항에서는 규약 형식이 실질 답변 8건 중 3건이었다. 즉 겨냥은 최소 **17문항**
+#: (88 × 0.235)이다. 이 저장소의 "겨냥 0 이면 세우지 않는다" 규칙을 넉넉히 넘긴다.
+#:
+#: 🔴 **성적이 오를 것이라 주장하지 않는다.** 부착은 `answer` 의 **꼬리에 글자를 더할
+#: 뿐** 본문 수치를 건드리지 않으므로 정확성 축은 불변이어야 한다. 그것이 예측이고,
+#: **그리드 72·전체 88 이 움직이면 부착이 채점기의 다른 축을 건드린 것이니 그때 왜인지
+#: 찾아야 한다** (가장 그럴듯한 경로: 인용문의 숫자가 `covers_key_points` 나
+#: 금액 대조에 섞여 든다).
+A25 = replace(A20R, name="A25", attach_citation=True)
+
 # --- A22 — 다중 허브 결속 `W=1→3` (사다리 밖 곁가지 · v4 신설) --------------------
 #: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 발주처 차선의 허브를 하나에서 최대 셋으로
 #: 넓힌다. 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** — `A20`·`A21`·`A18` 과 같은 곁가지다.
@@ -851,9 +887,11 @@ A24BS = replace(A24B, name="A24b+A20", substitute_verified=True)
 #: 같은 이유) 사이를 다른 arm 이 갈라 놓으면 정지선이 하나만 확보하고 끊길 때 그 비교가
 #: 통째로 사라진다. 결합 arm 이 뒤인 것은 단독 Δ 를 먼저 확보해야 결합의 몫을 귀속할 수
 #: 있어서다.
+#: 🔴 `A25` 는 `A20r` 바로 뒤다 — **운영 기본값에 플래그 하나만 더한 짝**이라 사이가
+#: 벌어지면 Δ 를 귀속할 상대를 잃는다. `A20`/`A20r` 과 같은 이유다.
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
-             "A8-lean", "A20", "A20r", "A21", "A22", "A10", "A18", "A24",
+             "A8-lean", "A20", "A20r", "A25", "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
@@ -889,7 +927,7 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, L6, L7, L8,
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
-                         A24B, A24BS)}
+                         A24B, A24BS, A25)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은
@@ -1076,3 +1114,106 @@ def shape_evidence(evidence: str, arm: Arm | None = None) -> str:
         text = _EOK_SUFFIX.sub(r"\1", text)
         text = _DURATION_SUFFIX.sub(r"\1", text)
     return text
+
+
+# --- A25 — 근거 표기 결정적 부착 (LLM 0회) --------------------------------------
+#
+# 근거 마크다운은 두 형태다 (실측 — 감사 응답의 `retrieved_context`):
+#
+#   정형  ## [공급계약 체결] 삼성전자 – 단일판매ㆍ공급계약체결 — 반도체 위탁생산 공급계약
+#         - 공시일: 2025-07-28 (접수번호 20250728800035)
+#   정기  ## [사업보고서 2025] 삼성전자 – IV. 이사의 경영진단 및 분석의견
+#         - 출처: 접수번호 20260310002820 (공시일 20260310)
+#
+# 🔴 **`pipeline._evidence_records` 를 쓰지 않는다.** 그것은 `tools._record_of` 로 정형
+# 레코드만 되찾고 **정기공시에는 `None` 을 돌려준다** (실측: `20260310002820` → `None`).
+# 사업보고서 답변에 인용을 못 붙이면 이 arm 의 절반이 죽는다. 그래서 근거 마크다운
+# 자체를 읽는다 — 어차피 모델이 베껴 적어야 했던 그 글자다.
+
+#: `–` 는 EN DASH(U+2013)다. 하이픈으로 적으면 헤더가 하나도 안 걸린다.
+_CITE_HEAD = re.compile(r"^(?:\[기재정정\]\s*)?\[([^\]]+)\]\s*(.*?)\s*–\s*(.*)$")
+_CITE_RCEPT = re.compile(r"접수번호\s*(\d{14})")
+_CITE_DATE = re.compile(r"공시일[:\s]*(\d{4})-?(\d{2})-?(\d{2})")
+#: 답변과 근거를 잇는 지문. 금액·수량은 7자리 이상만 본다 — 연도·비율까지 세면
+#: 아무 블록이나 다 걸려 선별이 무의미해진다.
+_CITE_NUM = re.compile(r"\d[\d,]{6,}")
+#: 붙이지 않는 답변. 🔴 **거절에 근거를 달면 거짓 귀속이다** — 감사 `F-6` 이 실측한
+#: `AUD-04` 가 개인정보 거절에 사업보고서 접수번호를 근거로 달았다.
+_CITE_REFUSAL = ("확인되지 않습니다", "확인할 수 없", "드릴 수 없습니다",
+                 "제공할 수 없", "답변을 드릴 수 없")
+#: 한 답변에 붙이는 인용 상한. 근거 칸은 최대 10건인데 그것을 다 적으면 답변보다
+#: 인용이 길어진다.
+MAX_CITATIONS = 3
+
+
+def _cite_numbers(text: str) -> set[str]:
+    return {m.replace(",", "") for m in _CITE_NUM.findall(text or "")}
+
+
+def _citation_units(evidence: str) -> list[dict]:
+    """근거 블록 하나 = 인용 하나. 접수번호가 없는 블록은 인용할 수 없으므로 버린다."""
+    units: list[dict] = []
+    for block in re.split(r"(?m)^##\s+", evidence or ""):
+        if not block.strip():
+            continue
+        rcept = _CITE_RCEPT.search(block)
+        if not rcept:
+            continue
+        head = block.split("\n", 1)[0].strip()
+        matched = _CITE_HEAD.match(head)
+        label, tail = (matched.group(1), matched.group(3)) if matched else (head, "")
+        date = _CITE_DATE.search(block)
+        units.append({
+            "rcept_no": rcept.group(1),
+            "label": label.strip(),
+            "tail": tail.strip(),
+            "date": "-".join(date.groups()) if date else "",
+            "numbers": _cite_numbers(block),
+        })
+    return units
+
+
+def _render_citation(unit: dict) -> str:
+    """`CONVENTION §7.5` 형식 — `(근거: 보고서명 기준연월, 접수번호 14자리, 섹션경로)`."""
+    head = f'{unit["label"]} ({unit["date"]})' if unit["date"] else unit["label"]
+    parts = [head, f'접수번호 {unit["rcept_no"]}']
+    if unit["tail"]:
+        parts.append(unit["tail"])
+    return "(근거: " + ", ".join(parts) + ")"
+
+
+def attach_citation(answer: str, evidence: str, arm: Arm | None = None) -> tuple[str, list[str]]:
+    """근거 표기가 없으면 우리가 붙인다. `(바뀐 답변, 붙인 접수번호들)`.
+
+    🔴 **부르는 자리가 중요하다.** 모든 LLM 호출이 끝난 **뒤**에 불러야 생성·critic·재생성
+    프롬프트가 바이트 동일로 남고 `RequestCache` 가 적중한다. 앞에서 부르면 재측정이
+    캐시를 통째로 빗나가 크레딧을 다시 쓴다.
+
+    🔴 **각주 꼬리 앞에 끼운다.** 채점기(`error_analysis.strip_verify_tail`)가 `(주의:`
+    부터를 잘라내므로 그 뒤에 붙이면 우리가 붙인 인용이 채점 전에 사라진다.
+    """
+    arm = arm or current()
+    if not arm.attach_citation:
+        return answer, []
+    from argus.agent.critic import quick_check       # 순환 import 회피 — 호출 시점에 든다
+    if not answer or quick_check(answer)["has_citation"]:
+        return answer, []
+
+    units = _citation_units(evidence)
+    if not units:
+        return answer, []
+
+    answer_numbers = _cite_numbers(answer)
+    named = [u for u in units if u["rcept_no"] in answer]
+    used = [u for u in units if u["numbers"] & answer_numbers]
+    # 🔴 거절인데 근거 수치도 안 쓴 답변에는 붙이지 않는다 (`F-6`). 수치를 썼다면 사실을
+    #    말한 것이므로 일부에 "확인되지 않습니다" 가 섞여 있어도 인용은 붙인다.
+    if not named and not used and any(k in answer for k in _CITE_REFUSAL):
+        return answer, []
+
+    picked = named or used or units
+    picked = picked[:MAX_CITATIONS]
+    citation = "\n\n" + " ".join(_render_citation(u) for u in picked)
+
+    head, sep, tail = answer.partition("\n\n(주의:")
+    return head + citation + sep + tail, [u["rcept_no"] for u in picked]
