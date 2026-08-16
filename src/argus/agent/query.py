@@ -275,6 +275,19 @@ _SUMMARY_METRIC = re.compile(r"매출액|매출\s*및|영업이익|당기순이�
 CORRECTION_PATH = "정 정 신 고 (보고)"
 _ASK_CORRECTION = re.compile(r"정정|수정|최종\s*금액|반영\s*후|어떻게\s*바뀌")
 
+#: 법인등록번호가 실린 경로. 🔴 **겹침으로는 영원히 못 찾는다** — 질문의 *"법인등록번호"*
+#: 와 목차 제목 *"계열회사 현황(상세)"* 는 글자가 하나도 안 겹친다. `SALES_PATH` 짝을
+#: 만든 사유와 같은 자리라 같은 장치로 푼다.
+#:
+#: 실측(2026-08-17): 번호가 든 섹션은 **`XII. 상세표 > 2. 계열회사 현황(상세)` 하나뿐**
+#: 이고(24건 전수), 70개사 중 **17개**가 여기에 자기 번호를 싣는다
+#: (`SK하이닉스 134411-0001387` · `고려아연 110111-0168404` 등).
+#:
+#: 🔴 이 규칙이 없으면 `identifier_gate` 를 열어도 답이 안 나온다 — 게이트는 라우팅을
+#: 풀 뿐이고 **검색이 이 경로에 닿아야** 값이 근거에 실린다. 두 고침은 한 짝이다.
+AFFILIATE_PATH = "XII. 상세표 > 2. 계열회사 현황(상세)"
+_ASK_CORP_NUMBER = re.compile(r"법인등록번호|사업자등록번호")
+
 
 def _twin_paths(question: str, pool) -> list[str]:
     """규칙으로 되살리는 짝 경로. 질문이 그 축을 묻지 않으면 하나도 넣지 않는다.
@@ -285,6 +298,8 @@ def _twin_paths(question: str, pool) -> list[str]:
     out: list[str] = []
     if _ASK_CORRECTION.search(question or ""):
         out.append(CORRECTION_PATH)          # 모집단 밖이라 pool 검사를 하지 않는다
+    if _ASK_CORP_NUMBER.search(question or "") and AFFILIATE_PATH in pool:
+        out.append(AFFILIATE_PATH)
     if _SUMMARY_METRIC.search(question or ""):
         out += [p for p in (SALES_PATH, SUMMARY_PATH) if p in pool]
     return out

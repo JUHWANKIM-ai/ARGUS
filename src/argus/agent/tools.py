@@ -996,3 +996,69 @@ def execute(name: str, args: dict) -> dict:
     except (KeyError, OSError) as exc:
         # 인덱스 컬럼 누락·블롭 부재 등 산출물 불일치. 도구 하나가 죽어도 다음 수단이 있다.
         return {"error": f"인덱스 오류: {type(exc).__name__} {exc}"}
+
+
+# --- 법인등록번호 행 조회 (LLM 0회 · 2026-08-17) ------------------------------
+#
+# 🔴 **조각이 문제였지 근거 칸이 문제가 아니었다.** `AFFILIATE_PATH` 로 목차를 좁히면
+# 검색은 **맞는 보고서**를 고른다. 그런데 그 섹션이 34,122자라 6조각으로 쪼개지고,
+# BM25 는 회사명이 빽빽한 4번 조각을 고른다 — 정작 찾는 행은 703자 지점(1번 조각)이다.
+#
+#     [4/6 조각]  | CHONGQING HAPPYNARAE Co., Ltd. | - |  |  |   ← 골라 온 것
+#     [1/6 조각]  | SK하이닉스㈜ | 134411-0001387 |            ← 답이 있는 곳
+#
+# 칸을 더 주는 것(`MAX_SECTION_CHARS` 확대)은 v4 가 세 번 기각한 방향이고, 조각을 다
+# 실으면 34K 자가 근거를 통째로 먹는다. 그래서 **섹션 전문에서 행 하나만 뽑아 온다** —
+# `aggregate.line` 이 집계를 한 줄로 싣는 것과 같은 자리다.
+#
+# 🔴 **`aggregate` 에 두지 않는 이유**: 그 모듈은 네트워크·파일 접근이 없다는 것이
+# 규약 감사 `G2` 의 근거다. 코퍼스를 읽는 일은 코퍼스를 소유한 여기의 몫이다.
+
+#: 법인등록번호가 실린 목차. `query.AFFILIATE_PATH` 와 **같은 값이어야 한다** —
+#: 한쪽만 고치면 라우팅은 그 섹션을 부르는데 조회는 딴 데를 뒤진다.
+CORP_NUMBER_PATH = "XII. 상세표 > 2. 계열회사 현황(상세)"
+
+#: 표 행: `| SK하이닉스㈜ | 134411-0001387 |`. 회사명은 호출부가 끼운다.
+_CORP_NUMBER_CELL = r"[|｜]\s*{name}\s*(?:㈜|\(주\)|주식회사)?\s*[|｜]\s*(\d{{6}}\s*-\s*\d{{7}})\s*[|｜]"
+
+
+def _section_full_text(record: dict) -> str:
+    """섹션 **전문**. `_section_body` 와 달리 조각으로 자르지 않는다."""
+    offset, length = record.get("text_offset", -1), record.get("text_bytes", 0)
+    if offset < 0 or length <= 0:
+        return ""
+    with (settings().artifacts_root / BLOB_NAME).open("rb") as fh:
+        fh.seek(offset)
+        return fh.read(length).decode("utf-8", errors="replace")
+
+
+def corp_number_line(corp_name: str, doc_ids) -> str:
+    """`corp_name` 의 법인등록번호를 계열회사 표에서 찾아 한 줄로 돌려준다.
+
+    돌려주는 것은 근거에 그대로 실을 문장이고, 못 찾으면 빈 문자열이다.
+    **찾은 문서의 접수번호를 함께 싣는다** — 근거 표기 규칙(§7.5)을 지켜야 하고,
+    그러지 않으면 `critic` 이 출처 없는 수로 읽는다.
+
+    🔴 `doc_ids` 는 **검색이 이미 고른 문서**로 한정한다. 코퍼스 전체를 뒤지면
+    남의 보고서에 실린 행을 끌어와 *"이 회사가 저 회사의 계열사"* 라는 사실을
+    출처 없이 주장하게 된다. 실측(70개사): 자기 보고서에 자기 번호를 싣는 기업이
+    **16개**, 남의 보고서에만 실린 기업이 1개(기아)다. 뒤엣것은 안 집는다.
+    """
+    index = _section_index()
+    if index is None or not corp_name:
+        return ""
+    pattern = re.compile(_CORP_NUMBER_CELL.format(name=re.escape(corp_name)))
+    for doc_id in list(dict.fromkeys(doc_ids or ()))[:MAX_CORP_NUMBER_DOCS]:
+        for record in _sections_of(index, doc_id):
+            if record.get("path") != CORP_NUMBER_PATH or record.get("part", 0):
+                continue
+            hit = pattern.search(_section_full_text(record))
+            if hit:
+                return (f"[결정적 조회] {corp_name} 법인등록번호 {hit.group(1)} "
+                        f"(출처: 접수번호 {record.get('rcept_no') or doc_id.split('_')[-1]}, "
+                        f"{CORP_NUMBER_PATH})")
+    return ""
+
+
+#: 조회할 문서 수 상한. 검색 상위 몇 건이면 충분하고, 넘기면 블롭을 반복해 읽는다.
+MAX_CORP_NUMBER_DOCS = 4

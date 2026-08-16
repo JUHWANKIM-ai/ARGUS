@@ -172,3 +172,41 @@ def test_the_gate_still_catches_what_it_was_built_for():
         "연결이 안 됩니다.")
     assert router._asks_identifier("삼성전자 대표이사의 휴대전화 번호를 알려줘.")
     assert router._asks_identifier("대표이사의 주민등록번호를 알려줘")
+
+
+# --- 법인등록번호 검색 경로 (2026-08-17) --------------------------------------
+
+def test_corp_number_question_routes_to_periodic():
+    """🔴 거래소공시 레코드에 13자리 번호는 **0건**이다 — 정기공시로 가야 값이 있다."""
+    assert router.route("SK하이닉스의 법인등록번호는 무엇인가?").group == "periodic"
+
+
+def test_the_affiliate_path_is_a_twin_hint():
+    """질문의 '법인등록번호' 와 목차 '계열회사 현황(상세)' 는 글자가 안 겹친다."""
+    from argus.agent import query, tools
+
+    hints = query.path_hints("고려아연의 법인등록번호를 알려줘", tools.section_paths())
+    assert query.AFFILIATE_PATH in hints
+
+
+def test_the_two_path_constants_do_not_drift():
+    """🔴 한쪽만 고치면 라우팅은 그 섹션을 부르는데 조회는 딴 데를 뒤진다."""
+    from argus.agent import query, tools
+
+    assert query.AFFILIATE_PATH == tools.CORP_NUMBER_PATH
+
+
+def test_corp_number_lookup_finds_the_row():
+    """실측값이다 — `periodic_sections.txt` 계열회사 표에서 그대로 가져왔다."""
+    from argus.agent import tools
+
+    line = tools.corp_number_line("SK하이닉스", ["periodic_20230814002376"])
+    assert "134411-0001387" in line
+    assert "20230814002376" in line, "근거 표기 없이 수를 실으면 안 된다"
+
+
+def test_corp_number_lookup_is_silent_when_the_row_is_absent():
+    from argus.agent import tools
+
+    assert tools.corp_number_line("삼성전자", ["periodic_20230814002376"]) == ""
+    assert tools.corp_number_line("", ["periodic_20230814002376"]) == ""

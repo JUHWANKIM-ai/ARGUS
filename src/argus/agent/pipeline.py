@@ -14,8 +14,9 @@ from argus.agent.critic import (aggregate_calculation, judge, quick_check,
                                 verify_calculation, verify_completeness,
                                 verify_number_provenance)
 from argus.agent.prompts import build_answer_messages, build_regeneration_messages
-from argus.agent.query import (SPLIT_TOP_K, STRATEGIES, path_hints, plan_hops,
-                               plan_section_hops, report_hints, time_points)
+from argus.agent.query import (SPLIT_TOP_K, STRATEGIES, _ASK_CORP_NUMBER,
+                               path_hints, plan_hops, plan_section_hops,
+                               report_hints, time_points)
 from argus.agent import router as router_module
 from argus.agent.router import route
 from argus.agent.safety import mask_pii, sanitize_question
@@ -2593,6 +2594,22 @@ def answer_question(question_id: str, question: str) -> dict:
         if extra:
             evidence = _prepend(evidence, extra)
             trace.append(f"aggregate line=1 chars={len(extra)}")
+
+    # 🔴 법인등록번호 — 조각이 문제였지 근거 칸이 문제가 아니었다 (2026-08-17).
+    #    목차를 `AFFILIATE_PATH` 로 좁히면 검색은 맞는 보고서를 고르는데, 그 섹션이
+    #    34,122자라 6조각으로 쪼개지고 BM25 가 회사명이 빽빽한 4번 조각을 고른다.
+    #    정작 찾는 행은 703자 지점(1번 조각)에 있다. 칸을 늘리는 것은 `A16`·`A17` 이
+    #    기각된 방향이라, **섹션 전문에서 행 하나만** 뽑아 머리에 둔다.
+    #
+    #    발화 조건이 좁다: 질문이 법인등록번호를 묻고, 기업이 지목됐고, 검색이 이미
+    #    가져온 문서 안에 그 행이 있어야 한다. 셋 중 하나라도 어긋나면 빈 문자열이라
+    #    근거가 종전과 글자 하나 다르지 않다.
+    if _ASK_CORP_NUMBER.search(clean) and r.companies:
+        docs = [PERIODIC_DOC_PREFIX + no for no in (provenance or {})]
+        line = tools.corp_number_line(r.companies[0], docs)
+        if line:
+            evidence = _prepend(evidence, line)
+            trace.append(f"corp_number line=1 chars={len(line)}")
 
     # 🔴 A29b — 정정 이력을 접수일 순으로 펴서 한 줄로 싣는다. `aggregate_line` 과
     #    **축이 다르다**: 저쪽은 값 하나(합·차·몫)이고 이쪽은 여러 값의 순서다.
