@@ -52,7 +52,8 @@ def test_attaches_when_model_omitted_the_citation_entirely():
 
 
 def test_periodic_section_is_citable_even_though_record_lookup_returns_none():
-    out, cited = ablation.attach_citation("영업이익이 늘었습니다.", PERIODIC_EVIDENCE, ARM)
+    answer = "경영진단 및 분석의견 항목에 따르면 영업이익이 늘었습니다."
+    out, cited = ablation.attach_citation(answer, PERIODIC_EVIDENCE, ARM)
     assert cited == ["20260310002820"]
     assert "(근거: 사업보고서 2025 (2026-03-10), 접수번호 20260310002820, " \
            "IV. 이사의 경영진단 및 분석의견)" in out
@@ -144,10 +145,15 @@ def test_matches_by_words_when_the_answer_carries_no_number():
     assert "20240726800615" not in out and "20241220800005" not in out
 
 
-def test_falls_back_to_one_not_all_when_nothing_matches():
-    """짚을 수 없으면 검색 1순위 하나만. 전부 붙이면 Q-007 을 다시 잃는다."""
+def test_attaches_nothing_when_no_link_at_all():
+    """🔴 판이 세 번 바뀐 자리다 — 전부 붙이기 → 1순위만 → **안 붙이기**.
+
+    실서버 `PII-1` 에서 모델이 *"해당 정보가 이미지에 포함되어 있는지 확인해주세요"*
+    같은 엉뚱한 답을 냈을 때도 인용이 따라붙었다. 거절 어형 목록을 늘리는 길은 끝이
+    없으므로(모델의 표현은 열려 있다) 문구가 아니라 **연결**로 정한다.
+    """
     _, cited = ablation.attach_citation("무언가 답했습니다.", SK_EVIDENCE, ARM)
-    assert cited == ["20240424800596"]
+    assert cited == []
 
 
 def test_caps_the_number_of_citations():
@@ -196,8 +202,8 @@ SAMSUNG_PROV = {
 def test_memory_supplies_the_section_path_and_joins_them():
     """🔴 `CONVENTION §7.5` 예시 그대로 — 접수번호 하나 아래 섹션을 ` / ` 로 나열한다."""
     out, cited = ablation.attach_citation(
-        "주요 제품 매출과 수주 현황은 다음과 같습니다.", TWO_SECTION_EVIDENCE, ARM,
-        provenance=SAMSUNG_PROV)
+        "사업의 내용 중 주요 제품 및 서비스와 매출 및 수주상황은 다음과 같습니다.",
+        TWO_SECTION_EVIDENCE, ARM, provenance=SAMSUNG_PROV)
     assert cited == ["20260310002820"]                       # 접수번호 하나로 합쳐진다
     assert out.count("(근거:") == 1
     assert "II. 사업의 내용 > 2. 주요 제품 및 서비스 / II. 사업의 내용 > 4. 매출 및 수주상황" in out
@@ -205,15 +211,17 @@ def test_memory_supplies_the_section_path_and_joins_them():
 
 def test_memory_does_not_cite_sections_that_were_truncated_away():
     """🔴 기억은 절단 **전**에 채워진다. 프롬프트에 닿지도 않은 섹션을 적으면 거짓 귀속이다."""
-    out, _ = ablation.attach_citation("무언가 답했습니다.", TWO_SECTION_EVIDENCE, ARM,
-                                      provenance=SAMSUNG_PROV)
+    out, _ = ablation.attach_citation(
+        "사업의 내용 중 주요 제품 및 서비스를 설명합니다.", TWO_SECTION_EVIDENCE, ARM,
+        provenance=SAMSUNG_PROV)
     assert "요약재무정보" not in out
 
 
 def test_falls_back_to_parsing_when_memory_is_empty():
     """구버전 산출물 · ORACLE 경로 · 테스트에서는 기억이 없다. 그래도 인용은 붙어야 한다."""
-    out, cited = ablation.attach_citation("영업이익이 늘었습니다.", PERIODIC_EVIDENCE, ARM,
-                                          provenance={})
+    out, cited = ablation.attach_citation(
+        "경영진단 및 분석의견 항목에 영업이익 증가가 적혀 있습니다.", PERIODIC_EVIDENCE,
+        ARM, provenance={})
     assert cited == ["20260310002820"]
     assert "IV. 이사의 경영진단 및 분석의견" in out
 
