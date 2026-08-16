@@ -16,11 +16,15 @@ def gate_on():
         yield
 
 
-# --- 기본값에서는 종전 그대로 --------------------------------------------------
+# --- 갈래를 끈 arm 은 종전 그대로 -----------------------------------------------
 
 def test_flag_off_keeps_the_old_verdict():
-    """🔴 꺼진 arm 의 판정은 v1~v4 산출물과 바이트 동일이어야 한다."""
-    assert route("그 회사의 작년 실적 좀 알려줘").reason == "out_of_universe"
+    """🔴 꺼진 arm 의 판정은 v1~v4 산출물과 바이트 동일이어야 한다.
+
+    운영 기본값은 2026-08-16 에 `A25+A26` 이 됐으므로 **명시적으로 끄고** 확인한다.
+    """
+    with ablation.use(ablation.A20R):
+        assert route("그 회사의 작년 실적 좀 알려줘").reason == "out_of_universe"
 
 
 # --- 켜면 갈린다 ---------------------------------------------------------------
@@ -80,5 +84,6 @@ def test_a26_differs_from_baseline_by_one_flag():
     assert diff == ["ambiguous_gate"]
 
 
-def test_baseline_still_has_it_off():
-    assert ablation.current().ambiguous_gate is False
+def test_baseline_adopted_it():
+    """🔴 재고 채택했다 — 그리드 66/72 동률 (`artifacts/ablation/v4/repro_0816/`)."""
+    assert ablation.current().ambiguous_gate is True

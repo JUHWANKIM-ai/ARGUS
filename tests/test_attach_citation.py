@@ -227,6 +227,7 @@ def test_a25_is_registered_and_differs_from_baseline_by_one_flag():
     assert diff == ["attach_citation"]
 
 
-def test_baseline_still_has_it_off():
-    """🔴 측정 전에는 운영 기본값을 바꾸지 않는다 — 재고 채택이 이 저장소의 원칙이다."""
-    assert ablation.current().attach_citation is False
+def test_baseline_adopted_it():
+    """🔴 재고 채택했다 (2026-08-16). 같은 날 같은 캐시로 잰 값에서 그리드 66/72 동률이고
+    인용률만 0.750 → 0.972 다. 정본: `artifacts/ablation/v4/repro_0816/`."""
+    assert ablation.current().attach_citation is True
