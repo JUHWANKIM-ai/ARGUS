@@ -640,6 +640,25 @@ class Arm:
     #: 이쪽은 여러 값의 순서다. 발화 어휘도 겹치지 않게 갈라 뒀다
     #: (`_OPS` 의 `차` 대 `_SERIES_ASK`). 그래서 `FLAG_DEPENDENCIES` 에 안 건다.
     revision_series: bool = False
+    #: 🔴 **`A30` 의 알맹이 — 정정사유·주요내용을 런타임 근거에 덧붙인다. LLM 0회.**
+    #:
+    #: 사유·실측은 `agent/tools` 의 `A30` 구역 주석에 적었다. 요약하면: 정형 매칭이
+    #: 정보를 지운다 — `schema_matched=True` 면 넉 줄 요약을 내고 `raw_rows` 19행을
+    #: 버리고, 매칭이 **안 되면** 원문을 실어 752자가 나온다. 그래서 `Q-087` 의
+    #: `올림푸스제일차` 와 `Q-093` 의 `출자일자 확정에 따른 정정` 이 레코드에는 있고
+    #: 근거에는 없다.
+    #:
+    #: 🔴 **`A17` 이 아니다.** `A17` 은 코퍼스 3,150건 중 1,588건(50.4%)을 다시 쓰는
+    #: 조작이라 BM25 색인이 갈려 기각됐다. 이쪽은 `A18`(`nary`)이 연 런타임 이음매에만
+    #: 얹으므로 색인이 한 바이트도 안 바뀐다.
+    #:
+    #: 🔴 **`nary`(A18)와 함께 켤 수 없다** — `_group_records` 가 둘 중 하나만 고르므로
+    #: 함께 켜면 뒤의 것이 조용히 무시된다. `__post_init__` 이 막는다.
+    #:
+    #: 🔴 `META_UNREACHABLE_FLAGS`·`ORACLE_UNREACHABLE_FLAGS` 에 **넣지 않는다** —
+    #: `_gather_meta` 도 `_oracle_evidence` 도 `tools._record_of` 로 같은 레코드를
+    #: 읽으므로 두 경로 모두에서 코드가 도달한다 (`nary` 와 같은 판단).
+    correction_fields: bool = False
     #: 🔴 **`A26` 의 알맹이 — 가리키는 대상이 없는 지시어를 '범위 밖' 과 가른다. LLM 0회.**
     #:
     #: 규약 감사 `F-3` 이 실측했다. `AUD-15` *"그 회사의 작년 실적 좀 알려줘"* 가
@@ -696,6 +715,11 @@ class Arm:
     def __post_init__(self) -> None:
         if self.retrieval not in RETRIEVAL_MODES:
             raise ValueError(f"retrieval 은 {RETRIEVAL_MODES} 중 하나여야 합니다: {self.retrieval}")
+        # 🔴 `tools._group_records` 가 둘 중 하나만 고른다 — 함께 켜면 뒤의 것이
+        #    조용히 무시되고 그 arm 의 Δ 가 다른 조작의 것이 된다.
+        if self.nary and self.correction_fields:
+            raise ValueError("nary 와 correction_fields 는 함께 켤 수 없습니다 "
+                             "(_group_records 가 하나만 고른다 — Δ 가 조용히 0)")
         if self.retrieval == "meta":
             on = [f for f in META_UNREACHABLE_FLAGS if getattr(self, f)]
             if on:
@@ -969,6 +993,25 @@ A29S_A20_A33 = replace(A28, name="A29s+A20+A33", aggregate_line=True,
 #: (`_op` 가 빈 값) 여기서는 `A28` 위에 세워 단독 Δ 를 깨끗이 본다.
 A29B = replace(A28, name="A29b", revision_series=True)
 
+# --- A30 — 정정사유·주요내용 런타임 적재 (사다리 밖 곁가지 · v5 오답 Q-087·Q-093) ----
+#: 🔴 **v5 에서 인질이 가장 큰 arm 이다.** R0 실측 번짐: 정정본이 실린 문항 54 ·
+#: 투자판단이 실린 문항 15 (평가 문항 124 중). 겨냥은 둘이다 — 흔들리면 기각한다.
+A30 = replace(A28, name="A30", correction_fields=True)
+
+# --- A34 — v5 채택분 전량 결합 (새 운영 기본값 후보) --------------------------------
+#: 🔴 **단독 Δ 를 먼저 다 확보하고 나서 결합을 잰다** (`A25+A26` 과 같은 규칙).
+#: 여섯 플래그의 겨냥이 서로 다른 문항이라 상호작용이 없을 것이라 보지만,
+#: **없을 것이라 보는 것과 재 보는 것은 다르다.**
+A34 = replace(A28, name="A34",
+              speculation_gate=True,      # Task 1 — S-003·S-004
+              identifier_gate=True,       # Task 2 — S-002
+              reverse_chain=True,         # Task 3 — Q-113 (골든 회수)
+              aggregate_line=True,        # Task 4 — 산술
+              substitute_aggregate=True,  # Task 4 — 집계 치환
+              substitute_verified=True,   # Task 4 — 식 치환 (A20)
+              revision_series=True,       # Task 5 — Q-023
+              correction_fields=True)     # Task 7 — Q-087·Q-093
+
 # --- v5 채택 후보 전량 (산술 + 시계열 + 검색) ---------------------------------------
 A29_ALL = replace(A28, name="A29all", aggregate_line=True, substitute_aggregate=True,
                   substitute_verified=True, reverse_chain=True, revision_series=True)
@@ -1118,7 +1161,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
              "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A27b", "A28",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
-             "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all",
+             "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A30", "A34",
              "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1157,7 +1200,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
                          A24B, A24BS, A25, A26, A25_A26, A27B, A28, A31, A32, A33,
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
-                         A29B, A29_ALL)}
+                         A29B, A29_ALL, A30, A34)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은

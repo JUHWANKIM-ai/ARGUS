@@ -57,8 +57,12 @@ def _group_records(group: str) -> dict[str, dict]:
     """
     from argus import ablation
 
-    return (_group_records_nary(group) if ablation.current().nary
-            else _group_records_raw(group))
+    arm = ablation.current()
+    if arm.nary:
+        return _group_records_nary(group)
+    if arm.correction_fields:
+        return _group_records_fields(group)
+    return _group_records_raw(group)
 
 
 # --- A18 (`nary`) — `T1-targeted` 추출값을 근거에 덧붙인다 ------------------------
@@ -189,6 +193,93 @@ def _group_records_nary(group: str) -> dict[str, dict]:
     return out
 
 
+# --- A30 (`correction_fields`) — 정정사유·주요내용을 근거에 덧붙인다 -----------------
+#
+# 🔴 **코퍼스 파일은 안 고친다.** `A18`(`nary`)이 연 이음매에 그대로 얹는다 —
+# `artifacts/*_records.jsonl` 을 고치면 BM25 색인 문자열이 갈려 v1~v4 측정이 전량
+# 무효가 되고, 되돌릴 수단이 없다 (`artifacts/` 는 gitignore).
+#
+# 🔴 **`A17` 이 아니다.** `A17` 은 `corpus/markdown._free_text_lines` 의 게이트를 열어
+# 코퍼스 3,150건 중 **1,588건(50.4%)** 의 마크다운을 다시 쓰는 조작이었고 그래서
+# 기각됐다. 여기서 바뀌는 것은 검색 **뒤에** 프롬프트로 실리는 문자열뿐이라
+# **BM25 점수가 한 바이트도 안 바뀐다.**
+#
+# 🔴 **R0(2026-08-16)이 겨눈 결함**: 정형 매칭이 정보를 지운다. `schema_matched=True`
+# 면 넉 줄 요약을 내고 `raw_rows` 를 통째로 버리고, 매칭이 **안 되면** 원문을 실어
+# 752자가 나온다. 그래서 답이 레코드에 있는데 근거에 없다:
+#
+#     20241114800538 (이마트 정정본)   "올림푸스제일차"           레코드 O · 마크다운 X (156자)
+#     20260306801011 (크래프톤 정정본)  "출자일자 확정에 따른 정정"  레코드 O · 마크다운 X (150자)
+
+#: 덧붙일 라벨. 🔴 **둘뿐이다.** `raw_rows` 전량 덤프는 `A17` 이 기각된 자리다.
+#: R0 실측 번짐: `3. 정정사유` 630레코드 · `2. 주요내용` 120레코드 (전체 1,469).
+CORRECTION_FIELD_LABELS = ("3. 정정사유", "2. 주요내용")
+
+#: 🔴 **덧붙임을 이 서식에만 건다.** 첫 판은 서식을 안 가렸고 그 대가로 `Q-110`(지금
+#: 정답)을 잃었다 — 밸류체인 7/12 → 6/12. judge 세 축은 다 통과였는데 답변에서 금액
+#: 표기가 사라져 커버리지 게이트에 걸렸다. 근거가 길어지자 서술이 역할 나열로 기울었다.
+#:
+#: 겨냥 둘(`Q-087`·`Q-093`)은 **모두 이 서식**이고 `Q-110` 은 `단일판매공급계약체결`
+#: 이다. 그리고 성형 결손이 가장 심한 것도 이 서식이다 — 정형 템플릿이 `금액` 과
+#: `확정일` 넉 줄만 내고 본문을 통째로 버린다(실측 150~156자). `단일판매공급계약체결`
+#: 은 템플릿이 금액·상대·기간·대상을 이미 실어 버려지는 것이 대부분 상용구다.
+#:
+#: 번짐: 707레코드 → 300레코드 (`투자판단관련주요경영사항` 전건).
+CORRECTION_FIELD_FORMS = ("투자판단관련주요경영사항",)
+
+#: 값 길이 상한. 🔴 `normalize.FREETEXT_MAX_CHARS`(300)로는 부족하다 — `Q-087` 의 정답
+#: `올림푸스제일차` 가 `2. 주요내용`(623자)의 **408·440번째 자리**에 있어 300 에서
+#: 잘린다 (v4 `R1-4` 실측). 500 이상이어야 들어온다.
+CORRECTION_FIELD_CHARS = 560
+
+
+def _correction_lines(record: dict) -> list[str]:
+    """이 레코드에 덧붙일 줄. 이미 마크다운에 있는 값은 건너뛴다 (합집합).
+
+    🔴 **마지막 열을 읽는다.** 정정 표의 행은 `[라벨, 정정전, 정정후]` 세 열이고,
+    답은 **정정후**에 있다 (`Q-087` 실측: `2. 주요내용` 행의 3열짜리에서 `올림푸스
+    제일차` 가 열 2 에만 있다). 열 1 만 읽으면 정정 전 문안을 싣게 되고, 그것은
+    `stale_value` 가 잡던 바로 그 오류를 우리가 근거에 박아 주는 꼴이다.
+
+    🔴 **라벨당 가장 긴 값을 고른다.** 같은 라벨이 여러 행에 나온다 (정정 표 안 ·
+    본문 두 자리). 첫 판은 앞 24자가 같으면 건너뛰었는데 그것이 **더 긴 쪽을 버렸다**
+    — 484자본에는 답이 408번째에 있고 623자본에는 440번째에 있는데, 짧은 쪽을 남기면
+    상한 안에 들어와도 뒤쪽 문맥이 잘린다.
+    """
+    if (record.get("form") or "") not in CORRECTION_FIELD_FORMS:
+        return []
+    md = record.get("markdown") or ""
+    best: dict[str, str] = {}
+    for row in (record.get("raw_rows") or ()):
+        if not (isinstance(row, (list, tuple)) and len(row) >= 2):
+            continue
+        label = str(row[0]).strip()
+        if label not in CORRECTION_FIELD_LABELS:
+            continue
+        cells = [" ".join(str(c).split()) for c in row[1:]]
+        value = next((c for c in reversed(cells) if len(c) >= 2), "")
+        if len(value) < 2 or value[:24] in md:
+            continue
+        if len(value) > len(best.get(label, "")):
+            best[label] = value
+    return [f"- {label.split('. ', 1)[-1]}: {best[label][:CORRECTION_FIELD_CHARS]}"
+            for label in CORRECTION_FIELD_LABELS if label in best]
+
+
+@lru_cache(maxsize=len(RECORD_GROUPS))
+def _group_records_fields(group: str) -> dict[str, dict]:
+    """`A30` 전용 사본. 🔴 **원본 사전을 변형하지 않는다** — `_group_records_nary` 와
+    같은 이유다. 같은 프로세스에서 다른 arm 을 이어 돌리면 그 arm 의 근거까지
+    오염되고, 그것은 조용히 일어난다."""
+    out: dict[str, dict] = {}
+    for doc_id, record in _group_records_raw(group).items():
+        lines = _correction_lines(record)
+        out[doc_id] = ({**record,
+                        "markdown": record.get("markdown", "") + "\n" + "\n".join(lines)}
+                       if lines else record)
+    return out
+
+
 @lru_cache(maxsize=len(RECORD_GROUPS))
 def _group_index(group: str) -> Bm25Index | None:
     path = settings().artifacts_root / f"{group}_bm25.json"
@@ -208,12 +299,17 @@ def _index() -> Bm25Index | None:
     return _group_index("exchange")
 
 
-@lru_cache(maxsize=2)
-def _by_rcept_cached(nary: bool) -> dict[str, dict]:
+@lru_cache(maxsize=3)
+def _by_rcept_cached(nary: bool, fields: bool = False) -> dict[str, dict]:
     out: dict[str, dict] = {}
     for group in RECORD_GROUPS:
-        for record in (_group_records_nary(group) if nary
-                       else _group_records_raw(group)).values():
+        if nary:
+            source = _group_records_nary(group)
+        elif fields:
+            source = _group_records_fields(group)
+        else:
+            source = _group_records_raw(group)
+        for record in source.values():
             out.setdefault(record["rcept_no"], record)
     return out
 
@@ -227,10 +323,16 @@ def _by_rcept() -> dict[str, dict]:
 
     🔴 `A18` 은 여기도 갈라야 한다 — `_gather_meta`·오라클 주입·정정 체인이 전부
     이 사전을 지나므로, 여기만 안 갈면 arm 의 근거가 경로마다 달라진다.
+
+    🔴 **`A30` 도 같다. 그 함정에 실제로 빠졌다** (2026-08-16). `correction_fields` 를
+    `_group_records` 에만 걸었더니 `Q-087` 의 근거가 **한 글자도 안 바뀌었다** —
+    그 문항의 정정본은 검색이 아니라 **체인 hop**(`get_history` → `_chain_entry`)으로
+    오고, 그 경로는 `_by_rcept()` 를 지난다. 위 문단이 경고하던 바로 그 자리다.
     """
     from argus import ablation
 
-    return _by_rcept_cached(ablation.current().nary)
+    arm = ablation.current()
+    return _by_rcept_cached(arm.nary, arm.correction_fields)
 
 
 @lru_cache(maxsize=1)
