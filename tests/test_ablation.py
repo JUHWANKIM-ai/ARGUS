@@ -357,7 +357,7 @@ def test_a2_arms_differ_from_their_baseline_by_exactly_the_dense_flag():
 def test_default_arm_is_the_submission_configuration():
     """🔴 스위치를 안 건드린 운영 경로가 곧 **제출 구성**이어야 한다.
 
-    v4 (2026-08-15) 에서 `A8` → `A20r`, 규약 감사(2026-08-16) 에서 `A20r` → `A25+A26`.
+    v4 에서 `A8` → `A20r`, 규약 감사에서 `A20r` → `A25+A26`, 재감사에서 → `A28`.
 
     🔴 감사가 잰 것은 성적이 아니라 **규약 준수**다. `F-2`(근거 표시가 실질 답변 8건 중
     3건)·`F-3`(지시대상 불명을 '범위 밖' 으로 오진)을 닫는다. 같은 날 같은 캐시로 잰
@@ -367,13 +367,13 @@ def test_default_arm_is_the_submission_configuration():
     🔴 이 값을 바꾸면 **평가 서버도 다시 배포해야 한다** — `api/server.py` 는 arm 을
     지정하지 않으므로 이것이 곧 주최측이 받는 답변의 구성이다.
     """
-    assert ablation.current() == ablation.A25_A26
-    assert ablation.current().name == "A25+A26"
+    assert ablation.current() == ablation.A28
+    assert ablation.current().name == "A28"
     # 🔴 `A8` 과의 차이는 넷뿐이고 **검색·생성 경로는 여전히 같다** — 둘은 검증 단계,
     #    둘은 생성 뒤(부착)와 라우팅이다. 프롬프트는 `A8` 시절과 바이트 동일이다.
     diff = [f for f in ablation.FLAG_NAMES
-            if getattr(ablation.A25_A26, f) != getattr(ablation.A8, f)]
-    assert diff == ["provenance_gate", "regenerate_on_verify",
+            if getattr(ablation.A28, f) != getattr(ablation.A8, f)]
+    assert diff == ["provenance_gate", "regenerate_on_verify", "quarter_gate",
                     "ambiguous_gate", "attach_citation"], diff
 
 

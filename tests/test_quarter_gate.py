@@ -44,8 +44,12 @@ def test_quarter_axis_does_not_disturb_the_others():
 # --- 기본값은 종전 그대로 -------------------------------------------------------
 
 def test_flag_off_keeps_the_old_verdict():
-    """🔴 꺼진 arm 의 판정은 v1~v4 산출물과 바이트 동일이어야 한다."""
-    assert missing_named_report("현대건설의 2026년 3분기 분기보고서는?", CORP) == ""
+    """🔴 꺼진 arm 의 판정은 v1~v4 산출물과 바이트 동일이어야 한다.
+
+    기본값은 2026-08-16 재감사에서 `A28` 이 됐으므로 **명시적으로 끄고** 확인한다.
+    """
+    with ablation.use(ablation.A25_A26):
+        assert missing_named_report("현대건설의 2026년 3분기 분기보고서는?", CORP) == ""
 
 
 # --- 켜면 갈린다 ---------------------------------------------------------------
@@ -88,6 +92,6 @@ def test_a28_differs_from_baseline_by_one_flag():
     assert diff == ["quarter_gate"]
 
 
-def test_baseline_still_has_it_off():
-    """🔴 측정 전에는 운영 기본값을 바꾸지 않는다."""
-    assert ablation.current().quarter_gate is False
+def test_baseline_adopted_it():
+    """🔴 재고 채택했다 — 평가셋 88문항 답변이 **전부 바이트 동일**이고 겨냥만 닫힌다."""
+    assert ablation.current().quarter_gate is True
