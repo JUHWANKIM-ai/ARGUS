@@ -23,11 +23,21 @@ SCORE = {"arm": "A38", "그리드": "72/72", "전체": "88/88", "밸류체인": 
          "안전성": "12/12", "정보한계": "6/6", "회귀": "10/10", "인용률": "0.988",
          "합계": "110/112", "정본": "artifacts/ablation/v5/a38_*"}
 
-BLUE = "fillColor=#DAE8FC;strokeColor=#6C8EBF;"        # LLM 0회
-ORANGE = "fillColor=#FFE6CC;strokeColor=#D79B00;"      # LLM 호출
-GREEN = "fillColor=#D5E8D4;strokeColor=#82B366;"       # 검증 · 안전
-YELLOW = "fillColor=#FFF2CC;strokeColor=#D6B656;"      # 분기 · 판정
-GREY = "fillColor=none;strokeColor=none;"
+# 🔴 **흰 바탕 · 검은 글씨.** 인쇄와 제안서 삽입을 위해 색을 뺐다.
+#
+# 🔴 **그러면 색이 나르던 정보가 사라진다.** v4 도면의 범례는 *"색 = LLM 호출 여부"*
+# 였고 그것이 이 도면의 가장 중요한 한 줄이다 — 파이프라인의 대부분이 LLM 0회라는
+# 사실. 색을 없애는 대신 **글머리 기호**로 옮겼다. 정보를 지우지 않고 매체를 바꾼다.
+#
+#     ○  LLM 0회      ●  LLM 호출      ◇  검증 · 안전      ◆  분기 · 판정
+MONO = "fillColor=#FFFFFF;strokeColor=#000000;fontColor=#000000;"
+#: `(스타일, 글머리 기호)`. 🔴 기호를 스타일에 **묶어 둔다** — 따로 두면 호출부에서
+#: 짝이 어긋나고, 어긋난 기호는 색이 틀린 것보다 나쁘다(읽는 사람이 못 알아챈다).
+BLUE = (MONO, "○")                                      # LLM 0회
+ORANGE = (MONO, "●")                                    # LLM 호출
+GREEN = (MONO, "◇")                                     # 검증 · 안전
+YELLOW = (MONO, "◆")                                    # 분기 · 판정
+GREY = "fillColor=none;strokeColor=none;fontColor=#000000;"
 NEW = "strokeWidth=3;"                                  # v5 신설·교정
 
 cells: list[str] = []
@@ -40,14 +50,31 @@ def esc(markup: str) -> str:
     return html.escape(markup, quote=True)
 
 
+def em(style):
+    """v5 신설·교정 강조. 🔴 `em(BLUE)` 로는 못 잇는다 — 스타일이 이제 짝이다."""
+    body, mark = style
+    return (body + NEW, mark)
+
+
 def box(cid, x, y, w, h, label, style, note="") -> None:
-    body = f"<b>{label}</b>"
+    """`style` 은 `(스타일, 기호)` 짝이거나 스타일 문자열이다 (+ `NEW` 가 붙을 수 있다)."""
+    extra = ""
+    if isinstance(style, tuple):
+        style, mark = style
+    else:                                      # `em(BLUE)` 처럼 이어 붙인 경우
+        for base, sign in (BLUE, ORANGE, GREEN, YELLOW):
+            if style.startswith(base):
+                extra, style, mark = style[len(base):], base, sign
+                break
+        else:
+            mark = ""
+    body = f"<b>{mark + ' ' if mark else ''}{label}</b>"
     if note:
         body += f"<br><font style='font-size:10px'>{note}</font>"
     cells.append(
         f'<mxCell id="{cid}" value="{esc(body)}" '
         f'style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;'
-        f'spacing=7;fontSize=11;{style}" vertex="1" parent="1">'
+        f'spacing=7;fontSize=11;{style}{extra}" vertex="1" parent="1">'
         f'<mxGeometry x="{x}" y="{y}" width="{w}" height="{h}" as="geometry" /></mxCell>')
 
 
@@ -90,7 +117,7 @@ text("t3", 50, 90, 1240, 18,
      "도면이 코드와 어긋나면 코드가 맞다.</font>")
 
 # --- 범례 -------------------------------------------------------------------------
-band("lg", 1310, 18, 400, 200, "범례 — 색 = LLM 호출 여부")
+band("lg", 1310, 18, 400, 200, "범례 — 기호 = LLM 호출 여부")
 box("lg1", 1328, 56, 180, 38, "LLM 0회", BLUE, "규칙 · 색인 · 집계 · 검증")
 box("lg2", 1518, 56, 174, 38, "LLM 호출", ORANGE, "HCX-005 · 크레딧")
 box("lg3", 1328, 102, 180, 38, "검증 · 안전", GREEN, "결정적 검사 · PII")
@@ -112,9 +139,9 @@ text("a5", 530, 158, 340, 18, "<b>한계 고지 — v5 는 다섯 갈래다</b>"
 box("a6", 530, 180, 340, 34, "범위 밖", BLUE, "70개사 · 2023.01~2026.03 밖")
 box("a7", 530, 220, 340, 34, "지목한 보고서 부재", BLUE, "어느 보고서인지 되묻는다")
 box("a8", 530, 260, 340, 34, "지시대상 불명", BLUE, "어느 기업인지 되묻는다")
-box("a9", 530, 300, 340, 38, "미래 추정 (v5 신설 · A31)", BLUE + NEW,
+box("a9", 530, 300, 340, 38, "미래 추정 (v5 신설 · A31)", em(BLUE),
     "주가·전망·목표주가·매수 의견 — 공시 기재사항이 아니다")
-box("a10", 530, 344, 340, 38, "식별번호 전사 (v5 신설 · A32)", BLUE + NEW,
+box("a10", 530, 344, 340, 38, "식별번호 전사 (v5 신설 · A32)", em(BLUE),
     "전화·법인등록번호를 그대로 달라는 요구")
 text("a11", 890, 180, 390, 200,
      "🔴 <b>둘 다 두 신호의 곱집합으로만 발화한다.</b> <i>향후</i>·<i>전망</i>·"
@@ -131,10 +158,10 @@ box("b2", 70, 494, 240, 44, "BM25 hop 사다리", BLUE, "narrow → relax → gl
 box("b3", 70, 546, 240, 44, "섹션 인덱스 hop", BLUE, "정기공시 목차 경로")
 box("b4", 70, 598, 240, 44, "계약상대 그래프 hop", BLUE, "발주처 2-hop fan-in/out")
 box("b5", 330, 446, 250, 48, "정정체인 추적 hop", BLUE, "chain_probe + get_history")
-box("b6", 330, 502, 250, 56, "역방향 체인 (v5 신설 · A33)", BLUE + NEW,
+box("b6", 330, 502, 250, 56, "역방향 체인 (v5 신설 · A33)", em(BLUE),
     "정정본 → 원공시 · 기업별 라운드로빈 배분")
 box("b7", 330, 566, 250, 44, "근거 성형", BLUE, "shape_evidence · 생성 직전에만")
-box("b8", 330, 618, 250, 40, "정정사유·주요내용 (A30)", BLUE + NEW,
+box("b8", 330, 618, 250, 40, "정정사유·주요내용 (A30)", em(BLUE),
     "런타임 사본에만 · 색인 불변")
 text("b9", 600, 446, 680, 210,
      "🔴 <b>A33 은 링크가 없어서 못 간 게 아니었다.</b> <code>related</code> 는 이미 "
@@ -150,9 +177,9 @@ text("b9", 600, 446, 680, 210,
 # --- B'. 결정적 집계 (v5 신설 밴드) ---------------------------------------------------
 band("bC", 50, 672, 1240, 168,
      "B′. 결정적 집계 &nbsp;&nbsp; LLM 0회 &nbsp;&nbsp; 🔴 v5 신설")
-box("c1", 70, 710, 270, 56, "집계 한 줄 (A29a)", BLUE + NEW,
+box("c1", 70, 710, 270, 56, "집계 한 줄 (A29a)", em(BLUE),
     "합 · 차 · 몫을 우리가 계산해 근거 **머리**에 싣는다")
-box("c2", 360, 710, 270, 56, "정정 시계열 (A29b)", BLUE + NEW,
+box("c2", 360, 710, 270, 56, "정정 시계열 (A29b)", em(BLUE),
     "체인의 금액을 접수일 순으로 편다")
 box("c3", 650, 710, 250, 56, "계약상대 분포 (A29c)", GREY + "strokeColor=#B3B3B3;"
     + "fillColor=#F5F5F5;", "🔴 기각 — Δ 0")
@@ -173,7 +200,7 @@ box("d2", 70, 954, 250, 40, "근거 표기가 있는가", YELLOW, "quick_check")
 box("d3", 70, 1006, 250, 48, "critic ②", ORANGE, "judge — 인용이 없을 때만")
 box("d4", 70, 1066, 250, 76, "결정적 검증 4종", GREEN,
     "재계산 · 답변 내부 산술 · 수치 출처 · 완전성")
-box("d5", 70, 1154, 250, 44, "발주처 면제 (A36)", GREEN + NEW,
+box("d5", 70, 1154, 250, 44, "발주처 면제 (A36)", em(GREEN),
     "발주처는 공시자가 아니다 — missing_corp 오탐")
 
 text("d6", 350, 882, 320, 18, "<b>처분 — v5 는 여덟 갈래다</b>", 12)
@@ -182,11 +209,11 @@ box("d8", 350, 944, 320, 34, "② 치환 (A20)", GREEN, "재계산값으로 바�
 box("d9", 350, 984, 320, 34, "③ 재생성 1회 (A20r)", ORANGE, "사유를 실어 다시 쓴다")
 box("d10", 350, 1024, 320, 34, "④ 인용 부착 (A25)", GREEN, "§7.5 형식을 우리가 짓는다")
 box("d11", 350, 1064, 320, 34, "⑤ 인용 떼기 (v4)", GREEN, "거절이 단 표기를 지운다")
-box("d12", 350, 1104, 320, 38, "⑥ 집계 치환 (v5 · A29s)", GREEN + NEW,
+box("d12", 350, 1104, 320, 38, "⑥ 집계 치환 (v5 · A29s)", em(GREEN),
     "근거의 amount 로 답변의 합계를 바꾼다")
-box("d13", 350, 1148, 320, 38, "⑦ 괄호 교정 (v5 · A35)", GREEN + NEW,
+box("d13", 350, 1148, 320, 38, "⑦ 괄호 교정 (v5 · A35)", em(GREEN),
     "억·조 환산을 우리가 다시 쓴다")
-box("d14", 350, 1192, 320, 38, "⑧ 자기정합 (v5 · A38)", GREEN + NEW,
+box("d14", 350, 1192, 320, 38, "⑧ 자기정합 (v5 · A38)", em(GREEN),
     "식과 어긋나는 수를 식 결과로 맞춘다")
 
 text("d15", 700, 904, 580, 330,
@@ -230,7 +257,7 @@ xml = ("<mxfile host=\"app.diagrams.net\" type=\"device\">\n"
        "  <diagram name=\"ARGUS v5\" id=\"argus-v5\">\n"
        "    <mxGraphModel dx=\"1600\" dy=\"900\" grid=\"0\" gridSize=\"10\" guides=\"1\" "
        "tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" "
-       "pageWidth=\"1754\" pageHeight=\"1754\" math=\"0\" shadow=\"0\">\n"
+       "pageWidth=\"1754\" pageHeight=\"1754\" math=\"0\" shadow=\"0\" background=\"#FFFFFF\">\n"
        "      <root>\n        <mxCell id=\"0\" />\n"
        "        <mxCell id=\"1\" parent=\"0\" />\n"
        + "\n".join("        " + c for c in cells)
