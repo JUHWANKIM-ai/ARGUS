@@ -1,1 +1,0 @@
-{"status": 200, "payload": {"status": {"code": "20000", "message": "OK"}, "result": {"message": {"role": "assistant", "content": "공시에서 대우건설의 2026년 하반기 신규 수주 전망치에 대한 정보는 확인되지 않습니다.\n(근거: 없음)"}, "finishReason": "stop", "created": 1786324866, "seed": 113803867, "usage": {"promptTokens": 922, "completionTokens": 29, "totalTokens": 951}}}, "latency_s": 1.3107388019561768}

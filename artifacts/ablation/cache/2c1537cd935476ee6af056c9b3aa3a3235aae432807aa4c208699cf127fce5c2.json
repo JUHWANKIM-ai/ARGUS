@@ -1,1 +1,0 @@
-{"status": 200, "payload": {"status": {"code": "20000", "message": "OK"}, "result": {"message": {"role": "assistant", "content": "{\"covers_key_points\":1,\"grounded\":1,\"no_fabrication\":1}"}, "finishReason": "stop", "created": 1786397621, "seed": 3197667801, "usage": {"promptTokens": 1043, "completionTokens": 20, "totalTokens": 1063}}}, "latency_s": 0.8298356533050537}

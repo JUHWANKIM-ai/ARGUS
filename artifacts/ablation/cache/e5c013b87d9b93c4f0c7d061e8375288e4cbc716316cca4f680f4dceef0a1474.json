@@ -1,1 +1,0 @@
-{"status": 200, "payload": {"status": {"code": "20000", "message": "OK"}, "result": {"message": {"role": "assistant", "content": "공시에서 확인되지 않습니다. \n(근거: 단일판매ㆍ공급계약체결, 2023-01-31, 20230131800162)"}, "finishReason": "stop", "created": 1786396376, "seed": 2518842508, "usage": {"promptTokens": 579, "completionTokens": 36, "totalTokens": 615}}}, "latency_s": 1.0245640277862549}
