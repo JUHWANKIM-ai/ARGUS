@@ -1341,7 +1341,12 @@ def attach_citation(answer: str, evidence: str, arm: Arm | None = None,
     # 🔴 프롬프트로 타이르는 길은 재 보고 접었다. `A27` 은 금지어를 나열했다가 외부 출처
     # 안내를 1건 → 3건으로 **늘렸고**, 금지어를 뺀 `A27b` 도 개선이 1문항 안팎이라
     # 잡음과 구별되지 않았다. **v4 의 교훈 그대로 — 말로 타이르지 말고 결정적으로 처분한다.**
-    if not (named or used or titled) and any(k in bare for k in _CITE_REFUSAL):
+    # 🔴 **거절 판정은 강한 연결만 본다** — 접수번호(`named`)나 금액(`used`)이다.
+    #    `titled`(제목 낱말 겹침)를 함께 세면 **기업명이 모든 근거 헤더에 있어** 거의
+    #    언제나 걸린다. 실측 `AUD-05`·`AUD-07` 이 그렇게 빠져나가 거절 답변에 무관한
+    #    공급계약 인용 둘이 붙었다. 낱말 겹침은 **여럿 중 고르는 데는** 쓸 만해도
+    #    '이 답이 근거를 썼는가' 를 정하기에는 너무 약하다.
+    if not (named or used) and any(k in bare for k in _CITE_REFUSAL):
         return bare, []
 
     if quick_check(answer)["has_citation"] or not units:

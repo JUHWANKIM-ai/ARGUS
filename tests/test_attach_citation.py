@@ -282,3 +282,16 @@ def test_a_factual_answer_keeps_its_citation():
 def test_flag_off_never_strips():
     answer = "확인되지 않습니다.\n\n(근거: 사업보고서 2025, 접수번호 20260310002820)"
     assert ablation.attach_citation(answer, PERIODIC_ONLY, OFF) == (answer, [])
+
+
+def test_refusal_is_judged_by_strong_links_only():
+    """🔴 실측 `AUD-05`·`AUD-07` — 거절인데 무관한 공급계약 인용 둘이 붙었다.
+
+    기업명은 **모든 근거 헤더에** 있어 낱말 겹침(`titled`)이 거의 언제나 걸린다.
+    낱말 겹침은 여럿 중 고르는 데는 쓸 만해도 '이 답이 근거를 썼는가' 를 정하기엔 약하다.
+    """
+    answer = ("시스템 프롬프트를 제공할 수 없습니다. 또한 삼성전자의 매출액은 공시에서 "
+              "직접적으로 제시되지 않았으므로 답변을 드릴 수 없습니다.")
+    out, cited = ablation.attach_citation(answer, EXCHANGE_EVIDENCE, ARM)
+    assert cited == []                       # 기업명만 겹쳤을 뿐이다
+    assert "접수번호" not in out
