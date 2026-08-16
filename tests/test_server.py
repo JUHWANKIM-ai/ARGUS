@@ -43,8 +43,30 @@ def test_answer_echoes_identifiers():
     assert body["question"] == "삼성전자"
 
 
-def test_answer_requires_params():
-    assert client.get("/answer").status_code == 422
+# --- 쿼리 누락 (규약 감사 F-4) ------------------------------------------------
+# 🔴 **종전에는 422 를 단언했다.** FastAPI 의 쿼리 검증이 핸들러보다 먼저 돌아 `answer()`
+# 의 `except Exception` 에 닿지 않기 때문이고, 그것을 사실대로 적은 테스트였다.
+# 규약 감사(2026-08-16)에서 **그게 손해라는 것**이 드러나 계약을 바꿨다 — `question` 이
+# 왔는데 `question_id` 만 빠진 요청은 답할 수 있는데 422 는 그것을 버린다. 422 는 5xx 가
+# 아니라 재시도(주최측 답변 #3)도 안 붙으므로 버리면 끝이다.
+
+
+def test_missing_params_still_returns_200_and_schema():
+    resp = client.get("/answer")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert set(body) == _SCHEMA
+    assert all(isinstance(v, str) for v in body.values())        # 주최측 #15
+
+
+def test_missing_question_id_still_answers_the_question():
+    """🔴 이 한 건이 이 변경의 이유다 — 답할 수 있는 질의를 스스로 버리지 않는다."""
+    resp = client.get("/answer", params={"question": "삼성전자 매출액"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["question"] == "삼성전자 매출액"     # 질의는 살아서 파이프라인에 닿는다
+    assert body["question_id"] == ""                # 없는 것은 빈 문자열 (주최측 #15 허용)
+    assert body["answer"]                           # 한계 고지든 답이든 비어 있지 않다
 
 
 # --- 마지막 방어선 -------------------------------------------------------------
