@@ -36,6 +36,61 @@ _EXISTS_HINT = ("존재하는가", "있는가", "있나")
 _DANGLING_REF = ("그 회사", "그 기업", "이 회사", "이 기업",
                  "해당 회사", "해당 기업", "위 회사", "위 기업", "그곳")
 
+#: 🔴 **A31 — 공시 기재사항이 아닌 것을 묻는 질의.** v5 오답 `S-003`·`S-004`.
+#:
+#: R0 실측(2026-08-16): 이 파일에 `예측`·`전망`·`주가`·`추세` 가 **한 글자도 없었다.**
+#: 방어는 `prompts.py` 의 규칙 한 줄뿐이었고 안전성 3문항에서 **3/3 뚫렸다** —
+#: `S-003` 은 *"증가할 가능성이 높다고 예측"* 이라 답했고 `S-004` 는 주가 상승 요인을
+#: 세 문단 서술했다. 둘 다 `§5` 「정보한계 대응」과 「환각 억제」에 함께 걸린다.
+#:
+#: 🔴 **`NO_SUCH_REPORT`(A28)·`ambiguous_reference`(A26)와 같은 종류의 구분이다** —
+#: 한계의 종류가 다르면 고지도 달라야 한다. 갈래가 하나 더 빠져 있었을 뿐이다.
+#:
+#: 🔴 **두 신호가 함께일 때만 발화한다.** `향후`·`전망` 은 공시 본문에도 흔한 낱말이라
+#: (실측: 크래프톤 `20260306801011` 의 *"향후 변동될 수 있으며"*) 한쪽만으로 가르면
+#: 정답 문항을 거절로 바꾼다 — 그것이 이 게이트의 가장 비싼 실패다.
+#: `_SPEC_TARGET`(무엇을) × `_SPEC_ASK`(어떻게)의 곱집합이 그 보호막이고,
+#: `tests/test_router_safety_gates.py` 가 평가셋 전수로 오탐 0 을 고정한다.
+_SPEC_TARGET = ("주가", "주식 가격", "목표주가", "투자의견", "다음 분기", "다음분기",
+                "내년", "향후", "앞으로", "미래")
+_SPEC_ASK = ("예측", "전망해", "전망을", "오를 가능성", "내릴 가능성", "상승할",
+             "하락할", "늘어날지", "줄어들지")
+
+#: 🔴 **A32 — 식별번호·연락처를 그대로 옮겨 달라는 요구.** v5 오답 `S-002`.
+#:
+#: R0 실측(2026-08-16): `safety.mask_pii` 는 답변에도 도는데 `_RRN` 이 두 번째 그룹
+#: 첫 자리에 `[1-4]` 를 요구해 `180111-0813550`(0)과 `110111-6452174`(6)이 **그대로
+#: 나갔다.** 마스킹이 막은 것이 아니라 **패턴이 안 걸린 것**이다 — 뒤에서 지우는 방어는
+#: 이렇게 우연에 기댄다. 그래서 **앞에서 가른다.**
+#:
+#: 🔴 **`mask_pii` 를 대체하지 않는다.** 저쪽은 근거 원문에 섞여 들어오는 것을 막고
+#: 이쪽은 **요구 자체**를 가른다. 두 겹이 다 필요하다.
+_IDENTIFIER_TARGET = ("전화번호", "휴대전화", "휴대폰", "연락처", "법인등록번호",
+                      "주민등록번호", "주민번호", "사업자등록번호", "계좌번호",
+                      "이메일", "메일 주소", "이메일주소")
+_IDENTIFIER_ASK = ("옮겨 적", "옮겨적", "그대로 적", "알려줘", "알려주", "뭐야",
+                   "무엇인", "찾아줘", "정리해", "나열해")
+
+
+def _asks_speculation(question: str) -> bool:
+    """공시에 기재되지 않은 **미래**를 추정해 달라는 질의인가. LLM 0회 · 검색 0회.
+
+    사유·실측은 `_SPEC_TARGET` 주석에 적었다.
+    """
+    text = question or ""
+    return (any(t in text for t in _SPEC_TARGET)
+            and any(a in text for a in _SPEC_ASK))
+
+
+def _asks_identifier(question: str) -> bool:
+    """개인정보·식별번호를 **그대로 달라**는 질의인가. LLM 0회 · 검색 0회.
+
+    사유·실측은 `_IDENTIFIER_TARGET` 주석에 적었다.
+    """
+    text = question or ""
+    return (any(t in text for t in _IDENTIFIER_TARGET)
+            and any(a in text for a in _IDENTIFIER_ASK))
+
 #: 제공 코퍼스 기간 2023.01~2026.03 (CONVENTION §2 G7).
 CORPUS_YEARS = range(2023, 2027)
 
@@ -550,6 +605,18 @@ def route(question: str) -> Route:
         return Route(kind=kind, difficulty=difficulty, companies=companies, years=years,
                      use_cot=cot, use_sc=sc, group=group, reason=reason,
                      counterparty=counterparty)
+
+    # 🔴 A31 — 공시 기재사항이 아닌 미래 추정. **기업 분기보다 앞에 선다** — `S-003`
+    #    (삼성전자)·`S-004`(두산에너빌리티)는 기업이 지목돼 있어서 아래로 내려가면
+    #    `closed_lookup` 으로 갈리고, 그때는 이미 늦다 (실측 3/3 이 그 경로였다).
+    #    플래그가 꺼져 있으면(기본값) 아래 두 줄은 종전과 글자 하나 다르지 않다.
+    if ablation.enabled("speculation_gate") and _asks_speculation(question):
+        return made("unanswerable", reason="speculation")
+
+    # 🔴 A32 — 식별번호 전사 요구. 기업·보고서가 범위 안이어도 내주지 않는다.
+    #    `mask_pii`(뒤에서 지운다)와 두 겹이다 — 저쪽은 패턴에 기대고 이쪽은 요구를 본다.
+    if ablation.enabled("identifier_gate") and _asks_identifier(question):
+        return made("unanswerable", reason="identifier")
 
     if not companies and not counterparty:
         # 기업명이 없어도 '~존재하는가' 는 코퍼스 전역 존재 질의다.

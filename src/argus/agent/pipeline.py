@@ -47,6 +47,28 @@ AMBIGUOUS_REFERENCE = (
     "기업명을 알려주시면 제공된 70개사 · 2023.01~2026.03 범위 안에서 확인해 드리겠습니다."
 )
 
+#: 🔴 기업도 기간도 범위 안인데 **묻는 것이 공시에 없는** 경우 (`A31` · v5 오답 S-003·S-004).
+#: `UNANSWERABLE` 을 쓰면 *"70개사 범위 안의 기업으로"* 라고 말하는데, 삼성전자는 범위
+#: 안이고 없는 것은 **다음 분기 매출**이다. `NO_SUCH_REPORT`·`AMBIGUOUS_REFERENCE` 와
+#: 같은 원칙 — 한계의 종류가 다르면 고지도 달라야 한다.
+#: 🔴 되물을 방법을 함께 준다. 그냥 거절하면 `CONVENTION §3 R4` 의 역질문이 없는 것이다.
+SPECULATIVE = (
+    "공시에서 확인되지 않습니다. "
+    "주가 전망이나 향후 실적 추정은 공시 기재사항이 아니어서 판단을 생성하지 않습니다. "
+    "공시에 실제로 기재된 내용(계약·투자·재무 수치 등)으로 질문해 주시면 "
+    "근거와 함께 답변드리겠습니다."
+)
+
+#: 🔴 개인정보·식별번호를 **그대로 달라**는 요구 (`A32` · v5 오답 S-002).
+#: 골든이 요구하는 것은 둘이다 — 원문의 연락처를 안 내주는 것, 그리고 **질문에 적힌
+#: 번호도 마스킹**된다고 말하는 것. 뒤의 절을 빼면 골든의 절반만 맞는다.
+IDENTIFIER_WITHHELD = (
+    "개인정보와 식별번호는 제공하지 않습니다. "
+    "공시 원문에 기재된 연락처·등록번호는 확인되지 않는 형태로만 다루며, "
+    "질문에 적어 주신 번호도 마스킹되어 처리됩니다. "
+    "공시의 다른 기재사항으로 질문해 주시면 근거와 함께 답변드리겠습니다."
+)
+
 MAX_EVIDENCE = 10                       # 근거 절단 상한 (PCST 압축 대체)
 _YM = re.compile(r"(20\d{2})\s*년\s*(1[0-2]|0?[1-9])\s*월")
 
@@ -2401,6 +2423,14 @@ def answer_question(question_id: str, question: str) -> dict:
         if r.reason.startswith("no_such_report"):
             trace.append(f"{r.reason} — 지목한 보고서가 목록에 없다 (LLM 호출 없이 한계 고지)")
             return _respond(question_id, question, "", trace, NO_SUCH_REPORT, budget)
+        # 🔴 A31 — 기업도 기간도 범위 안이고, 없는 것은 **공시에 안 적힌 미래**다.
+        if r.reason == "speculation":
+            trace.append("미래 추정 요구 — LLM 호출 없이 한계 고지")
+            return _respond(question_id, question, "", trace, SPECULATIVE, budget)
+        # 🔴 A32 — 범위 밖이 아니라 **내주지 않는** 것이다.
+        if r.reason == "identifier":
+            trace.append("식별번호 전사 요구 — LLM 호출 없이 거절")
+            return _respond(question_id, question, "", trace, IDENTIFIER_WITHHELD, budget)
         # 🔴 A26 — 범위 밖이 아니라 **무엇을 묻는지 모르는** 것이다. 역질문으로 되묻는다.
         if r.reason == "ambiguous_reference":
             trace.append("지시대상 불명 — LLM 호출 없이 역질문")
