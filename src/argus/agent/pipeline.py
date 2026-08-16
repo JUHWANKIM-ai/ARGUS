@@ -2533,8 +2533,18 @@ def answer_question(question_id: str, question: str) -> dict:
 
         extra = aggregate.line(_evidence_records(evidence), clean, r)
         if extra:
-            evidence = f"{evidence}\n\n{extra}"
+            evidence = _prepend(evidence, extra)
             trace.append(f"aggregate line=1 chars={len(extra)}")
+
+    # 🔴 A29b — 정정 이력을 접수일 순으로 펴서 한 줄로 싣는다. `aggregate_line` 과
+    #    **축이 다르다**: 저쪽은 값 하나(합·차·몫)이고 이쪽은 여러 값의 순서다.
+    if ablation.enabled("revision_series"):
+        from argus.agent import aggregate
+
+        series = aggregate.revision_series(_evidence_records(evidence), clean)
+        if series:
+            evidence = _prepend(evidence, series)
+            trace.append(f"series line=1 chars={len(series)}")
 
     try:
         # 🔴 `A8-lean` 은 여기서 갈린다. `enabled()` 로 읽는 이유는 오타가 조용히
@@ -2625,6 +2635,20 @@ def answer_question(question_id: str, question: str) -> dict:
 # 이 함수의 동작은 v3 세대 664 답변 전수에서 **바이트 동일**이다.
 
 _EVIDENCE_RCEPT = re.compile(r"접수번호\s*(\d{14})")
+
+
+def _prepend(evidence: str, line: str) -> str:
+    """결정적 집계 줄을 근거 **머리**에 둔다.
+
+    🔴 **꼬리에 두면 안 읽힌다** (2026-08-16 실측). `Q-023` 에 정정 금액 7건의 시계열을
+    꼬리에 실었는데 답은 여전히 *"계약금액은 변동 없이 유지되었습니다"* 였다 — 블록
+    열 개를 지나온 뒤라 마지막 한 줄이 묻힌다. KDD '26 실측의 주의 배분(system 36.9% ·
+    output 34.5% · 근거 14.0%)에서 그 14% 안의 **자리**도 균등하지 않다는 뜻이다.
+
+    🔴 시스템 프롬프트로 올리지 않는다 — 거기는 36.9% 를 먹는 자리라 집계와 무관한
+    문항의 답까지 흔든다 (`A27` 이 그렇게 역효과를 냈다). 근거 안의 맨 앞이 절충이다.
+    """
+    return f"{line}\n\n{evidence}"
 
 
 def _evidence_records(evidence: str) -> list[dict]:

@@ -147,6 +147,48 @@ def substitute(answer: str, records, question: str, route) -> tuple[str, str]:
     return answer.replace(wrong, f"{total:,}"), f"{wrong} -> {total:,}"
 
 
+#: 정정 이력을 **펼쳐** 달라는 표현. 🔴 `_OPS` 의 `차` 와 겹치지 않게 둔다 — 저쪽은
+#: *"얼마나 증가했는가"*(값 하나)이고 이쪽은 *"어떻게 바뀌었는지 시간순으로"*(줄 하나에
+#: 여러 값)다. 같은 질문에 둘 다 발화하면 근거에 모순되는 두 줄이 실린다.
+_SERIES_ASK = ("시간순", "시계열", "어떻게 바뀌", "어떻게 변했", "변동 내역",
+               "변화 과정", "추이", "정정 과정", "차례로", "순서대로")
+
+
+def revision_series(records, question: str) -> str:
+    """정정 체인의 금액을 **접수일 순서로** 한 줄에 편다. LLM 0회 · 검색 0회.
+
+    🔴 `Q-023` 의 R0 실측(2026-08-16): 정정본 다섯 건의 금액이 근거에 **전부 있는데**
+    답은 *"이후 정정 과정에서의 변동 사항은 없습니다"* 였다. 근거는 블록 다섯 개로
+    흩어져 있었고 모델이 첫 블록만 읽었다. `stale_value` 검사가 그것을 정확히 발화
+    했지만(*"근거에 최신본이 있는데 답이 대체본 값을 썼다"*) 각주는 답을 안 고친다 —
+    v4 가 인용 축에서 만난 **탐지 100% · 교정 0%** 가 여기서도 되풀이됐다.
+    시계열은 그 흩어짐을 없앤다.
+
+    🔴 **체인은 검색 1위가 속한 것 하나만 편다.** `_delta_groups` 와 같은 규율이다 —
+    근거에는 질문 범위 밖 체인이 섞이고, 여럿을 펴면 어느 계약의 이력인지 모른다.
+    """
+    if not any(h in (question or "") for h in _SERIES_ASK):
+        return ""
+    rows = [r for r in (records or []) if _amount(r) is not None]
+    if len(rows) < 2:
+        return ""
+    rank = {r["rcept_no"]: i for i, r in enumerate(rows)}
+    groups = [g for g in _chains(rows) if len(g) >= 2]
+    if not groups:
+        return ""
+    groups.sort(key=lambda g: min(rank.get(r["rcept_no"], 1 << 30) for r in g))
+    chain = sorted(groups[0],
+                   key=lambda r: (str(r.get("rcept_dt", "")), r.get("rcept_no", "")))
+    steps = " → ".join(f"{_ymd(r)} {_amount(r):,}원" for r in chain)
+    return (f"- [결정적 집계] 접수일 순 금액 추이 ({len(chain)}건): {steps} "
+            f"{_DIRECTIVE}")
+
+
+def _ymd(record: dict) -> str:
+    raw = str(record.get("rcept_dt", ""))
+    return f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}" if len(raw) >= 8 else raw
+
+
 def _conclusion(answer: str) -> str:
     """답변이 **최종 답으로 내세우는** 대목. 없으면 본문 전체.
 

@@ -630,6 +630,16 @@ class Arm:
     #: 같은 규칙으로 계산한 총액을 쓰므로, 줄이 안 실린 근거 위에서 치환만 하면
     #: 답변에 근거 없는 수가 생긴다.
     substitute_aggregate: bool = False
+    #: 🔴 **`A29b` 의 알맹이 — 정정 체인의 금액을 접수일 순으로 편다. LLM 0회.**
+    #:
+    #: 사유·실측은 `agent/aggregate.revision_series` 독스트링에 적었다. 요약하면:
+    #: `Q-023` 은 정정본 다섯 건의 금액이 근거에 **전부 있는데** *"변동 사항은
+    #: 없습니다"* 라고 답했다. 흩어진 다섯 블록을 한 줄로 편다.
+    #:
+    #: 🔴 **`aggregate_line`(A29a)과 축이 다르다** — 저쪽은 값 하나(합·차·몫)이고
+    #: 이쪽은 여러 값의 순서다. 발화 어휘도 겹치지 않게 갈라 뒀다
+    #: (`_OPS` 의 `차` 대 `_SERIES_ASK`). 그래서 `FLAG_DEPENDENCIES` 에 안 건다.
+    revision_series: bool = False
     #: 🔴 **`A26` 의 알맹이 — 가리키는 대상이 없는 지시어를 '범위 밖' 과 가른다. LLM 0회.**
     #:
     #: 규약 감사 `F-3` 이 실측했다. `AUD-15` *"그 회사의 작년 실적 좀 알려줘"* 가
@@ -953,6 +963,16 @@ A29S_A20_A33 = replace(A28, name="A29s+A20+A33", aggregate_line=True,
                        substitute_aggregate=True, substitute_verified=True,
                        reverse_chain=True)
 
+# --- A29b — 정정 금액 시계열 한 줄 (사다리 밖 곁가지 · v5 오답 Q-023) ---------------
+#: 🔴 **채택된 산술 구성 위에 얹어 잰다.** `A28` 위에 세우면 Δ 에 산술 몫이 안 섞이는
+#: 대신, 결합에서 다시 재야 한다 — `Q-023` 은 산술 arm 이 안 건드리는 문항이라
+#: (`_op` 가 빈 값) 여기서는 `A28` 위에 세워 단독 Δ 를 깨끗이 본다.
+A29B = replace(A28, name="A29b", revision_series=True)
+
+# --- v5 채택 후보 전량 (산술 + 시계열 + 검색) ---------------------------------------
+A29_ALL = replace(A28, name="A29all", aggregate_line=True, substitute_aggregate=True,
+                  substitute_verified=True, reverse_chain=True, revision_series=True)
+
 # --- A22 — 다중 허브 결속 `W=1→3` (사다리 밖 곁가지 · v4 신설) --------------------
 #: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 발주처 차선의 허브를 하나에서 최대 셋으로
 #: 넓힌다. 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** — `A20`·`A21`·`A18` 과 같은 곁가지다.
@@ -1098,7 +1118,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
              "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A27b", "A28",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
-             "A29s", "A29s+A20", "A29s+A20+A33",
+             "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all",
              "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1136,7 +1156,8 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, L6, L7, L8,
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
                          A24B, A24BS, A25, A26, A25_A26, A27B, A28, A31, A32, A33,
-                         A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33)}
+                         A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
+                         A29B, A29_ALL)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은
