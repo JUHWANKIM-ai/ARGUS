@@ -1,0 +1,19 @@
+{
+ "question_id": "Q-105",
+ "covers_key_points": false,
+ "grounded": false,
+ "no_fabrication": false,
+ "correct": false,
+ "reason": "제출 답변은 모범 답안의 형식을 따르지 않고, 각 문서에서의 'IV. 이사의 경영진단 및 분석의견' 항목 내용이 동일하다고 잘못 설명하고 있음.",
+ "calls": [
+  {
+   "tag": "judge_open",
+   "prompt_tokens": 3711,
+   "completion_tokens": 61,
+   "latency_s": 2.478,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 3711,
+ "completion_tokens": 61
+}

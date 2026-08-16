@@ -1,0 +1,16 @@
+{
+ "question_id": "Q-040",
+ "response": {
+  "question_id": "Q-040",
+  "question": "두산에너빌리티의 2026년 반기보고서에 기재된 매출액을 알려줘.",
+  "retrieved_context": "",
+  "think_trace": "route=unanswerable difficulty=low cot=False sc=False | no_such_report:half:base_year=2026 — 지목한 보고서가 목록에 없다 (LLM 호출 없이 한계 고지) | budget steps=0 hops=0 llm=0 tokens=0",
+  "answer": "공시에서 확인되지 않습니다. 질문이 지목한 보고서가 제공 코퍼스(70개사 · 2023.01~2026.03 접수분)에 없습니다. 어느 사업연도·보고서 종류를 확인해 드릴지 알려주시면 실재하는 공시로 답해 드리겠습니다."
+ },
+ "calls": [],
+ "prompt_tokens": 0,
+ "completion_tokens": 0,
+ "llm_calls": 0,
+ "latency_s": 0.021,
+ "ts": "2026-08-16T13:47:06"
+}

@@ -1,0 +1,38 @@
+{
+ "question_id": "Q-034",
+ "response": {
+  "question_id": "Q-034",
+  "question": "두산퓨얼셀이 2025년 3~4월에 공시한 계약 해지 3건의 계약상대와 해지 금액을 정리하고 해지 금액 합계를 알려줘.",
+  "retrieved_context": "## [공급계약 해지] 두산퓨얼셀 – 단일판매ㆍ공급계약 해지 — 연료전지 시스템 공급 계약\n- 공시일: 2025-04-02 (접수번호 20250402800768)\n- 섹터: 신재생에너지\n- 해지금액: 72,200,000,000원 (722억원)\n- 매출액 대비: 23.13%\n- 계약상대: ㈜태영건설\n- 확정일: 2025-04-02\n\n## [공급계약 해지] 두산퓨얼셀 – 단일판매ㆍ공급계약 해지 — 연료전지 시스템 공급 계약\n- 공시일: 2025-03-31 (접수번호 20250331802527)\n- 섹터: 신재생에너지\n- 해지금액: 398,800,000,000원 (3,988억원)\n- 매출액 대비: 104.56%\n- 계약상대: 한국전력기술㈜, 금호건설㈜, LS일렉트릭㈜\n- 확정일: 2025-03-28\n\n## [공급계약 해지] 두산퓨얼셀 – 단일판매ㆍ공급계약 해지 — 연료전지 공급 계약\n- 공시일: 2025-04-02 (접수번호 20250402800874)\n- 섹터: 신재생에너지\n- 해지금액: 346,900,000,000원 (3,469억원)\n- 매출액 대비: 90.95%\n- 계약상대: ZKRG Smart Energy Technology (Foshan) Co. Ltd. (이하 \"ZKRG\")\n- 기간: 2022-11-18 ~ 2026-12-31 (4년 1개월)\n- 확정일: 2025-04-02\n\n## [투자판단 관련 주요경영사항] 두산퓨얼셀 – 투자판단 관련 주요경영사항\n- 공시일: 2025-04-24 (접수번호 20250424800733)\n- 섹터: 신재생에너지\n- 계약금액: 68,800,000,000원 (688억원)\n- 확정일: 2025-04-24\n\n## [기재정정] [공급계약 체결] 두산퓨얼셀 – 단일판매ㆍ공급계약체결 — 연료전지 시스템 장기유지보수계약(LTSA)\n- 공시일: 2025-09-03 (접수번호 20250903800038)\n- 섹터: 신재생에너지\n- 계약금액: 73,000,000,000원 (730억원)\n- 매출액 대비: 27.98%\n- 계약상대: 하이창원퓨얼셀㈜\n- 기간: 2024-09-03 ~ 2036-09-04 (12년 0개월)\n- 확정일: 2024-09-03",
+  "think_trace": "route=multi_compare difficulty=high cot=True sc=False | hop=0 strat=narrow tool=search_chunks corp=\"두산퓨얼셀\" period=year:2025 top_k=5 q=\"두산퓨얼셀 2025 월에 공시한 계약 해지 건의 금액 정리하고 합계\" n=5 top_score=30.250 ids=exchange_20250402800768,exchange_20250331802527,exchange_20250402800874,exchange_20250424800733,exchange_20250903800038 | hop=0 verdict=sufficient evidence=5 | generate tokens=1055+189 | 근거 표기 누락 — critic 호출 | critic supported=True reason=모든 계약 해지 정보가 제공된 근거에서 확인할 수 있으며, 정확한 금액과 상대방도 명시되어 있습니다. | verify calc_checked=amount,restatement complete_checked=- provenance_checked=provenance ok=False kinds=provenance | verify regen=1 reasons=provenance: 답변 757,900,000,000원 이 근거에 없다 kinds_after=provenance kept=original | budget steps=1 hops=0 llm=3 tokens=3823",
+  "answer": "두산퓨얼셀이 2025년 3~4월에 공시한 계약 해지 3건은 다음과 같습니다:\n\n1. **㈜태영건설**\n   - 해지 금액: 72,200,000,000원 (722억 원)\n\n2. **한국전력기술㈜, 금호건설㈜, LS일렉트릭㈜**\n   - 해지 금액: 398,800,000,000원 (3,988억 원)\n\n3. **ZKRG Smart Energy Technology (Foshan) Co., Ltd. (ZKRG)**\n   - 해지 금액: 346,900,000,000원 (3,469억 원)\n\n따라서 세 건의 해지 금액 합계는 **757,900,000,000원**(7,579억 원)입니다.\n\n(근거: 각 공급계약 해지 보고서들, 2025년 3~4월 기준)\n\n(주의: 근거 검증을 통과하지 못했습니다 — 모든 계약 해지 정보가 제공된 근거에서 확인할 수 있으며, 정확한 금액과 상대방도 명시되어 있습니다.)\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — provenance: 답변 757,900,000,000원 이 근거에 없다)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 1055,
+   "completion_tokens": 189,
+   "latency_s": 4.5,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 929,
+   "completion_tokens": 47,
+   "latency_s": 1.374,
+   "finish": "stop"
+  },
+  {
+   "tag": "regenerate",
+   "prompt_tokens": 1390,
+   "completion_tokens": 213,
+   "latency_s": 5.065,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 3374,
+ "completion_tokens": 449,
+ "llm_calls": 3,
+ "latency_s": 0.007,
+ "ts": "2026-08-16T12:20:52"
+}

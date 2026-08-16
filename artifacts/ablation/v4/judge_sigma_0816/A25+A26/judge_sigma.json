@@ -1,0 +1,1322 @@
+{
+ "arm": "A25+A26",
+ "cohort": "full",
+ "n_cases": 88,
+ "n_open": 38,
+ "n_rounds": 3,
+ "rounds": [
+  {
+   "round": 1,
+   "dir": "artifacts\\ablation\\v4\\judge_sigma_0816\\A25+A26\\judge_repeat\\round_1",
+   "n_judged": 38,
+   "n_open": 38,
+   "correct": 66,
+   "n_scored": 72,
+   "rate": 0.917
+  },
+  {
+   "round": 2,
+   "dir": "artifacts\\ablation\\v4\\judge_sigma_0816\\A25+A26\\judge_repeat\\round_2",
+   "n_judged": 38,
+   "n_open": 38,
+   "correct": 65,
+   "n_scored": 72,
+   "rate": 0.903
+  },
+  {
+   "round": 3,
+   "dir": "artifacts\\ablation\\v4\\judge_sigma_0816\\A25+A26\\judge_repeat\\round_3",
+   "n_judged": 38,
+   "n_open": 38,
+   "correct": 66,
+   "n_scored": 72,
+   "rate": 0.917
+  }
+ ],
+ "correct_counts": [
+  66,
+  65,
+  66
+ ],
+ "mean": 65.667,
+ "sigma_sample": 0.577,
+ "sigma_population": 0.471,
+ "min": 65,
+ "max": 66,
+ "range": 1,
+ "baseline_correct": {
+  "n": 72,
+  "n_scored": 72,
+  "correct": 66,
+  "rate": 0.917,
+  "data_limit": 0,
+  "stages": {
+   "TOOL": 2,
+   "GENERATION": 3,
+   "VERIFY": 1
+  }
+ },
+ "questions": {
+  "Q-007": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-008": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-010": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-012": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-020": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-022": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-023": {
+   "rounds": [
+    false,
+    false,
+    false
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     false,
+     false,
+     false
+    ],
+    "grounded": [
+     false,
+     false,
+     false
+    ],
+    "no_fabrication": [
+     false,
+     false,
+     false
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": false,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "제출 답변은 모범답안의 핵심 요소를 누락하고 있으며, 계약 금액과 기간에 대한 변경 사항을 정확하게 반영하지 않았습니다.",
+    "제출 답변은 모범답안의 핵심 요소를 누락하고 있으며, 계약 금액 및 기간에 대한 정확한 변화를 반영하지 않고 있습니다.",
+    "제출 답변은 모범답안의 핵심 요소를 누락하고 있으며, 계약 금액 및 기간에 대한 정확한 변화를 반영하지 않고 있습니다."
+   ]
+  },
+  "Q-024": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-031": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-033": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-034": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-035": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-045": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-046": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-049": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-050": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-053": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-054": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-077": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-078": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-079": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-080": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-081": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-082": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-089": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-090": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-091": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-092": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-093": {
+   "rounds": [
+    false,
+    false,
+    false
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     false,
+     false,
+     false
+    ],
+    "grounded": [
+     false,
+     false,
+     false
+    ],
+    "no_fabrication": [
+     false,
+     false,
+     false
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": false,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "정정 사유와 출자 일자 변경에 대한 정보가 누락되어 있습니다.",
+    "정정 사유와 출자 일자 변경에 대한 정보가 누락되어 있습니다.",
+    "정정 사유와 출자 일자 변경에 대한 정보가 누락되어 있습니다."
+   ]
+  },
+  "Q-094": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-101": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-102": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-103": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-104": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-105": {
+   "rounds": [
+    true,
+    false,
+    true
+   ],
+   "agreed": false,
+   "fields": {
+    "covers_key_points": [
+     true,
+     false,
+     true
+    ],
+    "grounded": [
+     true,
+     false,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     false,
+     true
+    ]
+   },
+   "fields_agreed": false,
+   "baseline": true,
+   "agrees_with_baseline": false,
+   "reasons": [
+    "",
+    "제출 답변은 모범 답안의 형식을 따르지 않고, 각 문서에서의 'IV. 이사의 경영진단 및 분석의견' 항목 내용이 동일하다고 잘못 설명하고 있음.",
+    ""
+   ]
+  },
+  "Q-106": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-063": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  },
+  "Q-068": {
+   "rounds": [
+    true,
+    true,
+    true
+   ],
+   "agreed": true,
+   "fields": {
+    "covers_key_points": [
+     true,
+     true,
+     true
+    ],
+    "grounded": [
+     true,
+     true,
+     true
+    ],
+    "no_fabrication": [
+     true,
+     true,
+     true
+    ]
+   },
+   "fields_agreed": true,
+   "baseline": true,
+   "agrees_with_baseline": true,
+   "reasons": [
+    "",
+    "",
+    ""
+   ]
+  }
+ },
+ "split_questions": [
+  "Q-105"
+ ],
+ "split_fields_only": [],
+ "n_compared": 38,
+ "agreement_rate": 0.9737,
+ "note": "생성은 다시 하지 않았다 — 같은 응답 파일에 judge 만 다시 돌렸다. 회차 호출은 요청 캐시를 우회한다 (`RequestCache.no_cache`). judge 온도는 0.0 그대로다 (`critic.judge_open`)."
+}

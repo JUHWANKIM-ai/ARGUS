@@ -1,0 +1,31 @@
+{
+ "question_id": "Q-015",
+ "response": {
+  "question_id": "Q-015",
+  "question": "HD현대일렉트릭이 2025년 7월 영국 National Grid와 체결한 변압기 공급계약의 계약금액은 2024년 5월 같은 상대와 체결한 계약보다 얼마나 큰가?",
+  "retrieved_context": "## [공급계약 체결] HD현대일렉트릭 – 단일판매ㆍ공급계약체결 — 400kV 및 275kV급 변압기 13대\n- 공시일: 2025-07-31 (접수번호 20250731800031)\n- 섹터: 전력기기\n- 계약금액: 140,400,000,000원 (1,404억원)\n- 매출액 대비: 4.23%\n- 계약상대: 영국 National Grid\n- 기간: 2025-07-30 ~ 2030-10-30 (5년 3개월)\n- 확정일: 2025-07-30\n\n## [공급계약 체결] HD현대일렉트릭 – 단일판매ㆍ공급계약체결 — 400kV 및 275kV급 변압기 9대\n- 공시일: 2024-05-29 (접수번호 20240529800105)\n- 섹터: 전력기기\n- 계약금액: 82,100,000,000원 (821억원)\n- 매출액 대비: 3.04%\n- 계약상대: 영국 National Grid\n- 기간: 2024-05-28 ~ 2027-10-29 (3년 5개월)\n- 확정일: 2024-05-28\n\n## [기재정정] [공급계약 체결] HD현대일렉트릭 – 단일판매ㆍ공급계약체결 — 계통 안정화 ESS 기자재 1식\n- 공시일: 2024-05-31 (접수번호 20240531801074)\n- 섹터: 전력기기\n- 계약금액: 209,700,000,000원 (2,097억원)\n- 매출액 대비: 11.6%\n- 계약상대: 한국전력공사\n- 기간: 2022-12-12 ~ 2024-06-30 (1년 6개월)\n- 확정일: 2022-12-12",
+  "think_trace": "route=closed_lookup difficulty=low cot=False sc=False | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202507 top_k=3 q=\"HD 현대일렉트릭 2025 영국 National Grid 체결한 변압기 2024 같은 상대 계약보다 얼마나 큰가\" n=1 top_score=65.822 ids=exchange_20250731800031 | hop=0 strat=narrow tool=search_chunks corp=\"HD현대일렉트릭\" period=ym:202405 top_k=3 q=\"HD 현대일렉트릭 2025 영국 National Grid 체결한 변압기 2024 같은 상대 계약보다 얼마나 큰가\" n=2 top_score=65.837 ids=exchange_20240529800105,exchange_20240531801074 | hop=0 verdict=sufficient evidence=3 | generate tokens=871+142 | 근거 표기 누락 — critic 호출 | critic supported=True reason=제공된 두 개의 공급계약 체결 공시를 통해 금액 차이를 정확히 계산할 수 있습니다. | verify calc_checked=amount,restatement complete_checked=- provenance_checked=provenance ok=True kinds=- | citation attached=20250731800031,20240529800105 | budget steps=2 hops=0 llm=2 tokens=1757",
+  "answer": "HD현대일렉트릭이 2025년 7월에 영국 National Grid와 체결한 변압기 공급계약 금액은 140,400,000,000원으로, 이는 2024년 5월에 체결한 계약 금액인 82,100,000,000원에 비해 **58,300,000,000원**(583억 원) 큽니다.\n\n(근거: [단일판매ㆍ공급계약 체결] HD현대일렉트릭, 2025-07-31, 20250731800031; [단일판매ㆍ공급계약 체결] HD현대일렉트릭, 2024-05-29, 20240529800105)\n\n(근거: 공급계약 체결 (2025-07-31), 접수번호 20250731800031, 단일판매ㆍ공급계약체결 — 400kV 및 275kV급 변압기 13대) (근거: 공급계약 체결 (2024-05-29), 접수번호 20240529800105, 단일판매ㆍ공급계약체결 — 400kV 및 275kV급 변압기 9대)"
+ },
+ "calls": [
+  {
+   "tag": "answer",
+   "prompt_tokens": 871,
+   "completion_tokens": 142,
+   "latency_s": 3.539,
+   "finish": "stop"
+  },
+  {
+   "tag": "critic",
+   "prompt_tokens": 701,
+   "completion_tokens": 43,
+   "latency_s": 1.279,
+   "finish": "stop"
+  }
+ ],
+ "prompt_tokens": 1572,
+ "completion_tokens": 185,
+ "llm_calls": 2,
+ "latency_s": 0.016,
+ "ts": "2026-08-16T13:46:39"
+}
