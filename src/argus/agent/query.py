@@ -207,6 +207,18 @@ _REPORT_YEAR = re.compile(
 _FILED = re.compile(r"(20\d{2})\s*년\s*(1[0-2]|0?[1-9])\s*월"
                     r"(?:\s*\d{1,2}\s*일)?\s*(?:에\s*)?(?:제출|공시|접수)")
 
+#: 🔴 **몇 분기인가** (재감사 `RF-1`). 바로 위 `_REPORT_YEAR` 이 `(?:\d\s*분기\s*)?` 로
+#: 이 자리를 **건너뛰기만** 하고 값을 안 챙긴 것이 결함의 시작이다.
+#:
+#: 실측 — *"현대건설의 2026년 **3분기** 분기보고서"* 를 물으면 `doc_subtype=quarter` ·
+#: `base_year=2026` 만 남는다. 현대건설의 2026년 quarter 문서는 `20260515`(1분기)
+#: 하나뿐인데 그 하나가 조건을 만족시켜 **‘있는 보고서’ 로 통과**하고, 모델은 없는 3분기
+#: 보고서를 있는 것처럼 서술하며 1분기 보고서를 근거로 달았다.
+#:
+#: 반기는 우연히 걸러졌다 — `doc_subtype=half` 라 종류 축 자체가 달랐다. 분기끼리는
+#: 종류가 같아 **분기 번호 말고는 구별할 수단이 없다.**
+_QUARTER = re.compile(r"([1-4])\s*분기")
+
 #: 목차 제목에서 순번 표기를 떼어낸다 — 'III. ' · '4. ' · '7-1. ' · '12, '(오타).
 _TOC_NUMBER = re.compile(r"^\s*(?:[IVXLC]+|\d+(?:-\d+)?)\s*[.,)]\s*")
 _TOC_WORD = re.compile(r"[가-힣A-Za-z]{2,}")
@@ -234,6 +246,9 @@ def report_hints(question: str) -> dict:
     filed = _FILED.search(question or "")
     if filed:
         out["filed"] = f"{filed.group(1)}{int(filed.group(2)):02d}"
+    quarter = _QUARTER.search(question or "")
+    if quarter:
+        out["quarter"] = quarter.group(1)
     return out
 
 

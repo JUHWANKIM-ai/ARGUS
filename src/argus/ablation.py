@@ -537,6 +537,21 @@ class Arm:
     #: attention 의 36.9% 를 먹는 자리라, 규칙 하나를 더하면 **거절과 무관한 문항의 답도
     #: 흔들릴 수 있다.** 그래서 단독으로 재고, 흔들리면 기각한다.
     strict_refusal: bool = False
+    #: 🔴 **`A28` 의 알맹이 — 없는 분기보고서를 잡아낸다.** 재감사 `RF-1`.
+    #:
+    #: 실측: *"현대건설의 2026년 3분기 분기보고서"* 를 물으면 없는 보고서인데
+    #: **2026년 1분기 보고서를 찾아 놓고** *"3분기 보고서에 기재되어 있지 않습니다"* 라고
+    #: 거짓 전제를 받아들이고 그 보고서를 근거로 달았다. §5 「근거 기반」과
+    #: 「정보한계 대응」에 함께 걸린다.
+    #:
+    #: 원인은 `missing_named_report` 가 `doc_subtype`·`base_year` 만 봐서 **몇 분기인지가
+    #: 축에 없던 것**이다. 반기는 `doc_subtype=half` 라 우연히 걸러졌을 뿐이고, 분기끼리는
+    #: 종류가 같아 구별할 수단이 없었다.
+    #:
+    #: 🔴 **번짐이 좁다.** `report_hints` 에 키가 하나 늘지만 `plan_section_hops` 는
+    #: `doc_subtype`·`base_year`·`filed` 만 읽고 모르는 키를 무시하므로 **검색 계획은
+    #: 안 흔들린다.** 바뀌는 것은 `NO_SUCH_REPORT` 판정 하나뿐이다.
+    quarter_gate: bool = False
     #: 🔴 **`A26` 의 알맹이 — 가리키는 대상이 없는 지시어를 '범위 밖' 과 가른다. LLM 0회.**
     #:
     #: 규약 감사 `F-3` 이 실측했다. `AUD-15` *"그 회사의 작년 실적 좀 알려줘"* 가
@@ -795,6 +810,10 @@ A25_A26 = replace(A20R, name="A25+A26", attach_citation=True, ambiguous_gate=Tru
 #: `A27b` 는 같은 자리를 **금지어 없이 할 일만** 적어 다시 잰다.
 A27B = replace(A25_A26, name="A27b", strict_refusal=True)
 
+# --- A28 — 없는 분기보고서 판정 (사다리 밖 곁가지 · 재감사 RF-1) --------------------
+#: 🔴 **채택된 기본값 위에 얹어 잰다.** 사유는 `Arm.quarter_gate` 독스트링.
+A28 = replace(A25_A26, name="A28", quarter_gate=True)
+
 # --- A22 — 다중 허브 결속 `W=1→3` (사다리 밖 곁가지 · v4 신설) --------------------
 #: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 발주처 차선의 허브를 하나에서 최대 셋으로
 #: 넓힌다. 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** — `A20`·`A21`·`A18` 과 같은 곁가지다.
@@ -938,7 +957,7 @@ A24BS = replace(A24B, name="A24b+A20", substitute_verified=True)
 #: 벌어지면 Δ 를 귀속할 상대를 잃는다. `A20`/`A20r` 과 같은 이유다.
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
-             "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A27b", "A21", "A22", "A10", "A18", "A24",
+             "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A27b", "A28", "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
@@ -974,7 +993,7 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, L6, L7, L8,
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
-                         A24B, A24BS, A25, A26, A25_A26, A27B)}
+                         A24B, A24BS, A25, A26, A25_A26, A27B, A28)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은

@@ -217,6 +217,34 @@ def _report_axes(hints: dict) -> dict:
     return {k: v for k, v in hints.items() if k in ("base_year", "filed") and v}
 
 
+#: 🔴 **분기 보고서를 접수 반기로 가른다** (재감사 `RF-1` · `A28`).
+#:
+#: 실측 — 70개사 **전부 12월 결산**이고 `doc_subtype=quarter` 의 접수월은
+#: **05 가 288건 · 11 이 211건**으로 갈린다 (나머지는 정정 재제출 몇 건).
+#: 즉 1분기는 상반기 접수, 3분기는 하반기 접수다.
+#:
+#: 🔴 **달을 못박지 않고 반기로 가른다.** `05`·`11` 로 등호를 걸면 재제출본
+#: (`06`·`12` 등 실측 20여 건)이 통째로 빠져 **없는 보고서로 오판**한다.
+#:
+#: 🔴 **2분기·4분기는 건드리지 않는다.** 그것은 각각 반기보고서·사업보고서이고,
+#: 질문자가 그 뜻으로 썼는지 *"분기보고서"* 를 잘못 부른 것인지 알 수 없다.
+#: 모르는 것에 판정을 내리는 대신 종전 동작을 그대로 둔다.
+_QUARTER_LATE_FROM = 9
+
+
+def _quarter_narrowed(docs, subtype: str, quarter: str | None):
+    """질문이 분기를 지목했으면 그 반기의 문서만 남긴다. 아니면 그대로."""
+    if subtype != "quarter" or quarter not in ("1", "3"):
+        return docs
+    late = quarter == "3"
+    out = []
+    for doc in docs:
+        month = str(doc.get("rcept_dt") or "")[4:6]
+        if month.isdigit() and (int(month) >= _QUARTER_LATE_FROM) == late:
+            out.append(doc)
+    return out
+
+
 def missing_named_report(question: str, companies: Sequence[str]) -> str:
     """질문이 지목한 정기보고서가 manifest 에 **없는가**. 있으면 빈 문자열. LLM 0회.
 
@@ -228,8 +256,12 @@ def missing_named_report(question: str, companies: Sequence[str]) -> str:
     axes = _report_axes(hints)
     if not (subtype and axes and companies):
         return ""
+    # 🔴 A28 — 분기를 지목했으면 그 반기의 문서만 놓고 판정한다. 플래그가 꺼져 있으면
+    #    (기본값) 아래 한 줄은 `docs` 를 그대로 돌려줘 종전과 글자 하나 다르지 않다.
+    quarter = hints.get("quarter") if ablation.enabled("quarter_gate") else None
     for corp in list(companies)[:3]:
         docs = filter_docs(corp_name=corp, doc_group="periodic", doc_subtype=subtype)
+        docs = _quarter_narrowed(docs, subtype, quarter)
         for axis, value in axes.items():
             seen = (str(d.get("base_year", "")) if axis == "base_year"
                     else str(d.get("rcept_dt", ""))[:6] for d in docs)
