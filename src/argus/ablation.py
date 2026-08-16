@@ -315,7 +315,8 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     "counterparty_hop": ("multi_hub",),
     "function_calling": ("calc_tools_only", "calc_queries_only",
                          "substitute_tool_results"),
-    "verifier": ("substitute_verified", "provenance_gate", "regenerate_on_verify"),
+    "verifier": ("substitute_verified", "provenance_gate", "regenerate_on_verify",
+                 "counterparty_exempt"),
     "aggregate_line": ("substitute_aggregate",)}
 
 #: 🔴 `golden_oracle=True` 에서 **읽히지 않는** 축. 검색 차선을 통째로 골든 주입으로
@@ -674,6 +675,39 @@ class Arm:
     #: 🔴 `FLAG_DEPENDENCIES` 에 `hop_ladder -> partner_profile` 을 건다 — 열거 hop 이
     #: 사다리 안에 있으므로 그것이 꺼진 arm 에서 켜면 코드가 도달하지 않는다.
     partner_profile: bool = False
+    #: 🔴 **`A35` 의 알맹이 — 답변의 괄호 환산을 우리가 다시 쓴다. LLM 0회.**
+    #:
+    #: 사유·실측은 `agent/aggregate.fix_unit_parens` 독스트링에 적었다. 요약하면:
+    #: 답변 132건 전수에서 괄호 환산 67개 중 **4개(3문항)** 가 틀렸다. 본문 수치는
+    #: 근거에서 옮겨 적으니 맞고 괄호는 **자기가 나눠야 하니** 틀린다 — v4 의 발견이다.
+    #:
+    #: 🔴 **하나는 우리가 만든 것이다.** `substitute_aggregate` 가 본 수치만 갈아
+    #: 끼우고 모델이 제 오답에서 계산한 괄호를 그대로 뒀다(`Q-115`). 그래서 이 처분은
+    #: 치환 **뒤에** 선다.
+    #:
+    #: 🔴 **`split_trillion_eok`(근거 성형)와 다른 자리다.** 저쪽은 생성 **전** 근거의
+    #: 괄호를 가르고 이쪽은 생성 **후** 답변의 괄호를 고친다. 형식은 `prompts._split_jo`
+    #: 를 공유한다 — 둘이 다른 형식을 쓰면 모델이 같은 값을 다르게 읽는다.
+    #:
+    #: 🔴 모든 LLM 호출이 끝난 뒤라 프롬프트가 바이트 동일이고 `RequestCache` 가
+    #: 전부 적중한다 (`attach_citation` 과 같은 성질).
+    fix_unit_parens: bool = False
+    #: 🔴 **`A36` 의 알맹이 — 발주처를 `missing_corp` 비교 대상에서 뺀다. LLM 0회.**
+    #:
+    #: `verify_completeness` 의 `missing_corp` 은 *"비교 질의인데 근거에 그 기업이
+    #: 없다"* 를 잡는다. 그런데 질문이 지목한 **발주처**는 그 계약을 공시한 쪽이 아니라
+    #: **발주한 쪽**이라 근거에 있을 수가 없다 — 영구 오탐이다.
+    #:
+    #: 실측(2026-08-16): `Q-113`·`Q-115` 는 **정답인데** *"근거에 삼성전자 이(가)
+    #: 없다"* · *"근거에 현대자동차 이(가) 없다"* 각주가 붙는다.
+    #:
+    #: 🔴 **저장소가 이미 아는 사실이다.** `_wants_enumeration` 은 발주처가 곧 질의
+    #: 기업이면 열거를 끄고, `test_disclosing_company_is_never_bound_as_counterparty`
+    #: 가 같은 판단을 고정한다. 그 앎이 이 검사에만 안 닿아 있었다.
+    #:
+    #: 🔴 **`verifier=False` 와 함께 켤 수 없다** (`FLAG_DEPENDENCIES`) —
+    #: `verify_completeness` 가 `_verify` 안에 있어 검증 단계가 꺼지면 도달하지 않는다.
+    counterparty_exempt: bool = False
     #: 🔴 **`A26` 의 알맹이 — 가리키는 대상이 없는 지시어를 '범위 밖' 과 가른다. LLM 0회.**
     #:
     #: 규약 감사 `F-3` 이 실측했다. `AUD-15` *"그 회사의 작년 실적 좀 알려줘"* 가
@@ -1019,6 +1053,7 @@ A30 = replace(A28, name="A30", correction_fields=True)
 #: **없을 것이라 보는 것과 재 보는 것은 다르다.**
 A29C = replace(A28, name="A29c", partner_profile=True)
 
+
 # --- A34 — v5 채택분 전량 결합 (새 운영 기본값 후보) --------------------------------
 A34 = replace(A28, name="A34",
               speculation_gate=True,      # Task 1 — S-003·S-004
@@ -1029,6 +1064,18 @@ A34 = replace(A28, name="A34",
               substitute_verified=True,   # Task 4 — 식 치환 (A20)
               revision_series=True,       # Task 5 — Q-023
               correction_fields=True)     # Task 7 — Q-087·Q-093
+
+# --- A35 — 답변의 괄호 환산 교정 (사다리 밖 곁가지 · 규약 「정확성」) ----------------
+#: 🔴 **채택된 결합(`A34`) 위에 얹어 잰다.** 겨냥 넷 중 하나가 `A29s`(집계 치환)가
+#: 만든 불일치라(`Q-115`), `A28` 위에 세우면 그 자리가 재현되지 않는다.
+#: 사유는 `Arm.fix_unit_parens` 와 `agent/aggregate.fix_unit_parens` 독스트링.
+A35 = replace(A34, name="A35", fix_unit_parens=True)
+
+# --- A36 — 발주처를 `missing_corp` 에서 면제 (사다리 밖 곁가지 · 규약 「정확성」) -----
+A36 = replace(A34, name="A36", counterparty_exempt=True)
+
+# --- A37 — v5 정확성 개선 둘을 함께 (새 기본값 후보) --------------------------------
+A37 = replace(A34, name="A37", fix_unit_parens=True, counterparty_exempt=True)
 
 # --- v5 채택 후보 전량 (산술 + 시계열 + 검색) ---------------------------------------
 A29_ALL = replace(A28, name="A29all", aggregate_line=True, substitute_aggregate=True,
@@ -1179,7 +1226,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
              "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A27b", "A28",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
-             "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30", "A34",
+             "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30", "A34", "A35", "A36", "A37",
              "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1218,7 +1265,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
                          A24B, A24BS, A25, A26, A25_A26, A27B, A28, A31, A32, A33,
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
-                         A29B, A29_ALL, A29C, A30, A34)}
+                         A29B, A29_ALL, A29C, A30, A34, A35, A36, A37)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은

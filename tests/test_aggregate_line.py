@@ -196,6 +196,37 @@ def test_substitute_replaces_the_single_wrong_total():
     assert "1,715,754,987,100" in fixed, "근거에 있는 항은 건드리면 안 된다"
 
 
+def test_substitution_never_rewrites_our_own_footnote():
+    """🔴 **각주는 검사기가 무엇을 봤는가의 기록이다.** 뒤에서 갈아 끼우면 창작이 된다.
+
+    실측(2026-08-16): 치환이 `answer.replace()` 를 통째로 걸어서 각주가
+    *"답변 526,570,000,000원 vs 재계산 …"* 이라 말했다 — 검사기는 그 수를 본 적이 없다.
+    """
+    _, question, rcepts, expected = CASES[2]
+    recs, route = _recs(*rcepts), router.route(question)
+    answer = ("따라서 합계는 2,807,598,070,800원입니다.\n\n"
+              "(주의: 자동 검증에서 결함이 발견되었습니다 — "
+              "amount: 답변 2,807,598,070,800원 vs 재계산 1,715,754,987,100; "
+              "missing_corp: 비교 질의인데 근거에 한국수력원자력 이(가) 없다)")
+    fixed, why = aggregate.substitute(answer, recs, question, route)
+    assert why and f"{expected:,}" in fixed
+    # 🔴 치환한 값을 말하던 항목은 사라지고, 무관한 항목은 남는다.
+    assert "amount: 답변" not in fixed, "고친 결함이 미해결로 남았다"
+    assert "missing_corp" in fixed, "무관한 결함까지 지웠다"
+    assert "vs 재계산" not in fixed.split("missing_corp")[0]
+
+
+def test_the_footnote_disappears_when_every_item_was_repaired():
+    _, question, rcepts, expected = CASES[2]
+    recs, route = _recs(*rcepts), router.route(question)
+    answer = ("합계는 2,807,598,070,800원입니다.\n\n"
+              "(주의: 자동 검증에서 결함이 발견되었습니다 — "
+              "amount: 답변 2,807,598,070,800원 vs 재계산 1,715,754,987,100)")
+    fixed, _why = aggregate.substitute(answer, recs, question, route)
+    assert "주의" not in fixed
+    assert f"{expected:,}" in fixed
+
+
 def test_substitute_is_silent_when_the_answer_is_already_right():
     _, question, rcepts, expected = CASES[2]
     recs, route = _recs(*rcepts), router.route(question)

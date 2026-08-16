@@ -2628,6 +2628,15 @@ def answer_question(question_id: str, question: str) -> dict:
             answer, _evidence_records(evidence), clean, r)
         if swapped:
             trace.append(f"aggregate substitute={swapped}")
+
+    # 🔴 A35 — 괄호 환산을 우리가 다시 쓴다. **치환 뒤에 서야 한다** — `substitute` 가
+    #    본 수치만 갈아 끼우면 모델이 제 오답에서 계산한 괄호가 남는다(`Q-115` 실측).
+    if ablation.enabled("fix_unit_parens"):
+        from argus.agent import aggregate
+
+        answer, repaired = aggregate.fix_unit_parens(answer)
+        if repaired:
+            trace.append(f'unit_paren fixed={len(repaired)} {" · ".join(repaired)}')
     answer, cited = ablation.attach_citation(answer, evidence, provenance=provenance)
     if cited:
         trace.append(f'citation attached={",".join(cited)}')
@@ -2739,7 +2748,16 @@ def _verdict(question: str, answer: str, evidence: str, records: list[dict], r,
     # arm 에서도 각주가 늘어나고 그 자체가 답변 변화다 (v3 세대 664 답변 중 23건 발화).
     provenance = verify_number_provenance(answer, evidence) if arm.provenance_gate else None
 
-    complete = verify_completeness(question, answer, evidence, companies=r.companies)
+    # 🔴 A36 — **발주처는 공시자가 아니다.** `missing_corp` 은 *"비교 질의인데 근거에
+    #    그 기업이 없다"* 를 잡는데, 질문이 지목한 발주처는 그 계약을 **공시한 쪽이
+    #    아니라 발주한 쪽**이라 근거에 있을 수가 없다. 실측(Q-113·Q-115): 정답인
+    #    답변에 *"근거에 삼성전자 이(가) 없다"* 각주가 영구히 붙는다.
+    #    저장소가 이미 아는 사실이다 — `_wants_enumeration` 의 발주처 가드와
+    #    `test_disclosing_company_is_never_bound_as_counterparty` 가 같은 판단이다.
+    compared = list(r.companies or [])
+    if ablation.enabled("counterparty_exempt") and getattr(r, "counterparty", None):
+        compared = [c for c in compared if c != r.counterparty]
+    complete = verify_completeness(question, answer, evidence, companies=compared)
 
     kinds = sorted({*(["calculation"] if calc_failed else []), *complete["failed_kinds"],
                     *(provenance["failed_kinds"] if provenance else [])})

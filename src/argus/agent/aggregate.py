@@ -144,7 +144,51 @@ def substitute(answer: str, records, question: str, route) -> tuple[str, str]:
     if len(candidates) != 1:
         return answer, ""
     wrong = candidates.pop()
-    return answer.replace(wrong, f"{total:,}"), f"{wrong} -> {total:,}"
+    body, tail = _split_tail(answer)
+    return (body.replace(wrong, f"{total:,}") + _prune_notes(tail, wrong),
+            f"{wrong} -> {total:,}")
+
+
+#: 우리가 답변 뒤에 붙이는 부속물. `(주의: …)` · `(근거: …)`.
+_NOTE = re.compile(r"\n*\((?:주의|근거)[:：]")
+
+
+def _split_tail(answer: str) -> tuple[str, str]:
+    """본문과 우리 부속물을 가른다. 부속물이 없으면 `(answer, "")`."""
+    hit = _NOTE.search(answer or "")
+    return (answer, "") if not hit else (answer[:hit.start()], answer[hit.start():])
+
+
+def _prune_notes(tail: str, wrong: str) -> str:
+    """🔴 **치환한 값을 언급하던 결함 항목을 각주에서 뺀다.**
+
+    첫 판은 `answer.replace()` 를 통째로 걸었고, 그래서 **각주가 거짓을 말했다**
+    (2026-08-16 실측):
+
+        치환   526,960,000,000 -> 526,570,000,000
+        각주   "답변 **526,570,000,000**원 vs 재계산 499,950,000,000"
+                     ↑ 검사기는 이 수를 본 적이 없다. 우리가 각주를 고쳐 쓴 것이다.
+
+    각주는 **검사기가 무엇을 봤는가**의 기록이다. 그것을 뒤에서 갈아 끼우면 기록이
+    아니라 창작이 된다 — 규약 「근거 기반」이 겨누는 바로 그 종류다.
+
+    그리고 이미 **고친** 결함을 미해결로 남겨 두는 것도 틀렸다. 그래서 지운다:
+    본문은 치환하고, 그 값을 말하던 항목만 각주에서 뺀다. 남는 항목이 없으면 각주
+    자체를 지운다.
+    """
+    if not tail or wrong not in tail:
+        return tail
+
+    def _fix(match: re.Match) -> str:
+        items = [s.strip() for s in match.group(2).split(";")]
+        kept = [s for s in items if wrong not in s]
+        if not kept:
+            return ""
+        return f"{match.group(1)}{'; '.join(kept)})"
+
+    pruned = re.sub(r"(\n*\(주의: 자동 검증에서 결함이 발견되었습니다 — )([^)]*)\)",
+                    _fix, tail)
+    return pruned
 
 
 #: 정정 이력을 **펼쳐** 달라는 표현. 🔴 `_OPS` 의 `차` 와 겹치지 않게 둔다 — 저쪽은
@@ -234,6 +278,75 @@ def _subject(event: dict) -> str:
 
 #: 대표 계약명 길이 상한. 11곳 × 44자 ≈ 480자로, 근거 블록 하나보다 작다.
 MAX_SUBJECT_CHARS = 44
+
+
+#: 답변의 `1,234,567,890원(12억원)` 꼴. 🔴 마크다운 강조를 넘어야 한다 —
+#: 실측에서 `**207,684,631,210원**(20,768억원)` 형태가 나온다.
+_PAREN_UNIT = re.compile(r"(\d{1,3}(?:,\d{3}){2,})(\s*원?\s*\**\s*)"
+                         r"[（(]\s*(?:약\s*)?([^)）]{1,24})[)）]")
+
+#: 괄호 안 표기를 원 단위로 편다. `1조 2,345억원` · `9,714억원` · `2,000억`.
+_EOK_TEXT = re.compile(r"^(?:([\d,]+)\s*조\s*)?(?:([\d,]+(?:\.\d+)?)\s*억)?\s*원?$")
+
+#: 반올림을 봐주는 폭. 억 단위 표기는 1억 미만을 버리므로 그만큼은 오차가 아니다.
+_PAREN_TOLERANCE = 10 ** 8
+
+
+def fix_unit_parens(answer: str) -> tuple[str, list[str]]:
+    """답변의 **괄호 환산을 우리가 다시 쓴다.** LLM 0회 · 검색 0회.
+
+    돌려주는 것은 `(새 답변, 고친 목록)` 이고, 고칠 것이 없으면 `(원본, [])` 이다.
+
+    🔴 **본 수치는 맞는데 괄호가 틀린다** (2026-08-16 실측 · 답변 132건 전수):
+
+        Q-097  207,684,631,210원 → "(20,768억원)"    맞는 값 2,076.8억   **10배**
+        Q-061    345,173,200,000원 → "(3400억원)"      맞는 값 3,451.7억
+        Q-061  1,728,230,200,000원 → "(1조 6,549억원)"  맞는 값 1조 7,282억
+        Q-115  1,759,596,802,000원 → "(1조 4,772억원)"  맞는 값 1조 7,596억
+
+    괄호 환산 67개 중 **4개(3문항)** 가 틀렸다. v4 의 발견이 여기서 또 나온다 —
+    *"모델이 숫자를 손에 쥐는 순간 틀린다."* 본문 수치는 근거에서 옮겨 적으니 맞고,
+    괄호는 **자기가 나눠야 하니** 틀린다.
+
+    🔴 **`Q-115` 는 우리가 만든 것이다.** `substitute()` 가 본 수치만 갈아 끼우고
+    모델이 제 오답에서 계산한 괄호를 그대로 뒀다. 치환이 새 불일치를 낳은 셈이라
+    이 함수는 그 뒤에 서야 한다.
+
+    🔴 **표기 형식을 새로 만들지 않는다** — `prompts._split_jo` 를 그대로 쓴다.
+    근거와 답변이 다른 형식을 쓰면 모델이 둘을 다른 값으로 읽는다.
+
+    🔴 **못 읽는 괄호는 건드리지 않는다.** `(주당 1,000원)`·`(지분율 30%)` 처럼 환산이
+    아닌 괄호가 답변에 흔하다. `_EOK_TEXT` 가 조·억으로 파싱되는 것만 대상이다.
+    """
+    from argus.agent.prompts import EOK_PER_JO, _split_jo
+
+    fixed: list[str] = []
+
+    def _sub(match: re.Match) -> str:
+        won = int(match.group(1).replace(",", ""))
+        inner = match.group(3).strip()
+        hit = _EOK_TEXT.match(inner)
+        if not hit or not (hit.group(1) or hit.group(2)):
+            return match.group(0)               # 환산 괄호가 아니다 — 그대로 둔다
+        stated = 0
+        if hit.group(1):
+            stated += int(hit.group(1).replace(",", "")) * EOK_PER_JO * 10 ** 8
+        if hit.group(2):
+            stated += int(float(hit.group(2).replace(",", "")) * 10 ** 8)
+        if abs(stated - won) <= _PAREN_TOLERANCE:
+            return match.group(0)               # 반올림 오차 — 맞는 값이다
+        eok = won / 10 ** 8
+        right = _split_jo(eok) if abs(eok) >= EOK_PER_JO else f"{eok:,.0f}억원"
+        fixed.append(f"{inner} -> {right}")
+        return f"{match.group(1)}{match.group(2)}({right})"
+
+    body, tail = _split_tail(answer or "")
+    body = _PAREN_UNIT.sub(_sub, body)
+    # 🔴 고친 표기를 말하던 각주 항목도 뺀다. 안 빼면 각주가 답변에 없는 수를
+    #    가리킨다 — `Q-097` 실측: 괄호를 2,077억으로 고쳤는데 각주는 20,768억을 말했다.
+    for note in fixed:
+        tail = _prune_notes(tail, note.split(" -> ")[0])
+    return body + tail, fixed
 
 
 def _conclusion(answer: str) -> str:
