@@ -1,4 +1,4 @@
-"""counterparty 표기 실태 프로파일 — .superpowers/sdd/.../task-1-brief.md.
+"""counterparty 표기 실태 프로파일 — 정본 `docs/pipeline/03-graph-schema.md`.
 
 노드 승격 전에 무엇을 정규화해야 하는지 산출물로 고정한다. 정규화 규칙 자체는
 scripts/validate_evalset.py::normalize_counterparty 가 정본이고 여기서는 재검증하지 않는다.

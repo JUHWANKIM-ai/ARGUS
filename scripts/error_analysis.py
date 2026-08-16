@@ -556,7 +556,7 @@ def numeric_self_consistency(answer: str, retrieved_context: str) -> dict:
 
 
 # --- R3-2. `checked` 가 빈 답변 — **측정하되 채점하지 않는다** -------------------
-# 🔴 판정 근거는 `.superpowers/sdd/2026-08-14-ablation-v4/R3-scorer.md` 에 있다.
+# 🔴 판정 근거는 `docs/pipeline/09-ablation.md` §I-5g (v4 채점기 수정)에 있다.
 # 요약: *"금액을 물었는데 금액이 없다"* 를 오답으로 세는 규칙은 저장 답변 2,449건에서
 # 후보 16건을 내는데 **그중 13건이 현재 정답이고 13건 모두 실제로 옳은 답**이다
 # (`Q-101` 은 `$58억` 달러 표기 · `Q-052` 는 `700원` 으로 유의수치 4자리 미만).

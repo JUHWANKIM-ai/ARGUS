@@ -956,7 +956,7 @@ TOOL_SPECS = _RETRIEVAL_SPECS + _CALC_SPECS
 #: 🔴 **`A24b` 가 내미는 목록.** `TOOL_SPECS` 15종을 전부 내민 `A24` 는 모델이 부른 47건
 #: 중 **26건이 검색**이었고(`read_section` 16 · `get_history` 10), 이미 프롬프트에 실려
 #: 있는 근거를 다시 읽어 **희석시켰다** — 회귀 8건 중 7건이 도구 호출 문항이다
-#: (`.superpowers/sdd/2026-08-14-ablation-v4/A24-function-calling.md` §4b ①).
+#: (정본 `docs/pipeline/09-ablation.md` §I-5g · `A24` 기각 사유).
 #: 계산 7종만 내밀면 그 차선이 아예 닫힌다.
 CALC_SPECS = list(_CALC_SPECS)
 

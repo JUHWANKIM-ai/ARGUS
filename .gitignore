@@ -1,42 +1,11 @@
-### AL ###
-#Template for AL projects for Dynamics 365 Business Central
-#launch.json folder
-.vscode/
-#Cache folder
-.alcache/
-#Symbols folder
-.alpackages/
-#Snapshots folder
-.snapshots/
-#Testing Output folder
-.output/
-#Extension App-file
-*.app
-#Rapid Application Development File
-rad.json
-#Translation Base-file
-*.g.xlf
-#License-files
-*.bclicense
-*.flf
-#Test results file
-TestResults.xml
-
-### ARGUS ###
-# 비밀정보 — 절대 커밋 금지
 .env
 .env.local
 *.pem
 *.key
 secrets/
-
-# 대용량 데이터 (5.2GB)
 data/dart-disclosures/
 
-# 논문 PDF (28MB)
-paper/**/*.pdf
 
-# 작업 산출물
 scratch/
 .ipynb_checkpoints/
 __pycache__/
@@ -45,33 +14,17 @@ __pycache__/
 venv/
 data/
 paper/
-# docs/ 는 추적한다 — 계획서·CONVENTION 이 산출물이다
 
-# 인덱스 산출물 (로컬 생성, 배포 시 별도 전송)
-#
-# 🔴 **이 한 줄을 지우면 푸시가 죽는다** (2026-08-16 실측). 지운 커밋 하나가
-# `artifacts/` 7,706개 파일 · 793,288줄을 삼켰고, 그 안에 GitHub 파일 상한(100MB)을
-# 넘는 것이 둘 있다 — `periodic_sections.txt` 883MB · `section_index.npz` 189MB.
-# 원격이 거절하는데 `git push --dry-run` 은 참조만 보므로 **통과한다**. 원인을 찾기
-# 어려운 조합이라 여기 적어 둔다.
-#
-# 🔴 그리고 용량 이전에 **넣을 물건이 아니다.** 전부 명령 하나로 다시 만들어지는
-# 로컬 생성물이고, 제출은 규약 §9 가 정한 대로 스토리지 링크(`TBD-3`)로 낸다.
+
 artifacts/
 
-# 서비스 사이트 v2 — 🔴 **소스는 추적하고 생성물만 뺀다.**
-#   추적한다  site/app · site/components · site/lib · package.json · tsconfig.json · next.config.ts
-#   뺀다      아래 다섯. 전부 명령 하나로 다시 만들어진다.
-#
-# 🔴 `site/public/data/` 는 `python scripts/build_service_data.py` 의 산출물이다.
-#    커밋하면 `artifacts/` 가 움직일 때마다 사본이 하나 더 낡는다 — 그 결함을 열일곱 번 겪었다.
-# 🔴 `site/node_modules/` 는 절대 커밋하지 않는다 — 제출물 1번(소스코드)에 섞이면 안 된다.
+
 site/node_modules/
 site/.next/
 site/out/
 site/public/data/
-# TypeScript 증분 빌드 캐시 — 기계마다 다르고 매 빌드마다 바뀐다
 site/tsconfig.tsbuildinfo
 
-# SDD 작업공간 (플랜별 원장·브리프·리뷰패키지)
+.claude/
+.pytest_cache/
 .superpowers/
