@@ -140,3 +140,28 @@ def test_citation_regex_matches_reference_format():
 
 def test_citation_regex_rejects_missing_receipt():
     assert not CITATION_RE.search("매출액은 333조원입니다 (근거: 사업보고서)")
+
+
+# --- 근거 표기 검사는 규약을 재지 우리 문안을 재지 않는다 (2026-08-17) ----------
+#
+# 🔴 실측 4건(Q-030·Q-052·Q-087·Q-101)이 라벨 없이 14자리만 적었고 전부 추적 가능한
+#    정당한 표기인데 '표기 없음' 으로 세어졌다. 아래 문자열은 Q-030 의 실제 답변 꼬리다.
+
+def test_citation_without_the_label_still_counts():
+    assert CITATION_RE.search(
+        "(근거: [기정정] [유상증자결정] 고려아연 – 주요사항보고서(유상증자결정), "
+        "2024-11-14, 20241114000001)")
+
+
+def test_citation_with_the_label_still_counts():
+    assert CITATION_RE.search(
+        "(근거: 단일판매ㆍ공급계약체결, 2023-01-31, 접수번호 20230131800162)")
+
+
+def test_a_date_alone_is_not_a_citation():
+    """🔴 문턱을 낮추다 날짜가 걸리면 표기 없는 답변이 통과한다."""
+    assert not CITATION_RE.search("(근거: 사업보고서 2024, 2024-11-14)")
+
+
+def test_a_bare_amount_is_not_a_citation():
+    assert not CITATION_RE.search("계약금액은 22,764,764,160,000원입니다")
