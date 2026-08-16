@@ -19,11 +19,27 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 
+def _args():
+    """🔴 판 경로를 인자로 받는다. 박아 두면 판이 바뀔 때마다 스크립트를 고쳐야 하고,
+    그러다 **옛 판의 답변을 새 판이라고 채점하는 사고**를 이미 한 번 냈다 (2026-08-16,
+    A34 답변을 A38 점수로 적을 뻔했다)."""
+    import argparse
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--review", default="artifacts/audit/goldenset_review_A38.json")
+    ap.add_argument("--run", default="artifacts/ablation/v5/a38",
+                    help="코호트 접미사 앞까지. 예: artifacts/ablation/v5/cn")
+    ap.add_argument("--arm", default="A38")
+    ap.add_argument("--out", default="artifacts/audit/reasoning_score_A38.json")
+    return ap.parse_args()
+
+
 def main() -> int:
+    args = _args()
     from argus.agent import aggregate, critic, reasoning
 
     rows = []
-    review = ROOT / "artifacts/audit/goldenset_review_A38.json"
+    review = ROOT / args.review
     for item in json.load(io.open(review, encoding="utf-8"))["문항"]:
         rows.append((item["question_id"], item["track"], item["our_answer"] or "",
                      item.get("retrieved_context_chars", 0)))
@@ -31,7 +47,7 @@ def main() -> int:
     #: 근거는 응답 파일에서 되찾는다 — 리뷰 JSON 은 길이만 들고 있다.
     def evidence_of(qid: str) -> str:
         for cohort in ("full", "valuechain", "safety"):
-            path = (ROOT / f"artifacts/ablation/v5/a38_{cohort}/A38/responses"
+            path = (ROOT / f"{args.run}_{cohort}/{args.arm}/responses"
                     / f"{qid}.json")
             if path.exists():
                 return (json.load(io.open(path, encoding="utf-8")).get("response")
@@ -79,9 +95,9 @@ def main() -> int:
         print("  🔴 %-7s %-11s %s" % (qid, track,
                                      " | ".join(f"{n}: {w[:60]}" for n, w in flags)))
 
-    out = ROOT / "artifacts/audit/reasoning_score_A38.json"
+    out = ROOT / args.out
     io.open(out, "w", encoding="utf-8").write(json.dumps(
-        {"베이스라인": "A38", "n": total, "결함 없음": clean,
+        {"베이스라인": args.arm, "정본": args.run, "n": total, "결함 없음": clean,
          "🔴 이 수를 읽는 법": "우리가 보는 양식(5/7) 안에서 결함이 없다는 "
                           "뜻이다. 전제 누락·비약은 이 수에 없다.",
          "양식별": dict(hits),
