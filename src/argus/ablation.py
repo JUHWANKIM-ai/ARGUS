@@ -270,7 +270,7 @@ RETRIEVAL_MODES = ("meta", "exchange", "all")
 #: 대해서만 "BM25 이후에 세워라" 라고 지시했고, 같은 구조적 의존이 나머지 셋에도 있다는
 #: 일반화는 하지 않았다. 이 상수가 그 일반화다.
 META_UNREACHABLE_FLAGS = ("hop_ladder", "chain_hop", "split_query", "counterparty_hop",
-                          "followup_hop")
+                          "followup_hop", "reverse_chain")
 
 #: 🔴 `retrieval="meta"` 에서 **기본값에서 움직이면 안 되는** 축. 뜻은
 #: `META_UNREACHABLE_FLAGS` 와 같고 **검사 형태만 다르다** — 저 목록은 `True = 켠다` 를
@@ -309,7 +309,7 @@ META_UNREACHABLE_AXES = ("meta_corp", "meta_date", "meta_group")
 #: 도 구조적 의존이다 — 셋 다 `_answer_with_tools`/`_offer_tools` **안에서만** 읽히므로
 #: 도구를 안 내미는 arm 에서 켜면 코드가 도달하지 않는다 (`A24b` 의 하위 옵션들).
 FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
-    "chain_hop": ("followup_hop",),
+    "chain_hop": ("followup_hop", "reverse_chain"),
     "calc_values": ("lean_rules",),
     "counterparty_hop": ("multi_hub",),
     "function_calling": ("calc_tools_only", "calc_queries_only",
@@ -330,7 +330,8 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
 #: 접수일 접두 · `group` 어느 것도 후보 집합을 안 바꾼다.
 ORACLE_UNREACHABLE_FLAGS = ("retrieval", "dense", "hop_ladder", "chain_hop",
                             "split_query", "counterparty_hop", "followup_hop",
-                            "meta_corp", "meta_date", "meta_group", "multi_hub")
+                            "meta_corp", "meta_date", "meta_group", "multi_hub",
+                            "reverse_chain")
 
 
 @dataclass(frozen=True)
@@ -577,6 +578,24 @@ class Arm:
     #: 이쪽은 **요구 자체**를 가른다. 두 겹이 다 필요하다.
     #: 🔴 도달 불가 자리가 없다 (라우팅은 검색 차선 앞).
     identifier_gate: bool = False
+    #: 🔴 **`A33` 의 알맹이 — 최신본을 씨앗으로 받아 원공시로 되돌아간다. LLM 0회.**
+    #:
+    #: v5 오답 `Q-113` 의 R0 실측(2026-08-16): 골든 `20250718800275` 가 어떤 hop
+    #: 후보에도 없었는데, 우리가 회수한 정정본 `20250924800260` 의 `related` 에
+    #: **그 번호가 이미 있다.** 링크가 없어서 못 간 것이 아니라 씨앗 조건에 걸린 것이다.
+    #:
+    #: 🔴 **v3 R2 ④ 의 판정을 뒤집지 않는다.** 그때 기각된 ⓐ(`terminates` 보유면 무조건)
+    #: 는 보호 4문항(`Q-008`·`Q-031`·`Q-033`·`Q-034`)을 흔들었고, 그 판정은 유효하다.
+    #: 이 arm 이 여는 것은 **정정 체인**이라는 다른 갈래이고, `_asks_original` 질문
+    #: 게이트가 함께 걸린다 — 실측 발화 4문항 · 씨앗이 실제로 열리는 것 3문항
+    #: (`Q-113` 겨냥 · `Q-061`·`Q-069` 인질 · `Q-094` 는 근거 불변).
+    #:
+    #: 🔴 `META_UNREACHABLE_FLAGS` 에 **넣는다** — `_gather_meta` 는 체인 차선 위에서
+    #: 조기 반환하므로 `retrieval="meta"` 에서 코드가 도달하지 않는다.
+    #: 🔴 `ORACLE_UNREACHABLE_FLAGS` 에도 **넣는다** — 골든 주입은 검색 차선을 안 탄다.
+    #: 🔴 `FLAG_DEPENDENCIES` 에 `chain_hop -> reverse_chain` 을 건다 — 체인 hop 이
+    #: 꺼진 arm 에서 켜면 `_chain_seeds` 가 아예 안 불린다 (Δ 가 조용히 0).
+    reverse_chain: bool = False
     #: 🔴 **`A26` 의 알맹이 — 가리키는 대상이 없는 지시어를 '범위 밖' 과 가른다. LLM 0회.**
     #:
     #: 규약 감사 `F-3` 이 실측했다. `AUD-15` *"그 회사의 작년 실적 좀 알려줘"* 가
@@ -849,6 +868,11 @@ A31 = replace(A28, name="A31", speculation_gate=True)
 #: 넣으면 Δ 를 어느 쪽에 귀속할지 모른다. 둘 다 채택되면 Task 8 이 합친 arm 을 잰다.
 A32 = replace(A28, name="A32", identifier_gate=True)
 
+# --- A33 — 정정본 → 원공시 역방향 씨앗 (사다리 밖 곁가지 · v5 오답 Q-113) ------------
+#: 🔴 v3 R2 ④ 가 좁힌 해지 갈래를 **건드리지 않는다** — 여는 것은 정정 체인이고
+#: 질문 게이트(`pipeline._asks_original`)가 함께 걸린다. 사유는 `Arm.reverse_chain`.
+A33 = replace(A28, name="A33", reverse_chain=True)
+
 # --- A22 — 다중 허브 결속 `W=1→3` (사다리 밖 곁가지 · v4 신설) --------------------
 #: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 발주처 차선의 허브를 하나에서 최대 셋으로
 #: 넓힌다. 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** — `A20`·`A21`·`A18` 과 같은 곁가지다.
@@ -993,7 +1017,7 @@ A24BS = replace(A24B, name="A24b+A20", substitute_verified=True)
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
              "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A27b", "A28",
-             "A31", "A32", "A21", "A22", "A10", "A18", "A24",
+             "A31", "A32", "A33", "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
@@ -1029,7 +1053,7 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, L6, L7, L8,
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
-                         A24B, A24BS, A25, A26, A25_A26, A27B, A28, A31, A32)}
+                         A24B, A24BS, A25, A26, A25_A26, A27B, A28, A31, A32, A33)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은

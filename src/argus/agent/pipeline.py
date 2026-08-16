@@ -498,6 +498,39 @@ def _annotate(markdown: str, note: str) -> str:
 #: 상위 후보에 있어야 비로소 걸린다. 그래서 넉넉히 적어도 과잉 발화가 안 생긴다.
 _TERMINATION_ORIGIN_HINT = ("원래", "원계약", "원공시", "최초", "가리키는")
 
+#: 🔴 **A33 — 정정본에서 원공시로 되돌아가야 하는 질의.** v5 오답 `Q-113`.
+#:
+#: `_TERMINATION_ORIGIN_HINT`(해지 → 원계약)와 **축이 같고 대상이 다르다** — 저쪽은
+#: 해지 공시에서 원계약으로, 이쪽은 정정본에서 원공시로 간다. 낱말을 공유하지 않고
+#: 따로 두는 이유는 v3 R2 ④ 가 실측으로 좁힌 그 예외를 **넓히지 않기** 위해서다.
+#: 저쪽 목록의 `최초`·`원래` 는 단독 낱말이라 이쪽에 쓰면 발화가 넓어진다.
+#:
+#: 🔴 **원공시를 명시적으로 지목하는 표현만 넣는다.** `얼마나 늘었`·`어떻게 바뀌` 같은
+#: 변동 서술을 넣으면 발화가 4 → 7 로 늘고(R0 실측), 늘어난 셋(`Q-018`·`Q-023`·`Q-081`)
+#: 은 근거를 이미 다 가진 문항이라 **얻는 것 없이 희석만 는다.**
+#:
+#: R0(2026-08-16) 실측 — 평가셋 112문항에서 발화 4 · 그중 씨앗이 실제로 열리는 것 3:
+#:     `Q-113` 씨앗 5개(겨냥) · `Q-061` 1개 · `Q-069` 1개 · `Q-094` **0개**(근거 불변)
+_REVISION_ORIGIN_HINT = ("최초 공시", "최초공시", "원공시", "원 공시", "당초",
+                         "정정 전", "정정전")
+
+
+#: 🔴 **A33 전용 씨앗 창.** `CHAIN_SEED_WINDOW`(2)를 **이 플래그 뒤에서만** 넓힌다.
+#:
+#: 첫 측정(2026-08-16)이 씨앗 조건만 고쳐서는 `Q-113` 이 안 열린다는 것을 보여 줬다 —
+#: 상위 후보 둘이 **전부 삼성중공업**이라 삼성E&A 의 정정본(`20250924800260`)이
+#: **6번째**에 있어 탐침조차 안 됐다. 두 기업을 비교하는 질의에서 전역 창 2 는
+#: 구조적으로 두 번째 기업에 닿지 못한다.
+#:
+#: 🔴 **`CHAIN_SEED_WINDOW` 자체는 안 건드린다.** 그 상수는 제동 ① 이고 모든 질의에
+#: 걸린다. 여기서 넓히는 것은 `_asks_original` 이 참인 **4문항뿐**이다 (R0 실측).
+REVERSE_SEED_WINDOW = 6
+
+
+def _asks_original(question: str) -> bool:
+    """질문이 **정정 전 값**을 요구하는가. LLM 0회 · 검색 0회."""
+    return any(h in (question or "") for h in _REVISION_ORIGIN_HINT)
+
 
 def _chain_seeds(picked: list[dict], question: str = "") -> list[dict]:
     """체인을 밟을 씨앗. 제동 ①② — 상위 후보 안의 **대체본**, 그리고 조건부로 **해지 공시**.
@@ -545,15 +578,49 @@ def _chain_seeds(picked: list[dict], question: str = "") -> list[dict]:
     씨앗 조건도 그대로 남는다. **그 막음에 값이 있다**는 것이 이번 측정의 뜻이다.
     """
     asks_origin = any(h in (question or "") for h in _TERMINATION_ORIGIN_HINT)
+    # 🔴 A33 — 정정본에서 원공시로. 플래그가 꺼져 있으면 `wants_prior` 가 항상 False 라
+    #    아래 조건식은 종전과 **논리적으로 동치**다 (`or False` 는 항등원).
+    wants_prior = ablation.enabled("reverse_chain") and _asks_original(question)
+    window = REVERSE_SEED_WINDOW if wants_prior else CHAIN_SEED_WINDOW
     seeds = []
-    for item in picked[:CHAIN_SEED_WINDOW]:
+    for item in picked[:window]:
         probe = tools.chain_probe(item.get("doc_id"))
         if not probe or not probe["links"]:
             continue
-        if probe["is_latest"] and not (asks_origin and probe.get("terminates")):
-            continue                      # 제동 ② — 예외는 위 두 조건이 함께일 때만
+        if probe["is_latest"] and not (
+                (asks_origin and probe.get("terminates")) or wants_prior):
+            continue                      # 제동 ② — 예외는 위 두 갈래 중 하나일 때만
         seeds.append({**probe, "corp": item.get("corp")})
-    return seeds
+    return _round_robin_by_corp(seeds) if wants_prior else seeds
+
+
+def _round_robin_by_corp(seeds: list[dict]) -> list[dict]:
+    """기업별로 한 바퀴씩 돌게 씨앗을 다시 세운다. **`A33` 에서만 부른다.**
+
+    🔴 **창을 넓히는 것만으로는 부족했다** (2026-08-16 실측). `Q-113` 에서 씨앗은
+    열렸는데 담긴 문서가 0건이었다:
+
+        hop=5 chain corp="삼성중공업" rcept=20250924800262 n=1   ← 골든
+        hop=5 chain corp="삼성중공업" rcept=20250925800330 n=2   ← 무관한 체인
+        hop=5 chain corp="삼성중공업" rcept=20250930800629 n=3   ← 무관한 체인
+        hop=5 chain corp="삼성E&A"   rcept=20250924800260 n=0   ← 🔴 골든인데 0건
+
+    `MAX_CHAIN_DOCS`(6)를 앞의 셋이 1+2+3 으로 **다 먹었다.** 두 기업을 비교하는
+    질의에서 선착순 배분은 첫 기업이 상한을 독식한다 — `_partner_quota` 가 발주처
+    차선에서 이미 만난 문제와 같은 모양이고, 처방도 같다.
+
+    🔴 **상한을 안 올린다.** `MAX_CHAIN_DOCS` 는 제동 ③ 이고, 한화오션 잠수함 체인
+    7건이 근거 칸을 혼자 먹는 것을 막는 상수다. 여기서 바꾸는 것은 **배분 순서뿐**이다.
+    """
+    by_corp: dict[str, list[dict]] = {}
+    for seed in seeds:
+        by_corp.setdefault(seed.get("corp") or "", []).append(seed)
+    out: list[dict] = []
+    for depth in range(max((len(v) for v in by_corp.values()), default=0)):
+        for members in by_corp.values():        # 삽입 순서 = 후보 순서
+            if depth < len(members):
+                out.append(members[depth])
+    return out
 
 
 def _expand_chain(picked: list[dict], seen: set, budget: Budget,
