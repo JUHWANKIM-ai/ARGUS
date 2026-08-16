@@ -295,3 +295,16 @@ def test_refusal_is_judged_by_strong_links_only():
     out, cited = ablation.attach_citation(answer, EXCHANGE_EVIDENCE, ARM)
     assert cited == []                       # 기업명만 겹쳤을 뿐이다
     assert "접수번호" not in out
+
+
+@pytest.mark.parametrize("answer", [
+    "공시에서 김철수님의 보유 주식 수를 찾을 수 없습니다.",
+    "해당 정보는 근거에 포함되어 있지 않습니다.",
+    "요청하신 값은 알 수 없습니다.",
+])
+def test_refusal_wordings_beyond_the_first_five(answer):
+    """🔴 실서버 실측 `PII-1` — 첫 목록이 다섯뿐이라 *"찾을 수 없습니다"* 가 빠져나가
+    무관한 인용을 달았다. 모델이 거절을 쓰는 말은 한 가지가 아니다."""
+    out, cited = ablation.attach_citation(answer, EXCHANGE_EVIDENCE, ARM)
+    assert cited == []
+    assert "접수번호" not in out
