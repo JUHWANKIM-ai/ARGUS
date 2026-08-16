@@ -769,6 +769,12 @@ A25 = replace(A20R, name="A25", attach_citation=True)
 #: 넣으면 Δ 를 어느 쪽에 귀속할지 모른다. 둘 다 채택되면 그때 합친 arm 을 따로 잰다.
 A26 = replace(A20R, name="A26", ambiguous_gate=True)
 
+# --- A25+A26 — 둘을 함께 켠다 (채택 후보) ----------------------------------------
+#: 🔴 **단독 Δ 를 먼저 확보하고 나서 결합을 잰다** (`A24b`/`A24b+A20` 과 같은 규칙).
+#: 축이 다르므로(인용 표기 · 라우팅 갈래) 상호작용이 없을 것이라 보지만, **없을 것이라
+#: 보는 것과 재 보는 것은 다르다.**
+A25_A26 = replace(A20R, name="A25+A26", attach_citation=True, ambiguous_gate=True)
+
 # --- A22 — 다중 허브 결속 `W=1→3` (사다리 밖 곁가지 · v4 신설) --------------------
 #: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 발주처 차선의 허브를 하나에서 최대 셋으로
 #: 넓힌다. 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** — `A20`·`A21`·`A18` 과 같은 곁가지다.
@@ -912,7 +918,7 @@ A24BS = replace(A24B, name="A24b+A20", substitute_verified=True)
 #: 벌어지면 Δ 를 귀속할 상대를 잃는다. `A20`/`A20r` 과 같은 이유다.
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
-             "A8-lean", "A20", "A20r", "A25", "A26", "A21", "A22", "A10", "A18", "A24",
+             "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
 #: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
@@ -948,7 +954,7 @@ DIAGNOSTIC_ARMS = ("ORACLE",)
 ARMS: dict[str, Arm] = {a.name: a for a in
                         (A0, A1, A1B, A4, A5, A6, A7, A8, L1, L2, L3, L4, L6, L7, L8,
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
-                         A24B, A24BS, A25, A26)}
+                         A24B, A24BS, A25, A26, A25_A26)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은
@@ -1186,8 +1192,20 @@ def _cite_terms(text: str) -> set[str]:
     return {t for t in _CITE_TERM.findall(text or "") if t not in _CITE_STOP}
 
 
-def _citation_units(evidence: str) -> list[dict]:
-    """근거 블록 하나 = 인용 하나. 접수번호가 없는 블록은 인용할 수 없으므로 버린다."""
+def _citation_units(evidence: str, provenance: dict[str, dict] | None = None) -> list[dict]:
+    """근거 블록 하나 = 인용 하나. 접수번호가 없는 블록은 인용할 수 없으므로 버린다.
+
+    🔴 **일을 절반씩 나눠 갖는다.**
+
+    * **어느 근거가 살아남았나 → 근거 문자열에서.** 절단(`MAX_EVIDENCE` ·
+      `_join_section_evidence`)이 여기서 일어나므로 여기서 읽어야 맞다. 읽는 것은
+      `접수번호 (\\d{14})` 정규식 **하나**뿐이라 서식이 흔들려도 안 깨진다.
+    * **인용에 쓸 값 → `provenance` 에서.** `pipeline._citation_source` 가 레코드에서
+      그대로 꺼내 둔 것이다. 우리가 방금 렌더한 글자를 도로 파싱하지 않는다.
+
+    `provenance` 가 비면(구버전 산출물 · `ORACLE` · 테스트) 머리글 되읽기로 되돌아간다.
+    """
+    provenance = provenance or {}
     units: list[dict] = []
     for block in re.split(r"(?m)^##\s+", evidence or ""):
         if not block.strip():
@@ -1196,19 +1214,35 @@ def _citation_units(evidence: str) -> list[dict]:
         if not rcept:
             continue
         head = block.split("\n", 1)[0].strip()
-        matched = _CITE_HEAD.match(head)
-        label, tail = (matched.group(1), matched.group(3)) if matched else (head, "")
-        date = _CITE_DATE.search(block)
-        units.append({
-            "rcept_no": rcept.group(1),
-            "label": label.strip(),
-            "tail": tail.strip(),
-            "date": "-".join(date.groups()) if date else "",
-            "numbers": _cite_numbers(block),
-            # 🔴 제목줄만 본다. 블록 본문 전체를 쓰면 정기공시 섹션(수천 자)이 아무
-            #    답변에나 걸려 선별이 무의미해진다.
-            "terms": _cite_terms(head),
-        })
+        known = provenance.get(rcept.group(1))
+        if known:
+            label, date = known["label"], known["date"]
+            # 🔴 **근거에 실제로 살아남은 섹션만 적는다.** 기억은 절단 전에 채워지므로
+            #    `MAX_SECTION_CHARS` 에서 잘려 나간 섹션까지 들어 있다. 그것을 그대로
+            #    쓰면 프롬프트에 닿지도 않은 근거를 인용하게 된다 — 거짓 귀속이다.
+            alive = [t for t in (known.get("tails") or []) if t and t in block]
+            tail = " / ".join(alive) or known.get("tail", "")
+        else:
+            matched = _CITE_HEAD.match(head)
+            label, tail = (matched.group(1), matched.group(3)) if matched else (head, "")
+            found = _CITE_DATE.search(block)
+            date = "-".join(found.groups()) if found else ""
+        # 🔴 **접수번호 하나로 합친다.** 근거 블록은 섹션 단위라 정기공시 한 보고서가
+        #    블록 여럿으로 쪼개지는데, 그것을 인용 여럿으로 내면 같은 접수번호가 반복된다.
+        #    `CONVENTION §7.5` 의 예시는 접수번호 하나 아래 섹션을 ` / ` 로 나열한다.
+        key = rcept.group(1)
+        unit = next((u for u in units if u["rcept_no"] == key), None)
+        if unit is None:
+            unit = {"rcept_no": key, "label": label.strip(), "date": date,
+                    "tails": [], "numbers": set(), "terms": set()}
+            units.append(unit)
+        for part in (t.strip() for t in tail.split(" / ")):
+            if part and part not in unit["tails"]:
+                unit["tails"].append(part)
+        unit["numbers"] |= _cite_numbers(block)
+        # 🔴 짚기는 **머리글과 기억한 제목** 둘 다 본다. 블록 본문 전체를 쓰면
+        #    정기공시 섹션(수천 자)이 아무 답변에나 걸려 선별이 무의미해진다.
+        unit["terms"] |= _cite_terms(head) | _cite_terms(tail)
     return units
 
 
@@ -1216,12 +1250,14 @@ def _render_citation(unit: dict) -> str:
     """`CONVENTION §7.5` 형식 — `(근거: 보고서명 기준연월, 접수번호 14자리, 섹션경로)`."""
     head = f'{unit["label"]} ({unit["date"]})' if unit["date"] else unit["label"]
     parts = [head, f'접수번호 {unit["rcept_no"]}']
-    if unit["tail"]:
-        parts.append(unit["tail"])
+    tail = " / ".join(unit.get("tails") or [])
+    if tail:
+        parts.append(tail)
     return "(근거: " + ", ".join(parts) + ")"
 
 
-def attach_citation(answer: str, evidence: str, arm: Arm | None = None) -> tuple[str, list[str]]:
+def attach_citation(answer: str, evidence: str, arm: Arm | None = None,
+                    provenance: dict[str, dict] | None = None) -> tuple[str, list[str]]:
     """근거 표기가 없으면 우리가 붙인다. `(바뀐 답변, 붙인 접수번호들)`.
 
     🔴 **부르는 자리가 중요하다.** 모든 LLM 호출이 끝난 **뒤**에 불러야 생성·critic·재생성
@@ -1238,7 +1274,7 @@ def attach_citation(answer: str, evidence: str, arm: Arm | None = None) -> tuple
     if not answer or quick_check(answer)["has_citation"]:
         return answer, []
 
-    units = _citation_units(evidence)
+    units = _citation_units(evidence, provenance)
     if not units:
         return answer, []
 

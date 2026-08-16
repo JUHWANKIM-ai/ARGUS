@@ -167,6 +167,57 @@ def test_no_evidence_means_no_citation():
     assert ablation.attach_citation("답변", "", ARM) == ("답변", [])
 
 
+# --- 🔴 기억(provenance) 경로 — 마크다운을 되읽지 않는다 --------------------------
+# 되읽기는 우리가 방금 렌더한 글자를 도로 파싱하는 것이라 서식이 흔들리면 깨진다.
+# `pipeline._citation_source` 가 레코드에서 값을 그대로 꺼내 두고, 여기서는 **어느 근거가
+# 살아남았는지만** 근거 문자열에서 읽는다.
+
+TWO_SECTION_EVIDENCE = """## [사업보고서 2025] 삼성전자 – II. 사업의 내용 > 2. 주요 제품 및 서비스
+- 출처: 접수번호 20260310002820 (공시일 20260310)
+
+가. 주요 제품 매출
+
+## [사업보고서 2025] 삼성전자 – II. 사업의 내용 > 4. 매출 및 수주상황
+- 출처: 접수번호 20260310002820 (공시일 20260310)
+
+나. 수주 현황
+"""
+
+SAMSUNG_PROV = {
+    "20260310002820": {
+        "rcept_no": "20260310002820", "label": "사업보고서 2025", "date": "2026-03-10",
+        "tails": ["II. 사업의 내용 > 2. 주요 제품 및 서비스",
+                  "II. 사업의 내용 > 4. 매출 및 수주상황",
+                  "III. 재무에 관한 사항 > 1. 요약재무정보"],   # 셋째는 절단돼 근거에 없다
+    },
+}
+
+
+def test_memory_supplies_the_section_path_and_joins_them():
+    """🔴 `CONVENTION §7.5` 예시 그대로 — 접수번호 하나 아래 섹션을 ` / ` 로 나열한다."""
+    out, cited = ablation.attach_citation(
+        "주요 제품 매출과 수주 현황은 다음과 같습니다.", TWO_SECTION_EVIDENCE, ARM,
+        provenance=SAMSUNG_PROV)
+    assert cited == ["20260310002820"]                       # 접수번호 하나로 합쳐진다
+    assert out.count("(근거:") == 1
+    assert "II. 사업의 내용 > 2. 주요 제품 및 서비스 / II. 사업의 내용 > 4. 매출 및 수주상황" in out
+
+
+def test_memory_does_not_cite_sections_that_were_truncated_away():
+    """🔴 기억은 절단 **전**에 채워진다. 프롬프트에 닿지도 않은 섹션을 적으면 거짓 귀속이다."""
+    out, _ = ablation.attach_citation("무언가 답했습니다.", TWO_SECTION_EVIDENCE, ARM,
+                                      provenance=SAMSUNG_PROV)
+    assert "요약재무정보" not in out
+
+
+def test_falls_back_to_parsing_when_memory_is_empty():
+    """구버전 산출물 · ORACLE 경로 · 테스트에서는 기억이 없다. 그래도 인용은 붙어야 한다."""
+    out, cited = ablation.attach_citation("영업이익이 늘었습니다.", PERIODIC_EVIDENCE, ARM,
+                                          provenance={})
+    assert cited == ["20260310002820"]
+    assert "IV. 이사의 경영진단 및 분석의견" in out
+
+
 # --- arm 등록 -----------------------------------------------------------------
 
 def test_a25_is_registered_and_differs_from_baseline_by_one_flag():

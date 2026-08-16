@@ -20,6 +20,7 @@ from argus.agent import router as router_module
 from argus.agent.router import route
 from argus.agent.safety import mask_pii, sanitize_question
 from argus.clova import chat, no_cache
+from argus.corpus import markdown as markdown_module
 from argus.corpus.manifest import filter_docs
 from argus.retrieve import bm25 as bm25_module
 
@@ -1556,8 +1557,43 @@ def _gather_meta(r, question: str, group: str, trace: list[str], take) -> str | 
     return _join_section_evidence(sections) if sections else None
 
 
-def _gather_evidence(r, question: str = "",
-                     budget: Budget | None = None) -> tuple[str, list[str]]:
+#: 정기공시 `doc_subtype` → 사람이 읽는 보고서명. 정형 레코드는 `markdown._label` 이 이미
+#: 같은 일을 하므로 여기 넣지 않는다 — 규칙을 두 곳에 적으면 한쪽만 낡는다.
+_PERIODIC_LABEL = {"annual": "사업보고서", "half": "반기보고서", "quarter": "분기보고서"}
+
+
+def _citation_source(record: dict) -> dict | None:
+    """🔴 인용에 쓸 값을 레코드에서 **그대로** 꺼낸다 — 마크다운을 되읽지 않는다.
+
+    `ablation.attach_citation` 은 근거 마크다운을 정규식으로 되읽어 인용을 만들 수도
+    있다(되먹임). 그러나 그것은 **우리가 방금 렌더한 글자를 도로 파싱하는 것**이라
+    이 저장소가 반복해 데인 *"같은 값을 두 곳에 적고 한쪽만 고친다"* 와 같은 모양이다.
+    실제로 취약하다 — 머리글의 `–` 는 EN DASH 라 하이픈으로 적으면 하나도 안 걸린다.
+
+    🔴 **정기공시에서 특히 다르다.** 되읽기는 섹션경로를 머리글 문자열에서 긁어내는데,
+    청크 레코드에는 `path` 가 정확히 들어 있다 (`'II. 사업의 내용 > 2. 주요 제품'`).
+    """
+    rcept = str(record.get("rcept_no") or "")
+    if not rcept:
+        found = re.search(r"\d{14}", str(record.get("doc_id") or ""))
+        rcept = found.group(0) if found else ""
+    if not rcept:
+        return None
+    if record.get("path") is not None:                      # 정기공시 섹션 청크
+        label = _PERIODIC_LABEL.get(record.get("doc_subtype") or "", "정기보고서")
+        if record.get("base_year"):
+            label = f'{label} {record["base_year"]}'
+        tail = str(record.get("path") or "")
+    else:                                                   # 정형 레코드
+        label = markdown_module._label(record)
+        tail = str(record.get("title") or "")
+    raw = str(record.get("rcept_dt") or "")
+    date = f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}" if len(raw) == 8 else raw
+    return {"rcept_no": rcept, "label": label, "date": date, "tail": tail}
+
+
+def _gather_evidence(r, question: str = "", budget: Budget | None = None,
+                     provenance: dict[str, dict] | None = None) -> tuple[str, list[str]]:
     """ReAct 반복 루프. 검색 → 충분성 판정 → 부족하면 질의 재구성 후 재검색. LLM 0회.
 
         검색 → 근거 충분? ─ 예 → 생성
@@ -1607,19 +1643,42 @@ def _gather_evidence(r, question: str = "",
     #: 허브당 `MAX_EXTRA_HUB_EVIDENCE` 씩 늘어난다 — `W=1` 에서는 종전 상수 그대로다.
     cp_cap = MAX_COUNTERPARTY_EVIDENCE
 
-    def _take(doc_id, markdown, score, corp) -> bool:
+    def _remember(record: dict | None) -> None:
+        """🔴 근거로 삼은 레코드를 기억한다 (`A25`). **모든 근거가 이 길목을 지난다** —
+        섹션 근거도 `_gather_meta` 가 `_take` 를 통해 넣으므로 여기 한 곳이면 된다.
+
+        절단(`MAX_EVIDENCE`·`_join_section_evidence`)에서 탈락한 것도 여기 남지만
+        상관없다 — **살아남았는지는 근거 문자열에서 읽는다.** 기억은 '값' 만 준다.
+        """
+        if provenance is None or not record:
+            return
+        unit = _citation_source(record)
+        if not unit:
+            return
+        # 🔴 **정기공시는 한 보고서에 섹션이 여럿**이고 접수번호는 하나다. 먼저 온 것만
+        #    남기면 나머지 섹션이 인용에서 사라진다. 주최측 예시(`CONVENTION §7.5`)가
+        #    바로 이 경우를 *"접수번호 20260515002181, II-3 원재료 및 생산설비 /
+        #    II-6 연구개발활동"* 으로 적는다 — 한 접수번호 아래 섹션을 나열한다.
+        kept = provenance.setdefault(unit["rcept_no"],
+                                     {**unit, "tails": []})
+        if unit["tail"] and unit["tail"] not in kept["tails"]:
+            kept["tails"].append(unit["tail"])
+
+    def _take(doc_id, markdown, score, corp, record=None) -> bool:
         if markdown and doc_id and doc_id not in seen:
             seen.add(doc_id)
             picked.append({"doc_id": doc_id, "markdown": markdown,
                            "score": score, "corp": corp})
+            _remember(record if record is not None else {"doc_id": doc_id})
             return True
         return False
 
-    def _take_cp(doc_id, markdown, score, corp) -> bool:
+    def _take_cp(doc_id, markdown, score, corp, record=None) -> bool:
         if markdown and doc_id and doc_id not in cp_seen:
             cp_seen.add(doc_id)
             cp_picked.append({"doc_id": doc_id, "markdown": markdown,
                               "score": score, "corp": corp})
+            _remember(record if record is not None else {"doc_id": doc_id})
             return True
         return False
 
@@ -1730,7 +1789,7 @@ def _gather_evidence(r, question: str = "",
                     if taken_here >= quota:            # 제동 ② — 셀별 할당량
                         break
                     if _take(chunk.get("doc_id"), chunk.get("markdown"),
-                             chunk.get("score"), corp):
+                             chunk.get("score"), corp, record=chunk):
                         taken_here += 1
 
         # 집합 완결성. 후보가 대체된 문서면 체인의 나머지가 와야 근거가 완결된다.
@@ -1783,7 +1842,8 @@ def _gather_evidence(r, question: str = "",
                          f'period={_fmt_period({"year": args["year"]} if "year" in args else {})} '
                          f'n={out.get("count", 0)} top_score=- ids={ids or "-"}')
             for event in events:
-                _take(event.get("doc_id"), event.get("markdown"), None, corp)
+                _take(event.get("doc_id"), event.get("markdown"), None, corp,
+                      record=event)
 
     # 열거 hop. 위 폴백과 **배타**다 (저쪽은 `not picked`, 이쪽은 `picked`) — 같은 hop
     # 번호를 쓰므로 배타여야 `parse_hops` 가 두 종류를 한 레코드로 섞어 읽지 않는다.
@@ -2306,10 +2366,14 @@ def answer_question(question_id: str, question: str) -> dict:
 
     # 🔴 ORACLE 은 여기서 갈린다 — `_gather_evidence` 안에는 `question_id` 가 없다.
     #    플래그가 꺼져 있으면(기본값) 아래 한 줄은 종전과 글자 하나 다르지 않다.
+    # 🔴 두 가지 밖에서 만든다 — `ORACLE` 가지에서는 안 채워지므로 `attach_citation` 이
+    #    빈 사전을 받고 근거 되읽기로 되돌아간다. 진단용 arm 하나 때문에 `NameError` 를
+    #    내면 안 된다.
+    provenance: dict[str, dict] = {}
     if ablation.current().golden_oracle:
         evidence, tool_trace = _gather_golden(question_id, clean, budget)
     else:
-        evidence, tool_trace = _gather_evidence(r, clean, budget)
+        evidence, tool_trace = _gather_evidence(r, clean, budget, provenance)
     trace.extend(tool_trace)
     # 근거 성형은 **검색이 끝난 뒤**다. 여기 위로 올리면 A5·L2 의 Δ 에 검색 변화가
     # 섞여 단일 변수 조작이 아니게 된다 (`ablation.shape_evidence` 주석).
@@ -2368,7 +2432,7 @@ def answer_question(question_id: str, question: str) -> dict:
     # 🔴 A25 — 근거 표기를 우리가 붙인다. **여기여야 한다**: 모든 LLM 호출이 끝난 뒤라
     #    생성·critic·재생성 프롬프트가 바이트 동일로 남고 `RequestCache` 가 적중한다.
     #    플래그가 꺼져 있으면(기본값) 아래 두 줄은 종전과 글자 하나 다르지 않다.
-    answer, cited = ablation.attach_citation(answer, evidence)
+    answer, cited = ablation.attach_citation(answer, evidence, provenance=provenance)
     if cited:
         trace.append(f'citation attached={",".join(cited)}')
     return _respond(question_id, question, evidence, trace, mask_pii(answer), budget)

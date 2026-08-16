@@ -276,7 +276,7 @@ def test_answer_question_routes_through_the_tool_loop_only_for_a24(monkeypatch):
     monkeypatch.setattr(pipeline, "_answer_with_tools",
                         lambda *a, **k: seen.append("fc") or f"도구로 만든 답\n{cite}")
     monkeypatch.setattr(pipeline, "_gather_evidence",
-                        lambda r, q, b: ("## 근거\n- 계약금액: 1,000원", []))
+                        lambda r, q, b, *a: ("## 근거\n- 계약금액: 1,000원", []))
     monkeypatch.setattr(pipeline, "_verify",
                         lambda question, answer, evidence, r, trace, budget=None: answer)
     post, _ = _recorder([_payload(f"직접 답\n{cite}")])
@@ -447,7 +447,7 @@ def _wire_answer_question(monkeypatch, script):
     post, seen = _recorder(script)
     monkeypatch.setattr(clova, "_post", post)
     monkeypatch.setattr(pipeline, "_gather_evidence",
-                        lambda r, q, b: ("## 근거\n- 계약금액: 1,000원", []))
+                        lambda r, q, b, *a: ("## 근거\n- 계약금액: 1,000원", []))
     monkeypatch.setattr(pipeline, "_verify",
                         lambda question, answer, evidence, r, trace, budget=None: answer)
     return seen

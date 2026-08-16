@@ -2592,7 +2592,7 @@ def test_the_answer_call_uses_the_arm_temperature(monkeypatch):
 
     monkeypatch.setattr(pipeline, "chat", _chat)
     monkeypatch.setattr(pipeline, "_gather_evidence",
-                        lambda r, q, b: ("## 접수번호 20250101000001\n- 계약금액: 1원", []))
+                        lambda r, q, b, *a: ("## 접수번호 20250101000001\n- 계약금액: 1원", []))
     monkeypatch.setattr(pipeline, "_verify", lambda *a, **kw: a[1])
     # critic 은 이 검사의 축이 아니다 — 근거 표기가 있다고 보고 건너뛴다.
     monkeypatch.setattr(pipeline, "quick_check", lambda answer: {"has_citation": True})
