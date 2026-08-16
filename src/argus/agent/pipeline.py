@@ -1579,17 +1579,38 @@ def _citation_source(record: dict) -> dict | None:
         rcept = found.group(0) if found else ""
     if not rcept:
         return None
-    if record.get("path") is not None:                      # 정기공시 섹션 청크
-        label = _PERIODIC_LABEL.get(record.get("doc_subtype") or "", "정기보고서")
-        if record.get("base_year"):
-            label = f'{label} {record["base_year"]}'
+
+    # 🔴 **검색이 넘기는 청크는 가난하다.** 실측: 정형 히트는 `{doc_id, score}` 뿐이고
+    #    정기 히트는 `{chunk_id, doc_id, path, score}` 다. 그대로 쓰면 인용이
+    #    `(근거: 공시, 접수번호 …)` 로 빈약해져 **되읽기보다 못해진다.** 그래서 여기서
+    #    정본을 조회해 채운다 — 색인·레코드 조회라 LLM 0회다.
+    if record.get("path") is not None:                      # 정기공시 섹션
+        source = _periodic_meta(str(record.get("doc_id") or ""))
+        label = _PERIODIC_LABEL.get(source.get("doc_subtype") or "", "정기보고서")
+        if source.get("base_year"):
+            label = f'{label} {source["base_year"]}'
         tail = str(record.get("path") or "")
+        raw = str(source.get("rcept_dt") or "")
     else:                                                   # 정형 레코드
-        label = markdown_module._label(record)
-        tail = str(record.get("title") or "")
-    raw = str(record.get("rcept_dt") or "")
-    date = f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}" if len(raw) == 8 else raw
+        source = record if record.get("doc_subtype") or record.get("title") else {}
+        if not source:
+            source = tools._record_of(rcept) or record
+        label = markdown_module._label(source)
+        tail = str(source.get("title") or "")
+        raw = str(source.get("rcept_dt") or "")
+
+    # 접수번호 앞 8자리가 접수일이다 (DART 규칙). 조회가 비어도 날짜는 잃지 않는다.
+    if len(raw) != 8:
+        raw = rcept[:8]
+    date = f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}" if len(raw) == 8 and raw.isdigit() else ""
     return {"rcept_no": rcept, "label": label, "date": date, "tail": tail}
+
+
+def _periodic_meta(doc_id: str) -> dict:
+    """정기공시 **문서 단위** 메타(보고서 종류 · 사업연도 · 접수일). 섹션마다 같다."""
+    index = tools._section_index()
+    rows = tools._sections_of(index, doc_id) if index else []
+    return rows[0] if rows else {}
 
 
 def _gather_evidence(r, question: str = "", budget: Budget | None = None,
