@@ -2500,6 +2500,42 @@ def _offer_tools(arm, question: str, trace: list[str]) -> bool:
     return bool(kind)
 
 
+#: critic 의 불리언 -> 사람이 읽을 사유. 🔴 **모델의 산문을 우리 확인서에 옮겨 적지
+#: 않는다.** 2026-08-17 감사 32문항 실측에서 각주 8건 중 **6건이 망가져 있었다**:
+#:
+#:     AUD-11   (주의: 근거 검증을 통과하지 못했습니다 — 모든 투자 금액은 제공된
+#:               근거에서 확인할 수 있으며, 이를 합산한 결과도 정확합니다.)
+#:                        ↑ 머리는 "실패", 사유는 "문제 없음" — 서로 어긋난다
+#:     AUD2-06  (주의: 근거 검증을 통과하지 못했습니다 — )
+#:                        ↑ 사유가 비었다
+#:
+#: 원인은 critic 이 불리언과 산문을 **따로** 낸다는 것이다. 우리가 판정은 불리언으로
+#: 하고 설명은 산문으로 실으니, 둘이 어긋나면 우리 각주가 자기를 반박한다. 각주는
+#: **검사기가 무엇을 봤는가의 기록**이라(`aggregate._prune_notes` 와 같은 사유) 기록이
+#: 자기와 싸우면 안 읽느니만 못하다.
+#:
+#: v4·v5 의 발견을 각주에 그대로 적용한 것이다 — *"모델이 손에 쥐면 틀린다."* 값은
+#: 우리가 계산하고, 사유도 우리가 짓는다. `verdict.reason` 은 `trace` 에 그대로 남으니
+#: 진단 정보가 사라지지도 않는다.
+_VERDICT_REASONS = (
+    ("has_citation", False, "근거 표기가 없습니다"),
+    ("supported", False, "답변의 일부 수치·사실이 근거에서 확인되지 않았습니다"),
+    ("hallucination", True, "근거에 없는 내용이 사실처럼 서술되었습니다"),
+)
+
+
+def _verdict_reason(verdict) -> str:
+    """`Verdict` 의 불리언에서 사유를 짓는다. **절대 비지 않는다.**
+
+    `passed` 가 거짓이면 위 셋 중 최소 하나가 걸리므로 빈 문자열이 나올 수 없다.
+    그래도 마지막 갈래를 둔 것은, 나중에 `passed` 의 정의가 바뀌어도 각주가
+    `— )` 로 끝나지 않게 하기 위해서다.
+    """
+    hits = [text for field, bad, text in _VERDICT_REASONS
+            if getattr(verdict, field, None) is bad]
+    return " · ".join(hits) if hits else "자동 검증이 결함을 보고했습니다"
+
+
 def answer_question(question_id: str, question: str) -> dict:
     budget = Budget()
     clean, warnings = sanitize_question(question)
@@ -2607,7 +2643,7 @@ def answer_question(question_id: str, question: str) -> dict:
             verdict = judge(evidence, answer, budget)
             trace.append(f"critic supported={verdict.supported} reason={verdict.reason}")
             if not verdict.passed:
-                answer += f"\n\n(주의: 근거 검증을 통과하지 못했습니다 — {verdict.reason})"
+                answer += f"\n\n(주의: 근거 검증을 통과하지 못했습니다 — {_verdict_reason(verdict)})"
         except BudgetExceeded as exc:
             trace.append(f"critic 생략: {exc}")            # 우리 상한이다 — 장애가 아니다
         except RuntimeError as exc:

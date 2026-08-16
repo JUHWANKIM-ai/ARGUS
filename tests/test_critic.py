@@ -962,3 +962,48 @@ def test_completeness_snapshots_name_the_responses_they_were_measured_on():
         assert spec["golden_evidence"], name
         assert set(spec["checked"]) == set(critic.COMPLETENESS_STAGES), name
         assert set(spec["fired"]) == set(critic.COMPLETENESS_STAGES), name
+
+
+# --- 각주 사유는 우리가 짓는다 (2026-08-17 감사 실측) --------------------------
+#
+# 🔴 감사 32문항에서 각주 8건 중 **6건이 망가져 있었다.** critic 이 불리언과 산문을
+#    따로 내는데 우리가 판정은 불리언으로 하고 설명은 산문으로 실었기 때문이다.
+#    아래 두 입력은 지어낸 것이 아니라 `artifacts/audit/v5_reaudit_A38.jsonl` 의
+#    AUD-11 · AUD2-06 에서 그대로 가져온 것이다.
+
+def _verdict(**kw):
+    base = {"supported": True, "has_citation": True, "hallucination": False,
+            "reason": ""}
+    base.update(kw)
+    return critic.Verdict(**base)
+
+
+def test_verdict_reason_never_contradicts_the_header():
+    """AUD-11: critic 이 supported=False 를 내면서 사유는 '전부 정확하다' 고 썼다."""
+    from argus.agent import pipeline
+
+    v = _verdict(supported=False, has_citation=False,
+                 reason="모든 투자 금액은 제공된 근거에서 확인할 수 있으며, "
+                        "이를 합산한 결과도 정확합니다.")
+    assert not v.passed
+    reason = pipeline._verdict_reason(v)
+    assert "정확합니다" not in reason, "모델의 산문이 우리 확인서에 실렸다"
+    assert "근거 표기가 없습니다" in reason
+    assert "확인되지 않았습니다" in reason
+
+
+def test_verdict_reason_is_never_empty():
+    """AUD2-06: 사유가 비어 각주가 `— )` 로 끝났다."""
+    from argus.agent import pipeline
+
+    v = _verdict(supported=False, reason="")
+    assert not v.passed
+    assert pipeline._verdict_reason(v).strip()
+
+
+def test_verdict_reason_names_every_failing_axis():
+    from argus.agent import pipeline
+
+    v = _verdict(supported=False, has_citation=False, hallucination=True)
+    reason = pipeline._verdict_reason(v)
+    assert reason.count(" · ") == 2, reason
