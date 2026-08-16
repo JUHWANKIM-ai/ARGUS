@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { CompanySummary, Hub } from "../lib/types";
 import { KIND_LABEL, KIND_ORDER, nameKey, shortName, slugIndex } from "../lib/format";
+import Link from "next/link";
 
 type Props = { hubs: Hub[]; companies: CompanySummary[] };
 
@@ -86,9 +87,9 @@ export default function NetworkExplorer({ hubs, companies }: Props) {
                   <tr key={hub.canonical}>
                     <td>
                       {own ? (
-                        <a className="link" href={`/company/${own}/`}>
+                        <Link className="link" href={`/company/${own}/`}>
                           {shortName(hub.name)}
-                        </a>
+                        </Link>
                       ) : (
                         shortName(hub.name)
                       )}
@@ -104,9 +105,9 @@ export default function NetworkExplorer({ hubs, companies }: Props) {
                         {hub.partners.map((name) => {
                           const s = slugByName[nameKey(name)];
                           return s ? (
-                            <a className="chip" key={name} href={`/company/${s}/`}>
+                            <Link className="chip" key={name} href={`/company/${s}/`}>
                               <span>{shortName(name)}</span>
-                            </a>
+                            </Link>
                           ) : (
                             <span className="chip" key={name}>
                               <span>{shortName(name)}</span>

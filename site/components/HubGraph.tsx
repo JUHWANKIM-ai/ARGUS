@@ -1,5 +1,6 @@
 import { layoutHubs, selectHubs, type HubNode } from "../lib/hubLayout";
 import { nameKey, shortName } from "../lib/format";
+import Link from "next/link";
 
 type Props = {
   hubs: HubNode[];
@@ -82,10 +83,10 @@ export default function HubGraph({ hubs, slugByName, minCount = 5, minPartners =
                   </>
                 );
                 return slug ? (
-                  <a key={`${hub.canonical}-${p.name}`} href={`/company/${slug}/`} className="graph-partner">
+                  <Link key={`${hub.canonical}-${p.name}`} href={`/company/${slug}/`} className="graph-partner">
                     <title>{`${shortName(p.name)} 화면으로`}</title>
                     {dot}
-                  </a>
+                  </Link>
                 ) : (
                   <g key={`${hub.canonical}-${p.name}`}>{dot}</g>
                 );

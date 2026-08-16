@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Header from "../components/Header";
 import meta from "../public/data/meta.json";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "ARGUS — 공시들 사이의 관계를 읽는다",
@@ -33,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             */}
             <div className="muted">
               {meta.ranges.companies}개사 · {dot(meta.ranges.from)}~{dot(meta.ranges.to)} ·{" "}
-              <a href="/about/">데이터 범위와 한계</a>
+              <Link href="/about/">데이터 범위와 한계</Link>
             </div>
           </div>
         </footer>

@@ -2,6 +2,7 @@ import companies from "../../public/data/companies.json";
 import CompanySearch from "../../components/CompanySearch";
 import Limits from "../../components/Limits";
 import type { CompanySummary } from "../../lib/types";
+import Link from "next/link";
 
 export const metadata = {
   title: "기업 — ARGUS",
@@ -48,7 +49,7 @@ export default function CompanyIndex() {
             </div>
             <div className="grid">
               {members.map((c) => (
-                <a className="tile" key={c.slug} href={`/company/${c.slug}/`}>
+                <Link className="tile" key={c.slug} href={`/company/${c.slug}/`}>
                   <span className="tile-name">{c.name}</span>
                   <span className="tile-meta">
                     <span>공시 {c.n_disclosures}건</span>
@@ -56,7 +57,7 @@ export default function CompanyIndex() {
                       <span className="tag-corrected">정정 {c.n_corrections}건</span>
                     ) : null}
                   </span>
-                </a>
+                </Link>
               ))}
             </div>
           </section>

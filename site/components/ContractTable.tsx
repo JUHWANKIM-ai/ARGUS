@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Contract, Correction } from "../lib/types";
 import { nameKey, shortName, won, ym, ymd } from "../lib/format";
+import Link from "next/link";
 
 type Props = {
   contracts: Contract[];
@@ -82,9 +83,9 @@ export default function ContractTable({ contracts, correctionByRcept, slugByName
                   <td>
                     {c.counterparty ? (
                       partnerSlug ? (
-                        <a className="link" href={`/company/${partnerSlug}/`}>
+                        <Link className="link" href={`/company/${partnerSlug}/`}>
                           {shortName(c.counterparty)}
-                        </a>
+                        </Link>
                       ) : (
                         shortName(c.counterparty)
                       )

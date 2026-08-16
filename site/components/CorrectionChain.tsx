@@ -1,5 +1,6 @@
 import type { Correction } from "../lib/types";
 import { reasonText, won, ymd } from "../lib/format";
+import Link from "next/link";
 
 /**
  * 정정 하나를 한 덩이로 보여 준다 — **원공시 → 정정본** 과 금액 변화.
@@ -27,9 +28,9 @@ export default function CorrectionChain({
         <span className="numeric muted">{ymd(correction.date)}</span>
         {showCompany ? (
           correction.slug ? (
-            <a className="link" href={`/company/${correction.slug}/`}>
+            <Link className="link" href={`/company/${correction.slug}/`}>
               {correction.corp_name}
-            </a>
+            </Link>
           ) : (
             <strong>{correction.corp_name}</strong>
           )

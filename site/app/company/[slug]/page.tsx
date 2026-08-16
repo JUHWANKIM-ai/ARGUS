@@ -7,6 +7,7 @@ import CorrectionChain from "../../../components/CorrectionChain";
 import Limits from "../../../components/Limits";
 import { KIND_LABEL, nameKey, shortName, slugIndex, won } from "../../../lib/format";
 import type { CompanyDetail, CompanySummary, Correction, Network } from "../../../lib/types";
+import Link from "next/link";
 
 const list = companies as CompanySummary[];
 const slugByName = slugIndex(list);
@@ -145,9 +146,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
               <h2>나중에 정정된 공시</h2>
               <span className="muted">
                 금액이 바뀐 것부터 ·{" "}
-                <a className="link" href={`/corrections/?company=${company.slug}`}>
+                <Link className="link" href={`/corrections/?company=${company.slug}`}>
                   전부 보기 →
-                </a>
+                </Link>
               </span>
             </div>
             <ul className="fix-list">
@@ -158,9 +159,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
             {fixes.length > FIX_SHOWN ? (
               <p className="muted" style={{ marginTop: "var(--gap-3)" }}>
                 {fixes.length - FIX_SHOWN}건이 더 있습니다 —{" "}
-                <a className="link" href={`/corrections/?company=${company.slug}`}>
+                <Link className="link" href={`/corrections/?company=${company.slug}`}>
                   정정 추적에서 전부 보기 →
-                </a>
+                </Link>
               </p>
             ) : null}
           </section>
@@ -197,9 +198,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
                   </>
                 );
                 return s ? (
-                  <a className="chip" key={p.name} href={`/company/${s}/`}>
+                  <Link className="chip" key={p.name} href={`/company/${s}/`}>
                     {body}
-                  </a>
+                  </Link>
                 ) : (
                   <span className="chip" key={p.name}>
                     {body}
@@ -223,9 +224,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
               {asHub.partners.map((name) => {
                 const s = slugByName[nameKey(name)];
                 return s ? (
-                  <a className="chip" key={name} href={`/company/${s}/`}>
+                  <Link className="chip" key={name} href={`/company/${s}/`}>
                     <span>{shortName(name)}</span>
-                  </a>
+                  </Link>
                 ) : (
                   <span className="chip" key={name}>
                     <span>{shortName(name)}</span>

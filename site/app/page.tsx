@@ -6,6 +6,7 @@ import HubGraph from "../components/HubGraph";
 import Limits from "../components/Limits";
 import { slugIndex } from "../lib/format";
 import type { CompanySummary, Network } from "../lib/types";
+import Link from "next/link";
 
 /**
  * 랜딩.
@@ -41,7 +42,7 @@ export default function Home() {
             <span className="tag-corrected">정정</span> 계약 공시 10건 중 {share}건이 나중에 정정됩니다.
             DART 에서 원공시만 보면 알 수 없습니다.
           </span>
-          <a href="/corrections/">정정된 공시 보기 →</a>
+          <Link href="/corrections/">정정된 공시 보기 →</Link>
         </div>
 
         <section className="section">
@@ -49,7 +50,7 @@ export default function Home() {
             <h2>발주처 한 곳이 여러 회사에 일을 준다</h2>
             <span className="muted">
               계약 {meta.counts.contracts.toLocaleString()}건에서 뽑은 거래상대 {meta.counts.partners}곳 중
-              큰 {shown}곳 · <a className="link" href="/network/">전부 보기 →</a>
+              큰 {shown}곳 · <Link className="link" href="/network/">전부 보기 →</Link>
             </span>
           </div>
           <HubGraph hubs={hubs} slugByName={slugByName} minCount={5} minPartners={2} limit={10} />
@@ -57,28 +58,28 @@ export default function Home() {
 
         <section className="section">
           <div className="grid">
-            <a className="tile" href="/company/">
+            <Link className="tile" href="/company/">
               <span className="tile-name">이 회사, 최근에 뭘 했나</span>
               <span className="tile-meta">
                 <span>
                   {meta.ranges.companies}개사의 계약·정정·거래상대를 한 화면에 모았습니다. 공시를 하나씩 열지 않습니다.
                 </span>
               </span>
-            </a>
-            <a className="tile" href="/corrections/">
+            </Link>
+            <Link className="tile" href="/corrections/">
               <span className="tile-name">이 공시, 나중에 바뀌었나</span>
               <span className="tile-meta">
                 <span>
                   정정 {meta.counts.corrections}건을 원공시와 이어 붙이고 금액이 얼마에서 얼마로 바뀌었는지 보여 줍니다.
                 </span>
               </span>
-            </a>
-            <a className="tile" href="/network/">
+            </Link>
+            <Link className="tile" href="/network/">
               <span className="tile-name">이 회사는 누구와 거래하나</span>
               <span className="tile-meta">
                 <span>공시에 이름이 적힌 거래상대 {meta.counts.partners}곳을 모아 발주처 쪽에서도 보고 수주 쪽에서도 봅니다.</span>
               </span>
-            </a>
+            </Link>
           </div>
         </section>
 

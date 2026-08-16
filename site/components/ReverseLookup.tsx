@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { CompanySummary, Hub } from "../lib/types";
 import { KIND_LABEL, nameKey, shortName } from "../lib/format";
+import Link from "next/link";
 
 type Props = { hubs: Hub[]; companies: CompanySummary[]; initialSlug: string };
 
@@ -54,9 +55,9 @@ export default function ReverseLookup({ hubs, companies, initialSlug }: Props) {
               </option>
             ))}
         </select>
-        <a className="link" href={`/company/${picked?.slug}/`}>
+        <Link className="link" href={`/company/${picked?.slug}/`}>
           {picked?.name} 화면으로 →
-        </a>
+        </Link>
       </div>
 
       <p style={{ marginTop: 0 }}>
@@ -96,9 +97,9 @@ export default function ReverseLookup({ hubs, companies, initialSlug }: Props) {
             {ordersTo.partners.map((name) => {
               const hit = companies.find((c) => nameKey(c.name) === nameKey(name));
               return hit ? (
-                <a className="chip" key={name} href={`/company/${hit.slug}/`}>
+                <Link className="chip" key={name} href={`/company/${hit.slug}/`}>
                   <span>{shortName(name)}</span>
-                </a>
+                </Link>
               ) : (
                 <span className="chip" key={name}>
                   <span>{shortName(name)}</span>

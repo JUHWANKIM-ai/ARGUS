@@ -7,6 +7,7 @@ import ReverseLookup from "../../components/ReverseLookup";
 import Limits from "../../components/Limits";
 import { nameKey, shortName, slugIndex } from "../../lib/format";
 import type { CompanySummary, Network } from "../../lib/types";
+import Link from "next/link";
 
 export const metadata = {
   title: "관계망 — ARGUS",
@@ -88,18 +89,18 @@ export default function NetworkPage() {
                     <tr key={`${pair.a}|${pair.b}`}>
                       <td>
                         {sa ? (
-                          <a className="link" href={`/company/${sa}/`}>
+                          <Link className="link" href={`/company/${sa}/`}>
                             {shortName(pair.a)}
-                          </a>
+                          </Link>
                         ) : (
                           shortName(pair.a)
                         )}
                       </td>
                       <td>
                         {sb ? (
-                          <a className="link" href={`/company/${sb}/`}>
+                          <Link className="link" href={`/company/${sb}/`}>
                             {shortName(pair.b)}
-                          </a>
+                          </Link>
                         ) : (
                           shortName(pair.b)
                         )}
