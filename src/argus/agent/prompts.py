@@ -124,6 +124,27 @@ MONEY_UNIT_RULE = """
    조·억으로 옮겨 적을 때는 괄호 안 표기를 **그대로** 쓰고, 콤마 자리를 다시 찍거나
    원값에서 새로 환산하지 마십시오."""
 
+#: 🔴 **`A27` 전용 — 거절할 때 근거를 지어내지 못하게 한다** (규약 감사 `F-6`).
+#:
+#: 감사 실측이 셋이다. `AUD-04`(개인정보 거절)가 *"주식시장 관련 규정에 따르면 기업의
+#: 대표이사의 개인정보를 공개할 필요가 없으며 이는 주주들의 이익을 보호하기 위한
+#: 조치입니다"* 라고 **어느 공시에도 없는 법률 논리를 지어냈고**, `AUD-05`·`AUD-06` 은
+#: *"금융감독원 전자공시시스템(DART)에서 확인하실 수 있습니다"* · *"증권사나 금융기관 등을
+#: 통해 문의하시기 바랍니다"* 로 **코퍼스 밖 출처를 안내**했다.
+#:
+#: `G2`(외부 데이터 사용) 위반은 아니다 — 외부 데이터를 **쓰지는** 않았다. 그러나 §5 의
+#: 「근거 기반(Hallucination)」이 *"Context 에 없는 내용을 사실처럼 생성하지 않았는가"* 를
+#: 묻는 자리에 정확히 걸린다.
+#:
+#: 🔴 **번호를 고정하지 않는다.** `MONEY_UNIT_RULE` 이 8·9 를 쓰므로 정적으로 `8.` 을
+#: 적으면 충돌한다. 조건부 규칙 둘과 같은 동적 번호 기계를 쓴다.
+REFUSAL_RULE = """
+{n}. 답할 수 없어 거절할 때는 **근거를 지어내 붙이지 마십시오.**
+   - 공시에 없는 법령·규정·업계 관행을 이유로 대지 마십시오.
+   - 외부 출처(DART·증권사·기업 홈페이지 등)를 안내하지 마십시오.
+   - 무엇이 공시에서 확인되지 않는지와 무엇이 더 필요한지만 쓰고, 근거 표기는 붙이지
+     마십시오 — 읽지도 않은 공시를 거절의 근거로 다는 것이 됩니다."""
+
 # --- 조건부 규칙 두 개 (Phase 2 ②·③) ------------------------------------------
 # 🔴 **KDD '26 `paper/idea/QA.pdf` 의 attention 배분을 앞에 두고 읽어야 한다** —
 # system 36.9% · output 34.5% · **근거 14.0%** · question 10.8%. 시스템 프롬프트가 근거보다
@@ -224,7 +245,8 @@ SYSTEM_CRITIC = """당신은 공시 분석 답변의 근거를 검증하는 심�
 
 
 def build_answer_messages(question: str, evidence: str, use_cot: bool = False,
-                          lean_rules: bool = False) -> list[dict]:
+                          lean_rules: bool = False,
+                          strict_refusal: bool = False) -> list[dict]:
     """근거·질문이 요구할 때만 조건부 규칙을 붙인다.
 
     **아무 조건도 안 서면 프롬프트는 종전과 한 바이트도 다르지 않다.** 재측정 범위를
@@ -249,6 +271,11 @@ def build_answer_messages(question: str, evidence: str, use_cot: bool = False,
     money_rule = bool(converted) and not lean_rules
     rules = _BASE_RULES + (MONEY_UNIT_RULE if money_rule else "")
     number = 10 if money_rule else 8         # 8·9 는 MONEY_UNIT_RULE 이 쓴다
+    # 🔴 `A27` (`ablation.Arm.strict_refusal`). 꺼져 있으면 아래 세 줄은 없는 것과 같고
+    #    프롬프트는 한 바이트도 안 달라진다.
+    if strict_refusal:
+        rules += REFUSAL_RULE.format(n=number)
+        number += 1
     for rule, needed in ((UNIT_COMPARE_RULE, needs_unit_rule(question, body)),
                          (CONSOLIDATED_RULE, needs_consolidated_rule(question, body))):
         if needed:

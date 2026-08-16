@@ -2431,8 +2431,10 @@ def answer_question(question_id: str, question: str) -> dict:
         # 🔴 `A8-lean` 은 여기서 갈린다. `enabled()` 로 읽는 이유는 오타가 조용히
         #    False 가 되지 않게 하기 위해서다 — 없는 플래그 이름은 `KeyError` 다.
         #    기본값(False)에서는 아래 두 줄이 종전과 글자 하나 다르지 않다.
-        messages = build_answer_messages(clean, evidence, r.use_cot,
-                                         lean_rules=ablation.enabled("lean_rules"))
+        messages = build_answer_messages(
+            clean, evidence, r.use_cot,
+            lean_rules=ablation.enabled("lean_rules"),
+            strict_refusal=ablation.enabled("strict_refusal"))
         max_tokens = 800 if r.use_cot else 300
         arm = ablation.current()
         # 🔴 `A24` 는 여기서 갈린다 — 도구를 내밀고 왕복한다. 기본값(False)에서는 아래

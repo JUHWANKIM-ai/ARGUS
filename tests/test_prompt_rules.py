@@ -384,3 +384,47 @@ def test_the_scored_rules_survive_the_lean_arm():
                                            lean_rules=True)[0]["content"]
     assert "어느 시점의 값을 쓸지는" in system
     assert "미래 예측이나 투자 의견" in system and "개인정보" in system
+
+
+# --- ⑤ A27 거절 규칙 (규약 감사 F-6) --------------------------------------------
+# 🔴 이 arm 은 **프롬프트를 바꾸는 유일한 채택 후보**다. A25(부착)·A26(라우팅)은 생성
+# 전후라 프롬프트가 바이트 동일이었지만 여기는 캐시가 통째로 빗나간다. 그래서 꺼졌을 때의
+# 바이트 동일성이 특히 중요하다 — 깨지면 v1~v4 산출물 전부와 대조가 끊긴다.
+
+_REFUSAL_CASES = [
+    ("q", "e"),
+    ("q", Q065_EVIDENCE),
+    (Q047_QUESTION, Q047_EVIDENCE),
+    (Q098_QUESTION, Q098_EVIDENCE),
+    (Q098_QUESTION + " 어느 쪽이 더 큰가?", Q098_EVIDENCE + chr(10) + Q065_EVIDENCE),
+]
+
+
+@pytest.mark.parametrize("question,evidence", _REFUSAL_CASES)
+def test_refusal_rule_off_is_byte_identical(question, evidence):
+    assert (prompts.build_answer_messages(question, evidence, strict_refusal=False)
+            == prompts.build_answer_messages(question, evidence))
+
+
+@pytest.mark.parametrize("question,evidence", _REFUSAL_CASES)
+def test_refusal_rule_keeps_numbers_contiguous(question, evidence):
+    """🔴 `MONEY_UNIT_RULE` 이 8·9 를 쓴다. 정적으로 `8.` 을 적었으면 여기서 깨진다."""
+    system = prompts.build_answer_messages(
+        question, evidence, strict_refusal=True)[0]["content"]
+    numbers = [int(n) for n in _NUMBERED.findall(system)]
+    assert numbers == list(range(1, len(numbers) + 1)), f"규칙 번호가 어긋났다: {numbers}"
+
+
+def test_refusal_rule_on_adds_exactly_one_rule():
+    off = prompts.build_answer_messages("q", "e")[0]["content"]
+    on = prompts.build_answer_messages("q", "e", strict_refusal=True)[0]["content"]
+    assert "근거를 지어내 붙이지 마십시오" in on
+    assert "근거를 지어내 붙이지 마십시오" not in off
+    assert len(_NUMBERED.findall(on)) == len(_NUMBERED.findall(off)) + 1
+
+
+def test_refusal_rule_names_what_the_audit_actually_saw():
+    """지어낸 예시가 아니라 감사 `AUD-04`·`AUD-05` 가 실제로 낸 두 형태를 막는다."""
+    system = prompts.build_answer_messages("q", "e", strict_refusal=True)[0]["content"]
+    assert "법령" in system and "규정" in system      # AUD-04 의 지어낸 법률 논리
+    assert "DART" in system                            # AUD-05 의 외부 출처 안내
