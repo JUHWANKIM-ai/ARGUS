@@ -55,12 +55,14 @@ def test_the_gate_stays_narrow_across_the_whole_evalset():
     assert fired == EXPECTED_FIRINGS, f"발화 범위가 움직였다: {fired}"
 
 
-def test_seed_is_blocked_by_default():
-    """스위치를 안 건드린 경로는 종전 그대로 — 최신본은 씨앗이 아니다."""
-    assert ablation.current().reverse_chain is False
+def test_the_seed_is_opt_in():
+    """🔴 v5 에서 채택돼 운영 기본값(`A34`)에 들어갔다. 그래도 `A28`(v4 기본값)로
+    되돌리면 종전 그대로여야 한다 — 최신본은 씨앗이 아니다."""
+    assert ablation.A28.reverse_chain is False
+    assert ablation.current().reverse_chain is True, "A34 가 기본값이어야 한다"
     picked = [{"doc_id": "exchange_20250924800260", "corp": "삼성E&A"}]
-    seeds = pipeline._chain_seeds(picked, "최초 공시 합계보다 얼마나 늘었는가?")
-    assert seeds == []
+    with ablation.use("A28"):
+        assert pipeline._chain_seeds(picked, "최초 공시 합계보다 얼마나 늘었는가?") == []
 
 
 def test_seed_opens_when_armed_and_the_question_asks_for_the_original():
@@ -81,9 +83,7 @@ def test_the_exception_stays_shut_when_the_question_does_not_ask():
 def test_the_terminates_exception_is_untouched():
     """🔴 v3 R2 ④ 의 예외를 **건드리지 않는다.** 함께 움직이면 두 Δ 가 섞인다.
     플래그가 꺼진 상태에서 해지 갈래가 종전대로 열리는지 본다 (`Q-066` 의 경로)."""
-    assert ablation.current().reverse_chain is False
-    src = pipeline._chain_seeds.__code__.co_consts
-    del src                                  # 형태가 아니라 동작으로 본다
     picked = [{"doc_id": "exchange_20250924800260", "corp": "삼성E&A"}]
-    # 해지 어휘가 없고 terminates 도 없으므로 종전에도 닫혀 있어야 한다
-    assert pipeline._chain_seeds(picked, "원계약 금액은 얼마인가?") == []
+    # 해지 어휘가 없고 terminates 도 없으므로 `A28` 에서 닫혀 있어야 한다.
+    with ablation.use("A28"):
+        assert pipeline._chain_seeds(picked, "원계약 금액은 얼마인가?") == []

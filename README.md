@@ -233,6 +233,7 @@ python scripts/ablation.py --arm A8 --dry   # arm 별 기여도 측정. --dry �
 > | 새 heldout 18 성적 | `evalset/heldout.jsonl` 은 **2회 소진**이라 새로 18문항을 만들어야 한다 (`evalset/heldout_v2.jsonl`) | 개발 담당 | **08-25 코드 동결 직후** — 동결 전에 만들면 지금 heldout 을 태운 것과 같아진다 |
 > | 배포 완주 기록 | NCP 콘솔 로그인 · SSH 키 · `.env` 전송이 필요해 자동화 구간 밖이다. 절차서는 [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md) 에 완비 | **배포 담당(사용자)** | 08-25 ~ 08-31 · 완주하면 `TBD-1`·`TBD-3` 이 함께 닫힌다 |
 >
-> 그리고 🔴 **`A18`·`A10`·`A22` 세 arm 은 계획에 있었으나 재지 않았다** — *"측정 예정"* 이
-> 아니라 **미측정**이고, 동결 전에 **잴지 말지를 판정**해야 한다
-> ([`docs/total_plan.md`](docs/total_plan.md) §5-19).
+> ~~그리고 🔴 **`A18`·`A10`·`A22` 세 arm 은 계획에 있었으나 재지 않았다**~~
+> ✅ **닫힘 (2026-08-15)** — **셋 다 측정했다.** `A18`(n-ary)은 Δ 0 으로 기각,
+> `A10`(SC k=3)·`A22`(다중 허브)도 측정 후 미채택. 정본은
+> [`docs/pipeline/09-ablation.md`](docs/pipeline/09-ablation.md) §I-5g.

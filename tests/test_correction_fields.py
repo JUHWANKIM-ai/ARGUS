@@ -29,10 +29,14 @@ def test_the_answer_is_in_the_record_but_not_in_the_markdown():
     assert len(rec["markdown"]) < 200, "요약이 넉 줄이라는 전제"
 
 
-def test_default_path_is_byte_identical():
-    """🔴 스위치를 안 건드린 경로는 한 바이트도 안 바뀐다."""
-    assert ablation.current().correction_fields is False
-    live = tools._group_records("exchange")["exchange_20241114800538"]["markdown"]
+def test_the_flag_is_opt_in():
+    """🔴 v5 에서 채택돼 운영 기본값(`A34`)에 들어갔다. 그래도 `A28`(v4 기본값)로
+    되돌리면 근거가 **한 바이트도** 안 바뀌어야 한다 — 그것이 성립해야 v1~v4 산출물의
+    설명이 안 낡는다."""
+    assert ablation.A28.correction_fields is False
+    assert ablation.current().correction_fields is True, "A34 가 기본값이어야 한다"
+    with ablation.use("A28"):
+        live = tools._group_records("exchange")["exchange_20241114800538"]["markdown"]
     raw = tools._group_records_raw("exchange")["exchange_20241114800538"]["markdown"]
     assert live == raw
 

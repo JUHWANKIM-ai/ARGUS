@@ -13,6 +13,16 @@
 그 수를 붙든다 — 되살리려는 다음 세대가 비용을 먼저 보게 하려는 것이다.
 
 🔴 `R1-11` 의 교훈을 그대로 따랐다: **계획서의 진단을 믿지 말고 코드를 먼저 읽는다.**
+
+---
+🔴 **v5 가 이 자리를 다른 층에서 닫았다 (2026-08-16 · `A30`).** 위 판정은 그대로 참이다 —
+**코퍼스 마크다운은 여전히 정답을 안 싣는다.** `A30` 이 바꾸는 것은 검색 **뒤에** 실리는
+런타임 사본뿐이고(`tools._group_records_fields`), `artifacts/*_records.jsonl` 도 BM25
+색인도 한 바이트가 안 바뀐다. 그래서 이 파일은 **코퍼스 층**(`_group_records_raw`)을 보고,
+런타임 층의 회복은 `tests/test_correction_fields.py` 가 따로 붙든다.
+
+두 층을 섞어 보면 둘 중 하나가 조용히 거짓이 된다 — 그것이 이 파일이 원본 사전을
+직접 읽는 이유다.
 """
 import json
 import pathlib
@@ -36,10 +46,14 @@ Q087_RESPONSE = _ROOT / "artifacts/ablation/v3/A8/responses/Q-087.json"
 
 
 def _record(rcept_no):
-    record = tools._record_of(rcept_no)
-    if record is None:
-        pytest.skip(f"{rcept_no} 레코드가 코퍼스에 없다")
-    return record
+    """🔴 **코퍼스 층의 레코드.** `tools._record_of` 를 쓰면 안 된다 — 그것은 arm 에
+    따라 런타임 사본을 돌려주고(`A30`), 그러면 이 파일이 붙드는 *"코퍼스 마크다운은
+    정답을 안 싣는다"* 가 arm 에 따라 참·거짓을 오간다."""
+    for group in tools.RECORD_GROUPS:
+        record = tools._group_records_raw(group).get(f"{group}_{rcept_no}")
+        if record is not None:
+            return record
+    pytest.skip(f"{rcept_no} 레코드가 코퍼스에 없다")
 
 
 def test_the_answer_is_in_the_record_but_never_in_its_markdown():
@@ -113,7 +127,7 @@ def test_the_blast_radius_is_half_the_corpus():
     original = nz.FREETEXT_MAX_CHARS
     try:
         for group in tools.RECORD_GROUPS:
-            for record in tools._group_records(group).values():
+            for record in tools._group_records_raw(group).values():
                 total += 1
                 rows = record.get("raw_rows") or []
                 head = record.get("markdown") or ""
@@ -139,3 +153,19 @@ def test_the_blast_radius_is_half_the_corpus():
         f"게이트를 열 때 바뀌는 레코드가 줄었다: {gate_gain}/{matched}"
     assert changed > total * 0.3, \
         f"🔴 A17 의 대가가 줄었다면 기각을 다시 재라: {changed}/{total}"
+
+
+def test_v5_closed_it_at_the_runtime_layer_without_touching_the_corpus():
+    """🔴 **두 층이 함께 참이어야 한다.**
+
+    코퍼스 마크다운은 여전히 정답을 안 싣고(위 판정 유지), 런타임 사본은 싣는다.
+    이 둘이 같아지는 순간 `A30` 은 `A17` 이 되고 BM25 색인이 갈린다.
+    """
+    from argus import ablation
+
+    raw = _record(Q087_CORRECTION)["markdown"]
+    assert Q087_GOLD not in raw, "코퍼스가 바뀌었다 — A30 이 A17 이 됐다"
+    with ablation.use("A30"):
+        assert Q087_GOLD in tools._record_of(Q087_CORRECTION)["markdown"]
+    # 사본을 만든 뒤에도 원본 사전은 그대로다.
+    assert _record(Q087_CORRECTION)["markdown"] == raw

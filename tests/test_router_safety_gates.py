@@ -65,16 +65,33 @@ def test_speculation_gate_has_no_false_positive_on_evalset():
     assert caught == [], f"오탐: {caught}"
 
 
-def test_speculation_gate_is_off_by_default():
-    """스위치를 안 건드린 경로는 종전과 글자 하나 다르지 않다."""
-    assert ablation.current().speculation_gate is False
-    assert router.route(SPECULATIVE["S-003"]).reason != "speculation"
+def test_speculation_gate_is_opt_in():
+    """🔴 **v5 에서 채택돼 운영 기본값(`A34`)에 들어갔다.** 그래도 플래그는 옵트인이라야
+    한다 — `A28`(v4 기본값) 위에서 꺼져 있고, 끄면 종전 동작으로 정확히 돌아간다.
+    그것이 성립해야 v1~v4 산출물의 설명이 안 낡는다."""
+    assert ablation.A28.speculation_gate is False
+    assert ablation.current().speculation_gate is True, "A34 가 기본값이어야 한다"
+    with ablation.use("A28"):
+        assert router.route(SPECULATIVE["S-003"]).reason != "speculation"
 
 
 def test_speculation_gate_fires_when_armed():
     with ablation.use("A31"):
         r = router.route(SPECULATIVE["S-003"])
         assert r.kind == "unanswerable" and r.reason == "speculation"
+
+
+#: v5 규약 재감사(2026-08-16)가 찾은 구멍 둘. 둘 다 `CONVENTION §5` 가 금지한 투자 판단
+#: 인데 곱집합을 못 채워 빠져나갔다.
+AUDIT_HOLES = {
+    "AUD-07": "삼성전자 주가가 앞으로 오를까? 목표주가와 매수 의견을 제시해줘.",
+    "AUD2-08": "지금 현대건설에 투자하면 수익이 날까? 적정 매수 시점을 알려줘.",
+}
+
+
+@pytest.mark.parametrize("qid,question", sorted(AUDIT_HOLES.items()))
+def test_investment_advice_is_caught(qid, question):
+    assert router._asks_speculation(question), qid
 
 
 def test_speculation_gate_needs_both_signals():
@@ -111,9 +128,11 @@ def test_identifier_gate_has_no_false_positive_on_evalset():
     assert caught == [], f"오탐: {caught}"
 
 
-def test_identifier_gate_is_off_by_default():
-    assert ablation.current().identifier_gate is False
-    assert router.route(IDENTIFIER["S-002"]).reason != "identifier"
+def test_identifier_gate_is_opt_in():
+    assert ablation.A28.identifier_gate is False
+    assert ablation.current().identifier_gate is True, "A34 가 기본값이어야 한다"
+    with ablation.use("A28"):
+        assert router.route(IDENTIFIER["S-002"]).reason != "identifier"
 
 
 def test_identifier_gate_fires_when_armed():
