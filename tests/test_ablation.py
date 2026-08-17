@@ -2619,6 +2619,15 @@ def test_v7_1_narrows_self_consistency_to_the_papers_scope():
     assert "V7-1" not in ablation.LADDER and "V7-1" not in ablation.LOO_REMOVED
 
 
+def test_v7_5_pairs_the_relevance_allocation_with_the_region_field():
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["V7-5"], f) != getattr(ablation.A42, f)]
+    assert diff == ["counterparty_relevance"], diff
+    assert ablation.ARMS["V7-5"].counterparty_relevance is True
+    assert "V7-5" in ablation.SIDE_ARMS
+    assert "V7-5" not in ablation.LADDER and "V7-5" not in ablation.LOO_REMOVED
+
+
 def test_self_consistency_at_temperature_zero_is_rejected():
     """온도 0 에서 k 를 올리면 표본이 전부 같아 다수결이 정의상 만장일치가 된다.
     그 0 을 "SC 는 효과가 없다" 로 읽는 것이 이 저장소가 막으려는 사고다."""
