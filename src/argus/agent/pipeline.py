@@ -1018,17 +1018,20 @@ def _enumerate_events(r, question: str, budget: Budget, trace: list[str], take,
     return len(taken)
 
 
-# --- F-3 hop 로그 (Phase H 입력) ---------------------------------------------
-# think_trace 는 사람이 읽는 문자열이지만 Phase H 의 RETRIEVAL/RANKING 판정도 여기서 나온다.
-# 그래서 hop 별 질의어·필터·후보 수·후보 doc_id 를 key=value 로 남기고 parse_hops() 로 되읽는다.
+# --- Hop log -----------------------------------------------------------------
+# `think_trace` is a human-readable string, but the retrieval and ranking
+# failure attribution is derived from it too. Each hop therefore records its
+# query, filters, candidate count and candidate doc ids as key=value pairs,
+# read back by `parse_hops()`.
 
 _KV = re.compile(r'(\w+)=("[^"]*"|[^\s|]*)')
 
 
-# --- A2 흔적 -------------------------------------------------------------------
-# "끈 줄 알았는데 안 꺼진 것" 이 ablation 의 진짜 위험이다 (tests/test_ablation 머리말).
-# 반대로 **켰는데 안 켜진 것**도 같은 크기의 위험이라, 융합이 실제로 돌았는지를
-# `think_trace` 에 남긴다. arm 이 꺼져 있으면 `LAST_FUSION` 이 None 이라 아무것도 안 붙는다.
+# --- Fusion trace -------------------------------------------------------------
+# An ablation arm that stays on when it should be off is the well-known risk;
+# an arm that fails to take effect when switched on is the same size of risk.
+# Whether fusion actually ran is therefore recorded in `think_trace`. With the
+# arm off, `LAST_FUSION` is None and nothing is appended.
 
 def _fusion_note() -> str:
     fusion = bm25_module.LAST_FUSION
@@ -1064,13 +1067,15 @@ def _log_verdict(hop: int, ok: bool, count: int, reasons: list[str]) -> str:
 
 
 def parse_hops(think_trace: str) -> list[dict]:
-    """think_trace 를 hop 레코드로 되돌린다. Phase H 의 RETRIEVAL/RANKING 판정 입력.
+    """Turn a `think_trace` back into hop records, the input for failure-stage
+    attribution.
 
         ids = [d for h in parse_hops(resp["think_trace"]) for d in h["ids"]]
-        RETRIEVAL  — 골든 rcept_no 가 ids 어디에도 없음
-        RANKING    — ids 에는 있으나 상위 3위 밖
+        retrieval failure: the golden receipt number is in no hop's ids
+        ranking failure:   it is in ids but outside the top 3
 
-    hop 로그가 없는 trace (범위 밖 질의 등) 는 빈 목록을 돌려준다.
+    A trace with no hop log, such as an out-of-range question, returns an empty
+    list.
     """
     hops: dict[int, dict] = {}
     order: list[int] = []
@@ -1112,21 +1117,24 @@ def parse_hops(think_trace: str) -> list[dict]:
     return [hops[h] for h in order]
 
 
-# --- 상류 장애 표식 -----------------------------------------------------------
-# 게이트 F 상 `/answer` 는 어떤 경우에도 5키 스키마를 돌려줘야 한다. 그래서 429 를 받아도
-# 파이프라인은 죽지 않고 한계 고지를 채워 내보낸다. 문제는 **그게 모델의 거절과 구분되지
-# 않는다**는 것이다 — 호출부가 그대로 캐시하면 전송 실패가 영원히 오답으로 굳는다.
-# 실측으로 그 사고가 났다 (Q-051·Q-053).
+# --- Upstream failure marker -------------------------------------------------
+# `/answer` must return the five-key schema in every case, so the pipeline
+# survives an upstream error and emits a limitation notice instead. That notice
+# is indistinguishable from a legitimate refusal by the model, and a caller
+# that caches it turns a transport failure into a permanent wrong answer.
 #
-# 스키마는 그대로 두고 `think_trace` 에 기계가 읽는 표식을 남긴다. 호출부는
-# `upstream_failure()` 로 되읽어 "우리 답" 과 "전송 실패" 를 가른다.
+# The schema is left alone and a machine-readable marker is written into
+# `think_trace`, which callers read back through `upstream_failure()`.
+# See docs/design-rationale.md#upstream-failure
 
-#: 상류 장애 표식. 사람이 읽는 `생성 실패: …` 문구는 그대로 둔다 (기존 호출부 호환).
+#: Upstream failure marker. The human-readable failure text is left unchanged
+#: for compatibility with existing callers.
 _UPSTREAM = "upstream_error"
 _UPSTREAM_RE = re.compile(r"upstream_error stage=(\w+) status=(\S+) retryable=(\w+)")
 _STATUS_RE = re.compile(r"실패 (\d{3})")
 
-#: 재시도로 넘길 수 있는 상태. 429(rate limit)·408(timeout)·5xx 는 우리 답이 아니다.
+#: Statuses that may be retried. Rate limits, timeouts and 5xx are not our
+#: answer.
 RETRYABLE_STATUS = frozenset({"408", "425", "429", "500", "502", "503", "504"})
 
 
@@ -1138,10 +1146,13 @@ def _upstream_mark(stage: str, exc: Exception) -> str:
 
 
 def upstream_failure(think_trace: str) -> dict | None:
-    """상류 장애로 한계 고지가 나갔는가. 아니면 None.
+    """Whether the limitation notice was emitted because of an upstream
+    failure, else None.
 
-    호출부(평가 러너·API)가 **오답으로 캐시하지 않기 위해** 쓰는 값이다.
-    `answer` 만 보면 모델의 정당한 거절과 전송 실패가 똑같이 생겼다.
+    Callers use this to avoid caching a transport failure as an answer: read
+    from `answer` alone, a legitimate refusal and a failed request look the
+    same.
+    See docs/design-rationale.md#upstream-failure
     """
     match = _UPSTREAM_RE.search(think_trace or "")
     if not match:
@@ -1150,25 +1161,25 @@ def upstream_failure(think_trace: str) -> dict | None:
             "retryable": match.group(3) == "True"}
 
 
-#: `fault_response` 가 쓰는 stage 이름. `generate`·`critic` 과 갈라 적어야 **상류(CLOVA)
-#: 장애**와 **우리 코드의 예외**를 사후에 구분할 수 있다.
+#: Stage name used by `fault_response`. Kept distinct from the generation and
+#: critic stages so that an upstream failure and an exception in this code can
+#: be told apart after the fact.
 FAULT_STAGE = "api"
 
 
 def fault_response(question_id: str, question: str, exc: BaseException) -> dict:
-    """어떤 예외로도 5키 스키마를 만들어 낸다. **`/answer` 의 마지막 방어선이다.**
+    """Build the five-key schema from any exception. Last line of defence for
+    `/answer`.
 
-    🔴 **왜 필요한가 (주최측 답변 2026-08-12 #3).** 호출 에러 시 재시도가 **2회**다.
-    5xx 를 내면 같은 질의가 최대 **3회** 들어오고, 세 번 다 실패하면 그 문항은 **0점**이다.
-    반면 200 + 한계 고지는 **정보한계대응이라는 채점 항목**(#9)에 걸려 0 이 아닐 수 있다.
-    비결정적 실패라면 재시도가 캐시를 못 타므로 **크레딧까지 3배**로 나간다.
+    A 5xx is retried, so a failing question can consume three requests and
+    still score zero, whereas a 200 with a limitation notice can score under
+    the information-limits criterion. The pipeline's own handling covers only
+    `RuntimeError` from the generation and critic stages, so exceptions from
+    retrieval and planning reach FastAPI as a 500 without this.
 
-    🔴 **파이프라인의 기존 방어로는 부족하다.** `answer_question` 은 생성·critic 단계의
-    `RuntimeError` 만 잡는다(§상류 장애 표식). `KeyError`·`TypeError` 같은 우리 버그와
-    검색·계획 단계의 예외는 그대로 올라와 FastAPI 가 500 을 낸다.
-
-    **삼키지 않는다** — `upstream_failure()` 가 되읽는 표식을 남기므로 평가 러너는 이것을
-    "우리 답" 으로 캐시하지 않는다. `stage=api` 라서 상류 장애와도 갈린다.
+    The exception is not swallowed: the marker `upstream_failure()` reads back
+    is written here too, with a stage that separates it from an upstream fault.
+    See docs/design-rationale.md#upstream-failure
     """
     trace = (f"{_upstream_mark(FAULT_STAGE, exc)} "
              f"서버 예외: {type(exc).__name__}: {exc}")
@@ -1176,19 +1187,23 @@ def fault_response(question_id: str, question: str, exc: BaseException) -> dict:
             "retrieved_context": "", "think_trace": trace, "answer": UNANSWERABLE}
 
 
-#: 섹션 근거는 한 건이 최대 8,000자다. exchange 레코드 10건과 같은 상한(MAX_EVIDENCE)을
-#: 쓰면 프롬프트가 8만자가 된다 — 20,000 토큰 예산을 혼자 넘긴다.
+#: A single section record runs to 8,000 characters, so reusing the exchange
+#: cap would put 80,000 characters into the prompt and exceed the token budget
+#: on its own.
+#: See docs/design-rationale.md#section-evidence-budget
 MAX_SECTION_EVIDENCE = 4
-#: 섹션 근거 총량 상한. 12,000자 ≈ HCX 7~8천 토큰으로, 생성 800 토큰과 critic 을 남긴다.
+#: Total character cap for section evidence, leaving room for generation and
+#: the critic within the token budget.
 MAX_SECTION_CHARS = 12_000
 
 
 def _log_section(plan, corp, path, hits: list[dict], cell: dict | None = None) -> str:
-    """검색 한 번의 trace 한 줄.
+    """One trace line for a single retrieval.
 
-    `cell` 이 있으면 **그 셀의 필터**를 적는다 — 분해된 hop 은 `plan.filters` 로 검색하지
-    않으므로 그것을 적으면 잰 것과 다른 것을 적는 셈이 된다 (`parse_hops` 가 이 줄을
-    되읽어 Phase H 의 실패 단계 귀속 입력으로 쓴다).
+    When `cell` is given, that cell's filters are recorded. A decomposed hop
+    does not retrieve with `plan.filters`, so recording those would log
+    something other than what was measured, and `parse_hops` reads this line
+    back as failure-attribution input.
     """
     ids = ",".join(str(h.get("doc_id") or "?") for h in hits)
     scores = [h["score"] for h in hits if isinstance(h.get("score"), (int, float))]
@@ -1202,12 +1217,13 @@ def _log_section(plan, corp, path, hits: list[dict], cell: dict | None = None) -
 
 
 def _path_cap(per_corp: int, index: int, n_paths: int) -> int:
-    """경로 하나가 한 기업에게서 가져갈 근거 칸 수.
+    """Evidence slots one path may take from one company.
 
-    1순위 경로가 결정적 축이고(목차 축 실측 회수 0.679 -> 0.929) 짝 경로는 '같은 지표가
-    다른 목차에 실렸을 때' 를 대비한 **보험 한 칸**이다. 그래서 칸을 반씩 나누지 않고
-    짝 경로에 1칸씩만 떼어 준다. 반씩 나눴더니 실측 Q-050 의 골든(1순위 경로 안에서 3위)이
-    잘렸다 — 4칸을 2/2 로 쪼개면 3위가 못 들어온다.
+    The first path is the decisive axis and the secondary paths are one slot of
+    insurance against the same figure appearing under a different table of
+    contents entry. Slots are therefore not divided evenly: splitting them in
+    half drops a golden record that ranks third within the first path.
+    See docs/design-rationale.md#section-evidence-budget
     """
     if n_paths <= 1:
         return per_corp
@@ -1215,16 +1231,15 @@ def _path_cap(per_corp: int, index: int, n_paths: int) -> int:
 
 
 def _cover_order(picked: list[dict]) -> list[dict]:
-    """기업별 라운드로빈. 기업 안에서는 **도착 순서 그대로**다.
+    """Round-robin across companies, keeping arrival order within a company.
 
-    글자 예산이 근거 칸의 진짜 제약이라 순서가 곧 회수율이다. 그런데 정렬 기준을
-    잘못 잡으면 정확히 반대로 간다 — 짧은 블록부터 담아 봤더니 Q-045·Q-046 의 골든
-    (3,679자 · 3,371자) 이 뒤로 밀려 잘렸다. 도착 순서는 이미 목차 순위와 BM25 점수로
-    정해진 순서이므로 그것을 흔들 이유가 없다.
-
-    바꾸는 것은 **기업 축뿐**이다. 비교 질의에서 한 기업의 큰 섹션이 예산을 먼저 먹으면
-    다른 기업이 통째로 빠진다 (실측 Q-049 — 두산에너빌리티 `매출 및 수주상황` 6,649자).
-    기업을 번갈아 담으면 모든 기업이 한 칸씩 먼저 확보된다. 기업이 하나면 항등 변환이다.
+    The character budget is the real constraint on section evidence, so order
+    determines recovery. Arrival order is already set by the table-of-contents
+    rank and the BM25 score, and re-sorting by block length demotes the long
+    golden blocks. Only the company axis is changed: without it one company's
+    large section consumes the budget and the other drops out of a comparison
+    entirely. With one company this is the identity transform.
+    See docs/design-rationale.md#section-evidence-budget
     """
     by_corp: dict = {}
     for item in picked:
@@ -1237,12 +1252,13 @@ def _cover_order(picked: list[dict]) -> list[dict]:
 
 
 def _join_section_evidence(picked: list[dict]) -> str:
-    """섹션 근거를 총량 상한 안에서 이어 붙인다. 상한은 토큰 예산에서 역산한 값이다.
+    """Join section evidence within the total character cap, which is derived
+    from the token budget.
 
-    예산을 넘기는 블록은 **건너뛰고 계속 채운다**. 종전처럼 거기서 끊으면 큰 블록 하나가
-    뒤에 오는 작은 블록 전부를 같이 버린다 — 상한은 그대로이므로 토큰은 늘지 않는다.
-    실측 Q-049: 끊으면 3블록 12,316자에서 골든이 빠지고, 건너뛰면 3블록 11,381자에
-    골든 둘이 다 든다.
+    A block that would exceed the budget is skipped and filling continues.
+    Stopping at that block instead discards every smaller block behind it,
+    while the cap keeps the token count the same either way.
+    See docs/design-rationale.md#section-evidence-budget
     """
     out: list[str] = []
     total = 0
