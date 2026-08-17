@@ -376,11 +376,21 @@ def test_default_arm_is_the_submission_configuration():
     🔴 이 값을 바꾸면 **평가 서버도 다시 배포해야 한다** — `api/server.py` 는 arm 을
     지정하지 않으므로 이것이 곧 주최측이 받는 답변의 구성이다.
     """
-    assert ablation.current() == ablation.A38
-    assert ablation.current().name == "A38"
+    assert ablation.current() == ablation.A40
+    assert ablation.current().name == "A40"
     # 🔴 v5 정확성 개선 둘. 성적은 안 움직이고 규약 「정확성」 축만 움직인다.
     assert ablation.current().fix_unit_parens is True
     assert ablation.current().counterparty_exempt is True
+    # 🔴 **v6 — 열거 완전성** (2026-08-17). 골든 112 에서는 안 걸리던 축이라
+    #    `A38` 까지 못 봤다. 처음 보는 문항이 잡았다: `N-013`·`N-014` 가 근거에 세 곳이
+    #    다 실렸는데 답변에 두 곳만 적었다(계약상대 hop 은 `partners=3` 을 정확히 셌다).
+    #    로스터를 근거 **머리**로 올려 둘 다 3/3 이 됐다.
+    #    🔴 문면이 성적을 가르고 있었다 — 같은 축의 heldout 문항은 *"빠짐없이"* 가 있어
+    #    통과했고 없는 문항이 빠뜨렸다. 이 스위치가 그 의존을 끊는다.
+    assert ablation.current().roster_line is True
+    # 🔴 반올림 복원 — N-011 이 잡았다. 근거에 원값이 둘 다 있는데 답변이
+    #    억으로만 적었다. 값은 맞고 정밀도만 잃은 자리다.
+    assert ablation.current().expand_rounded is True
     # 🔴 v5 가 켠 여덟 스위치. 하나라도 빠지면 잰 성적이 아니다.
     for flag in ("speculation_gate", "identifier_gate", "reverse_chain",
                  "aggregate_line", "substitute_aggregate", "substitute_verified",

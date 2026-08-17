@@ -931,9 +931,34 @@ def _evidence_hubs(picked: list[dict], primary: str | None,
     return sorted(order, key=lambda k: (-counts[k], order.index(k)))
 
 
+#: 열거를 요구하는 문면. 🔴 **이 목록이 성적을 가르고 있었다** (2026-08-17 실측).
+#: `N-013`·`N-014` 는 *"…공시한 상장사는 **어디인가**?"* 라 3곳 중 2곳만 답했고,
+#: `heldout_v2`·`heldout_v3` 의 같은 축 문항은 *"**빠짐없이** 알려줘"* 라 전건을 답했다.
+#: 근거는 양쪽 다 3곳을 싣고 있었다 — **문면 한 낱말이 답을 갈랐다.**
+#:
+#: 그래서 로스터를 근거 **머리**로 올린다. 열거를 명시적으로 요구하지 않는 문면에서도
+#: 집합의 경계가 첫 줄에 보이게 하는 것이 이 장치의 전부다.
+_ASKS_ROSTER = ("상장사", "기업은", "기업들", "어느 기업", "어디인가", "누구인가",
+                "빠짐없이", "모두 알려", "전부 알려", "목록", "나열")
+
+
+def _roster_line(display: str, partners: Sequence[str]) -> str:
+    """열거 집합을 한 줄로. 🔴 **접수번호도 건수도 싣지 않는다** — 사유는
+    `_counterparty_note` 독스트링에 있다(전역 집계가 답변에 새어 나간 기록).
+
+    `aggregate.line` 과 같은 자리다: 우리가 결정적으로 아는 것을 근거 머리에 싣고,
+    **처분을 명시한다.** 값만 주면 모델이 자기 판단을 더 믿는다는 것이 v5 의 발견이다.
+    """
+    return (f"[결정적 조회] {display} 를 계약상대로 공시한 상장사는 "
+            f"{len(partners)}곳이다: {' · '.join(partners)}\n"
+            f"(이 목록은 시스템이 계약상대 그래프에서 직접 열거한 것이다. "
+            f"답변은 이 {len(partners)}곳을 빠짐없이 적고 임의로 줄이지 않는다.)")
+
+
 def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[str],
                          take, limit: int = MAX_COUNTERPARTY_EVIDENCE,
-                         prefer: Sequence[str] = ()) -> int:
+                         prefer: Sequence[str] = (),
+                         roster_out: list[str] | None = None) -> int:
     """발주처 그래프에서 파트너별 근거를 담는다. LLM 0회 · 스텝 1.
 
     `plan_hops` 사다리 **밖의 스텝 1개**다 (정정 체인 hop 과 같은 선례) — 재검색
@@ -983,6 +1008,14 @@ def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[st
     # (정정본 포함 전역 집계가 답변에 `"총 47건"` 으로 새어 나간 기록이 있다).
     roster = " · ".join(partners)
     note = _counterparty_note(out.get("counterparty") or hub, roster, len(partners))
+
+    # 🔴 집합의 경계를 근거 **머리**에 올린다. 블록 안 주석만으로는 안 읽힌다 —
+    #    `N-013` 에서 두산퓨얼셀 블록이 근거 59% 지점(세 번째)이었고 답변에서 빠졌다.
+    #    둘 이상일 때만 발화한다. 한 곳뿐이면 열거가 아니다.
+    if (roster_out is not None and len(partners) >= 2
+            and any(k in (question or "") for k in _ASKS_ROSTER)):
+        roster_out.append(
+            _roster_line(router_module.counterparty_display(hub) or hub, partners))
 
     taken: list[str] = []
     for depth in range(_partner_quota(len(partners))):
@@ -2021,10 +2054,16 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
             # 첫 허브가 질문이 지목한 것이면 종전 상한·순서를 그대로 쓴다. 근거에서
             # 나온 허브는 칸이 둘이고, 질문이 부른 기업을 파트너 앞줄에 세운다.
             from_question = index == 0 and hub == primary
+            # 🔴 **꺼진 arm 에는 인자를 넘기지 않는다.** `roster_out=None` 을 넘기기만
+            #    해도 `test_w1_arms_call_the_counterparty_hop_with_the_old_arguments`
+            #    가 걸린다 — 그 가드가 지키는 것은 "기본 인자가 움직이면 v1~v4 측정이
+            #    무효" 라는 사실이고, 그 말이 맞다.
+            extra = ({"roster_out": extra_lines}
+                     if ablation.enabled("roster_line") and from_question else {})
             _gather_counterparty(
                 hub, question, budget, trace, _take_cp,
                 limit=MAX_COUNTERPARTY_EVIDENCE if from_question else MAX_EXTRA_HUB_EVIDENCE,
-                prefer=() if from_question else tuple(r.companies or ()))
+                prefer=() if from_question else tuple(r.companies or ()), **extra)
 
     # 근거 절단은 체인을 먼저 살린다. 한화오션 잠수함은 검색 5건 + 체인 6건 = 11건이라
     # 도착 순서대로 자르면 **체인의 마지막 정정본**(=정답)이 잘려 나간다.
@@ -2691,6 +2730,19 @@ def answer_question(question_id: str, question: str) -> dict:
         answer, repaired = aggregate.fix_unit_parens(answer)
         if repaired:
             trace.append(f'unit_paren fixed={len(repaired)} {" · ".join(repaired)}')
+
+    # 🔴 반올림 복원 — `fix_unit_parens` 의 **반대 자리**다. 저쪽은 "원값은 맞고 괄호가
+    #    틀린" 것을 고치고, 이쪽은 "괄호만 있고 원값이 없는" 것을 고친다. `N-011` 실측:
+    #    근거에 257,732,228,908 과 725,693,799,075 가 둘 다 있는데 답변이 "2,577억원" ·
+    #    "7,257억원" 으로만 적었다. 값은 맞고 **정밀도만 잃었다.**
+    #    🔴 `fix_unit_parens` **뒤**에 선다 — 저쪽이 괄호를 고친 뒤라야 이쪽이 만든
+    #    `원값 (억)` 짝을 저쪽이 다시 건드리지 않는다.
+    if ablation.enabled("expand_rounded"):
+        from argus.agent import aggregate
+
+        answer, grown = aggregate.expand_rounded(answer, _evidence_records(evidence))
+        if grown:
+            trace.append(f'expand_rounded n={len(grown)} {" · ".join(grown)}')
 
     # 🔴 A38 — 답변이 **스스로 쓴 식과 어긋나는 수**를 맞춘다. 규약 「추론 논리성」.
     #    closed judge 진단이 이 자리를 찾았다 — EM 도 수치검사도 못 잡는 자기모순이다.

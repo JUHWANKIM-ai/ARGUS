@@ -726,6 +726,30 @@ class Arm:
     #:
     #: 🔴 `verifier` 와 무관하다 — 생성 이후 답변 문자열만 본다. 도달 불가 자리가 없다.
     self_consistency_fix: bool = False
+
+    #: 🔴 **열거 집합의 경계를 근거 머리에 싣는다** (v6 · 2026-08-17).
+    #:
+    #: 계약상대 hop 은 파트너 전량을 이미 안다(`partners=3`). 그 로스터가 블록 **안**에
+    #: 주석으로만 있어서 답변이 일부를 빠뜨렸다 — `N-013` 에서 두산퓨얼셀 블록이 근거
+    #: 59% 지점(세 번째)이었고 답변은 두 곳만 적었다. 근거에는 셋이 다 있었다.
+    #:
+    #: 🔴 **문면이 성적을 가르고 있었다.** 같은 축의 `heldout_v2`·`heldout_v3` 문항은
+    #: *"빠짐없이 알려줘"* 라 전건을 답했고, `N-013`·`N-014` 는 *"어디인가"* 라 빠뜨렸다.
+    #: 질문이 그 낱말을 안 써도 집합의 경계가 보이게 하는 것이 이 스위치의 전부다.
+    #:
+    #: `aggregate_line` 과 같은 자리다 — 칸을 더 주는 게 아니라 **한 줄**을 머리에 둔다.
+    roster_line: bool = False
+
+    #: 🔴 **반올림만 적힌 금액을 근거의 원값으로 되살린다** (v6 · 2026-08-17).
+    #:
+    #: `fix_unit_parens` 의 반대 자리다. 저쪽은 *"원값은 맞고 괄호가 틀린"* 것을 고치고
+    #: 이쪽은 *"괄호만 있고 원값이 없는"* 것을 고친다. `N-011` 실측 — 근거에
+    #: `257,732,228,908` 과 `725,693,799,075` 가 둘 다 실렸는데 답변은 *"2,577억원"* ·
+    #: *"7,257억원"* 으로만 적었다. **값은 맞고 정밀도만 잃었다.**
+    #:
+    #: 반올림해서 같은 억이 되는 근거 금액이 둘 이상이면 침묵한다 — 확신 없이 원값을
+    #: 박으면 *맞는 근사*를 *틀린 정확*으로 바꾸는 꼴이다.
+    expand_rounded: bool = False
     #: 🔴 **`A26` 의 알맹이 — 가리키는 대상이 없는 지시어를 '범위 밖' 과 가른다. LLM 0회.**
     #:
     #: 규약 감사 `F-3` 이 실측했다. `AUD-15` *"그 회사의 작년 실적 좀 알려줘"* 가
@@ -1099,6 +1123,12 @@ A37 = replace(A34, name="A37", fix_unit_parens=True, counterparty_exempt=True)
 #: 🔴 이 축을 재는 **첫 수단**이다. 사유는 `Arm.self_consistency_fix`.
 A38 = replace(A37, name="A38", self_consistency_fix=True)
 
+#: 🔴 v6 채택 — 열거 완전성. 사유는 `Arm.roster_line`.
+A39 = replace(A38, name="A39", roster_line=True)
+
+#: 🔴 v6 채택 — 반올림 복원. 사유는 `Arm.expand_rounded`.
+A40 = replace(A39, name="A40", expand_rounded=True)
+
 # --- v5 채택 후보 전량 (산술 + 시계열 + 검색) ---------------------------------------
 A29_ALL = replace(A28, name="A29all", aggregate_line=True, substitute_aggregate=True,
                   substitute_verified=True, reverse_chain=True, revision_series=True)
@@ -1249,7 +1279,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A27b", "A28",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
-             "A34", "A35", "A36", "A37", "A38",
+             "A34", "A35", "A36", "A37", "A38", "A39", "A40",
              "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1288,7 +1318,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
                          A24B, A24BS, A25, A26, A25_A26, A27B, A28, A31, A32, A33,
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
-                         A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38)}
+                         A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은
@@ -1377,7 +1407,7 @@ FLAG_NAMES: tuple[str, ...] = tuple(
 #: *"맞는 합계 + 안 맞는 풀이"* 로 바꾼다. 근본 원인은 모델이 항을 잘못 골랐다는 것이고
 #: 치환은 그것을 덮는다. 정답률(110/112)을 택했다. 되돌리려면 식이 깨질 때 치환을
 #: 취소하면 되고 그 대가는 108/112 다.
-_current: Arm = A38
+_current: Arm = A40
 
 
 def current() -> Arm:
