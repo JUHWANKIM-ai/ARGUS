@@ -1024,45 +1024,36 @@ def shape_evidence(evidence: str, arm: Arm | None = None) -> str:
     return text
 
 
-# --- A25 — 근거 표기 결정적 부착 (LLM 0회) --------------------------------------
-#
-# 근거 마크다운은 두 형태다 (실측 — 감사 응답의 `retrieved_context`):
-#
-#   정형  ## [공급계약 체결] 삼성전자 – 단일판매ㆍ공급계약체결 — 반도체 위탁생산 공급계약
-#         - 공시일: 2025-07-28 (접수번호 20250728800035)
-#   정기  ## [사업보고서 2025] 삼성전자 – IV. 이사의 경영진단 및 분석의견
-#         - 출처: 접수번호 20260310002820 (공시일 20260310)
-#
-# 🔴 **`pipeline._evidence_records` 를 쓰지 않는다.** 그것은 `tools._record_of` 로 정형
-# 레코드만 되찾고 **정기공시에는 `None` 을 돌려준다** (실측: `20260310002820` → `None`).
-# 사업보고서 답변에 인용을 못 붙이면 이 arm 의 절반이 죽는다. 그래서 근거 마크다운
-# 자체를 읽는다 — 어차피 모델이 베껴 적어야 했던 그 글자다.
+# --- Deterministic citation attachment. No LLM call -------------------------
+# Evidence markdown comes in two shapes, one per document family, and this code
+# reads the markdown itself rather than recovering records: the record lookup
+# returns nothing for periodic filings, which would kill half of this arm.
+# See docs/design-rationale.md#citation-attachment
 
-#: `–` 는 EN DASH(U+2013)다. 하이픈으로 적으면 헤더가 하나도 안 걸린다.
+#: The separator in an evidence header is an en dash (U+2013). Written as a
+#: hyphen, this pattern matches no header at all.
 _CITE_HEAD = re.compile(r"^(?:\[기재정정\]\s*)?\[([^\]]+)\]\s*(.*?)\s*–\s*(.*)$")
 _CITE_RCEPT = re.compile(r"접수번호\s*(\d{14})")
 _CITE_DATE = re.compile(r"공시일[:\s]*(\d{4})-?(\d{2})-?(\d{2})")
-#: 답변과 근거를 잇는 숫자 지문.
-#:
-#: 🔴 **천 단위 쉼표가 있으면 짧아도 센다.** 처음엔 7자리 이상만 봤는데, 정기공시 재무는
-#: `73,581백만원` 처럼 **단위를 백만원으로 접어** 적어서 지문에 안 걸렸다. 실측 `Q-080`
-#: (정답인데 인용을 잃었다). 쉼표를 요구하면 연도(`2025`)·비율(`29.23`)은 안 걸리므로
-#: "아무 블록이나 다 걸린다" 는 문제도 안 생긴다.
+#: Numeric fingerprint linking an answer to a piece of evidence. A figure with
+#: thousands separators counts even when short, because periodic financials
+#: fold the unit and would otherwise miss the fingerprint. Requiring the
+#: separator keeps years and percentages from matching everything.
 _CITE_NUM = re.compile(r"\d{1,3}(?:,\d{3})+|\d{7,}")
-#: 붙이지 않는 답변. 🔴 **거절에 근거를 달면 거짓 귀속이다** — 감사 `F-6` 이 실측한
-#: `AUD-04` 가 개인정보 거절에 사업보고서 접수번호를 근거로 달았다.
-#: 🔴 **어형을 넉넉히 잡는다.** 처음엔 다섯뿐이라 *"찾을 수 없습니다"* 로 거절한 답변이
-#: 그물을 빠져나가 무관한 인용을 달았다 (실서버 실측 `PII-1`). 모델이 거절을 쓰는 말은
-#: 한 가지가 아니다. 과하게 잡아도 손해가 없다 — 이 목록은 **근거를 짚지 못한 답변에만**
-#: 적용되므로(`named`·`used` 가 비었을 때) 사실을 말한 답변의 인용은 그대로 남는다.
+#: Answers that get no citation. Citing a filing in a refusal is false
+#: attribution. The phrasings are listed generously, because the words a model
+#: refuses in are open-ended; over-matching costs nothing, since this list
+#: applies only to answers that point at no evidence at all.
+#: See docs/design-rationale.md#citation-attachment
 _CITE_REFUSAL = ("확인되지 않습니다", "확인할 수 없", "찾을 수 없", "알 수 없",
                  "드릴 수 없", "제공할 수 없", "답변할 수 없", "포함되어 있지 않")
-#: 한 답변에 붙이는 인용 상한. 근거 칸은 최대 10건인데 그것을 다 적으면 답변보다
-#: 인용이 길어진다.
+#: Cap on citations attached to one answer. The evidence window holds up to
+#: ten records, and listing them all would make the citation longer than the
+#: answer.
 MAX_CITATIONS = 3
-#: 거절 답변에서 **떼어낼** 근거 표기. 모델이 스스로 쓴 것까지 잡아야 하므로 `CITATION_RE`
-#: 보다 넓다 — `(근거: …, 20260310002820)` 처럼 '접수번호' 라는 말 없이 숫자만 적은 것도
-#: 거짓 귀속이다 (실측 `AUD-08` 이 그 형태로 썼다).
+#: Citations to strip from a refusal. Broader than the detection pattern,
+#: because it has to catch what the model wrote itself, including a form that
+#: gives the receipt number without naming it.
 _CITE_ANY = re.compile(r"\s*\(\s*근거\s*:[^()]*(?:\([^()]*\)[^()]*)*\)")
 
 
@@ -1070,11 +1061,12 @@ def _cite_numbers(text: str) -> set[str]:
     return {m.replace(",", "") for m in _CITE_NUM.findall(text or "")}
 
 
-#: 답변과 근거를 잇는 **말**. 숫자만으로는 못 잇는 답이 있다 — 실측 `Q-007` 은
-#: *"투자 대상은 '청주 M15X 건설'"* 이라 금액을 한 번도 안 쓴다. 3자 이상만 보는 것은
-#: 조사·접미사가 아무 블록에나 걸리는 것을 막기 위해서다.
+#: Lexical link between an answer and a piece of evidence. Some answers name a
+#: subject without ever writing a figure, so numbers alone cannot link them.
+#: The minimum length keeps particles and suffixes from matching every block.
 _CITE_TERM = re.compile(r"[0-9A-Za-z가-힣]{3,}")
-#: 어느 공시에나 나오는 말. 이것으로 이으면 전부 걸린다.
+#: Terms that appear in every filing. Linking on these would match all of
+#: them.
 _CITE_STOP = frozenset((
     "공시일", "접수번호", "계약금액", "투자금액", "계약상대", "사업보고서", "분기보고서",
     "반기보고서", "주식회사", "기재정정", "신규시설투자등", "단일판매공급계약체결",
@@ -1086,17 +1078,18 @@ def _cite_terms(text: str) -> set[str]:
 
 
 def _citation_units(evidence: str, provenance: dict[str, dict] | None = None) -> list[dict]:
-    """근거 블록 하나 = 인용 하나. 접수번호가 없는 블록은 인용할 수 없으므로 버린다.
+    """One evidence block becomes one citation. A block with no receipt number
+    cannot be cited and is dropped.
 
-    🔴 **일을 절반씩 나눠 갖는다.**
+    The work is split in two. Which pieces of evidence survived is read from
+    the evidence string, because truncation happens there, and only a single
+    receipt-number pattern is read so a change of format cannot break it. The
+    values used in the citation come from `provenance`, taken straight from the
+    records rather than parsed back out of text this code rendered.
 
-    * **어느 근거가 살아남았나 → 근거 문자열에서.** 절단(`MAX_EVIDENCE` ·
-      `_join_section_evidence`)이 여기서 일어나므로 여기서 읽어야 맞다. 읽는 것은
-      `접수번호 (\\d{14})` 정규식 **하나**뿐이라 서식이 흔들려도 안 깨진다.
-    * **인용에 쓸 값 → `provenance` 에서.** `pipeline._citation_source` 가 레코드에서
-      그대로 꺼내 둔 것이다. 우리가 방금 렌더한 글자를 도로 파싱하지 않는다.
-
-    `provenance` 가 비면(구버전 산출물 · `ORACLE` · 테스트) 머리글 되읽기로 되돌아간다.
+    With an empty `provenance`, from older artifacts, the oracle path or tests,
+    it falls back to re-reading the headers.
+    See docs/design-rationale.md#citation-attachment
     """
     provenance = provenance or {}
     units: list[dict] = []
@@ -1110,9 +1103,10 @@ def _citation_units(evidence: str, provenance: dict[str, dict] | None = None) ->
         known = provenance.get(rcept.group(1))
         if known:
             label, date = known["label"], known["date"]
-            # 🔴 **근거에 실제로 살아남은 섹션만 적는다.** 기억은 절단 전에 채워지므로
-            #    `MAX_SECTION_CHARS` 에서 잘려 나간 섹션까지 들어 있다. 그것을 그대로
-            #    쓰면 프롬프트에 닿지도 않은 근거를 인용하게 된다 — 거짓 귀속이다.
+            # Only sections that actually survived into the evidence are
+            # listed. The record is filled before truncation, so it still holds
+            # sections that were cut, and citing those would attribute the
+            # answer to evidence the prompt never saw.
             alive = [t for t in (known.get("tails") or []) if t and t in block]
             tail = " / ".join(alive) or known.get("tail", "")
         else:
@@ -1120,9 +1114,10 @@ def _citation_units(evidence: str, provenance: dict[str, dict] | None = None) ->
             label, tail = (matched.group(1), matched.group(3)) if matched else (head, "")
             found = _CITE_DATE.search(block)
             date = "-".join(found.groups()) if found else ""
-        # 🔴 **접수번호 하나로 합친다.** 근거 블록은 섹션 단위라 정기공시 한 보고서가
-        #    블록 여럿으로 쪼개지는데, 그것을 인용 여럿으로 내면 같은 접수번호가 반복된다.
-        #    `CONVENTION §7.5` 의 예시는 접수번호 하나 아래 섹션을 ` / ` 로 나열한다.
+        # Merged by receipt number. Evidence blocks are per section, so one
+        # periodic report splits into several, and emitting one citation each
+        # would repeat the same receipt number. The convention's example lists
+        # the sections under a single receipt number instead.
         key = rcept.group(1)
         unit = next((u for u in units if u["rcept_no"] == key), None)
         if unit is None:
@@ -1133,14 +1128,16 @@ def _citation_units(evidence: str, provenance: dict[str, dict] | None = None) ->
             if part and part not in unit["tails"]:
                 unit["tails"].append(part)
         unit["numbers"] |= _cite_numbers(block)
-        # 🔴 짚기는 **머리글과 기억한 제목** 둘 다 본다. 블록 본문 전체를 쓰면
-        #    정기공시 섹션(수천 자)이 아무 답변에나 걸려 선별이 무의미해진다.
+        # Linking reads the header and the recorded title, not the block body:
+        # a periodic section runs to thousands of characters and would match
+        # any answer, making the selection meaningless.
         unit["terms"] |= _cite_terms(head) | _cite_terms(tail)
     return units
 
 
 def _render_citation(unit: dict) -> str:
-    """`CONVENTION §7.5` 형식 — `(근거: 보고서명 기준연월, 접수번호 14자리, 섹션경로)`."""
+    """Render one citation in the form the convention requires: report name and
+    period, receipt number, section path."""
     head = f'{unit["label"]} ({unit["date"]})' if unit["date"] else unit["label"]
     parts = [head, f'접수번호 {unit["rcept_no"]}']
     tail = " / ".join(unit.get("tails") or [])
@@ -1151,14 +1148,19 @@ def _render_citation(unit: dict) -> str:
 
 def attach_citation(answer: str, evidence: str, arm: Arm | None = None,
                     provenance: dict[str, dict] | None = None) -> tuple[str, list[str]]:
-    """근거 표기가 없으면 우리가 붙인다. `(바뀐 답변, 붙인 접수번호들)`.
+    """Attach a citation when the answer carries none.
 
-    🔴 **부르는 자리가 중요하다.** 모든 LLM 호출이 끝난 **뒤**에 불러야 생성·critic·재생성
-    프롬프트가 바이트 동일로 남고 `RequestCache` 가 적중한다. 앞에서 부르면 재측정이
-    캐시를 통째로 빗나가 크레딧을 다시 쓴다.
+    Returns (new answer, receipt numbers attached).
 
-    🔴 **각주 꼬리 앞에 끼운다.** 채점기(`error_analysis.strip_verify_tail`)가 `(주의:`
-    부터를 잘라내므로 그 뒤에 붙이면 우리가 붙인 인용이 채점 전에 사라진다.
+    Where this is called matters. It has to run after every LLM call, so that
+    the generation, critic and regeneration prompts stay byte-identical and the
+    request cache hits; called earlier, a re-measurement misses the cache
+    entirely and spends credits again.
+
+    The citation is inserted before the verification note, because the scorer
+    strips everything from that note onward and a citation placed after it
+    would disappear before scoring.
+    See docs/design-rationale.md#citation-attachment
     """
     arm = arm or current()
     if not arm.attach_citation:
@@ -1168,47 +1170,44 @@ def attach_citation(answer: str, evidence: str, arm: Arm | None = None,
         return answer, []
 
     units = _citation_units(evidence, provenance)
-    # 🔴 **모델이 쓴 근거 표기를 뺀 본문으로 판정한다.** 그러지 않으면 인용 안의 접수번호가
-    #    `named` 에 걸려 "근거를 짚었다" 로 읽히고, 거절 판정을 그대로 비켜간다 —
-    #    감사 `AUD-04` 가 정확히 그 모양이었다.
+    # The decision is made on the body with any citation the model wrote
+    # removed. Otherwise a receipt number inside that citation reads as the
+    # answer having pointed at evidence, and the refusal check is bypassed.
     bare = _CITE_ANY.sub("", answer).rstrip()
     bare_numbers = _cite_numbers(bare)
     named = [u for u in units if u["rcept_no"] in bare]
     used = [u for u in units if u["numbers"] & bare_numbers]
     titled = [u for u in units if u["terms"] & _cite_terms(bare)]
 
-    # 🔴 **거절에는 근거를 붙이지도, 남겨 두지도 않는다** (규약 감사 `F-6`).
+    # A refusal gets no citation attached and keeps none it already carries.
+    # Citing a filing the answer never used is false attribution.
     #
-    # 감사 `AUD-04` 는 개인정보 요구를 옳게 거절해 놓고 *"(근거: 사업보고서 2025,
-    # 접수번호 20260310002820)"* 을 달았다. 그 보고서는 거절의 근거가 아니다 — 읽지도
-    # 않은 공시를 근거로 다는 **거짓 귀속**이고 §5 「근거 기반」에 걸린다.
+    # Instructing the model through the prompt was measured and abandoned: the
+    # version listing forbidden terms made things worse, and the version
+    # without them improved by about one question, indistinguishable from
+    # noise.
     #
-    # 🔴 프롬프트로 타이르는 길은 재 보고 접었다. `A27` 은 금지어를 나열했다가 외부 출처
-    # 안내를 1건 → 3건으로 **늘렸고**, 금지어를 뺀 `A27b` 도 개선이 1문항 안팎이라
-    # 잡음과 구별되지 않았다. **v4 의 교훈 그대로 — 말로 타이르지 말고 결정적으로 처분한다.**
-    # 🔴 **거절 판정은 강한 연결만 본다** — 접수번호(`named`)나 금액(`used`)이다.
-    #    `titled`(제목 낱말 겹침)를 함께 세면 **기업명이 모든 근거 헤더에 있어** 거의
-    #    언제나 걸린다. 실측 `AUD-05`·`AUD-07` 이 그렇게 빠져나가 거절 답변에 무관한
-    #    공급계약 인용 둘이 붙었다. 낱말 겹침은 **여럿 중 고르는 데는** 쓸 만해도
-    #    '이 답이 근거를 썼는가' 를 정하기에는 너무 약하다.
+    # The refusal decision reads only the strong links, the receipt number and
+    # the amount. Counting title-word overlap as well matches almost always,
+    # because the company name appears in every evidence header. Word overlap
+    # is useful for choosing among several blocks but too weak to decide
+    # whether an answer used the evidence at all.
+    # See docs/design-rationale.md#citation-attachment
     if not (named or used) and any(k in bare for k in _CITE_REFUSAL):
         return bare, []
 
     if quick_check(answer)["has_citation"] or not units:
         return answer, []
 
-    # 🔴 **짚이는 것이 하나도 없으면 붙이지 않는다.**
-    #
-    # 판이 세 번 바뀐 자리다. ① 처음엔 `units` **전부**를 붙였다가 `Q-007` 이
-    # `no_fabrication` 을 잃었다 — 답이 '청주 M15X' 하나를 말하는데 무관한 둘(용인 Fab ·
-    # 투자판단)을 끌고 오자 채점기가 **없는 내용을 지어냈다**고 봤다. ② 그래서 검색
-    # 1순위 하나만 붙이게 했더니, 이번엔 모델이 *"해당 정보가 이미지에 포함되어 있는지
-    # 확인해주세요"* 같은 **엉뚱한 답**을 냈을 때도 인용이 따라붙었다 (실서버 `PII-1`).
-    #
-    # ③ 거절 어형 목록을 늘리는 길은 **끝이 없다** — 모델이 거절을 쓰는 말은 열려 있다.
-    # 그래서 문구가 아니라 **연결**로 정한다: 접수번호(`named`)·금액(`used`)·제목
-    # 낱말(`titled`) 중 하나도 안 걸리면 그 답변이 이 근거를 썼다고 말할 수 없다.
-    # 근거 없이 붙인 인용은 **거짓 귀속**이고 §5 「근거 기반」에 걸린다.
+    # Nothing is attached when the answer links to nothing. This rule changed
+    # three times: attaching every candidate cost a question its
+    # no-fabrication score, attaching only the top-ranked one still followed an
+    # off-topic answer, and extending the list of refusal phrasings has no end
+    # because the words a model refuses in are open-ended. The decision is
+    # therefore made on the link rather than the phrasing: with no receipt
+    # number, amount or title word in common, the answer cannot be said to have
+    # used this evidence, and a citation attached anyway is false attribution.
+    # See docs/design-rationale.md#citation-attachment
     picked = (named or used or titled)[:MAX_CITATIONS]
     if not picked:
         return answer, []
