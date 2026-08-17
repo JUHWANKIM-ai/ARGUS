@@ -808,9 +808,11 @@ LOO_REMOVED = {"L1": "CHAIN_HOP 전체 (정정체인 550엣지 + 관련공시 �
 #: See docs/design-rationale.md#dense-isolation
 DENSE_ARMS = ("A2", "A2F")
 
-#: 🔴 **성적으로 인용하면 안 되는 arm.** 평가 시점에 재현할 수 없는 정보(골든)를 쓰므로
-#: 제출 구성이 될 수 없다. 러너의 요약이 이 목록을 읽어 표 옆에 경고를 찍는다 —
-#: 산출물만 보는 사람이 숫자를 성적으로 읽는 것을 막는 유일한 수단이다.
+#: Arms whose numbers must never be quoted as a score. They use information
+#: not reproducible at evaluation time, so they cannot be submission
+#: configurations. The runner's summary reads this list and prints a warning
+#: beside the table, which is the only thing stopping a reader of the
+#: artifacts alone from taking those numbers for a score.
 DIAGNOSTIC_ARMS = ("ORACLE",)
 
 ARMS: dict[str, Arm] = {a.name: a for a in
@@ -820,93 +822,34 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42)}
 
-#: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
-#: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은
-#: **돈을 쓰고도 산출물 문서에 한 글자도 안 나온다.** 그 사고는 이미 한 번 실물로 났다
-#: (`ORACLE` 1,747원을 쓰고 `gate_I.md` 어디에도 없었다 · `render_gate` 주석). 더 나쁜
-#: 것은 비용 검산이다 — 실지출은 `run.json` 재귀 합이라 그 돈이 들어가는데 arm 비용
-#: 합계에는 안 들어가서 "캐시가 막은 금액" 이 그만큼 작게 찍힌다.
+#: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
+#: list is derived rather than written by hand, because the summary and the
+#: gate walk only the three named collections, and an arm caught by none of
+#: them costs credits without appearing anywhere in the artifacts. That has
+#: happened once. Worse is the cost reconciliation: actual spend is summed
+#: recursively from the run records, so the money is counted there but not in
+#: the per-arm total, which understates what the cache saved.
 SIDE_ARMS: tuple[str, ...] = tuple(
     a for a in RUN_ORDER
     if a not in LADDER and a not in LOO_REMOVED and a not in DIAGNOSTIC_ARMS)
 
-#: 모든 스위치 이름. 새 플래그를 넣으면 여기 자동으로 잡힌다 — 목록을 손으로 적어 두면
-#: 빠뜨린 플래그가 LOO 의 '단일 변수 조작' 검사를 조용히 통과한다.
+#: Every switch name, derived so that a new flag is picked up automatically.
+#: Written by hand, a missed flag would pass the single-variable check for
+#: leave-one-out silently.
 FLAG_NAMES: tuple[str, ...] = tuple(
     f for f in A8.__dataclass_fields__ if f != "name")
 
-#: 스위치를 안 건드리면 완성 구성이다. 운영 경로의 기본값이 곧 A8 이어야
-#: '기본값으로 돌린 것' 과 'A8 arm' 이 같은 것임이 보장된다.
-#: 🔴 **운영 기본값 = 제출 구성이다.** 평가 서버(`api/server.py`)가 arm 을 지정하지 않으므로
-#: 이 값이 곧 주최측이 받는 답변의 구성이다. **여기를 바꾸면 배포도 다시 해야 한다.**
+#: Leaving the switches untouched gives the complete configuration. The
+#: operational default has to equal the top arm, so that "reset to defaults"
+#: and "that arm" are provably the same thing.
 #:
-#: v4 (2026-08-15) 에서 `A8` → `A20r` 로 바꿨다. 새 채점기 기준 실측:
+#: The operational default is also the submission configuration: the evaluation
+#: server names no arm, so this value is the configuration answers are produced
+#: under, and changing it requires a redeploy.
 #:
-#:     A8    그리드 65/72 · 전체 81/88 · 밸류체인 6/12 · 안전성 9/12
-#:     A20   그리드 67/72 · 전체 83/88 · 밸류체인 6/12
-#:     A20r  그리드 67/72 · 전체 83/88 · 밸류체인 7/12 · 안전성 9/12   ← 최고
-#:
-#: `A20r` 만 `Q-110` 의 10× 재진술 오류를 고친다 — 치환(`A20`)은 유일한 재계산값이
-#: 없으면 못 고치고, 재생성이 사유를 받아 다시 쓴다. 문항당 약 2원.
-#: 정본: `artifacts/ablation/v4/rescore_r3b/rescore.md`
-#:
-#: 🔴 종전 주석(v1 의 `A6` 과 플래그가 동일하다는 기록)은 `A8` 시절의 것이라 지웠다.
-#:
-#: ---
-#:
-#: 🔴 **2026-08-16 — `A20r` → `A25+A26`.** 규약 감사(`docs/compliance-audit-2026-08-16.md`)의
-#: `F-2`(근거 표시 미달)·`F-3`(지시대상 불명 오진)을 닫는다. **같은 날 · 같은 캐시**로 잰
-#: 값이다 (정본: `artifacts/ablation/v4/repro_0816/`):
-#:
-#:     A20r      그리드 66/72 · 전체 82/88 · 인용률 0.765 (그리드 0.750)
-#:     A25       그리드 66/72 · 전체 82/88 · 인용률 0.975 (그리드 0.972)   ← 부착
-#:     A26       그리드 66/72 · 전체 82/88 · 인용률 0.765               ← 라우팅
-#:     A25+A26   그리드 66/72 · 전체 82/88 · 인용률 0.975   ← 채택. 상호작용 0
-#:
-#: **성적은 동률이고 「근거 표시」만 오른다.** 둘 다 LLM 0회라 지연·크레딧도 그대로다.
-#:
-#: 🔴 **위 `A20r` 의 67/72 는 낡은 값이다.** 같은 arm 을 오늘 다시 돌리면 **66** 이다 —
-#: `Q-097` 의 재생성이 2026-08-15 에는 성공했는데 지금은 실패한다. 갈림은 재생성 프롬프트에
-#: 실리는 사유 문자열이다 (`답변 2,078억 vs …` → `답변 2,078억 원 vs …`). 그것이 바뀌어
-#: 캐시를 빗나갔고 다시 부른 모델이 이번엔 못 고쳤다. **채택 판정을 낡은 값과 비교하지
-#: 않으려고 네 arm 을 같은 날 나란히 다시 쟀다.**
-#:
-#: 🔴 **채점기가 문항에 따라 동전 던지기라는 것도 이 라운드에서 실측됐다** — `Q-105` 의
-#: judge 를 같은 답변에 5회 반복하니 `[F, T, F, T, T]` · σ 0.548 이고 세 축
-#: (`covers_key_points`·`grounded`·`no_fabrication`)이 통째로 함께 뒤집힌다.
-#: **그래서 그리드 ±1 을 유의미한 차이로 읽으면 안 된다.**
-#: 🔴 **2026-08-16 재감사 — `A25+A26` → `A28`.** `RF-1`(없는 분기보고서를 다른 분기
-#: 보고서로 답한다)을 닫는다. 같은 날 같은 캐시 실측:
-#:
-#:     A25+A26   전체 82/88 · 인용률 0.975 · 답변 88건
-#:     A28       전체 82/88 · 인용률 0.975 · 🔴 **답변 88건 전부 바이트 동일**
-#:
-#: **부작용이 0 인 것을 바이트로 확인했다.** 평가셋에 없는 분기를 지목한 문항이 없어
-#: Δ 가 0 인 것이고, 겨냥은 숨은 문항 쪽이다. 겨냥 문항에서는 이렇게 갈린다:
-#:
-#:     A25+A26   "3분기 보고서에는 수주잔고가 기재되어 있지 않습니다 …"   llm=1
-#:     A28       "질문이 지목한 보고서가 코퍼스에 없습니다"              llm=0
-#:
-#: 🟢 **LLM 호출을 하나 아끼기까지 한다** — 없는 문서를 설명하느라 쓰던 호출이다.
-
-# --- 운영 기본값 ----------------------------------------------------------------
-#: 🔴 **v5 채택분 전량 = `A34`.** `A28` 이 틀리던 14건 중 **12건**을 잡았다:
-#:
-#:     그리드 66 → 72/72 · 정보한계 6/6 · 회귀 10/10 · 전체 82 → 88/88
-#:     밸류체인 7 → 10/12 · 안전성 9 → 12/12 · 인용률 0.975 → 0.988
-#:     합계 98 → **110/112** · 🔴 회귀 0
-#:
-#: 남은 둘(`Q-107`·`Q-117`)은 산술이 아니라 **검색**이 막고, 이번 세대의 신호로는
-#: 안 풀린다 — `A29c` 기각 사유와 `_lane_scores` 실측을 보라.
-#: 🔴 **v5 정확성 개선 둘을 얹어 `A37` 로 올렸다** (2026-08-16). 성적은 110/112 그대로고
-#: 움직인 것은 규약 「정확성」 축이다 — `numeric_ok` 107 → 109/112, 정답인데 결함 각주가
-#: 붙은 문항 4 → 2건.
-#:
-#: 🔴 **남은 둘은 알고 남긴 것이다** (사용자 판단 2026-08-16). `substitute_aggregate` 가
-#: 결과만 갈아 끼워 `Q-113`·`Q-115` 의 **식이 안 맞는다** — *"틀린 합계"* 를
-#: *"맞는 합계 + 안 맞는 풀이"* 로 바꾼다. 근본 원인은 모델이 항을 잘못 골랐다는 것이고
-#: 치환은 그것을 덮는다. 정답률(110/112)을 택했다. 되돌리려면 식이 깨질 때 치환을
-#: 취소하면 되고 그 대가는 108/112 다.
+#: The history of what this default has been, with the measurements behind each
+#: change, is recorded separately.
+#: See docs/design-rationale.md#operational-default-history
 _current: Arm = A42
 
 
@@ -915,14 +858,16 @@ def current() -> Arm:
 
 
 def flags(arm: Arm | str | None = None) -> dict:
-    """arm 의 플래그만 담은 사전 (`name` 제외). LOO 의 단일 변수 조작을 검사하는 값이다."""
+    """The arm's flags as a dict, excluding its name. This is what the
+    single-variable check for leave-one-out reads."""
     target = current() if arm is None else (ARMS[arm] if isinstance(arm, str) else arm)
     return {f: getattr(target, f) for f in FLAG_NAMES}
 
 
 def enabled(flag: str, arm: Arm | str | None = None) -> bool:
-    """플래그가 켜져 있는가. 없는 플래그 이름은 **조용히 False 가 아니라 예외**다 —
-    오타 하나가 "그 구성요소는 효과가 없었다" 로 보고되는 것을 막는다."""
+    """Whether a flag is on. An unknown flag name raises rather than
+    evaluating false, so that a typo cannot be reported as a component having
+    no effect."""
     if flag not in FLAG_NAMES:
         raise KeyError(f"그런 플래그가 없습니다: {flag!r} (있는 것: {FLAG_NAMES})")
     target = current() if arm is None else (ARMS[arm] if isinstance(arm, str) else arm)
@@ -930,7 +875,8 @@ def enabled(flag: str, arm: Arm | str | None = None) -> bool:
 
 
 def set_arm(arm: Arm | str) -> Arm:
-    """전역 arm 을 바꾸고 이전 값을 돌려준다. 평가 러너 전용."""
+    """Set the global arm and return the previous one. For the evaluation
+    runner only."""
     global _current
     previous = _current
     _current = ARMS[arm] if isinstance(arm, str) else arm
@@ -939,7 +885,7 @@ def set_arm(arm: Arm | str) -> Arm:
 
 @contextmanager
 def use(arm: Arm | str):
-    """`with ablation.use("A1"): ...` — 블록을 벗어나면 반드시 되돌린다."""
+    """Scoped arm switch: the previous arm is always restored on exit."""
     previous = set_arm(arm)
     try:
         yield current()
@@ -947,31 +893,36 @@ def use(arm: Arm | str):
         set_arm(previous)
 
 
-# --- ORACLE 골든 주입 (러너 전용) ----------------------------------------------
-# 파이프라인은 `question_id` 만 알고 evalset 을 모른다. 그래서 골든은 **러너가 넣는다**.
-# 모듈 전역인 이유는 `set_arm` 과 같다 — arm 을 갈아끼우는 축과 같은 자리에 있어야
-# "무엇으로 쟀는가" 가 한 곳에서 읽힌다.
+# --- Golden injection for the oracle arm, runner only -----------------------
+# The pipeline knows only a question id and nothing of the evaluation set, so
+# the golden evidence is injected by the runner. It is module-global for the
+# same reason the arm is: what a run was measured with should be readable from
+# one place.
 
 
 class OracleGoldenMissing(RuntimeError):
-    """🔴 `golden_oracle` arm 인데 골든이 주입되지 않았다. **조용히 넘어가지 않는다.**
+    """The oracle arm is active but no golden evidence was injected.
 
-    빈 근거로 진행하면 파이프라인이 `UNANSWERABLE` 을 내보내고, 채점기는 그것을 오답으로
-    세며, 우리는 그 결과를 "오라클을 줘도 생성이 다 틀렸다" 로 읽는다. 측정이 아니라
-    **주입 누락**인데 그것이 판정으로 굳는다 — 이 모듈이 막으려는 바로 그 사고다.
+    Proceeding with empty evidence makes the pipeline emit the limitation
+    notice, the scorer count it wrong, and the result read as generation
+    failing even when given the oracle. That is a missing injection hardening
+    into a verdict, which is exactly what this module exists to prevent.
     """
 
 
-#: `{question_id: [{"rcept_no": ..., "section": ...}, ...]}`. `None` 은 '주입 안 됨' 이고
-#: 빈 목록은 '이 문항의 골든이 실제로 없다'(= answerable=false) 라서 **구분해야 한다.**
+#: `{question_id: [{"rcept_no": ..., "section": ...}, ...]}`. None means not
+#: injected, while an empty list means this question genuinely has no golden
+#: evidence, and the two must stay distinguishable.
 _oracle_golden: dict[str, list[dict]] | None = None
 
 
 def set_oracle_golden(mapping: dict[str, list[dict]] | None) -> dict | None:
-    """코호트의 `{question_id: evidence}` 를 주입하고 이전 값을 돌려준다. 러너 전용.
+    """Inject a cohort's `{question_id: evidence}` mapping and return the
+    previous one. For the runner only.
 
-    🔴 **heldout 에는 절대 주입하지 않는다** (`scripts/ablation.py` 의 heldout 경로는
-    이 함수를 부르지 않고, 그 앞에서 반환한다).
+    Never injected for a held-out set: that path returns before reaching this
+    function.
+    See docs/design-rationale.md#heldout-consumption
     """
     global _oracle_golden
     previous = _oracle_golden
@@ -981,12 +932,13 @@ def set_oracle_golden(mapping: dict[str, list[dict]] | None) -> dict | None:
 
 
 def oracle_golden() -> dict[str, list[dict]] | None:
-    """주입된 매핑 그대로. 주입 전이면 `None`."""
+    """The injected mapping as-is, or None before any injection."""
     return _oracle_golden
 
 
 def oracle_golden_for(question_id: str) -> list[dict]:
-    """한 문항의 골든 근거. **없으면 예외** — 조용한 빈 근거를 만들지 않는다."""
+    """Golden evidence for one question. Raises when absent rather than
+    producing silently empty evidence."""
     if _oracle_golden is None:
         raise OracleGoldenMissing(
             "ORACLE arm 인데 골든이 주입되지 않았습니다 — "
@@ -1001,7 +953,8 @@ def oracle_golden_for(question_id: str) -> list[dict]:
 
 @contextmanager
 def use_oracle_golden(mapping: dict[str, list[dict]] | None):
-    """`with ablation.use_oracle_golden(m): ...` — 블록을 벗어나면 반드시 되돌린다."""
+    """Scoped golden injection: the previous mapping is always restored on
+    exit."""
     previous = set_oracle_golden(mapping)
     try:
         yield oracle_golden()
@@ -1009,11 +962,14 @@ def use_oracle_golden(mapping: dict[str, list[dict]] | None):
         set_oracle_golden(previous)
 
 
-# --- 근거 성형 (생성 직전) -----------------------------------------------------
+# --- Evidence shaping, immediately before generation ------------------------
+# See docs/design-rationale.md#evidence-shaping-position
 
-#: `- 계약금액: 22,764,764,160,000원 (227,648억원)` 의 괄호. 원값은 남긴다.
+#: The parenthesised unit conversion in an amount line. The exact figure is
+#: kept.
 _EOK_SUFFIX = re.compile(r"^(-\s*[^:\n]*:\s*-?[\d,]+원)\s*\(-?[\d,]+억원\)\s*$", re.M)
-#: `- 기간: 2025-07-24 ~ 2033-12-31 (8년 5개월)` 의 괄호. 시작·종료일은 남긴다.
+#: The parenthesised duration in a period line. The start and end dates are
+#: kept.
 _DURATION_SUFFIX = re.compile(r"^(-\s*기간:\s*\S+\s*~\s*\S+)\s*\([^()\n]*\)\s*$", re.M)
 
 _RCEPT_RE = re.compile(r"\d{14}")
@@ -1021,10 +977,12 @@ _BLOCK_SPLIT = re.compile(r"(?m)^(?=##\s)")
 
 
 def _record_fields(block: str) -> list[str]:
-    """이 근거 블록이 `record["fields"]` 로부터 만든 줄들. 없으면 빈 목록.
+    """Lines this evidence block was built from `record["fields"]`, or an empty
+    list.
 
-    `to_markdown` 이 찍은 것과 **같은 문자열**을 다시 만들어 지운다. 줄 모양을
-    정규식으로 추측하면 계약상대·공시유보처럼 서식이 같은 다른 줄까지 지운다.
+    The exact strings `to_markdown` wrote are rebuilt and removed. Guessing the
+    line shape with a regular expression would also remove unrelated lines that
+    share the same format.
     """
     from argus.agent import tools
 
@@ -1037,10 +995,13 @@ def _record_fields(block: str) -> list[str]:
 
 
 def shape_evidence(evidence: str, arm: Arm | None = None) -> str:
-    """arm 에 맞춰 근거 문자열을 성형한다. LLM 0회 · 검색 결과는 건드리지 않는다.
+    """Shape the evidence string for the arm. No LLM call, and the retrieval
+    result is untouched.
 
-    * `schema_fields=False` — major·holding 추출 필드 줄을 뺀다 (Phase H 이전 상태).
-    * `calc_values=False`   — 결정적으로 계산해 박아 둔 괄호(억원 환산 · 계약기간)를 뗀다.
+    With `schema_fields` off, the extracted field lines of the non-exchange
+    groups are removed. With `calc_values` off, the deterministically computed
+    parentheses (unit conversion and contract duration) are removed.
+    See docs/design-rationale.md#calc-values-replacement
     """
     arm = arm or current()
     if arm.schema_fields and arm.calc_values:
