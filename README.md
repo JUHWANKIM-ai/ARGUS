@@ -20,7 +20,7 @@ HyperCLOVA X 는 생성·검증 단계에서만 부르고, 색인·검색·정�
 
 | 항목 | 값 |
 |---|---|
-| **End-point** | 🔴 **`TBD-1` — 미정.** 리허설 배포는 이미 돌고 있고 [규약 감사](docs/compliance-audit-2026-08-16.md)가 새 질의 16문항을 실제로 받아 답하게 했다(200 · 최대 13.5초). **다만 최종 주소는 08-25 코드 동결 이후 배포에서 확정해 이 칸에 적는다** — 리허설 IP 를 미리 적으면 동결 전에 바뀌었을 때 죽은 URL 을 제출하게 된다. 임시 주소·예시 IP 를 대신 채우지 않는다 |
+| **End-point** | ✅ **`http://223.130.129.131/answer`** (2026-08-17 확정) — 현재 코드(`A42`)가 이 주소에서 가동 중이고 규약 §4 계약을 실측으로 만족한다(200 · `application/json` · 5키 전부 string · 인증 헤더 없음 · 최대 10.0초). 🔴 **공인 IP `223.130.129.131` 은 2026-09-20 까지 유지해야 한다** — 반납 후 재획득하면 새 IP 가 나오고 제출 URL 이 죽어 전 문항 0점이다. 🔴 **2026-09-07 이전에 반드시 서버를 시작할 것** |
 | **호출 URL 형태** | `http://<공인 IP>/answer?question_id={ID}&question={질의}` |
 | 프로토콜 · 포트 | **HTTP · 80** — `deploy/argus.service` 의 `--port 80`. HTTPS 는 선택이고 self-signed 무방하므로 쓰지 않는다. 도메인 불필요(공인 IP 제출 허용) |
 | 접근 제어 | 인증 헤더 없음. 주최측 발신 IP 허용 방식 → **`TBD-4`: 발신 IP 대역 미공지.** 공지되면 `deploy/README.md` 의 ACG 인바운드를 그 대역으로 좁힌다 |
@@ -207,7 +207,7 @@ python scripts/ablation.py --arm A8 --dry   # arm 별 기여도 측정. --dry �
 |---|---|---|---|
 | 1 | 소스코드 + 환경 구성 정보 + `README.md` | 이 저장소 · 이 파일 · `requirements.txt` | ✅ **완비** (2026-08-15) |
 | 2 | 기술 제안서 (자유 양식 · 분량 제한 없음) | [`docs/proposal/technical-proposal.md`](docs/proposal/technical-proposal.md) | 🟡 **초안 — 본문 완결 (2026-08-15 · v4 성적·판정 전량 반영).** 🔴 **남은 빈칸 둘은 08-25 이후에만 채울 수 있다**: 새 heldout 18 성적(`R4`) · 배포 완주 기록(`R4-2` = `TBD-1`·`TBD-3`) |
-| 3 | End-point URL + API 명세서 | **이 파일 §1 · §2** | 명세 있음 / **URL 은 `TBD-1`** |
+| 3 | End-point URL + API 명세서 | **이 파일 §1 · §2** | ✅ **닫힘 (2026-08-17)** — `http://223.130.129.131/answer` · 명세 §2 |
 | 4 | 전처리 산출물 (대용량은 스토리지 링크) | `artifacts/` · `evalset/` + 아래 스토리지 | ✅ **닫힘 (2026-08-17)** — [artifacts](https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=drive_link) · [data](https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEOZIsJ?usp=sharing). 🔴 `artifacts/`·`data/` 는 gitignore 라 **저장소만으로는 시스템이 안 돈다** — 이 두 링크가 그 구멍을 메운다 |
 
 ---
@@ -216,7 +216,7 @@ python scripts/ablation.py --arm A8 --dry   # arm 별 기여도 측정. --dry �
 
 | # | 미정 항목 | 채우는 주체 | 시점 |
 |---|---|---|---|
-| `TBD-1` | 평가용 End-point 공인 IP (§1) | 배포 담당(사용자) | **08-25 코드 동결 이후 배포 리허설.** 일정 정본은 [`docs/total_plan.md`](docs/total_plan.md) 일정표 — 날짜를 여기 박아 두지 않는다 |
+| ~~`TBD-1`~~ | ✅ **닫힘 (2026-08-17)** — `http://223.130.129.131/answer`. IP 는 09-20 까지 유지 · 09-07 이전 기동 필수 | — | — |
 > ### 🔴 새로 클론한 사람이 시스템을 세우는 법
 >
 > 저장소에는 코드만 있다. `artifacts/`(1.3GB)·`data/`(5.2GB)는 gitignore 라 위 두 링크에서 받아야 한다.
