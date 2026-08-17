@@ -1,33 +1,17 @@
-"""정정공시 <-> 원본 연결.
+"""Link a revised filing to what it revises.
 
-단서는 두 가지다.
-  1순위 '2. 정정관련 공시서류제출일' — 이 정정이 무엇을 고치는지 직접 가리킨다.
-  2순위 문서 말미의 '※ 관련공시' — 같은 사안의 선행 공시 목록(날짜 + 서식명).
+Two clues are available: the submission date of the document being revised,
+which points at it directly, and the related-filings list at the end of the
+document, which enumerates earlier filings on the same matter.
 
-계획서 원안은 1순위 단서를 '원본(is_correction=False)' 에만 맞췄고 연결률이 24.6%
-에 그쳤다. 실측으로 드러난 두 가지 이유:
+Candidates are earlier filings by the same company, revisions included, and
+both clues are used together. A chain is keyed on its root document, which is
+the original when the corpus holds it and otherwise the earliest revision.
 
-  - **정정의 정정이 흔하다.** 정정 공시가 원본이 아니라 직전 정정을 가리키는
-    경우가 많아, 원본만 후보로 두면 사슬이 끊긴다. 정정 문서도 후보에 넣으면
-    사정권 내 미연결이 189건 -> 13건으로 줄었다.
-  - **원본이 코퍼스 밖이다.** 코퍼스는 2023-01-02 부터인데 정정 631건 중 287건
-    (45.5%)이 2022년 이전 공시를 가리킨다. 이건 코드로 못 넘는 데이터 상한이라
-    실질 최대 연결률은 54.5% 다.
-
-그래서 후보를 '같은 기업의 선행 공시(정정 포함)' 로 넓히고 두 단서를 함께 쓴다.
-연결률 비교는 다음과 같다.
-
-    제출일 -> 원본만 (계획서 원안)      24.6%
-    관련공시 -> 원본만                  27.1%
-    제출일 -> 선행 공시(정정 포함)      52.5%
-    제출일 + 관련공시 -> 선행 공시      61.2%   <- 채택
-
-체인은 뿌리 문서(코퍼스 안에 원본이 있으면 그 원본, 없으면 가장 이른 정정)를
-키로 삼아 같은 사안의 정정을 모두 매단다.
-
-정정이 아닌 관계 하나를 여기서 함께 낸다 — **해지 -> 원계약**(`terminates`).
-해지 공시는 `is_correction=False` 라 위 루프에 아예 들어오지 않으므로 `related` 가
-영원히 빈다(실측 해지 20건 중 0건). 사유와 설계는 `attach_related` 독스트링에 있다.
+One non-revision relation is produced here as well: from a termination to the
+contract it terminated. A termination filing is not a revision, so it never
+enters the revision loop and its link field would otherwise stay empty.
+See docs/design-rationale.md#revision-linking
 """
 from __future__ import annotations
 
@@ -50,33 +34,29 @@ _WS = re.compile(r"\s+")
 def _text(fragment: str) -> str:
     return _WS.sub(" ", html_lib.unescape(_ANY_TAG.sub(" ", fragment))).strip()
 
-# '※ 관련공시' 셀은 '2022-03-28 단일판매ㆍ공급계약체결 ...' 처럼 날짜+서식명이 반복된다.
+# A related-filings cell repeats a date followed by a form name.
 _DATE = re.compile(r"\d{4}[-.]\d{2}[-.]\d{2}")
 
-# 정정 대상을 가리키는 라벨은 **문서 계통마다 다르다.** 실측:
-#
-#   거래소(KIND HTML)      '2. 정정관련 공시서류제출일'        표 안, 라벨칸/값칸 분리
-#   주요사항·지분(DART XML) '2. 정정대상 공시서류의 최초제출일'  major 116 / holding 21 은
-#                                                        표 밖 <P> 단락에 라벨+값이 한 덩어리,
-#                                                        major  57 / holding 20 은 표 안
-#
-# EDA 는 이 값이 <TU> 셀에 있다고 봤으나 실제로는 <P> 단락이거나 평범한 <TD> 였다.
-# 그래서 TU/TE 지원만으로는 major·holding 이 붙지 않는다 — 라벨 어휘가 진짜 원인이다.
+# The label naming what a revision targets differs per document lineage, and
+# in one lineage the label and value sit together in a paragraph outside any
+# table. Supporting extra cell types alone does not link those; the label
+# vocabulary is the actual cause.
+# See docs/design-rationale.md#revision-linking
 _SUBMIT_LABEL = re.compile(r"(?:정정관련|정정대상).*제출일")
-# 단락형은 라벨과 값이 ' : ' 로 이어져 있다.
+# In the paragraph form the label and value are joined by a colon.
 _LABEL_VALUE_SPLIT = re.compile(r"[:：]")
 
 
 def parse_submit_clue(label: str, value: str) -> str | None:
-    """'정정 대상 문서의 제출일' 단서를 yyyymmdd 로. 없으면 None.
+    """Submission date of the document being revised, or None.
 
-    라벨과 값이 나뉜 표 형태와, 한 단락에 붙어 있는 형태를 모두 받는다.
-    라벨이 맞지 않으면 날짜가 보여도 무시한다 — '정정일자'(정정본 자신의 날짜)나
-    '3. 정정사유' 서술문의 날짜를 단서로 쓰면 엉뚱한 문서에 연결된다.
+    Both the split table form and the single-paragraph form are accepted. A
+    date under a label that does not match is ignored: the revision's own date,
+    or a date inside the revision reason, would link to the wrong document.
     """
     if not _SUBMIT_LABEL.search(label):
         return None
-    # 단락형이면 라벨 문자열 자체에 값이 붙어 있다.
+    # In the paragraph form the value is attached to the label string.
     tail = _LABEL_VALUE_SPLIT.split(label, 1)[1] if _LABEL_VALUE_SPLIT.search(label) else ""
     parsed = parse_date(tail) or parse_date(value)
     return parsed.strftime("%Y%m%d") if parsed else None
@@ -89,7 +69,7 @@ def _doc_path(doc: dict) -> Path | None:
 
 
 def _clue_dates(doc: dict) -> list[str]:
-    """정정 대상 후보 접수일을 우선순위대로 돌려준다 (yyyymmdd)."""
+    """Candidate receipt dates for the revision target, in priority order."""
     path = _doc_path(doc)
     if not path:
         return []
@@ -103,7 +83,7 @@ def _clue_dates(doc: dict) -> list[str]:
         if any("관련공시" in cell for cell in row):
             related = [m.replace("-", "").replace(".", "") for m in _DATE.findall(row[-1])]
 
-    # 표에 없으면 표 밖 <P> 단락을 본다. major 116건 / holding 21건이 이쪽이다.
+    # Absent from the table, read the paragraphs outside it.
     if submit is None:
         for paragraph in _PARAGRAPH.findall(body):
             submit = parse_submit_clue(_text(paragraph), "")
@@ -111,22 +91,24 @@ def _clue_dates(doc: dict) -> list[str]:
                 break
 
     clues = [submit] if submit else []
-    # 관련공시는 최근 것부터 본다. 제출일과 겹치면 건너뛴다.
+    # Related filings are read newest first, skipping the submission date
+    # already used.
     clues += [d for d in sorted(set(related), reverse=True) if d != submit]
     return clues
 
 
-# 정정본의 report_nm 에서 '[기재정정]' 을 떼면 대상 서식명이 그대로 남는다.
+# Stripping the revision tag from a report name leaves the target form name.
 _CORRECTION_PREFIX = re.compile(r"^\s*(?:\[[^\]]*\]|\(정정\))\s*")
 _FORM_NOISE = re.compile(r"[\s·ㆍ]")
 
 
 def _form_key(doc: dict) -> str:
-    """서식 식별자. 같은 날 여러 건을 낸 기업에서 대상을 가려내는 데 쓴다.
+    """Form identifier, used to pick the target among several filings a company
+    made on one day.
 
-    `주요사항보고서(...)` 는 **괄호 안이 서식 종류**라 통째로 봐야 한다
-    (회사합병결정 != 타법인주식양수결정). 반면 거래소공시의 괄호는 계약명 같은
-    자유 서술이라 빼야 한다 — 그래서 doc_subtype 을 우선 쓴다.
+    For one lineage the parentheses carry the form type and have to be kept;
+    for the other they carry free text such as a contract name and have to be
+    dropped. The document subtype is therefore preferred where present.
     """
     name = _FORM_NOISE.sub("", _CORRECTION_PREFIX.sub("", doc.get("report_nm") or ""))
     if name.startswith("주요사항보고서"):
@@ -135,45 +117,36 @@ def _form_key(doc: dict) -> str:
 
 
 def _original_submit_date(doc: dict) -> str | None:
-    """'정정관련 공시서류제출일' 단독 조회 (진단·호환용)."""
+    """Read the submission-date clue alone, for diagnostics and
+    compatibility."""
     clues = _clue_dates(doc)
     return clues[0] if clues else None
 
 
 def _drop_cycles(parent: dict[str, str]) -> list[tuple[str, str]]:
-    """`정정 -> 대상` 간선에서 **순환을 끊는다.** 끊은 간선을 돌려준다 (진단용).
+    """Break cycles in the revision-to-target edges. Returns the edges broken,
+    for diagnostics.
 
-    같은 날 낸 정정 두 건이 서로를 `※ 관련공시` 에 적는 일이 실재한다. 그러면
-    `parent[A]=B` 와 `parent[B]=A` 가 동시에 서고, 이 파일이 만드는 자료구조 두 개가
-    조용히 깨진다 (실측 exchange 2쌍 · 4건):
+    Two revisions filed on the same day can each name the other, which stands
+    up a parent relation in both directions and quietly breaks two structures:
+    a chain splits across two roots so that neither member is marked latest and
+    both vanish from every latest-only filter, and the member list of one chain
+    is overwritten by a shorter one, in an order that depends on dictionary
+    iteration and could change between rebuilds.
 
-      ① `attach_related` 의 `superseded` 가 **두 사슬의 합집합**이 된다. 뿌리가 둘이라
-         `[A,B]` 와 `[B,A]` 를 각각 매달고 각자 마지막 1건만 빼므로 A·B 가 **둘 다**
-         `is_latest=False` 로 떨어진다. 체인에 최신본이 **한 건도 없다** — 그 두 건은
-         `query_events(is_latest=True)` 와 BM25 `is_latest` 필터에서 **통째로 사라진다**
-         (삼성중공업 20240612800459 · 20240612800468).
-      ② `member_chain` 이 **덮인다.** 4본 사슬 `[1320, 1290, 20240712800050,
-         20240712800053]` 을 매단 뒤 뿌리가 하나 더 돌아 `[1290, 1320]` 로 덮어써서
-         1320 의 `related` 가 3건 -> 1건으로 줄었다 (현대로템 20240514801320).
-         dict 순회 순서에 딸린 값이라 재빌드마다 달라질 수 있었다.
+    Choosing one member of a cycle as the root is deliberately not done: it
+    would declare the other superseded on the strength of a mutual reference,
+    when their actual targets are different contracts outside the corpus. Every
+    edge in a cycle is dropped instead, since the clue failed to identify a
+    target. Edges outside the cycle survive.
 
-    🔴 **순환 구성원 중 하나를 뿌리로 골라 나머지를 매다는 방식은 채택하지 않았다.**
-    그렇게 하면 사슬은 서고 `is_latest` 도 한 건이 되지만, **상호 참조를 근거로 한 건을
-    `대체됨` 으로 단정**하게 된다. 실측 삼성중공업 두 건은 서로의 정정이 아니다 —
-    `정정관련 공시서류제출일` 이 각각 2021-10-18 · 2020-11-23 로 **다른 계약**을 가리키고
-    (둘 다 코퍼스 밖), 같은 날 형제를 `※ 관련공시` 에 적었을 뿐이다. 하나를 대체됨으로
-    만들면 그 건이 다시 검색에서 사라진다. 이 파일의 기존 원칙과도 같다 —
-    "진짜 대상이 코퍼스 밖이면 **연결하지 않는 것이 정답**이다"(`_form_key` 주석).
-
-    그래서 **순환에 든 간선은 전부 버린다.** 단서가 대상을 특정하지 못한 것이므로
-    연결하지 않는다. 사슬 밖 간선(현대로템 1320 -> 20240712800050·053)은 그대로 산다.
-
-    ⚠️ 이 함수는 `artifacts/*_records.jsonl` 을 **다시 빌드할 때** 효력이 생긴다.
-    재빌드하면 `is_latest` 가 3건 바뀌고(459·468·20240514801290 이 False -> True)
-    BM25 메타가 달라진다 — v2 측정과의 대응이 깨지므로 재빌드 시점은 별도 판단이다.
+    This takes effect only when the records are rebuilt, and a rebuild changes
+    the latest flags and the index metadata, so its timing is a separate
+    decision.
+    See docs/design-rationale.md#revision-cycles
     """
     dropped: list[tuple[str, str]] = []
-    #: None = 미방문 · 0 = 이번 경로에서 진행 중 · 1 = 순환 없음 확정
+    #: None unvisited, 0 in progress on this path, 1 confirmed acyclic.
     state: dict[str, int] = {}
     for start in list(parent):
         path: list[str] = []
@@ -196,7 +169,7 @@ def build_chains(doc_group: str = "exchange") -> dict[str, list[str]]:
     for doc in docs:
         by_corp[doc["corp_name"]].append(doc)
 
-    # 정정 -> 직전 대상 문서
+    # Revision to the document it targets.
     parent: dict[str, str] = {}
     for corp_docs in by_corp.values():
         by_date: dict[str, list[dict]] = defaultdict(list)
@@ -213,23 +186,26 @@ def build_chains(doc_group: str = "exchange") -> dict[str, list[str]]:
                 candidates = [
                     other for other in by_date.get(clue, ())
                     if other["rcept_no"] != doc["rcept_no"]
-                    # 보고자가 다르면 남의 공시다. 지분공시는 corp_name 이 발행회사라
-                    # 같은 날 여러 보고자의 문서가 섞인다.
+                    # A different reporter means a different party's filing.
+                    # In holding filings the company name is the issuer, so one
+                    # day mixes documents from several reporters.
                     and other.get("flr_nm") == doc.get("flr_nm")
-                    # 서식이 다르면 대상이 아니다. 같은 날 여러 건을 낸 기업에서
-                    # 날짜만 맞춰 붙이면 엉뚱한 문서가 '대체됨' 으로 뒤집힌다.
-                    # 진짜 대상이 코퍼스 밖이면 연결하지 않는 것이 정답이다.
+                    # A different form is not the target. Matching on date
+                    # alone would mark an unrelated document as superseded.
+                    # When the real target is outside the corpus, not linking
+                    # is the correct outcome.
                     and _form_key(other) == form
                 ]
                 if not candidates:
                     continue
-                # 원본을 정정보다 먼저 고른다
+                # Prefer an original over a revision.
                 candidates.sort(key=lambda o: (o["is_correction"], o["rcept_no"]))
                 parent[doc["rcept_no"]] = candidates[0]["rcept_no"]
                 break
 
-    # 상호 참조로 생긴 순환을 먼저 끊는다. 이게 없으면 사슬 하나가 뿌리 둘로 갈려
-    # `is_latest` 가 한 건도 없는 체인이 나온다 (`_drop_cycles` 참조).
+    # Break cycles created by mutual references first. Without this, one chain
+    # splits across two roots and ends up with no latest record at all.
+    # See docs/design-rationale.md#revision-cycles
     _drop_cycles(parent)
 
     def root_of(rcept_no: str) -> str:
@@ -259,21 +235,23 @@ def latest_of(rcept_no: str, chains: dict[str, list[str]]) -> str:
     return corrections[-1] if corrections else rcept_no
 
 
-#: 해지 공시의 `doc_subtype`. 실측 exchange 20건 전부 이 한 종류다 (major 의
-#: `주요사항보고서(자기주식취득신탁계약해지결정)` 는 계약 해지가 아니라 신탁 해지라 뺀다).
+#: Document subtype of a termination filing. Every measured exchange
+#: termination uses this one form; a similarly named form in another lineage
+#: terminates a trust rather than a contract and is excluded.
 TERMINATION_SUBTYPES = ("단일판매공급계약해지",)
 
-#: `※ 관련공시` 라벨. `references._is_reference_label` 의 **레코드 쪽 쌍둥이**다.
-#: 그쪽은 원문 XML 셀을 보고 이쪽은 정규화된 `raw_rows` 를 본다 — 레코드에는
-#: `report_nm` 이 없어 서식 대조도 `doc_subtype` 으로 해야 하므로 함수를 나눠 둔다.
-#: 부분일치로 '관련공시' 를 찾으면 정정공시의 `1. 정정관련 공시서류` 가 같이 걸린다.
+#: Related-filings label, the record-side twin of the source-side check. That
+#: one reads the raw cells while this reads normalised rows, and a record has
+#: no report name so the form comparison differs too, which is why the two are
+#: separate functions. A substring match would also catch the revision label.
 def _is_reference_label(cell: str) -> bool:
     packed = _WS.sub("", cell or "")
     return "관련공시" in packed and "정정관련공시" not in packed
 
 
 def _reference_cells(record: dict) -> list[str]:
-    """레코드의 `raw_rows` 에서 `※ 관련공시` 값 칸들. 원문 재파싱 0회."""
+    """Related-filings value cells from a record's rows, with no re-parsing of
+    the source."""
     cells: list[str] = []
     for row in record.get("raw_rows") or ():
         if len(row) >= 2 and any(_is_reference_label(cell) for cell in row[:-1]):
@@ -281,8 +259,8 @@ def _reference_cells(record: dict) -> list[str]:
     return cells
 
 
-#: 원문 표기와 `doc_subtype` 은 조금씩 다르다('단일판매ㆍ공급계약체결' vs
-#: '단일판매공급계약체결'). 잡음을 지우고 앞부분만 맞으면 같은 서식으로 본다.
+#: The source wording and the document subtype differ slightly in punctuation.
+#: Noise is stripped and a prefix match counts as the same form.
 _FORM_HEAD = 8
 
 
@@ -296,15 +274,17 @@ def _form_agrees(stated: str, doc_subtype: str) -> bool:
 
 def _termination_links(records: list[dict],
                        member_chain: dict[str, list[str]]) -> dict[str, list[str]]:
-    """해지 공시 -> 원계약 (+ 그 원계약의 정정 체인). 순방향만. LLM 0회 · 원문 재파싱 0회.
+    """Termination to the contract it terminated, plus that contract's revision
+    chain. Forward direction only. No LLM call and no re-parsing of the source.
 
-    실측(exchange 20건): `related` 로 이어진 해지는 **0건**이고 `※ 관련공시` 에 원계약을
-    적어 둔 것이 11건이다. 나머지 9건은 코드로 넘을 수 없다 — 8건이 `before_corpus`
-    (2015~2022년 원계약)이고 1건이 그것과 `not_found` 의 혼합이다.
+    No termination is reachable through the revision field; about half name the
+    contract in the related-filings cell, and the rest point outside the
+    corpus.
 
-    원계약의 **정정 체인까지 함께** 붙인다. 해지가 가리키는 것은 원계약 접수번호인데
-    그 문서가 이미 대체본인 경우가 실재하고(두산퓨얼셀 20250331802527 -> 20240930800764,
-    `is_latest=False`), 원계약 한 건만 주면 정정 전 금액을 답하게 된다.
+    The revision chain is included because the contract a termination names can
+    itself already be superseded, and supplying that document alone would make
+    the answer state the pre-revision amount.
+    See docs/design-rationale.md#termination-links
     """
     by_corp_date: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for record in records:
@@ -323,9 +303,9 @@ def _termination_links(records: list[dict],
                     other for other in by_corp_date.get(
                         (record.get("corp_name", ""), target_date), ())
                     if other["rcept_no"] != rcept_no
-                    # 서식이 안 맞으면 '같은 날 같은 기업' 만으로 붙은 약한 엣지다.
-                    # `references.form_matched=False` 와 같은 문턱이다 — 근거로 끌어오면
-                    # 조회공시 요구·풍문해명이 원계약으로 둔갑한다.
+                    # A form mismatch leaves an edge held together by company
+                    # and date alone. Pulling those into the evidence turns
+                    # unrelated announcements into the original contract.
                     and _form_agrees(form_name, other.get("doc_subtype", ""))
                 ]
                 for other in siblings:
@@ -339,49 +319,24 @@ def _termination_links(records: list[dict],
 
 
 def attach_related(records: list[dict], chains: dict[str, list[str]]) -> list[dict]:
-    """체인의 마지막 문서만 is_latest=True 로 둔다. `terminates` 를 함께 채운다.
+    """Mark only the last document of a chain as the latest, and fill in the
+    termination links.
 
-    접수번호는 시간순으로 증가하므로 [원본, *정정...] 의 마지막이 최신본이다.
-    원본과 중간 정정본은 모두 '대체됨(superseded)' 이다 — 검색이 낡은 원본을
-    최신으로 착각하면 정정된 금액 대신 옛 금액을 답하게 된다.
+    Receipt numbers increase with time, so the last member of a chain is the
+    latest. The original and every intermediate revision are superseded: if
+    retrieval mistakes a stale original for the current document, the answer
+    states the pre-revision amount.
 
-    🔴 **해지 -> 원계약을 `related` 에 넣지 않았다.** 넣는 것이 한 줄이라 먼저 그렇게
-    했다가 되돌렸다. `related` 는 소비자 쪽에서 **정정 체인**으로 읽힌다:
-    `tools.get_history` 가 정정이 아닌 멤버에 `kind="related"` 를 달고,
-    `pipeline._chain_note` 는 `followup` 만 예외 처리하므로 그 멤버를 접수일 순서대로
-    `"정정체인 1/2 (원공시 · 대체됨)"` 으로 찍는다. 즉 **원계약 금액을 '대체된 값' 이라고
-    근거에 명시**하고 해지 공시를 `"2/2 (최신본)"` 으로 올린다. Q-066 의 v2 A8 오답이
-    정확히 그 값이다 — 원계약 351,882,914,000 대신 **해지금액 362,307,038,000** 을 답했다.
-    되레 오답을 굳히는 처방이므로 필드를 나눈다.
+    The termination relation is deliberately kept out of the revision link
+    field. Consumers read that field as a revision chain and would label the
+    original contract as a superseded value while promoting the termination to
+    the latest, which hardens exactly the wrong answer.
 
-    🔴 **`※ 관련공시` 순방향 전체를 붙이는 안도 기각했다.** 강한 엣지(`resolved` +
-    `form_matched`)의 출처 문서가 **453건**이고 그중 해지는 11건뿐이다 — 나머지 442건
-    (계약체결 317 · 투자판단 121 · 신규시설투자 4)은 정정도 해지도 아닌 '같은 사안의
-    선행 공시' 라서, 붙이는 순간 `_sufficiency` 의 완결성 축과 체인 hop 이 442문서에서
-    새로 발화한다. `pipeline` 이 못박아 둔 제동 셋의 전제("과잉 탐색이 진짜 위험이다")를
-    무료로 재측정할 방법이 없다. 겨냥한 관계만 붙인다.
-
-    ✅ **소비자가 붙었다 (v3 R2 ④).** `tools.chain_probe`/`get_history` 가 이 필드를
-    읽고 `pipeline._chain_seeds` 가 제동 ② 에 좁은 예외를 낸다. 아래 경고가 요구한
-    절차를 **먼저 밟았고, 그 절차가 실제로 안을 하나 기각시켰다.**
-
-    🔴 **그 확장을 '좁으니 안전하다' 고 넘기지 마라. 제동 ② 가 막던 것과 같은 문서다.**
-    제동 ② 는 최신본을 씨앗으로 받으면 Q-008·Q-031·Q-033·Q-034(전부 현재 정답)에 근거가
-    붙는다는 실측으로 정해졌다. `terminates` 를 가진 해지 11건 중 6건이 평가셋 근거인데
-    그 문항이 **정확히 그 넷**이다 (Q-008 20240603800359 · Q-031 20251217800800 ·
-    Q-033 20241128800504 · Q-034 20250331802527·20250402800768 · 그 밖에 Q-035 ·
-    Q-066 · Q-111). 우연이 아니다 — 해지 공시는 원계약과 짝이라 '체인성' 문항의 단골이다.
-    즉 이 확장은 Q-066·Q-111 을 겨냥하면서 나머지 넷을 위험에 놓는다. 붙이기 전에
-    **7문항의 근거 조립 diff 를 LLM 0회로** 뜨고, 넷의 `retrieved_context` 가 바이트
-    단위로 같은지부터 확인해라.
-
-    ✅ **밟은 결과 (2026-08-14 · LLM 0회 · 100문항 · 골든 179)**: `terminates` 를
-    **무조건** 씨앗으로 받으면 넷의 `retrieved_context` 가 **넷 다 바뀐다** — 특히
-    Q-031(해지 금액을 묻는다) +1,127자 · Q-034(해지 금액 합계를 묻는다) +1,186자로,
-    위 경고의 **거울상**이다(이번엔 해지 금액 문항에 원계약 금액이 붙는다). 그래서
-    질문 조건을 함께 걸어(`_chain_seeds._TERMINATION_ORIGIN_HINT`) 바뀌는 문항을
-    2건(Q-066·Q-033)으로 줄였고 셋은 **바이트 동일**로 남겼다. 골든은 두 안이 같다.
-    판정표 전문은 `pipeline._chain_seeds` 독스트링에 있다.
+    Attaching the whole forward direction of the related-filings cell was also
+    rejected: most of those edges are neither revisions nor terminations, and
+    attaching them would fire the completeness axis and the chain hop across
+    hundreds of documents with no free way to re-measure the result.
+    See docs/design-rationale.md#termination-links
     """
     superseded: set[str] = set()
     member_chain: dict[str, list[str]] = {}
@@ -390,7 +345,7 @@ def attach_related(records: list[dict], chains: dict[str, list[str]]) -> list[di
         sequence = [root, *corrections]
         superseded.update(sequence[:-1])
         for rcept_no in sequence:
-            # 체인 어느 지점에서 조회해도 나머지 전부를 볼 수 있어야 한다
+            # A lookup from any point of the chain has to see all of it.
             member_chain[rcept_no] = [x for x in sequence if x != rcept_no]
 
     terminates = _termination_links(records, member_chain)
