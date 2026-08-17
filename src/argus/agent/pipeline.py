@@ -493,8 +493,9 @@ def _chain_seeds(picked: list[dict], question: str = "") -> list[dict]:
     See docs/design-rationale.md#termination-seed-exception
     """
     asks_origin = any(h in (question or "") for h in _TERMINATION_ORIGIN_HINT)
-    # 🔴 A33 — 정정본에서 원공시로. 플래그가 꺼져 있으면 `wants_prior` 가 항상 False 라
-    #    아래 조건식은 종전과 **논리적으로 동치**다 (`or False` 는 항등원).
+    # Reverse walk from a revision to the original filing. With the flag off,
+    # `wants_prior` is always False and the condition below is logically
+    # identical to the prior behaviour.
     wants_prior = ablation.enabled("reverse_chain") and _asks_original(question)
     window = REVERSE_SEED_WINDOW if wants_prior else CHAIN_SEED_WINDOW
     seeds = []
@@ -504,35 +505,26 @@ def _chain_seeds(picked: list[dict], question: str = "") -> list[dict]:
             continue
         if probe["is_latest"] and not (
                 (asks_origin and probe.get("terminates")) or wants_prior):
-            continue                      # 제동 ② — 예외는 위 두 갈래 중 하나일 때만
+            continue                      # superseded-only rule, minus the two exceptions
         seeds.append({**probe, "corp": item.get("corp")})
     return _round_robin_by_corp(seeds) if wants_prior else seeds
 
 
 def _round_robin_by_corp(seeds: list[dict]) -> list[dict]:
-    """기업별로 한 바퀴씩 돌게 씨앗을 다시 세운다. **`A33` 에서만 부른다.**
+    """Reorder seeds so each company is served one at a time.
 
-    🔴 **창을 넓히는 것만으로는 부족했다** (2026-08-16 실측). `Q-113` 에서 씨앗은
-    열렸는데 담긴 문서가 0건이었다:
-
-        hop=5 chain corp="삼성중공업" rcept=20250924800262 n=1   ← 골든
-        hop=5 chain corp="삼성중공업" rcept=20250925800330 n=2   ← 무관한 체인
-        hop=5 chain corp="삼성중공업" rcept=20250930800629 n=3   ← 무관한 체인
-        hop=5 chain corp="삼성E&A"   rcept=20250924800260 n=0   ← 🔴 골든인데 0건
-
-    `MAX_CHAIN_DOCS`(6)를 앞의 셋이 1+2+3 으로 **다 먹었다.** 두 기업을 비교하는
-    질의에서 선착순 배분은 첫 기업이 상한을 독식한다 — `_partner_quota` 가 발주처
-    차선에서 이미 만난 문제와 같은 모양이고, 처방도 같다.
-
-    🔴 **상한을 안 올린다.** `MAX_CHAIN_DOCS` 는 제동 ③ 이고, 한화오션 잠수함 체인
-    7건이 근거 칸을 혼자 먹는 것을 막는 상수다. 여기서 바꾸는 것은 **배분 순서뿐**이다.
+    Called only on the reverse-chain path. Widening the seed window alone was
+    not enough: under first-come allocation the first company consumes
+    `MAX_CHAIN_DOCS` entirely and the second company's chain takes nothing.
+    The cap itself is not raised, only the allocation order.
+    See docs/design-rationale.md#chain-seed-round-robin
     """
     by_corp: dict[str, list[dict]] = {}
     for seed in seeds:
         by_corp.setdefault(seed.get("corp") or "", []).append(seed)
     out: list[dict] = []
     for depth in range(max((len(v) for v in by_corp.values()), default=0)):
-        for members in by_corp.values():        # 삽입 순서 = 후보 순서
+        for members in by_corp.values():        # insertion order is candidate order
             if depth < len(members):
                 out.append(members[depth])
     return out
@@ -541,13 +533,14 @@ def _round_robin_by_corp(seeds: list[dict]) -> list[dict]:
 def _expand_chain(picked: list[dict], seen: set, budget: Budget,
                   trace: list[str], take, as_of: str = "",
                   question: str = "") -> tuple[list[str], set]:
-    """정정·후속 공시 체인을 근거에 넣는다. LLM 0회.
+    """Pull revision and follow-up filing chains into the evidence. No LLM call.
 
-    돌려주는 값은 (닫지 못한 링크, 체인에 속한 doc_id). 앞엣것은 충분성 판정이
-    '집합 미완결' 로 읽고, 뒤엣것은 근거 절단에서 체인을 먼저 살리는 데 쓴다.
+    Returns (unclosed links, doc ids belonging to a chain). The first is read
+    by the sufficiency judgment as an incomplete set; the second keeps chain
+    members alive first when the evidence is truncated.
 
-    `question` 은 **씨앗 조건에만** 쓴다 (`_chain_seeds` 제동 ②'). 비어 있으면 종전
-    조건 그대로다 — 해지 예외가 안 열린다.
+    `question` is used for the seed condition only. Empty leaves the prior
+    condition in force, so the termination exception does not open.
     """
     gap: list[str] = []
     chain_ids: set = set()
@@ -555,7 +548,8 @@ def _expand_chain(picked: list[dict], seen: set, budget: Budget,
     for seed in _chain_seeds(picked, question):
         missing = [r for r in seed["links"] if not any(r in d for d in seen)]
         if not missing:
-            # 체인이 이미 다 와 있다. 스텝을 쓰지 않되 절단에서는 함께 살린다.
+            # The chain is already complete. Spend no step, but keep its
+            # members together through truncation.
             known = (seed["rcept_no"], *seed["links"])
             chain_ids.update(d for d in seen if any(x in d for x in known))
             continue
@@ -565,8 +559,9 @@ def _expand_chain(picked: list[dict], seen: set, budget: Budget,
             trace.append(f"hop={CHAIN_HOP} stop=step_budget ({exc})")
             gap += missing
             break
-        # `followup_hop` 은 이 hop 안에서만 읽힌다 — `L4` 가 `※관련공시` 후속공시만 떼어
-        # `L1` 에 섞여 있던 두 엣지를 가른다 (`ablation` 머리말 §followup_hop).
+        # `followup_hop` is read only inside this hop. It separates follow-up
+        # filings from revision links, which were otherwise conflated as one
+        # edge type.
         out = tools.execute("get_history",
                             {"rcept_no": seed["rcept_no"],
                              "include_followups": ablation.enabled("followup_hop")})
@@ -576,8 +571,9 @@ def _expand_chain(picked: list[dict], seen: set, budget: Budget,
                          f'건너뜀({out["error"]})')
             gap += missing
             continue
-        # `chain` 다음에 `followups`(뒤에 온 사안) · `terminated`(이 공시가 해지한
-        # 원계약). 셋 다 `kind` 로 갈려 있고 `_chain_note` 가 각자 다른 줄을 찍는다.
+        # `chain`, then `followups` (later matters) and `terminated` (the prior
+        # contract this filing terminated). All three are separated by `kind`
+        # and `_chain_note` stamps a different line for each.
         entries = (list(out.get("chain") or []) + list(out.get("followups") or [])
                    + list(out.get("terminated") or []))
         total = len(out.get("chain") or [])
@@ -585,12 +581,12 @@ def _expand_chain(picked: list[dict], seen: set, budget: Budget,
         for position, entry in enumerate(entries, start=1):
             note = _chain_note(entry, min(position, total), total, as_of)
             if entry["rcept_no"] == seed["rcept_no"]:
-                for item in picked:                    # 씨앗은 이미 근거에 있다
+                for item in picked:                    # the seed is already in evidence
                     if entry["doc_id"] == item["doc_id"]:
                         item["markdown"] = _annotate(item["markdown"], note)
                         chain_ids.add(item["doc_id"])
                 continue
-            if added >= MAX_CHAIN_DOCS:                # 제동 ③
+            if added >= MAX_CHAIN_DOCS:                # per-question chain cap
                 break
             if take(entry["doc_id"], _annotate(entry["markdown"], note),
                     None, seed["corp"]):
@@ -605,151 +601,97 @@ def _expand_chain(picked: list[dict], seen: set, budget: Budget,
     return gap, chain_ids
 
 
-# --- 발주처 2-hop (밸류체인 fan-in / fan-out) ----------------------------------
-# 밸류체인 문항이 요구하는 것은 순위가 아니라 **집합의 경계**다 — "이 발주처와 계약한
-# 상장사는 누구누구인가". 자유텍스트 BM25 는 이걸 못 준다. 실측(밸류체인 12문항, LLM 0회):
-# 골든 근거 25/46 인데 fan-in/fan-out 3문항은 Q-110 2/6 · Q-114 0/5 · Q-117 2/7 이다.
-# Q-114 가 0인 이유가 기전을 그대로 보여 준다 — '삼성전자' 가 universe 기업이라
-# `corp_name=삼성전자` 필터가 걸리는데, 삼성전자는 그 계약을 **공시한 쪽이 아니라
-# 발주한 쪽**이라 필터가 정답 문서를 통째로 배제한다.
+# --- Counterparty 2-hop (value chain fan-in and fan-out) --------------------
+# What a value-chain question needs is the boundary of a set, not a ranking:
+# which listed companies contracted with this orderer. Free-text BM25 cannot
+# supply that, and a `corp_name` filter actively excludes the answer when the
+# named company placed the order rather than filing it.
 #
-# 🔴 이 hop 의 진짜 위험은 **지금 맞히는 문항을 밀어내는 것**이다. 근거 칸도 hop 예산도
-# 유한하다. 그래서 이 hop 은 **자기 차선(lane)** 에서만 움직인다. 셋 다 지킨다.
+# The risk of this hop is displacing questions that currently succeed, so it
+# runs entirely in its own lane, isolated on four axes: evidence slots,
+# sufficiency judgment, chain seeding and step budget. All four have to be
+# closed before the retrieval lane can be called identical with and without
+# this hop.
 #
-#   ① 근거 칸을 뺏지 않는다   — 검색 근거는 종전대로 `MAX_EVIDENCE` 만큼 담고, 발주처
-#                              근거는 그 **뒤에** `MAX_COUNTERPARTY_EVIDENCE` 칸을 따로 쓴다.
-#   ② 충분성 판정에 안 낀다   — `_sufficiency` 는 검색 차선만 본다. 발주처 근거로 hop 0 이
-#                              `sufficient` 를 내면 재검색이 마르고 Q-113(정정 체인 문항)
-#                              같은 문항이 뒤 hop 에서 찾던 골든을 잃는다.
-#   ③ 체인 씨앗이 안 된다     — `_chain_seeds` 는 검색 상위 2건이다(제동 ①). 발주처 열거는
-#                              순위가 아니므로 씨앗 자격이 없다. 차선을 나누면 자동으로 지켜진다.
-#   ④ 스텝을 먼저 안 쓴다     — 검색 사다리가 **다 돈 뒤에** 호출한다. 처음 판에서는 검색
-#                              루프 앞에 뒀는데, 공용 `Budget` 을 먼저 한 칸 쓰는 바람에
-#                              스텝을 많이 쓰는 질의(3기업 × 4단)가 `stop=step_budget` 으로
-#                              잘렸다. 근거·판정·씨앗을 다 갈라 놓고도 **예산 축 하나가
-#                              남아 있었다.** 뒤로 옮기면 그 축까지 닫힌다.
-#
-# 네 축을 다 닫아야 **검색 차선이 발주처 hop 유무와 무관하게 같다**고 말할 수 있다.
-# (③ 까지만 닫았을 때는 참이 아니었다 — 근거·판정·씨앗은 같아도 스텝이 달랐다.)
-#
-# **연도로 거르지 않는다.** `query_by_counterparty` 에 `year` 인자가 있지만 쓰지 않는다 —
-# 연도를 걸면 그 해에 계약이 없던 파트너가 집합에서 사라져 '몇 곳인가' 의 답이 틀린다.
-# 이 hop 이 그리는 것은 시점이 아니라 경계다.
+# No year filter is applied. Filtering by year drops partners that had no
+# contract that year, which changes the answer to how many there are: this hop
+# draws a boundary, not a point in time.
+# See docs/design-rationale.md#counterparty-lane
 
-#: 발주처 근거가 쓸 수 있는 칸. 그래프 최대 파트너가 **6**이라(실측: 방위사업청·
-#: 한국수력원자력, 나머지 143 노드는 3 이하) 파트너당 1건은 항상 이 안에 든다.
+#: Evidence slots available to counterparty results. The graph maximum is six
+#: partners, so one record per partner always fits.
 MAX_COUNTERPARTY_EVIDENCE = 6
 
 
 def _partner_quota(n_partners: int) -> int:
-    """파트너 하나가 가져갈 근거 수. `_cell_quota` 와 같은 방식 — 칸을 셀 수로 나눈다.
+    """Evidence records one partner may take, dividing the slots by partner
+    count as `_cell_quota` does.
 
-    나누는 대상은 근거 칸의 **절반**이다. 파트너가 6이면 몫이 1이라 **모든 파트너가
-    한 칸씩** 받는다 — fan-in 문항이 요구하는 것이 정확히 그 한 칸씩이다
-    (실측 Q-110 2/6 → 5/6).
+    Half of the evidence slots are divided. At six partners the quotient is
+    one, so every partner gets a slot, which is exactly what a fan-in question
+    needs.
 
-    깊이는 **폭을 넘지 않는다** (`min(n_partners, …)`). 열거할 것이 없는데 최대치를
-    가져가면 그건 열거가 아니라 한 기업 레코드 나열이다. 이게 없으면 파트너 1인 노드가
-    5칸을 가져가는데, 그런 노드가 **145개 중 120개(83%)** 다 (SATORP · 삼천리이에스 ·
-    SK하이닉스 …). 지금 코호트에는 파트너 1인 노드로 발화하는 문항이 없어 피해가 0이지만,
-    실측 근거가 없는 값은 남겨 두지 않는다.
-
-    더 깊이 파지 않는 이유도 실측이다. 파트너가 둘뿐인 노드(삼성전자 66건 → 삼성E&A ·
-    삼성중공업)에서 quota 를 2 → 3 으로 늘려도 골든 적중은 그대로고(Q-114 1/5),
-    5 로 늘리면 +1(2/5) 이지만 그 1건 값으로 **지금 맞히는 문항**에 무관 레코드가
-    실린다 — 밸류체인 전수 실측에서 근거 블록이 105 → 118 로 늘고 그 증가분은
-    Q-108(+2)·Q-113(+5) 처럼 골든이 0건 늘어난 문항에 쏠린다. 8 까지 늘리면 4/5 지만
-    한 문항에 16블록이라 선을 한참 넘는다. 열거에 필요한 만큼만 담는다.
+    Depth never exceeds width. Taking the maximum when there is nothing to
+    enumerate is not enumeration but a list of one company's records, and
+    single-partner nodes are 120 of 145 in the graph.
+    See docs/design-rationale.md#partner-quota
     """
     width = max(n_partners, 1)
     return max(1, min(width, MAX_EVIDENCE // 2 // width))
 
 
 def _lane_scores(question: str, records: list[dict]) -> list[float]:
-    """레인 **안에서만** 매기는 질문 적합도. LLM 0회 · 검색 0회 · 네트워크 0회.
+    """Question relevance scored within one lane only. No LLM call, no
+    retrieval, no network.
 
-    모집단이 그 레인(같은 발주처 · 같은 파트너)뿐이라 IDF 가 레인 안에서 계산된다 —
-    그 레인 전원이 가진 토큰(`계약상대`·발주처 이름·서식명)은 IDF 가 0 에 수렴해
-    **순서를 못 바꾸고**, 일부에만 있는 토큰만 순서를 가른다. 길이 정규화도 BM25 가
-    이미 갖고 있다. 즉 우리가 손으로 고를 뻔한 두 가지(불용어·길이)를 모집단 정의가
-    대신 정한다.
+    The population is the lane itself (same orderer, same partner), so IDF is
+    computed inside it: tokens every member carries cannot move the order, and
+    only tokens held by some of them do. Length normalisation comes from BM25.
+    The two choices that would otherwise be hand-tuned, stopwords and length,
+    are settled by the population definition.
 
-    🔴 **토크나이저는 `tokenize_words`(어절)다 — 색인의 `tokenize`(어절 + bigram)가
-    아니다.** 색인과 다른 것을 쓰는 것은 이 저장소가 경계하는 일이라 실측으로 정했다
-    (밸류체인 골든 46 기준, LLM 0회):
+    The tokenizer is `tokenize_words`, not the index tokenizer, which was
+    chosen by measurement rather than by symmetry with the index.
+    See docs/design-rationale.md#lane-tokenizer
 
-        어절 중복       28/46 (불변)      어절 BM25       **29/46**
-        bigram 중복     27/46 (−1)        bigram BM25     28/46 (불변)
-        제목만 BM25     28/46 (불변)
-
-    bigram 이 지는 이유는 같은 서식 레코드끼리의 비교라서다 — `단일판매ㆍ공급계약체결`
-    한 낱말이 bigram 6개로 풀려 **전원 공통 토큰이 6배로 불어난다.** 부분일치를 살리려고
-    넣은 장치가 여기서는 신호를 희석한다. 색인(모집단 1,469건)과 레인(모집단 1~47건)은
-    모집단 크기가 두 자릿수 다르므로 같은 토크나이저가 최선이라는 보장이 없다.
-
-    빈 레인·빈 본문에서는 `BM25Okapi` 가 0으로 나눈다. 그 경우 전부 0점을 돌려주고
-    호출부가 종전 순서를 그대로 쓰게 한다 — 정렬이 죽어도 파이프라인은 산다.
+    An empty lane or empty body makes `BM25Okapi` divide by zero. In that case
+    all scores are zero and the caller keeps its existing order, so a dead sort
+    does not take the pipeline down with it.
     """
     corpus = [bm25_module.tokenize_words(r.get("markdown") or "") for r in records]
     if len(corpus) < 2 or not any(corpus):
         return [0.0] * len(records)
-    from rank_bm25 import BM25Okapi          # 색인이 이미 쓰는 의존이다
+    from rank_bm25 import BM25Okapi          # dependency the index already uses
     return list(BM25Okapi(corpus).get_scores(bm25_module.tokenize_words(question)))
 
 
 def _partner_order(records: list[dict], question: str = "") -> list[dict]:
-    """파트너 안에서의 순서. **최신본 먼저, 그 다음 질문 적합도, 그 다음 도착 순서**다.
+    """Order within a partner: latest first, then question relevance, then
+    arrival order.
 
-    최신본을 앞에 두는 것은 그대로다 — 대체된 공시로 파트너를 대표시키면 열거가 옛
-    값을 말한다 (`query_events` 가 `is_latest=True` 를 기본으로 두는 것과 같은 이유다).
-    실측(밸류체인 9문항, 파트너당 1건): 도착 순서 9건 → 최신본 우선 11건.
-    금액 내림차순(12건)·접수일 내림차순(13건)이 합계로는 높지만 둘 다 fan-in 문항
-    Q-110 에서 2/6 이라 버렸다 — 이 hop 의 목적은 총합이 아니라 열거다.
+    Latest first keeps a superseded filing from representing a partner, which
+    would make the enumeration state an old value. This is the same reason
+    `query_events` defaults to `is_latest=True`. Ordering by amount or by
+    filing date scores higher in total but loses the fan-in questions, and the
+    purpose of this hop is enumeration rather than a total.
 
-    🔴 **v3 R2 — 둘째 키를 질문 적합도로 바꿨다. 종전에는 이 함수가 질문을 안 봤다.**
-    같은 허브·같은 파트너면 어떤 질문이 와도 순서가 같았고, 그래서 밸류체인 미회수
-    18건 중 **8건**이 "허브 레인 절단"(`T5-a` (iii′))으로 잘렸다 — 골든이 레인
-    2·4·5·6·7·11·38번째에 있는데 `_partner_quota` 는 1~2 만 준다.
+    The second key reads the question. Without it the order is identical for
+    any question against the same hub and partner, and golden records sitting
+    deep in a lane are cut by `_partner_quota`. Raising the cap is not the
+    remedy: `MAX_COUNTERPARTY_EVIDENCE` binds before the quota does, so a
+    six-partner node cannot reach past the first record of a lane whatever the
+    quota is. This is a sort rather than a reranker: zero credits, no LLM call,
+    no network, same candidate set and same cap. Only what occupies the
+    existing slots changes.
 
-    🔴 **상한을 올리는 것은 처방이 아니다.** `T5-a` §4 가 재현 시뮬레이션으로 쟀다 —
-    8건을 다 회수하려면 한 문항에 발주처 근거 **57블록**(현행 6칸의 9.5배)이 필요하고,
-    `MAX_COUNTERPARTY_EVIDENCE=6` 이 quota 보다 먼저 물려서 파트너 6인 노드는 quota 만
-    올려도 레인 2번째 이후가 **영원히 도달 불가**다. 같은 6칸으로 **더 맞는 것**을 담는다.
+    Measured recovery from the sort alone is one record, against eight
+    targeted; the gap is bounded by the lane structure and by golden records
+    that carry none of the question's vocabulary.
+    See docs/design-rationale.md#partner-order
 
-    🔴 **리랭커가 아니다.** `A3`(CLOVA 리랭커)는 겨냥 0 으로 최종 기각됐다(`05 §E-4b`).
-    이것은 크레딧 0원 · LLM 0회 · 네트워크 0회의 정렬 로직 교체이고, 후보 집합도
-    상한도 그대로다 — 바뀌는 것은 **같은 칸에 무엇이 들어가는가** 뿐이다.
-
-    ## 🔴 겨냥 8건 중 실측 회수는 **1건**이다. 그 차이를 여기 적어 둔다
-
-    `T5-a` §4 는 *"레인 안에서 질문 적합도로 정렬하면 필요 depth 가 4·6·7·11 에서
-    1~2 로 내려온다"* 고 적었지만 그것은 **정렬이 완벽할 때의 상한**이고 반사실
-    추정이었다 (계획서 자신이 '확신하지 못하는 것 ③' 으로 표시). 밸류체인 12문항에서
-    `_gather_evidence` 를 직접 돌려 골든 46 회수를 셌다 (LLM 0회 · 0원):
-
-        현행 (도착순)                        28/46
-        질문 적합도 (채택)                    **29/46**   Q-107 +1
-        🔴 정렬 상한 (골든을 보고 정렬)         33/46      Q-107 +1 · Q-110 +1 · Q-114 +3
-        🔴 상한 + `is_latest` 키까지 해제       34/46      위 + Q-113 +1
-
-    **정렬로는 8건에 닿을 수 없다 — 상한이 5건이다.** 나머지 3건은 정렬 밖에서 막힌다:
-    `Q-107` 의 두 골든이 **같은 파트너 레인**에 있는데 quota=1 이고(둘 중 하나만 가능),
-    `Q-113` 의 골든은 `is_latest=False` 인 정정 전 원공시라 1순위 키가 뒤로 민다.
-
-    그리고 상한 5건 중 **4건은 질문 텍스트로 도달 불가능**하다. 실측 반례가 `Q-114` 다 —
-    질문이 *"평택·기흥"* 을 말하는데 **골든 3건의 본문에는 그 낱말이 없고**(`[P3 PJT]
-    그린동`·`[P5] 복합동`·`P4 Ph4(상동)`), 정작 `평택`·`기흥` 을 본문에 가진 것은
-    비-골든 3건(`평택 V2L`·`기흥 신규 연구라인`·`기흥 연구라인 신축`)이다. 어떤 텍스트
-    적합도 함수도 이 문항에서는 **틀린 쪽을 위로 올린다.** `Q-110` 은 반대 이유다 —
-    질문이 *"상장사는 어디이며 각각 어떤 역할"* 이라 두산퓨얼셀 6건을 가를 표현이 질문에
-    아예 없다. 골든 선택이 질문이 아니라 라벨러의 대표 1건 선정이었다.
-
-    **그래서 이 처방은 채택하되 겨냥을 8 → 1 로 정정해 적는다.** 남은 4건은 정렬이
-    아니라 **다중 허브 결속**(`Q-107`)·**정정 체인 hop**(`Q-113`)·**골든 정의**(`Q-114`
-    ·`Q-110`) 쪽 문제다.
-
-    `question` 이 비면 종전 동작 그대로다 (최신본 우선 + 도착순). 호출부가 질문을
-    안 넘기는 경로가 생겨도 조용히 성능이 바뀌지 않는다.
+    An empty `question` leaves the prior behaviour in force, latest first and
+    then arrival order, so a caller that omits it does not silently change
+    results.
     """
     if not question:
         return sorted(records, key=lambda r: not r.get("is_latest", True))
