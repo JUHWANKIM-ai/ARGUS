@@ -1,54 +1,31 @@
-"""집계를 **우리가** 계산해 근거에 한 줄로 싣는다. LLM 0회 · 검색 0회 · 스텝 0.
+"""Deterministic aggregation emitted as a single evidence line.
 
-v4 의 단일 발견이 *"모델이 숫자를 손에 쥐는 순간 틀린다"* 였다. `A20`(치환)이 이긴
-이유는 재계산값을 근거에서 **우리가 직접 읽어** 모델의 타이핑을 안 거쳤기 때문이고,
-`A25`(부착)가 이긴 이유도 접수번호 14자리를 타이핑시키지 않았기 때문이다.
+No LLM calls, no retrieval, no step budget.
 
-집계도 같은 자리다. R0(2026-08-16)이 오답 7건에서 **항이 근거에 다 있는데 합·차·몫만
-틀린 것**을 실측했고, 그 항으로 우리가 계산하면 일곱 건 다 골든이 정확히 나온다:
+Sums, differences and quotients are computed from the amount fields of the
+evidence records rather than left to the model. Measurement showed a class of
+failures where every term was present in the evidence and only the arithmetic
+was wrong.
 
-    Q-018  1,842,200,000,000 − 1,566,300,000,000        = 275,900,000,000
-    Q-097  2,492,215,574,520 ÷ 12                       = 207,684,631,210
-    Q-109  1,715,754,987,100 + 1,091,844,082,700        = 2,807,599,069,800
-    Q-034  398,800억 + 72,200억 + 346,900억              = 817,900,000,000
-    Q-115  1,652,800,000,000 + 106,796,802,000          = 1,759,596,802,000  (2025 공시분만)
-    Q-107  4,928,968,079,043 + 711,106,288,572 + 1,250,850,298,678
-                                                        = 6,890,924,666,293  (한수원 상대만)
-    Q-113  (1,328,800,000,000 − 909,590,000,000)
-         + (  499,950,000,000 − 392,590,000,000)        = 526,570,000,000    (체인별 차의 합)
+The module emits one line rather than widening the evidence window. Widening
+was attempted three times and rejected each time, so the design constraint is
+that this path must not consume evidence slots.
+See docs/design-rationale.md#evidence-slot-vs-line
 
-## 🔴 근거 칸(`MAX_EVIDENCE`)을 안 먹는다 — 그것이 이 모듈의 설계 전부다
-
-v4 는 같은 문항들을 **근거를 더 주는 방향**으로 세 번 겨냥했고 세 번 다 기각했다:
-
-    A16      `MAX_EVIDENCE` 확대        `R0-3`(dac2bf0) 기각 · 테스트가 고정한다
-    A17      성형 게이트 개방            코퍼스 3,150건 중 1,588건(50.4%) 재작성 → BM25 색인 무효
-    depth↑   열거 깊이 확대              `MAX_ENUM_EVIDENCE` 가 먼저 차서 집합이 안 바뀐다
-
-셋의 공통 사유가 *"칸을 더 달라"* 였다. **여기서 실리는 것은 블록이 아니라 한 줄**이라
-그 사유에 걸리지 않는다.
-
-## 🔴 유일하게 결정되지 않으면 아무것도 안 낸다
-
-틀린 집계를 확신 있게 박아 주는 것은 지금보다 **나쁘다** — 모델은 그 줄을 의심하지
-않는다. R0 이 여섯 건 다 **필터가 붙는다**는 것을 실측했다: 필터를 안 걸면 `Q-115` 는
-5,230,496,802,000(3배) · `Q-107` 은 7,264,374,092,359 가 나온다. 그래서 침묵이 기본값이고,
-발화 조건은 아래 세 함수의 이른 `return ""` 들이다.
+Nothing is emitted unless the computation is uniquely determined. Asserting a
+wrong total with confidence is worse than staying silent, because the model
+does not question the line. The early returns in the functions below are that
+guard.
 """
 from __future__ import annotations
 
 import re
 
-#: 질문이 요구하는 연산. 🔴 **순서가 중요하다** — `차` 를 먼저 봐야 *"얼마나 증가했는가"*
-#: 가 `합` 으로 안 샌다 (`pipeline._EVENT_SUBTYPE` 이 `해지` 를 먼저 두는 것과 같은 이유).
-#: 🔴 **정정의 어휘가 통째로 빠져 있었다** (2026-08-17 · `H-008` 실측).
-#: 목록은 *증가·감소*만 알았고 *"얼마나 **바뀌었는가**"* 를 몰랐다. 그래서 근거에
-#: `1,046,363,500,000` 과 `400,119,500,000` 이 둘 다 실렸는데도 집계가 침묵했고,
-#: 모델은 정정 전후를 같은 값으로 짚어 *"변동 없습니다"* 라고 답했다. 두 수의 차는
-#: 정확히 골든 `646,244,000,000` 이다 — **우리가 답을 쥐고도 안 물어본 것이다.**
-#:
-#: 🔴 정정은 증감 방향이 없다. *"바뀌었다"* 는 늘었는지 줄었는지 안 말하므로
-#: `_delta_groups` 가 `abs()` 로 받는 것과 짝이 맞는다.
+#: Operation requested by the question. Order matters: difference must be
+#: tested before sum so that growth phrasings do not fall through to sum.
+#: The difference group includes revision phrasings, which state that a
+#: value changed without stating a direction. That matches `_delta_groups`
+#: taking an absolute value.
 _OPS = (("차", ("얼마나 증가", "얼마나 늘었", "얼마나 감소", "얼마나 줄었",
                 "증가했는가", "감소했는가", "얼마나 늘어", "얼마나 줄어",
                 "얼마나 바뀌", "얼마나 변경", "얼마나 달라", "얼마나 올랐",
@@ -58,38 +35,33 @@ _OPS = (("차", ("얼마나 증가", "얼마나 늘었", "얼마나 감소", "�
                 "평균 투자금액", "평균 계약금액", "1척 당", "1기 당")),
         ("합", ("합계", "총합", "총액", "모두 더하", "다 더하", "합은", "총 얼마")))
 
-#: `몫` 의 분모. **질문에서 읽는다** — 척수는 근거에 라벨로 안 실린다.
+#: Divisor for the quotient operation, read from the question. Unit counts
+#: are not carried as labelled fields in the evidence.
 _UNIT_COUNT = re.compile(r"(\d{1,4})\s*(?:척|기|대|건|개)")
 
-#: 접수일 연도 필터. *"2025년에 공시된"* 처럼 **접수일**을 한정할 때만 읽는다.
-#: 🔴 사업연도(`base_year`)와 다른 축이다 — 정기공시의 연도는 접수일이 아니다.
+#: Filing-year filter. Applies only when the question constrains the filing
+#: date. A different axis from the fiscal year, which for periodic reports
+#: is not the filing date.
 _FILED_YEAR = re.compile(r"(20\d{2})\s*년\s*(?:에\s*)?공시")
 
-#: 접수일 **전체 날짜** 필터. `Q-109` *"2023년 12월 11일 두 개 상장사가 각각 공시했다"*
-#: 처럼 하루를 못박는 질의에서만 읽는다.
+#: Full filing-date filter, applied only when the question pins a single day.
 _FILED_DATE = re.compile(r"(20\d{2})\s*년\s*(1[0-2]|0?[1-9])\s*월\s*(3[01]|[12]\d|0?[1-9])\s*일")
 
-#: 질문이 밝힌 **건수**. 🔴 이것이 `합` 의 안전장치다 — 아래 `_sum_rows` 주석 참조.
-#:
-#: 🔴 **수사 뒤에 셈낱말을 반드시 요구한다.** 첫 판은 `[두세네다섯여섯]` 이라고 썼는데
-#: 그것은 **문자 클래스**라 낱자 하나에 걸린다 — *"체코 **두**코바니"* 가 "2건" 으로
-#: 읽혔다(실측). 대안 묶음 `(?:두|세|…)` 과 셈낱말이 함께여야 한다.
+#: Item count stated by the question. Acts as the safety condition for the
+#: sum operation. A counter word is required after a numeral, because a bare
+#: character class matches single syllables inside unrelated proper nouns.
+#: See docs/design-rationale.md#stated-count
 _STATED_COUNT = re.compile(
     r"(\d{1,2})\s*(?:건|개\s*(?:상장사|회사|사)?|곳|군데)"
     r"|(?:^|[\s,.])(두|세|네|다섯|여섯)\s*(?:건|개|곳|군데|공시|회사|상장사)")
 _WORD_COUNT = {"두": 2, "세": 3, "네": 4, "다섯": 5, "여섯": 6}
 
 
-#: 🔴 **줄을 싣는 것만으로는 부족했다** (2026-08-16 실측). `Q-034` 에서 집계 줄이
-#: 정확한 값(817,900,000,000)을 싣고 발화했는데도 모델이 **자기가 다시 더해**
-#: 778,100,000,000 을 썼다. 직전 세대의 오답(757,900,000,000)과도 다른 값이다 —
-#: 즉 모델은 우리 줄을 읽지 않은 것이 아니라 **자기 계산을 더 믿었다.**
-#:
-#: 그래서 값 옆에 **처분을 명시한다.** `calc_values`(A5)가 근거 괄호에 환산값을 박는
-#: 것과 같은 자리이고, 다른 점은 *"다시 계산하지 말라"* 를 함께 적는다는 것뿐이다.
-#: 🔴 시스템 프롬프트가 아니라 **근거 안**이다 — KDD '26 실측에서 시스템 프롬프트는
-#: attention 의 36.9% 를 먹고 근거는 14.0% 인데, 규칙을 시스템으로 올리면 집계와
-#: 무관한 문항의 답까지 흔든다 (`A27` 이 그렇게 역효과를 냈다).
+#: Disposition stated alongside the value. Supplying the number alone is not
+#: sufficient: the model recomputes and trusts its own result. The directive
+#: is placed inside the evidence rather than the system prompt, because a
+#: system-level rule perturbs answers to unrelated questions.
+#: See docs/design-rationale.md#model-recomputes
 _DIRECTIVE = ("(이 값은 시스템이 위 근거의 금액 필드에서 직접 계산한 것이다. "
               "답변의 해당 수치는 이 값을 그대로 쓰고 다시 계산하지 않는다.)")
 
@@ -102,41 +74,41 @@ def _op(question: str) -> str:
     return ""
 
 
-#: 답변에서 후보로 볼 금액. 콤마 세 자리 묶음을 요구한다 — `A25` 의 `_CITE_NUM` 과 같은
-#: 이유로, 연도(2025)나 비율(2.93)이 금액으로 잡히면 안 된다.
+#: Amounts eligible as substitution candidates in an answer. Comma groups
+#: are required so that years and ratios are not treated as amounts.
 _ANSWER_NUM = re.compile(r"\d{1,3}(?:,\d{3})+")
 
-#: 결론 문장을 여는 말. 🔴 **첫 판은 배율 범위(0.5~2배)로 후보를 좁혔는데 그것이
-#: 틀린 잣대였다** — `Q-113` 에서 모델이 1,237,510,000,000 을 냈고(정답 526,570,000,000)
-#: 2.35배라 가드에 걸려 치환이 안 돌았다. 모델의 오차 크기는 우리가 못 정한다.
-#: 대신 **자리**를 본다: 답변이 최종 답으로 내세우는 수는 결론 문장에 있다.
+#: Openers of a concluding sentence. Candidate selection uses position
+#: rather than magnitude: the figure an answer presents as its result
+#: appears in the conclusion. A magnitude guard was tried and rejected,
+#: since the size of the model's error cannot be bounded in advance.
 _CONCLUSION = ("따라서", "그러므로", "결론적으로", "정리하면", "즉,")
 
-#: 금액으로 볼 최소 규모. 이보다 작으면 척수·비율·연번이다.
+#: Minimum magnitude treated as an amount. Below this a figure is a count,
+#: a ratio or an index.
 MIN_SUBSTITUTE_AMOUNT = 100_000_000
 
-#: 접수일 필터가 걸렸다는 표시. `_sum_rows` 가 이 낱말로 **접수일 축과 계약상대 축을
-#: 가른다** — 앞은 집합을 못박고 뒤는 못박지 못한다 (아래 주석 참조).
+#: Marker recording that a filing-date filter applied. `_sum_rows` uses it
+#: to separate the filing-date axis, which pins the set, from the
+#: counterparty axis, which does not.
 _DATE_NOTE = "공시분"
 
 
 def substitute(answer: str, records, question: str, route) -> tuple[str, str]:
-    """답변의 **틀린 합계 하나**를 결정적 집계값으로 갈아 끼운다. LLM 0회.
+    """Replace a single incorrect total in the answer with the computed value.
 
-    돌려주는 것은 `(새 답변, 사유)` 이고, 갈아 끼울 것이 없으면 `(원본, "")` 이다.
+    Returns (new answer, reason), or (original, "") when nothing applies.
 
-    🔴 **왜 줄을 싣는 것으로 끝내지 않는가.** 실측(2026-08-16)이 세 번 말했다 —
-    집계 줄에 정확한 값을 싣고 *"다시 계산하지 말라"* 는 지시까지 붙여도 모델은
-    자기가 다시 더한다 (`Q-034` 817,100,000,000 · `Q-109` 2,807,598,070,800 ·
-    `Q-115`). v4 의 발견 그대로다: **모델이 숫자를 손에 쥐는 순간 틀린다.**
+    Emitting the aggregate line is not sufficient on its own: the model
+    recomputes and trusts its own arithmetic.
+    See docs/design-rationale.md#model-recomputes
 
-    🔴 **`A20`(`substitute_verified`)이 못 잡는 자리를 잡는다.** 저쪽은 `critic` 이
-    답변에서 **식을 파싱해** 재계산할 때만 발화한다. `Q-109` 는 두 금액을 줄바꿈으로
-    나열하고 `=` 를 안 써서 식이 없다 — 그래서 `equation` 이 안 걸린다. 이쪽의 원천은
-    답변이 아니라 **근거의 `amount` 필드**라 답변의 형태와 무관하다.
+    Complements equation-based verification, which fires only when the answer
+    contains a parseable expression. The source here is the amount field of the
+    evidence, so it is independent of how the answer is written.
 
-    🔴 **유일성 조건은 `critic.unique_recomputed` 와 같은 규칙이다.** 후보가 둘 이상이면
-    치환하지 않는다 — 어느 것이 합계인지 모르는 채로 고르면 멀쩡한 수를 망가뜨린다.
+    Substitution is skipped when more than one candidate exists. Choosing
+    without knowing which figure is the total would corrupt a correct one.
     """
     total = _total(records, question, route)
     if total is None:
@@ -155,41 +127,30 @@ def substitute(answer: str, records, question: str, route) -> tuple[str, str]:
             f"{wrong} -> {total:,}")
 
 
-#: 우리가 답변 뒤에 붙이는 부속물. `(주의: …)` · `(근거: …)`.
-#:
-#: 🔴 **이 규칙의 유일한 정의다.** 2026-08-16 리팩토링 전에는 같은 정규식이 **세 번**
-#: 적혀 있었다 — `aggregate._TAIL` · `aggregate._NOTE` · `reasoning._TAIL`. 각주 형식이
-#: 바뀌면 그중 둘이 조용히 낡는다. *"규칙이 두 곳에 있으면 갈린다"* 는 이 저장소가
-#: 열 번 겪은 실패 양식이고, 내가 하루 만에 그것을 다시 만들었다.
+#: Notes the system appends after an answer. Single definition of this rule;
+#: duplicating the pattern lets copies drift when the note format changes.
 _NOTE = re.compile(r"\n*\((?:주의|근거)[:：]")
 
 
 def split_tail(answer: str) -> tuple[str, str]:
-    """본문과 우리 부속물을 가른다. 부속물이 없으면 `(answer, "")`.
+    """Split an answer into body and system-appended notes.
 
-    🔴 **본문만 보는 이유**: 각주와 근거 표기는 **우리가 쓴 것**이라, 거기서 수를 골라
-    고치면 우리 글을 우리가 고치는 꼴이 된다 — 각주는 검사기가 무엇을 봤는가의 기록이다.
+    Returns (answer, "") when no note is present. Only the body is eligible for
+    rewriting: notes record what the verifier observed, and editing them would
+    turn a record into an invention.
     """
     hit = _NOTE.search(answer or "")
     return (answer, "") if not hit else (answer[:hit.start()], answer[hit.start():])
 
 
 def _prune_notes(tail: str, wrong: str) -> str:
-    """🔴 **치환한 값을 언급하던 결함 항목을 각주에서 뺀다.**
+    """Remove note entries that reference a value which was just substituted.
 
-    첫 판은 `answer.replace()` 를 통째로 걸었고, 그래서 **각주가 거짓을 말했다**
-    (2026-08-16 실측):
-
-        치환   526,960,000,000 -> 526,570,000,000
-        각주   "답변 **526,570,000,000**원 vs 재계산 499,950,000,000"
-                     ↑ 검사기는 이 수를 본 적이 없다. 우리가 각주를 고쳐 쓴 것이다.
-
-    각주는 **검사기가 무엇을 봤는가**의 기록이다. 그것을 뒤에서 갈아 끼우면 기록이
-    아니라 창작이 된다 — 규약 「근거 기반」이 겨누는 바로 그 종류다.
-
-    그리고 이미 **고친** 결함을 미해결로 남겨 두는 것도 틀렸다. 그래서 지운다:
-    본문은 치환하고, 그 값을 말하던 항목만 각주에서 뺀다. 남는 항목이 없으면 각주
-    자체를 지운다.
+    Applying the substitution across the whole answer would make the note claim
+    a figure the verifier never saw. Leaving a resolved defect listed as
+    outstanding is equally wrong, so the referencing entry is dropped and the
+    note is removed entirely when nothing remains.
+    See docs/design-rationale.md#substitution-scope
     """
     if not tail or wrong not in tail:
         return tail
@@ -206,9 +167,10 @@ def _prune_notes(tail: str, wrong: str) -> str:
     return pruned
 
 
-#: 정정 이력을 **펼쳐** 달라는 표현. 🔴 `_OPS` 의 `차` 와 겹치지 않게 둔다 — 저쪽은
-#: *"얼마나 증가했는가"*(값 하나)이고 이쪽은 *"어떻게 바뀌었는지 시간순으로"*(줄 하나에
-#: 여러 값)다. 같은 질문에 둘 다 발화하면 근거에 모순되는 두 줄이 실린다.
+#: Phrasings asking for a revision history to be laid out. Kept disjoint
+#: from the difference operation: that one yields a single value, this one
+#: yields a sequence. Firing both on one question would place two
+#: contradictory lines in the evidence.
 _SERIES_ASK = ("시간순", "시계열", "어떻게 바뀌", "어떻게 변했", "변동 내역",
                "변화 과정", "추이", "정정 과정", "차례로", "순서대로")
 
