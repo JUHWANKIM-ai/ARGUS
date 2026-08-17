@@ -1066,6 +1066,189 @@ BM25 점수로 정해진 순서다.
 
 ---
 
+## ablation
+
+### arm-switch-placement
+
+`ablation.Arm`, `ablation.current`
+
+통제 조건이 이 모듈의 존재 이유다.
+
+    고정 : 프롬프트 · 온도 0.0 · maxTokens · 골든셋 · 인덱스 스냅샷 · 모델
+    변동 : arm 구성요소만
+
+스위치를 파이프라인 밖에 두면 통제가 깨진다. arm마다 코드를 갈아끼우거나 브랜치를 파면
+프롬프트와 상수까지 함께 흔들려 델타의 귀속이 불가능해진다. 그래서 분기점을 전부 이 한
+곳의 플래그로 모으고, 파이프라인은 같은 코드 그대로 플래그만 읽는다.
+
+기본값은 완성 구성(A8)이다. 완성 구성이 곧 현재 시스템이므로 스위치를 안 건드리면 종전
+동작이다. v1의 A6 기본값과 플래그가 같다. 옛 A6이 `counterparty_hop=True` 를 A4로부터
+물려받고 있었고 v2가 그것을 A8로 옮겨 이름만 바로잡았다. 운영 경로의 동작은 바뀌지 않는다.
+
+leave-one-out은 A8에서 플래그 하나만 되돌린다.
+
+### followup-edge-split
+
+`ablation` 의 `followup_hop`, `tools.get_history`
+
+`CHAIN_HOP` 은 `get_history` 한 번으로 두 종류를 함께 돌려준다.
+
+| 엣지 | 뜻 | 규모 |
+|---|---|---|
+| chain | 공시가 공시를 정정한다 | 550엣지 (`record["related"]`) |
+| followups | 공시가 공시와 관련된다 | 1,267엣지 (`※관련공시` 역방향 `_followup_index`) |
+
+그래서 `chain_hop` 제거의 −9.7%p는 두 엣지의 합이고 어느 쪽 몫인지 갈린 적이 없다.
+`tools.get_history(include_followups=…)` 가 이미 있으므로 플래그 하나로 갈린다.
+
+판정력은 실측으로 이미 좁혀졌다(2026-08-12, LLM 0회, 0원). A8 산출물의 `think_trace`
+에서 `CHAIN_HOP` 씨앗을 뽑아 `get_history` 를 다시 부른 결과는 이렇다.
+
+    grid+회귀 88문항   CHAIN_HOP 발화 16문항 · 고유 씨앗 15 · followups 를 반환한 씨앗 1
+    밸류체인 12문항    발화 1문항(Q-113)      · 고유 씨앗  1 · followups 0
+
+그 시점 예측 둘이 다 틀렸고, 실측으로 정정한다.
+
+1. 비용은 13~15원이 아니라 R1에서 51.1원(43.5+7.6), R2D 재측정에서 72.7원이었다.
+2. 델타의 자리가 옮겨갔다. R1에서는 그리드 −1.4%p였는데, R2D 재측정 후 그리드는 66/72로
+   A8과 같아졌고(0.0%p) 차이가 회귀 트랙으로 옮겨갔다(A8 10/10, L4 9/10). 옮겨간 문항은
+   Q-035가 아니라 Q-066이다. R2 ④가 `terminates` 순방향 엣지를 연 뒤
+   `include_followups` 로 함께 가리므로, L4가 끄는 것이 이제 그 엣지까지다.
+
+따라서 "`REFERS_TO` 계열의 기여는 회귀 트랙 1문항"이 현재의 측정값이고, 그리드 기준으로
+인용하면 0이 된다. 분모를 반드시 밝혀서 인용한다.
+
+기회가 1건뿐인 이유는 씨앗 조건이다. `_chain_seeds` 는 `is_latest=False` 이고 `links` 가
+있는 후보를 씨앗으로 삼되, 문서에 `terminates` 가 있고 질문이 원계약을 물을 때는
+`is_latest=True` 후보도 씨앗이 된다. `_followup_index` 는 키 478(원계약)에 값 1,233이고
+그중 대체본은 301인데, 해지 공시는 `is_correction=False` 라 `related` 가 비므로 원계약이
+정정까지 받은 경우에만 종전 경로로 씨앗이 된다. 평가셋의 해지·철회 문항은 dev 7, 회귀 2,
+밸류체인 2로 11문항인데 후속공시가 실릴 기회는 1건이다.
+
+씨앗 조건 일반화(A9)는 재고 후 기각했다. 자세한 대조표는 [termination-seed-exception]
+(#termination-seed-exception)에 있다. 되살리는 조건은 새 heldout에 해지·철회 문항이 늘어
+`_followup_index` 키가 상위 후보로 올라오는 문항이 2건 이상 생기는 경우이고, L4와 섞지
+않는다.
+
+### a7-identity
+
+`router.missing_named_report`, `pipeline._as_of_ym`
+
+A7(거절 강제와 시점 지정)은 무조건 실행되는 코드다. 플래그로 끌 수 없으므로 A7의 구성은
+A6과 글자 하나 다르지 않다. 따라서 사다리에서 Δ(A6→A7)은 측정값이 아니라 정의상 0이고,
+그렇게 읽어야 한다.
+
+A7의 실효는 §I-5d가 A6(옛 코드)와 A7(새 코드)을 42문항 코호트로 이미 쟀다(grid +2.8%p,
+환각 1건에서 0건). 사다리에 칸을 남겨 두는 이유는 번호를 §I-5d와 맞추고 `L3 ≡ A7` 이라는
+항등식을 눈에 보이게 하기 위해서다.
+
+### counterparty-hop-position
+
+`ablation` 의 `counterparty_hop`
+
+v1은 이 플래그를 A4에서 켰다. 그런데 A0은 `uses_bm25=False` 조기 반환이 발주처 hop 앞에
+있어서 `A0 + counterparty_hop=True` 로 강제해도 발화가 0이다. 그래서 A4에서 켠 것은
+사다리 어디에서도 자기 델타를 못 낸다. A1b에서 A4로 가는 전이에 `hop_ladder`, `chain_hop`,
+`split_query` 와 함께 묻힌다.
+
+`counterparty_hop` 은 `hop_ladder` 로부터 독립임이 검증됐다(`A1b + cp=True` 로 ladder를 끈
+상태에서 발화 확인). 그래서 v2는 이 플래그만 A8로 옮겼다. `A8 = A7 + counterparty_hop` 이
+BM25 이후 단계에 서므로 델타가 이 hop 하나에 귀속된다.
+
+### dense-isolation
+
+`ablation` 의 `dense`
+
+CONVENTION G1("LLM은 HyperCLOVA X만")의 임베딩 적용 여부가 미확정이다. 그래서 `dense` 는
+사다리 어느 칸에도 켜져 있지 않고 곁가지 두 개로만 존재한다.
+
+    A2  = A1b + dense      §I-2 가 정의한 자리에서의 한계 기여도
+    A2F = A6  + dense      제출 구성에서의 한계 기여도 (leave-one-in)
+
+이렇게 두면 G1이 불허로 확정돼도 `A0→A1→A1b→A4→A5→A6` 곡선이 글자 하나 안 바뀐 채
+성립한다. 반대로 dense를 A2 이상 전 arm에 켜 두면 A4, A5, A6이 전부 재측정 대상이 되고
+불허 시 v1 결과가 통째로 무효가 된다.
+
+A6 대비 델타를 재는 것은 A2F다. §I-4b가 A6을 새 기준선으로 삼았기 때문이다. A2는 §I-2
+표의 칸을 채우기 위한 것이고, 둘 다 검색 단계는 LLM 0회로 잰다.
+
+### calc-values-replacement
+
+`ablation` 의 `calc_values`, `ablation.shape_evidence`
+
+계산 도구 7종은 `TOOL_SPECS` 로 노출돼 있지만 사다리의 생성 호출에는 `tools` 를 넘기지
+않는다. 따라서 사다리 위에서 function calling을 끈다는 조작은 실행 경로에서 아무것도
+바꾸지 못한다. 델타가 정의상 0이 되는 헛측정이다. 그 켜는 방향은 별도 곁가지 arm으로
+따로 있다. 두 축을 헷갈리면 안 된다. `calc_values` 는 근거에 박아 둔 계산 결과를 떼는
+것이고, function calling arm은 모델 자신이 도구를 부르게 하는 것이다.
+
+실제로 계산 결과가 생성에 도달하는 경로는 하나뿐이다. `corpus/markdown.to_markdown` 이
+근거 블록에 결정적으로 계산한 값을 박아 넣는다.
+
+    - 계약금액: 22,764,764,160,000원 (227,648억원)      단위 환산
+    - 기간: 2025-07-24 ~ 2033-12-31 (8년 5개월)          compute.period_parts
+
+그래서 이 arm의 조작은 두 괄호를 떼어 LLM이 직접 계산하게 만드는 것이다. 제거가 성립하지
+않는 요소는 더 단순한 것으로 대체한다는 HippoRAG 방식과 같다. 실측 근거도 정확히 이
+지점이다. HCX-005는 `2025-07-24 ~ 2033-12-31` 을 Direct와 CoT 모두 `9년 5개월` 로 답했다
+(정답은 `8년 5개월`).
+
+`ratio` 는 떼지 않는다. `- 매출액 대비: 7.6%` 의 분모인 최근매출액은 근거에 실리지
+않으므로, 이걸 떼면 계산을 LLM에게 넘긴 것이 아니라 정보를 지운 것이 된다. 계산 ablation이
+정보 ablation으로 둔갑하면 델타의 귀속이 틀어진다.
+
+### lean-prompt-arm
+
+`ablation` 의 `lean_prompt`, `prompts.MONEY_UNIT_RULE`
+
+기본 구성과 플래그 하나만 다르다. 그 하나가 규칙 8·9를 시스템 프롬프트에서 뗀다. 사다리에도
+LOO 목록에도 넣지 않는다. 같은 자리에서 프롬프트만 갈아 끼우는 곁가지다.
+
+근거는 KDD '26 `paper/idea/QA.pdf` Figure 2의 주의 배분이다. system 36.9%, output 34.5%,
+근거 14.0%, question 10.8%로 시스템 프롬프트가 근거보다 2.6배 무겁다. HCX는 attention을
+볼 수 없지만 대리 실험은 된다. 규칙을 줄이고 정답률을 재는 것이다.
+
+실측 겨냥은 Q-018이고 기전은 넉 줄로 담긴다.
+
+    split_trillion_eok(Q-018 근거) -> 변환 2건  =>  규칙 8·9 가 붙는다 (system 735 -> 959자)
+    답변 어휘  "최초 공시 금액" / "최종 정정 금액"      ->  `계약금액` 이 없다
+    critic._says_amount("계약금액") = False   =>  amount 검사가 꺼진다 (gated 2레코드)
+    근거에 정답값 1,842,200,000,000 이 있고 답변은 1,843,200,000,000 을 썼다
+
+뺀 것은 규칙 문안뿐이고 `split_trillion_eok` 는 그대로 둔다. 괄호를 조와 억으로 가르는
+것은 근거 성형 축이고 규칙 8·9는 그 위에 얹은 프롬프트 보강이다. 둘을 함께 떼면 단일 변수
+조작이 아니게 되고, Q-065(콤마 한 자리 밀림으로 답이 10배)를 지키던 1차 방어선까지
+사라진다.
+
+인질을 세어 두고 세운다. 규칙 8·9가 붙는 문항은 전체 88 중 16(밸류체인 12 중 10)이고 그중
+현재 정답이 12건(밸류체인 5건)이다. 겨냥은 1건이므로 이 arm은 잃을 것이 얻을 것보다 12배
+많은 조작이다. 성적이 떨어지면 그것이 기각이고, 되돌릴 순서는
+`tests/test_prompt_rules.py` 의 `MONEY_RULE_EXPOSED_WHILE_CORRECT` 가 든다.
+
+### evidence-shaping-position
+
+`ablation.shape_evidence`
+
+`schema_fields` 와 `calc_values` 는 프롬프트에 실릴 근거 문자열에만 건다. 검색과 충분성
+판정(`_sufficiency`)은 원본 마크다운을 그대로 본다. 여기까지 바꾸면 델타에 검색 변화가
+섞여 단일 변수 조작이 아니게 된다.
+
+오라클의 근거에도 같은 성형이 그대로 걸린다. `answer_question` 이 근거 출처와 무관하게
+`shape_evidence` 를 한 번 부르기 때문이다. 그래서 `schema_fields`, `calc_values`,
+`verifier` 는 오라클 위에서도 살아 있고 `ORACLE_UNREACHABLE_FLAGS` 에 들어가지 않는다.
+
+### unreachable-flag-guards
+
+`ablation.META_UNREACHABLE_AXES`, `ablation.ORACLE_UNREACHABLE_FLAGS`,
+`ablation.META_UNREACHABLE_FLAGS`
+
+메타 축 플래그는 `META_UNREACHABLE_FLAGS` 에 넣을 수 없다. 그 목록은 True가 그 구성요소를
+켠다는 전제로 켜져 있으면 예외를 던지는데, 메타 축 플래그는 기본값이 True(축을 넘긴다)라
+넣는 순간 메타 전용 arm 자신이 즉시 예외가 된다. 대신 `META_UNREACHABLE_AXES` 가
+`ORACLE_UNREACHABLE_FLAGS` 와 같은 기본값에서 움직였는가 형태로 막는다.
+
+---
+
 ## measurement
 
 ### self-consistency-arm
