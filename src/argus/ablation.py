@@ -261,153 +261,104 @@ class Arm:
     #: require widening the evidence window, which was rejected.
     #: See docs/design-rationale.md#partner-profile
     partner_profile: bool = False
-    #: 🔴 **`A35` 의 알맹이 — 답변의 괄호 환산을 우리가 다시 쓴다. LLM 0회.**
-    #:
-    #: 사유·실측은 `agent/aggregate.fix_unit_parens` 독스트링에 적었다. 요약하면:
-    #: 답변 132건 전수에서 괄호 환산 67개 중 **4개(3문항)** 가 틀렸다. 본문 수치는
-    #: 근거에서 옮겨 적으니 맞고 괄호는 **자기가 나눠야 하니** 틀린다 — v4 의 발견이다.
-    #:
-    #: 🔴 **하나는 우리가 만든 것이다.** `substitute_aggregate` 가 본 수치만 갈아
-    #: 끼우고 모델이 제 오답에서 계산한 괄호를 그대로 뒀다(`Q-115`). 그래서 이 처분은
-    #: 치환 **뒤에** 선다.
-    #:
-    #: 🔴 **`split_trillion_eok`(근거 성형)와 다른 자리다.** 저쪽은 생성 **전** 근거의
-    #: 괄호를 가르고 이쪽은 생성 **후** 답변의 괄호를 고친다. 형식은 `prompts._split_jo`
-    #: 를 공유한다 — 둘이 다른 형식을 쓰면 모델이 같은 값을 다르게 읽는다.
-    #:
-    #: 🔴 모든 LLM 호출이 끝난 뒤라 프롬프트가 바이트 동일이고 `RequestCache` 가
-    #: 전부 적중한다 (`attach_citation` 과 같은 성질).
+    #: True recomputes the parenthesised unit conversion in the answer. No LLM
+    #: call. Body figures are copied from the evidence and are correct, while
+    #: the parenthesised value is divided by the model and is not. One of the
+    #: cases is created by the aggregate substitution, so this disposition runs
+    #: after it. A different position from the evidence shaping that splits the
+    #: same notation before generation; both share the formatting helper, since
+    #: two formats would be read as two values. Every LLM call is finished by
+    #: this point, so prompts stay byte-identical and the request cache hits.
+    #: See docs/design-rationale.md#unit-conversion
     fix_unit_parens: bool = False
-    #: 🔴 **`A36` 의 알맹이 — 발주처를 `missing_corp` 비교 대상에서 뺀다. LLM 0회.**
-    #:
-    #: `verify_completeness` 의 `missing_corp` 은 *"비교 질의인데 근거에 그 기업이
-    #: 없다"* 를 잡는다. 그런데 질문이 지목한 **발주처**는 그 계약을 공시한 쪽이 아니라
-    #: **발주한 쪽**이라 근거에 있을 수가 없다 — 영구 오탐이다.
-    #:
-    #: 실측(2026-08-16): `Q-113`·`Q-115` 는 **정답인데** *"근거에 삼성전자 이(가)
-    #: 없다"* · *"근거에 현대자동차 이(가) 없다"* 각주가 붙는다.
-    #:
-    #: 🔴 **저장소가 이미 아는 사실이다.** `_wants_enumeration` 은 발주처가 곧 질의
-    #: 기업이면 열거를 끄고, `test_disclosing_company_is_never_bound_as_counterparty`
-    #: 가 같은 판단을 고정한다. 그 앎이 이 검사에만 안 닿아 있었다.
-    #:
-    #: 🔴 **`verifier=False` 와 함께 켤 수 없다** (`FLAG_DEPENDENCIES`) —
-    #: `verify_completeness` 가 `_verify` 안에 있어 검증 단계가 꺼지면 도달하지 않는다.
+    #: True exempts an orderer from the missing-company check. No LLM call. An
+    #: orderer named by the question placed the order rather than filing it and
+    #: cannot appear in the evidence, so the check is a permanent false
+    #: positive there, attaching a defect note to correct answers.
+    #: See docs/design-rationale.md#verifier-disposition
     counterparty_exempt: bool = False
-    #: 🔴 **`A38` 의 알맹이 — 답변이 스스로 쓴 식과 어긋나는 수를 맞춘다. LLM 0회.**
-    #:
-    #: 🔴 **「추론 논리성」의 측정 수단이 아니다 — 그 축의 실패 양식 **하나**를 잡는
-    #: 검사다.** 첫 판에서 *"그 지표를 재는 첫 수단"* 이라 적었는데 과장이었다:
-    #: **저장 답변 132건 중 적용되는 것이 9건(6.8%)** 이다(식이 없으면 침묵한다).
-    #:
-    #: 그 진단은 **judge 가 이 축의 도구가 아님**을 보여 줬다 — EM 과 갈린 7건 중
-    #: **여섯이 오탐**이다(긴 정기공시 섹션에서 값을 못 찾음 1 · 거절 문항에 요점
-    #: 대조를 건 적용 착오 5). 그런데 남은 하나가 진짜였고 **결정적으로 잡힌다**:
-    #:
-    #:     Q-111  머리말 "7,591,628,000원 적습니다"
-    #:            풀이   "362,307,038,000 − 354,725,410,000 = 7,581,628,000원"  ← 골든
-    #:
-    #: EM 은 골든 문자열이 어딘가 있어서 통과시켰고, 우리 수치검사는 식 자체가 맞아서
-    #: 통과시켰다. **답변이 자기와 모순인데 두 잣대 다 못 봤다.**
-    #: 저장 답변 132건 전수에서 검출 1건 · 🔴 **오탐 0건**.
-    #:
-    #: 🔴 `verifier` 와 무관하다 — 생성 이후 답변 문자열만 본다. 도달 불가 자리가 없다.
+    #: True aligns a figure that contradicts an expression the answer wrote
+    #: itself. No LLM call. Not a measure of the reasoning axis but one failure
+    #: mode of it: it applies only where the answer contains an expression.
+    #: Independent of the verification stage, since it reads the answer string
+    #: after generation.
+    #: See docs/design-rationale.md#self-contradiction
     self_consistency_fix: bool = False
 
-    #: 🔴 **열거 집합의 경계를 근거 머리에 싣는다** (v6 · 2026-08-17).
-    #:
-    #: 계약상대 hop 은 파트너 전량을 이미 안다(`partners=3`). 그 로스터가 블록 **안**에
-    #: 주석으로만 있어서 답변이 일부를 빠뜨렸다 — `N-013` 에서 두산퓨얼셀 블록이 근거
-    #: 59% 지점(세 번째)이었고 답변은 두 곳만 적었다. 근거에는 셋이 다 있었다.
-    #:
-    #: 🔴 **문면이 성적을 가르고 있었다.** 같은 축의 `heldout_v2`·`heldout_v3` 문항은
-    #: *"빠짐없이 알려줘"* 라 전건을 답했고, `N-013`·`N-014` 는 *"어디인가"* 라 빠뜨렸다.
-    #: 질문이 그 낱말을 안 써도 집합의 경계가 보이게 하는 것이 이 스위치의 전부다.
-    #:
-    #: `aggregate_line` 과 같은 자리다 — 칸을 더 주는 게 아니라 **한 줄**을 머리에 둔다.
+    #: True carries the boundary of the enumerated set at the head of the
+    #: evidence. The counterparty hop already knows every partner, but with
+    #: that roster only inside a block the answer omitted some of them. The
+    #: whole point is to make the boundary visible without the question having
+    #: to ask for completeness explicitly. Same position as the aggregate line:
+    #: one line at the head rather than more slots.
+    #: See docs/design-rationale.md#roster-position
     roster_line: bool = False
 
-    #: 🔴 **반올림만 적힌 금액을 근거의 원값으로 되살린다** (v6 · 2026-08-17).
-    #:
-    #: `fix_unit_parens` 의 반대 자리다. 저쪽은 *"원값은 맞고 괄호가 틀린"* 것을 고치고
-    #: 이쪽은 *"괄호만 있고 원값이 없는"* 것을 고친다. `N-011` 실측 — 근거에
-    #: `257,732,228,908` 과 `725,693,799,075` 가 둘 다 실렸는데 답변은 *"2,577억원"* ·
-    #: *"7,257억원"* 으로만 적었다. **값은 맞고 정밀도만 잃었다.**
-    #:
-    #: 반올림해서 같은 억이 되는 근거 금액이 둘 이상이면 침묵한다 — 확신 없이 원값을
-    #: 박으면 *맞는 근사*를 *틀린 정확*으로 바꾸는 꼴이다.
+    #: True restores an exact figure from the evidence where the answer gave
+    #: only a rounding. The mirror of the conversion fix: that one repairs a
+    #: correct figure with a wrong parenthesis, this one a parenthesis with no
+    #: figure. Silent when two evidence amounts round to the same value, since
+    #: asserting one would turn a correct approximation into a wrong exact
+    #: figure.
+    #: See docs/design-rationale.md#unit-conversion
     expand_rounded: bool = False
 
-    #: 🔴 **우리가 아는 결과값이 답변에 없으면 결론 한 문장을 우리가 적는다** (v6).
-    #:
-    #: `substitute_aggregate` 가 못 잡는 자리다. 저쪽은 답변에 *"근거 밖 수 하나"* 가
-    #: 있을 때만 발화하는데, `H-008` 에서 모델은 **틀린 수를 쓴 게 아니라 맞는 수를
-    #: 틀리게 엮었다** — 두 수가 다 근거에 있어 발화 조건에 안 걸렸고, 정작 질문이
-    #: 물은 `646,244,000,000` 은 답에 없었다.
-    #:
-    #: 검사망이 *'근거 밖'* 축만 보고 *'질문에 답했는가'* 축을 안 봤다. 이 스위치가
-    #: 그 축을 하나 만든다.
+    #: True appends a concluding sentence when the value the question asked for
+    #: is absent from the answer. Reaches a case substitution cannot: there the
+    #: model used correct figures and combined them wrongly, so both are in the
+    #: evidence and the substitution condition never holds while the requested
+    #: value is missing entirely. The verification net covered whether a figure
+    #: came from the evidence but not whether the question was answered.
+    #: See docs/design-rationale.md#state-total
     state_total: bool = False
 
-    #: 🔴 **같은 날 공시가 둘일 때 날짜가 지목하는 것을 가른다** (v6 · `K-004`).
-    #:
-    #: 삼성바이오로직스가 2023-07-04 에 같은 제목으로 두 건을 공시했고 **둘 다 근거에
-    #: 실렸는데** 모델이 정정본을 골랐다. 검색이 아니라 **선택**이 틀렸다.
-    #:
-    #: 가르는 규칙은 날짜의 뜻이다 — *"N월 D일 공시한 계약"* 이 지목하는 것은 그날
-    #: 공시된 계약이지 **다른 날 계약의 정정본**이 아니다. `related` 가 그 사실을 든다.
+    #: True separates which filing a date points at when two share that date.
+    #: With both filings in the evidence the selection rather than the
+    #: retrieval goes wrong. The rule is what the date means: a contract filed
+    #: that day, not a revision of a contract from another day, and `related`
+    #: carries that fact.
+    #: See docs/design-rationale.md#date-disambiguation
     date_disambiguation: bool = False
-    #: 🔴 **`A26` 의 알맹이 — 가리키는 대상이 없는 지시어를 '범위 밖' 과 가른다. LLM 0회.**
-    #:
-    #: 규약 감사 `F-3` 이 실측했다. `AUD-15` *"그 회사의 작년 실적 좀 알려줘"* 가
-    #: `out_of_universe` 로 갈려 *"70개사 범위 안의 기업으로 질문해 주시면"* 이라 답했다 —
-    #: **기업이 지목되지 않은 것인데 범위 밖이라고 말한다.** 사용자는 자기가 물은 회사가
-    #: 70개사에 없다고 오해하고, `CONVENTION §3 R4` 의 *"역질문"* 은 발화하지 않는다.
-    #:
-    #: 🔴 `NO_SUCH_REPORT` 와 **같은 종류의 구분**이다. v3 에서 *"기업도 연도도 범위 안인데
-    #: 그 보고서만 없는 경우"* 를 따로 가른 것과 축이 같고, 그때 적은 사유 — *"한계의
-    #: 종류가 다르면 고지도 달라야 한다"* — 가 여기에도 그대로 적용된다. 갈래가 하나
-    #: 빠져 있었을 뿐이다.
-    #:
-    #: 🔴 **겨냥은 작다.** 평가셋 88 에 이 형태가 몇 건인지는 재 봐야 안다. 그래도 세우는
-    #: 이유는 크레딧 0원(LLM 0회)이고 `§5` 「정보한계 대응」이 독립 지표라서다.
+    #: True separates a reference with no identifiable subject from an
+    #: out-of-range question. No LLM call. Answering the former with the range
+    #: notice tells the user their company is outside the corpus when no
+    #: company was named at all, and suppresses the question back that the
+    #: convention requires. The same distinction as the absent-report notice,
+    #: one branch of which had been missing.
+    #: See docs/design-rationale.md#refusal-notices
     ambiguous_gate: bool = False
-    #: 🔴 **`A25` 의 알맹이 — 근거 표기를 우리가 붙인다. LLM 0회.**
+    #: True attaches the citation by code. No LLM call.
     #:
-    #: 규약 감사(2026-08-16 · `docs/compliance-audit-2026-08-16.md` F-2)가 잰 값:
-    #: 실질 답변 8건 중 규약 형식(`CONVENTION §7.5`)을 지킨 것이 **3건**이었고,
-    #: 우리 채점기의 `citation_rate` 도 `A20r` 에서 **0.765**(그리드 0.750)다.
+    #: The mechanism matches the substitution arms: a receipt number is a
+    #: fourteen-digit number, and the recurring finding is that the model gets
+    #: numbers wrong the moment it has to transcribe them. The critic detects a
+    #: missing citation reliably but its disposition only asks whether the
+    #: evidence supports the answer, so a malformed citation passes. The fourth
+    #: branch of disposition, after annotating, substituting and regenerating.
     #:
-    #: 🔴 **기전은 `A20` 과 같다.** v4 의 단일 발견이 *"모델이 숫자를 손에 쥐는 순간
-    #: 틀린다"* 였고 `A20` 이 이긴 이유는 재계산값을 **근거에서 우리가 직접 읽어** 모델의
-    #: 타이핑을 안 거쳤기 때문이다. **접수번호는 14자리 숫자다** — 감사에서 정확히 같은
-    #: 병이 나왔다. `AUD-08` 은 옮겨 적었으나 라벨을 빠뜨렸고 `AUD-11` 은 아예 안 적고
-    #: *"(근거: 각 보고서별 상세내역 참조)"* 로 뭉갰다. **그래서 접수번호도 타이핑시키지
-    #: 않는다.** 처분의 네 번째 갈래다 — 각주(v3) · 치환(`A20`) · 재생성(`A20r`) · **부착**.
-    #:
-    #: 🔴 **왜 `critic` 이 못 막았나.** `quick_check` 는 누락을 정확히 발화하는데(감사에서
-    #: 8건 중 7건 발화) 처분으로 부르는 `judge` 는 *"근거가 답을 뒷받침하나"* 만 보고
-    #: **표기 형식을 고치지 않아** `supported=True` 로 통과시킨다. 탐지 100% · 교정 0% 가
-    #: 인용 축에서 되풀이된 것이다.
-    #:
-    #: 🔴 **부착은 LLM 호출을 하나도 안 쓴다.** 그래서 생성 프롬프트가 바이트 동일이고
-    #: `RequestCache` 가 전부 적중한다 — 이 arm 의 재측정은 **생성 크레딧 0원**이다.
+    #: Because it costs no LLM call, generation prompts stay byte-identical and
+    #: the request cache hits, so re-measuring this arm costs no generation
+    #: credits.
+    #: See docs/design-rationale.md#citation-detection
     attach_citation: bool = False
-    #: 🔴 **`A10` 전용 — 자기일관성(Self-Consistency) 표본 수 `k`.** 1이 종전 동작이고,
-    #: 스위치를 안 건드린 운영 경로는 답변 생성 호출이 **정확히 한 번**이다.
+    #: Sample count for self-consistency. One is the prior behaviour, so on the
+    #: operational path answer generation is exactly one call.
+    #: See docs/design-rationale.md#self-consistency-arm
     sc_k: int = 1
-    #: 🔴 **온도. 이 모듈의 머리말이 "고정" 이라고 적어 둔 통제 변수다** (§I-3).
-    #: v3 까지 온도 0.0 은 `pipeline.answer_question` 에 **직접 하드코딩**돼 있었고
-    #: `Arm` 에 표현할 자리가 없었다 (`R0-5` 실측: 저장소 전체 `.py` 에 `A10` 문자열이
-    #: 없었다). 여기로 옮기되 **기본값이 0.0 이어야** v1~v4 측정이 전부 유효하게 남는다.
+    #: Temperature, the control variable this module holds fixed. It used to be
+    #: hardcoded in the pipeline with no place to express it here; moving it
+    #: onto the arm keeps every earlier measurement valid only because the
+    #: default is zero.
     #:
-    #: 🔴 **`A10` 이 이 통제 변수를 깨는 유일한 arm 이다.** 그러니 단독으로 재고 다른
-    #: arm 과 섞지 않는다. `A20r`(사유 주입 재생성)은 **온도 0.0 그대로**이고, 그래서
-    #: 둘은 같은 축의 변형이 아니라 서로 다른 기전이다.
+    #: Self-consistency is the one arm that breaks this control, so it is
+    #: measured alone and not combined with others. The regeneration arm keeps
+    #: the temperature at zero, which is what makes the two different
+    #: mechanisms rather than variants of one.
     #:
-    #: 🔴 **요청 캐시가 온도를 키에 넣는다** (`RequestCache._key` = url + body 해시).
-    #: 그래서 `A10` 은 재실행마다 전액 재결제이고, 나아가 **k 개 표본이 같은 키를 쓰므로**
-    #: 2회차부터는 `clova.no_cache()` 로 캐시를 우회해야 다양성이 생긴다.
+    #: The request cache keys on the body, temperature included, so this arm
+    #: pays in full on every re-run, and its k samples share one key unless the
+    #: cache is bypassed from the second call onward.
+    #: See docs/design-rationale.md#self-consistency-arm
     temperature: float = 0.0
 
     def __post_init__(self) -> None:
