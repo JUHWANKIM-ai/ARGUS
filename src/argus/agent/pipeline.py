@@ -1271,16 +1271,13 @@ def _join_section_evidence(picked: list[dict]) -> str:
     return "\n\n".join(out)
 
 
-#: 🔴 **메타 축 LOO (`L6`·`L7`·`L8`) 가 떼는 `search_chunks` 인자.** 축마다 뜻이 하나여야
-#: 단일 변수 조작이 성립한다:
-#:
-#:   `corp_name`         → `tools.search_chunks` 의 `filters["corp_name"]`
-#:   `ym`·`year`·`rcept_dt` → 셋 다 `prefix["rcept_dt"]` 로 접히므로 **같은 축**이다
-#:   `group`             → `_group_index(target)` · 빠지면 `exchange` 로 떨어진다
-#:
-#: 🔴 `base_year`·`doc_subtype` 은 **안 넣는다.** 정기공시의 사업연도는 접수일이 아니고
-#: (`query.plan_section_hops` 주석 1번 — '2023년 사업보고서' 는 2024-03 접수), 함께 떼면
-#: `L7` 이 접수일 축 하나의 Δ 를 못 낸다.
+#: `search_chunks` arguments removed by the meta-axis leave-one-out arms. Each
+#: axis has to carry exactly one meaning for the manipulation to be a single
+#: variable, so the three date arguments are grouped together: they all fold
+#: into the same receipt-date prefix. Fiscal year and report subtype are
+#: excluded, because a fiscal year is not a receipt date and removing them
+#: together would hide the receipt-date axis on its own.
+#: See docs/design-rationale.md#meta-axis-loo
 _META_AXIS_KEYS: dict[str, tuple[str, ...]] = {
     "meta_corp": ("corp_name",),
     "meta_date": ("ym", "year", "rcept_dt"),
@@ -1288,14 +1285,15 @@ _META_AXIS_KEYS: dict[str, tuple[str, ...]] = {
 
 
 def _search_args(args: dict, arm=None) -> dict:
-    """arm 의 메타 축 LOO 를 반영해 `search_chunks` 인자에서 축을 뗀다. LLM 0회.
+    """Drop meta axes from `search_chunks` arguments per the arm. No LLM call.
 
-    🔴 **인자를 안 넘기는 것이 조작의 전부다.** 검색 단계를 끄는 것이 아니므로 BM25 는
-    그대로 돌고 후보 집합만 넓어진다 — v3 가 *"구조적으로 측정 불가"* 라고 적은 메타
-    프리필터를 재는 자리가 여기다 (`ablation` 머리말 §메타 축 LOO).
+    Not passing the argument is the whole manipulation. The retrieval stage is
+    not disabled, so BM25 runs as before and only the candidate set widens.
 
-    🔴 기본 arm(`A8`)에서는 **받은 사전을 그대로 돌려준다.** 한 키도 안 떼고 복사도 안
-    하므로 스위치를 안 건드린 경로의 검색 인자는 바이트 하나 다르지 않다.
+    On the default arm the dictionary is returned as received, with no key
+    removed and no copy taken, so the retrieval arguments on an untouched path
+    are byte-identical.
+    See docs/design-rationale.md#meta-axis-loo
     """
     arm = arm or ablation.current()
     dropped = {key for flag, keys in _META_AXIS_KEYS.items()
@@ -1308,22 +1306,19 @@ def _search_args(args: dict, arm=None) -> dict:
 def _drain_report_cells(plan, cells: list[dict], corps: list, quota: dict,
                         taken: int, budget: Budget, trace: list[str],
                         take) -> tuple[int, bool]:
-    """부른 보고서마다 한 번씩 검색하고, 근거 칸을 **공평 몫 → 남은 칸** 두 벌로 담는다.
+    """Retrieve once per named report, filling evidence slots in two passes: a
+    fair share, then whatever remains.
 
-    두 벌로 나누는 이유는 실측 Q-105 다. 셀이 3개면 공평 몫이 `4 // 3 = 1` 칸인데
-    `quarter` 셀에는 답이 **두 문서에 걸쳐** 있다 — 케이티 2025 분기보고서는 1분기
-    (base_month 3)와 3분기(base_month 9) 둘이고, 질문이 부른 것은 3분기다. 그런데 두
-    문서의 해당 섹션은 88자 스텁으로 **글자가 똑같아서 BM25 점수가 72.711 로 완전 동점**이다.
-    점수로는 영원히 못 가른다.
+    The second pass exists because one cell can hold the answer across two
+    documents whose relevant sections are byte-identical stubs and therefore
+    tie exactly on BM25. The axis that separates them is not a filter axis of
+    the section index, so without rebuilding the index the way to keep the
+    question answerable is to carry both and let generation choose, since the
+    receipt number and filing date are stamped at the head of each block.
 
-    가르는 축은 `base_month` 인데 그것은 `section_index.json` 의 필터 축이 아니다
-    (`fields` = doc_id·corp_name·doc_subtype·rcept_dt·base_year·path). 인덱스를 다시
-    굽지 않고 이 문항을 살리는 길은 **둘 다 담는 것**이다 — 근거 블록 머리에 `접수번호`와
-    `공시일` 이 찍히므로 어느 쪽이 3분기인지는 생성이 가린다. 검색이 후보를 다 대고
-    선택을 생성에 넘기는 것이 이 경우의 올바른 분업이다.
-
-    남은 칸은 **1차에서 몫을 못 쓴 셀이 아니라 순서대로** 돌린다. 1차가 이미 공평을
-    보장했으므로 2차는 '남으면 더 담는다' 이고, 동점 셀이 그 칸을 가져간다.
+    The remaining slots go round in order rather than to cells that underused
+    their share, because the first pass already guaranteed fairness.
+    See docs/design-rationale.md#report-cell-two-pass
     """
     path = (plan.paths or (None,))[0]
     pools: list[tuple[tuple, object, list[dict]]] = []
@@ -1367,9 +1362,10 @@ def _drain_report_cells(plan, cells: list[dict], corps: list, quota: dict,
 
     keys = {key for key, _, _ in pools}
     if all(counts.get(key, 0) for key in keys):
-        # 부른 보고서를 **전부** 담았으면 그 집합이 답이다 — 더 넓히면 오염된다.
-        # 정기공시 차선의 유일한 '충분성 -> 정지' 간선이다 (`_sufficiency` 는
-        # `_gather_sections` 가 끝난 뒤 한 번 불려 사다리를 되돌릴 수 없다).
+        # Once every named report is collected, that set is the answer and
+        # widening further only contaminates it. This is the only
+        # sufficiency-to-stop edge in the periodic lane, since `_sufficiency`
+        # runs once after `_gather_sections` and cannot rewind the ladder.
         trace.append(f"hop={plan.hop} stop=named_reports_covered "
                      f"(부른 보고서 {len(keys)}종을 모두 회수)")
         return taken, True
@@ -1378,16 +1374,17 @@ def _drain_report_cells(plan, cells: list[dict], corps: list, quota: dict,
 
 def _gather_sections(r, question: str, budget: Budget,
                      trace: list[str], take) -> int:
-    """정기공시 섹션 ReAct 루프. LLM 0회.
+    """Periodic filing section loop. No LLM call.
 
-    exchange 루프와 **hop 사다리가 다르다**. 목차 경로를 먼저 정하고(§7.7 ③④⑤)
-    보고서 종류·사업연도로 문서를 고른 뒤 BM25 가 섹션을 고른다. 실측 근거는
-    docs/pipeline/04-retriever.md D-5 — 목차 축을 빼면 골든 회수가 0.929 -> 0.679 다.
+    The hop ladder differs from the exchange loop: table-of-contents paths are
+    chosen first, then documents by report subtype and fiscal year, and BM25
+    selects the section last. Removing the table-of-contents axis drops golden
+    recovery from 0.929 to 0.679.
 
-    hop 0 은 **경로 후보 여러 개를 함께** 본다 (병목 B). 같은 지표가 서로 다른 목차에
-    실리는 문항이 실재하기 때문이다 — Q-049 는 한 질문 안에서 두 기업이 '연결 매출액' 을
-    `매출 및 수주상황` 과 `요약재무정보` 에 나눠 실었다. 다만 경로 하나가 기업 칸을 다
-    먹으면 짝 경로를 찾아 놓고도 담지 못하므로 **(기업 × 경로) 셀마다 할당량**을 둔다.
+    Hop 0 considers several path candidates together, because the same figure
+    can appear under different table-of-contents entries. A per (company, path)
+    quota keeps one path from consuming a company's slots.
+    See docs/design-rationale.md#section-hop-ladder
     """
     paths = path_hints(question, tools.section_paths())
     plans = plan_section_hops(question, report_hints(question), paths,
@@ -1395,7 +1392,8 @@ def _gather_sections(r, question: str, budget: Budget,
     if not ablation.current().hop_ladder:
         plans = plans[:1]                       # A1b 이하 — 재검색 사다리를 태우지 않는다
     corps = r.companies[:3] or [None]
-    # 비교 질의는 한쪽만 채우면 답이 안 된다. 한 기업이 근거 칸을 다 먹지 않게 나눈다.
+    # A comparison is not answered by filling one side, so slots are divided to
+    # keep one company from consuming them all.
     per_corp = max(1, MAX_SECTION_EVIDENCE // len(corps))
     quota = {corp: per_corp for corp in corps}
     named = _report_cells(question)             # 질문이 이름을 부른 보고서들
@@ -1407,7 +1405,8 @@ def _gather_sections(r, question: str, budget: Budget,
             except BudgetExceeded as exc:
                 trace.append(f"hop={plan.hop} stop=hop_budget ({exc})")
                 break
-        # 제동 ①③ — 부른 보고서가 둘 이상이고 접수일 접두가 없는 hop 0 만 쪼갠다.
+        # Split only hop 0, only with two or more named reports, and only
+        # without a receipt-date prefix.
         if plan.hop == 0 and len(named) >= 2 and not plan.prefix:
             taken, stop = _drain_report_cells(
                 plan, named, corps, quota, taken, budget, trace, take)
@@ -1441,9 +1440,10 @@ def _gather_sections(r, question: str, budget: Budget,
                     return taken
                 hits = out.get("chunks") or []
                 trace.append(_log_section(plan, corp, path, hits))
-                # 한 셀에서 같은 섹션의 조각을 걸러내는 규칙은 **넣지 않았다.** 실측이
-                # 말렸다 — (문서, 목차) 중복 제거는 골든 적중을 하나도 못 올리면서
-                # hop 10 -> 12, 근거 1,079자 증가만 남겼다 (Q-054 한 문항의 변화가 전부다).
+                # No rule filters sibling chunks of the same section within a
+                # cell. Deduplicating by (document, path) was measured and
+                # recovered nothing while adding hops and evidence.
+                # See docs/design-rationale.md#section-hop-ladder
                 taken_here = 0
                 for chunk in hits:
                     if quota[corp] <= 0 or taken_here >= cell_cap:
@@ -1459,23 +1459,21 @@ def _gather_sections(r, question: str, budget: Budget,
 
 
 def _gather_meta(r, question: str, group: str, trace: list[str], take) -> str | None:
-    """A0 — 메타 프리필터만. **BM25 를 한 번도 부르지 않는다.**
+    """Meta prefilter only, with BM25 never called.
 
-    §I-1 의 실측이 이 arm 의 근거다: `corp_name` + `rcept_dt` 접두만으로 후보가
-    1,469 → 1건이 되고 골든이 1위가 된다. 그러니 검색의 바닥은 Vector RAG 가 아니라
-    **여기**이고, 여기를 안 재면 가장 큰 기여 요소가 측정에서 통째로 빠진다.
+    A company filter plus a receipt-date prefix narrows the candidate set from
+    the whole corpus to a single document, so the floor of retrieval is here
+    rather than in vector search, and leaving this unmeasured omits the largest
+    contributing factor.
 
-    순위가 없다는 것이 이 arm 의 정의다. manifest 순서 그대로 앞에서부터 담는다 —
-    점수를 매기는 순간 그건 A1(BM25) 이다. 정기공시도 같은 규칙이라 목차 선택 없이
-    문서의 앞 섹션을 담는다 (실측상 거의 못 맞히는데, 그게 A1b 의 Δ 로 잡히는 값이다).
+    Having no ranking is the definition of this arm: documents are taken in
+    manifest order, since scoring them makes it the BM25 arm. Periodic filings
+    follow the same rule and take the leading sections without choosing a path.
 
-    `group` 은 **호출자가 결정한 것을 받는다.** 여기서 `r.group` 을 다시 읽으면 근거는
-    `holding`/`major`/`periodic` 에서 오는데 요구 필드는 `exchange` 스키마로 검사되는
-    상태가 된다 (`_gather_evidence` 의 `uses_group_index` 오버라이드가 이 함수를
-    비껴갔다). 실측 A0 88문항 중 46문항이 비-exchange group 이었고, 예컨대 Q-016(holding)
-    이 `reason=missing_field:비율` 을 냈다 — `비율` 은 exchange 의 `대비\\s*:` 이고
-    holding 근거에는 `보유비율:` 이 항상 있다. **없는 것을 없다고 한 것이 아니라 있는
-    것을 다른 이름으로 찾은 것**이고, 그 라벨을 `parse_hops` → Phase H 가 되읽는다.
+    `group` is taken from the caller rather than re-read from the route, so
+    that the evidence and the required-field check refer to the same document
+    group.
+    See docs/design-rationale.md#meta-only-arm
     """
     period = _period_args(r, question)
     year = int(str(period["ym"])[:4]) if "ym" in period else period.get("year")
@@ -1512,21 +1510,22 @@ def _gather_meta(r, question: str, group: str, trace: list[str], take) -> str | 
     return _join_section_evidence(sections) if sections else None
 
 
-#: 정기공시 `doc_subtype` → 사람이 읽는 보고서명. 정형 레코드는 `markdown._label` 이 이미
-#: 같은 일을 하므로 여기 넣지 않는다 — 규칙을 두 곳에 적으면 한쪽만 낡는다.
+#: Periodic `doc_subtype` mapped to a human-readable report name. Structured
+#: records are not listed here, because `markdown._label` already does the same
+#: job and writing the rule twice lets one copy go stale.
 _PERIODIC_LABEL = {"annual": "사업보고서", "half": "반기보고서", "quarter": "분기보고서"}
 
 
 def _citation_source(record: dict) -> dict | None:
-    """🔴 인용에 쓸 값을 레코드에서 **그대로** 꺼낸다 — 마크다운을 되읽지 않는다.
+    """Take citation values straight from the record rather than re-reading the
+    rendered markdown.
 
-    `ablation.attach_citation` 은 근거 마크다운을 정규식으로 되읽어 인용을 만들 수도
-    있다(되먹임). 그러나 그것은 **우리가 방금 렌더한 글자를 도로 파싱하는 것**이라
-    이 저장소가 반복해 데인 *"같은 값을 두 곳에 적고 한쪽만 고친다"* 와 같은 모양이다.
-    실제로 취약하다 — 머리글의 `–` 는 EN DASH 라 하이픈으로 적으면 하나도 안 걸린다.
-
-    🔴 **정기공시에서 특히 다르다.** 되읽기는 섹션경로를 머리글 문자열에서 긁어내는데,
-    청크 레코드에는 `path` 가 정확히 들어 있다 (`'II. 사업의 내용 > 2. 주요 제품'`).
+    Re-parsing text this code just rendered is the same shape as writing one
+    value in two places and updating only one of them, and it is fragile in
+    practice because the header separator is an en dash. For periodic filings
+    the difference is larger still: re-reading scrapes the section path out of
+    a header string, while the chunk record carries `path` exactly.
+    See docs/design-rationale.md#citation-from-record
     """
     rcept = str(record.get("rcept_no") or "")
     if not rcept:
@@ -1535,21 +1534,24 @@ def _citation_source(record: dict) -> dict | None:
     if not rcept:
         return None
 
-    # 🔴 **검색이 넘기는 청크는 가난하다.** 실측: 정형 히트는 `{doc_id, score}` 뿐이고
-    #    정기 히트는 `{chunk_id, doc_id, path, score}` 다. 그대로 쓰면 인용이
-    #    `(근거: 공시, 접수번호 …)` 로 빈약해져 **되읽기보다 못해진다.** 그래서 여기서
-    #    정본을 조회해 채운다 — 색인·레코드 조회라 LLM 0회다.
-    # 🔴 **`doc_id` 접두로 가른다.** 처음에는 `path` 유무로 갈랐는데, 정기공시가 섹션
-    #    검색이 아니라 매니페스트 경로(`_gather_meta`)로 들어오면 `path` 가 없어 정형으로
-    #    빠지고 `_record_of` 도 `None` 이라 보고서명이 `공시` 로 떨어졌다 (실측 Q-105).
-    #    §5 「근거 표시」는 **공시명**을 요구하는데 '공시' 는 공시명이 아니다.
+    # The chunks retrieval hands over are sparse: a structured hit carries only
+    # a doc id and a score. Used directly they would produce a thinner citation
+    # than re-reading would, so the canonical record is looked up here. That is
+    # an index and record lookup, so no LLM call.
+    #
+    # The two groups are separated by the doc id prefix rather than by the
+    # presence of `path`, because a periodic filing arriving through the
+    # manifest path has no `path` and would fall through to the structured
+    # branch, degrading the report name.
+    # See docs/design-rationale.md#citation-from-record
     doc_id = str(record.get("doc_id") or "")
     if doc_id.startswith(PERIODIC_DOC_PREFIX) or record.get("path") is not None:
         source = _periodic_meta(doc_id)
         label = _PERIODIC_LABEL.get(source.get("doc_subtype") or "", "정기보고서")
         if source.get("base_year"):
             label = f'{label} {source["base_year"]}'
-        # 청크가 `path` 를 들고 오면 그것을 쓰고, 없으면 청크 id 로 색인에서 찾은 것을 쓴다.
+        # Use the chunk's own `path` when present, else the one found in the
+        # index by chunk id.
         tail = str(record.get("path") or source.get("path") or "")
         raw = str(source.get("rcept_dt") or "")
     else:                                                   # 정형 레코드
