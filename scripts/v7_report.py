@@ -29,22 +29,37 @@ JUDGE_BAND = 1
 
 
 def verdict(arm_rows: dict[str, list[int]], base: list[int],
-            stable: set[str], flips: dict[str, set[str]]) -> tuple[bool, list[str]]:
-    """Whether an arm is adopted, with the reasons either way."""
+            stable: set[str], flips: dict[str, set[str]],
+            base_flips: set[str] = frozenset()) -> tuple[bool, list[str]]:
+    """Whether an arm is adopted, with the reasons either way.
+
+    A gain inside the judge band is not automatically a rejection: it is
+    still adopted when the arm's flip count is strictly lower than the
+    baseline's, because a steadier set of flipping questions is itself the
+    result this generation targets. A gain of zero or less is rejected
+    regardless of flips, since the minimum is what a single evaluation is
+    expected to produce and a smaller flip count does not change that.
+    """
     reasons: list[str] = []
     ok = True
     for name, totals in arm_rows.items():
         if not totals or not base:
             return False, ["회차가 모자라 판정할 수 없다"]
         gain = min(totals) - min(base)
+        arm_flip_count = len(flips.get(name, set()))
         if gain <= 0:
             ok = False
             reasons.append("%s 최솟값이 %d 로 기준 %d 를 넘지 못했다"
                            % (name, min(totals), min(base)))
         elif gain <= JUDGE_BAND:
-            ok = False
-            reasons.append("%s 최솟값 상승 %d 는 판정기 잡음 폭 %d 안이다"
-                           % (name, gain, JUDGE_BAND))
+            if arm_flip_count < len(base_flips):
+                reasons.append("%s 최솟값 상승 %d 는 판정기 잡음 폭 %d 안이지만 "
+                               "흔들린 문항이 %d 에서 %d 로 줄었다"
+                               % (name, gain, JUDGE_BAND, len(base_flips), arm_flip_count))
+            else:
+                ok = False
+                reasons.append("%s 최솟값 상승 %d 는 판정기 잡음 폭 %d 안이다"
+                               % (name, gain, JUDGE_BAND))
         else:
             reasons.append("%s 최솟값 %d -> %d" % (name, min(base), min(totals)))
         broken = sorted(stable & flips.get(name, set()))
@@ -131,7 +146,8 @@ def main(argv) -> int:
 
     print("\n채택 판정 (기준 %s)" % base_name)
     for name in arms[1:]:
-        ok, why = verdict({name: grid[name]}, grid[base_name], base_stable, flips)
+        ok, why = verdict({name: grid[name]}, grid[base_name], base_stable, flips,
+                          flips.get(base_name, set()))
         print("  %-8s %s" % (name, "채택" if ok else "기각"))
         for line in why:
             print("      %s" % line)
