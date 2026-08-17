@@ -1562,7 +1562,8 @@ def _citation_source(record: dict) -> dict | None:
         tail = str(source.get("title") or "")
         raw = str(source.get("rcept_dt") or "")
 
-    # 접수번호 앞 8자리가 접수일이다 (DART 규칙). 조회가 비어도 날짜는 잃지 않는다.
+    # The first eight digits of a receipt number are the filing date, so the
+    # date survives even when the record lookup returns nothing.
     if len(raw) != 8:
         raw = rcept[:8]
     date = f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}" if len(raw) == 8 and raw.isdigit() else ""
@@ -1570,15 +1571,16 @@ def _citation_source(record: dict) -> dict | None:
 
 
 def _periodic_meta(doc_id: str) -> dict:
-    """정기공시 청크 id 로 **문서 메타 + 그 섹션의 목차 경로**를 찾는다. LLM 0회.
+    """Find document metadata and the section path for a periodic chunk id.
+    No LLM call.
 
-    🔴 **`_take` 가 받는 것은 문서 id 가 아니라 청크 id 다** — 실측
-    `periodic_20250814003695#109` · `periodic_20250321001834#119/p0`. 처음엔 그대로
-    `_sections_of` 에 넘겨 빈 결과를 받았고, 그래서 보고서명이 `정기보고서` 로,
-    섹션경로가 빈칸으로 떨어졌다 (실측 Q-105).
+    What `_take` receives is a chunk id, not a document id, in forms such as
+    `periodic_20250814003695#109` and `periodic_20250321001834#119/p0`. Passing
+    one straight to `_sections_of` returns nothing, which degrades the report
+    name and empties the section path.
 
-    문서 메타(종류·사업연도·접수일)는 섹션마다 같으므로 첫 행에서 읽고, **목차 경로만
-    청크 id 로 골라낸다.**
+    Document metadata is identical across sections, so it is read from the
+    first row and only the section path is selected by chunk id.
     """
     base = doc_id.split("#", 1)[0]
     index = tools._section_index()
@@ -1587,7 +1589,7 @@ def _periodic_meta(doc_id: str) -> dict:
         return {}
     chunk = doc_id.split("/", 1)[0]                 # `#119/p0` → `#119`
     hit = (next((row for row in rows if row.get("chunk_id") == chunk), None)
-           # 조각이 더 쪼개진 형태(`#119/p0`)는 정확히 안 맞을 수 있다. 접두로 한 번 더 본다.
+           # A further-split chunk may not match exactly, so try by prefix.
            or next((row for row in rows
                     if str(row.get("chunk_id") or "").startswith(chunk)), None))
     return {**rows[0], "path": (hit or {}).get("path", "")}
@@ -1595,18 +1597,20 @@ def _periodic_meta(doc_id: str) -> dict:
 
 def _gather_evidence(r, question: str = "", budget: Budget | None = None,
                      provenance: dict[str, dict] | None = None) -> tuple[str, list[str]]:
-    """ReAct 반복 루프. 검색 → 충분성 판정 → 부족하면 질의 재구성 후 재검색. LLM 0회.
+    """Retrieval loop: search, judge sufficiency, reformulate and search again
+    when short. No LLM call.
 
-        검색 → 근거 충분? ─ 예 → 생성
-                  └─ 아니오 → 질의 재구성 → 재검색 (hop ≤ 3, 총 스텝 ≤ 8)
+        search -> sufficient? yes -> generate
+                            no  -> reformulate -> search again (hop <= 3,
+                                                  total steps <= 8)
 
-    hop 0 은 최초 검색이라 예산을 쓰지 않고, 재검색 3회가 `Budget.spend_hop()` 을 쓴다
-    (ReAct 논문: 정답 궤적 중 7스텝을 쓴 것은 0.84% — 깊이를 더 줘도 얻는 게 없다).
-    도구 호출은 `Budget.spend_step()` 으로 총 8스텝을 지킨다 (주최 측 참조 아키텍처).
-    상한을 넘기면 예외를 밖으로 던지지 않고 **그 시점 근거로 진행**한다.
+    Hop 0 is the initial search and spends no hop budget; the three
+    reformulations spend `Budget.spend_hop()`. Tool calls are bounded to eight
+    steps by `Budget.spend_step()`. Exceeding a cap does not raise out of this
+    function: the loop proceeds with the evidence collected so far.
 
-    도구가 error 를 돌려주면 (예: periodic_sections.jsonl 이 없어 list_sections 실패)
-    조용히 건너뛰고 다음 수단으로 넘어간다. 파이프라인은 죽지 않는다.
+    A tool returning an error is skipped silently and the next means is tried,
+    so the pipeline stays up.
     """
     arm = ablation.current()
     budget = budget or Budget()
@@ -1616,16 +1620,15 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
     period = _period_args(r, question)
     corps = r.companies[:3] or [None]
     group = getattr(r, "group", "exchange")
-    # A1 은 exchange 인덱스 1,469건만 본다. 라우터가 major·holding·periodic 으로
-    # 갈라도 검색은 exchange 로 되돌린다 — 그것이 A1b(인덱스 커버리지) 의 Δ 다.
+    # The BM25-only arm sees the exchange index alone, so retrieval falls back
+    # to `exchange` even when the router resolved another group. That gap is
+    # the index-coverage delta.
     #
-    # 🔴 **`uses_bm25` 가 참인 arm 에만 건다.** `uses_group_index` 는 `retrieval == "all"`
-    # 이라 A0(`meta`)에도 False 인데, A0 은 인덱스를 아예 열지 않고 manifest 만 본다 —
-    # 되돌릴 '인덱스' 가 없다. 그런데도 이 줄이 걸려서 A0 은 근거를 holding/major/periodic
-    # 매니페스트에서 가져오면서 요구 필드는 exchange 스키마로 검사했다(실측 46/88 문항이
-    # 틀린 `missing_field` 라벨). 답변은 안 바뀐다 — A0 은 판정을 소비하지 않는다 —
-    # 그러나 `parse_hops` 가 그 사유를 되읽어 Phase H 의 RETRIEVAL/INDEX_FIELD_MISSING
-    # 귀속 입력으로 쓴다. 즉 **잰 것과 다른 것을 잰 것**이다.
+    # The fallback applies only to arms that use BM25. The meta-only arm never
+    # opens an index at all, so it has none to fall back to, and applying this
+    # line to it made its required-field check use the exchange schema against
+    # evidence drawn from other groups.
+    # See docs/design-rationale.md#index-coverage-arm
     if arm.uses_bm25 and not arm.uses_group_index:
         group = "exchange"
     required = _required_fields(question, group)
@@ -1635,33 +1638,39 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
     chain_gap: list[str] = []
     chain_ids: set = set()
 
-    # 발주처 차선. `seen` 을 **공유하지 않는다** — 공유하면 발주처 레코드가 검색 상위와
-    # 겹칠 때 검색 차선의 도착 순서가 밀리고, 그러면 체인 씨앗(상위 2건)이 바뀐다.
-    # 차선을 완전히 나눠야 검색 경로가 종전과 비트 단위로 같다.
+    # Counterparty lane. `seen` is deliberately not shared: sharing it shifts
+    # the retrieval lane's arrival order wherever the two overlap, which in
+    # turn changes the chain seeds.
+    # See docs/design-rationale.md#lane-separation
     cp_picked: list[dict] = []
-    #: 🔴 A29c — 근거 **칸을 안 먹는** 한 줄들. 검색이 담지 못하고 버린 것을 남긴다.
+    #: Lines that occupy no evidence slot, recording what retrieval found but
+    #: could not carry.
     extra_lines: list[str] = []
     cp_seen: set[str] = set()
-    #: 발주처 차선이 최종 근거에 실을 수 있는 칸. `A22` 가 추가 허브를 결속할 때만
-    #: 허브당 `MAX_EXTRA_HUB_EVIDENCE` 씩 늘어난다 — `W=1` 에서는 종전 상수 그대로다.
+    #: Slots the counterparty lane may place in the final evidence. Grows by
+    #: `MAX_EXTRA_HUB_EVIDENCE` per additional hub bound, and stays at the base
+    #: constant with a single hub.
     cp_cap = MAX_COUNTERPARTY_EVIDENCE
 
     def _remember(record: dict | None) -> None:
-        """🔴 근거로 삼은 레코드를 기억한다 (`A25`). **모든 근거가 이 길목을 지난다** —
-        섹션 근거도 `_gather_meta` 가 `_take` 를 통해 넣으므로 여기 한 곳이면 된다.
+        """Record which filings were used as evidence.
 
-        절단(`MAX_EVIDENCE`·`_join_section_evidence`)에서 탈락한 것도 여기 남지만
-        상관없다 — **살아남았는지는 근거 문자열에서 읽는다.** 기억은 '값' 만 준다.
+        Every piece of evidence passes through this point, section evidence
+        included, so one hook here is sufficient.
+
+        Records dropped by truncation remain here, which is harmless: whether
+        one survived is read from the evidence string, and this mapping only
+        supplies values.
         """
         if provenance is None or not record:
             return
         unit = _citation_source(record)
         if not unit:
             return
-        # 🔴 **정기공시는 한 보고서에 섹션이 여럿**이고 접수번호는 하나다. 먼저 온 것만
-        #    남기면 나머지 섹션이 인용에서 사라진다. 주최측 예시(`CONVENTION §7.5`)가
-        #    바로 이 경우를 *"접수번호 20260515002181, II-3 원재료 및 생산설비 /
-        #    II-6 연구개발활동"* 으로 적는다 — 한 접수번호 아래 섹션을 나열한다.
+        # A periodic filing has several sections under one receipt number, so
+        # keeping only the first would drop the rest from the citation. The
+        # convention's own example lists several sections under one receipt
+        # number (`CONVENTION §7.5`).
         kept = provenance.setdefault(unit["rcept_no"],
                                      {**unit, "tails": []})
         if unit["tail"] and unit["tail"] not in kept["tails"]:
@@ -1686,26 +1695,21 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
         return False
 
     def _joined() -> str:
-        """검색 차선 먼저, 발주처 차선은 그 뒤. 검색 칸(MAX_EVIDENCE)은 그대로 남는다.
+        """Retrieval lane first, counterparty lane after it, leaving the
+        retrieval slots intact.
 
-        중복 제거는 **절단 후 집합**과 대조한다. `seen` 은 검색 차선이 담은 전부이므로
-        그것과 대조하면 `picked` 의 11번째 이후와 겹치는 cp 레코드가 **양쪽에서 다 빠진다** —
-        그런데 `_gather_counterparty` 의 trace 는 그 doc_id 를 `ids=` 에 적고 `n=` 에 세므로
-        Phase H 는 '근거에 실렸다' 로 읽는다. 근거 소실과 자기 성적표 부풀림이 동시에 난다
-        (`_chain_note`·`_counterparty_note` 가 피하려고 애쓴 사고의 다른 입구다).
-        기록된 밸류체인 8건에서는 미발화다(중복으로 빠진 cp 레코드가 전부 상위 10 안에
-        있었다). `picked` 가 10을 넘는 문항(Q-113 실측 14블록)에서 발화한다.
-
-        🔴 `cp_cap` 은 `A22` 가 **결속한 추가 허브 수만큼만** 늘어난다. 여기 상한을
-        `cp_picked` 전량으로 열면 허브가 셋일 때 발주처 근거가 18블록까지 부풀어
-        검색 근거를 프롬프트 뒤로 밀어낸다. `W=1` arm 에서는 종전 값 그대로다.
+        Deduplication compares against the truncated set rather than against
+        everything the retrieval lane collected. Comparing against the latter
+        drops counterparty records that overlap the truncated tail from both
+        lanes, while the trace still counts them as delivered.
+        See docs/design-rationale.md#lane-separation
         """
         head = picked[:MAX_EVIDENCE]
         kept = {p["doc_id"] for p in head}
         extra = [p for p in cp_picked if p["doc_id"] not in kept]
         return "\n\n".join(p["markdown"] for p in head + extra[:cp_cap])
 
-    if not arm.uses_bm25:                      # A0 — 검색 없이 메타 프리필터만
+    if not arm.uses_bm25:                      # meta prefilter only, no search
         if _out_of_corpus_period(r, question):
             trace.append(f"hop=0 stop=out_of_range "
                          f"(질문 기간 {r.years} 가 코퍼스 2023.01~2026.03 밖 — 완화해도 답이 없다)")
@@ -1717,8 +1721,9 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
             return sections, trace
         return "\n\n".join(p["markdown"] for p in picked[:MAX_EVIDENCE]), trace
 
-    # 정기공시는 검색 축이 다르다 — 접수일이 아니라 사업연도, 그리고 목차 경로.
-    # 같은 사다리를 태우면 골든이 필터에서 통째로 빠진다 (04-retriever D-5).
+    # Periodic filings retrieve on different axes: fiscal year and table of
+    # contents path rather than receipt date. Running them through the same
+    # ladder drops the golden records at the filter stage.
     if group == "periodic":
         if _out_of_corpus_period(r, question):
             trace.append(f"hop=0 stop=out_of_range "
@@ -1729,16 +1734,18 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
         trace.append(_log_verdict(EVENTS_HOP, ok, len(picked), reasons))
         if ok or picked:
             return _join_section_evidence(picked), trace
-        # 섹션에서 아무것도 못 찾으면 정형 레코드로 내려간다 (거래소공시에도 실려 있을 수 있다).
+        # With nothing found in sections, fall back to structured records:
+        # the figure may also appear in an exchange filing.
         group = "exchange"
 
     cells = time_points(question, r.years) if arm.split_query else []
     plans = plan_hops(question, period, fallback_terms=r.companies, periods=cells)
     if not arm.hop_ladder:
-        plans = plans[:1]                       # A1b 이하 — 최초 검색 한 번으로 끝낸다
+        plans = plans[:1]                       # single search, no reformulation
     for plan in plans:
-        # 기업이 특정된 질의에서 이미 근거가 있으면 기업 필터를 풀지 않는다.
-        # 다른 회사 공시가 섞이면 요약·비교가 통째로 오염된다 — 넓히는 것이 늘 이득은 아니다.
+        # With evidence already collected for a company-scoped question, the
+        # company filter is not released. Filings from other companies
+        # contaminate a summary or comparison outright.
         if plan.strategy == "global" and picked and r.companies:
             trace.append(f'hop={plan.hop} strat=global skip=corp_scoped '
                          f'(기업 특정 질의에 근거 {len(picked)}건 확보 — 전역 검색은 오염)')
@@ -1781,23 +1788,25 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
                     continue
                 hits = out.get("chunks") or []
                 if plan.strategy == "global":
-                    # 필터가 하나도 없는 검색은 점수만이 관련성의 보증이다.
-                    # 잡음 바닥(MIN_TOP_SCORE) 밑을 담으면 무관한 회사 공시 10건이 근거가 된다.
+                    # With no filter at all, the score is the only guarantee
+                    # of relevance. Taking hits below the noise floor fills
+                    # the evidence with unrelated companies.
                     hits = [h for h in hits
                             if isinstance(h.get("score"), (int, float))
                             and h["score"] >= MIN_TOP_SCORE]
                 trace.append(_log_search(plan, corp, hits, cell))
                 taken_here = 0
                 for chunk in hits:
-                    if taken_here >= quota:            # 제동 ② — 셀별 할당량
+                    if taken_here >= quota:            # per-cell quota
                         break
                     if _take(chunk.get("doc_id"), chunk.get("markdown"),
                              chunk.get("score"), corp, record=chunk):
                         taken_here += 1
 
-        # 집합 완결성. 후보가 대체된 문서면 체인의 나머지가 와야 근거가 완결된다.
-        # **판정 전에** 한 번만 밟는다 — 판정 뒤에 두면 hop 0 이 `sufficient` 를 내고
-        # 멈춰서 정정본이 영영 안 온다 (Phase H 실패 7건의 정확한 기전).
+        # Set completeness. When a candidate is superseded, the rest of its
+        # chain has to arrive before the evidence is complete. Walked once,
+        # before the judgment: placed after it, hop 0 returns `sufficient` and
+        # stops, so the revision never arrives.
         if arm.chain_hop and not chain_done and picked and not out_of_steps:
             chain_done = True
             chain_gap, chain_ids = _expand_chain(picked, seen, budget, trace, _take,
@@ -1808,21 +1817,25 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
         if ok or out_of_steps:
             break
         if chain_gap and all(x.startswith("chain_open:") for x in reasons):
-            # 못 닫은 링크는 재검색으로 안 닫힌다 (도구 오류이거나 스텝이 마른 것이다).
-            # 남은 hop 을 태우지 않는다.
+            # An unclosed link is not closed by searching again: it is either
+            # a tool error or an exhausted step budget. Do not spend the
+            # remaining hops.
             trace.append(f"hop={CHAIN_HOP} stop=chain_unresolved "
                          f"(체인 링크 {len(chain_gap)}건 미해소 — 재검색 대상이 아니다)")
             break
-        # 근거가 하나도 없을 때는 수렴이 아니라 못 찾은 것이다 — 계속 넓힌다.
+        # No evidence at all is a miss rather than convergence, so keep
+        # widening.
         stalled = stalled + 1 if picked and len(picked) == before else 0
         if stalled >= MAX_STALLED_HOPS:
             trace.append(f"hop={plan.hop} stop=stalled "
                          f"({MAX_STALLED_HOPS}회 연속 새 후보 없음)")
             break
 
-    # 마지막 수단: 검색이 아무것도 못 찾으면 정형 이벤트 열거로 보완.
-    # 연도가 둘 이상이면 query_events 에 기간 조건을 걸 수 없으므로 범위 밖 질의는 여기서도 막는다.
-    # `query_events` 모집단은 거래소공시다 (§7.7 ②) — 다른 문서군 질의에 붙이면 오답 근거다.
+    # Last resort: when retrieval found nothing, fall back to enumerating
+    # structured events. Out-of-range questions are blocked here too, since
+    # the event query cannot carry a period condition across several years,
+    # and its population is exchange filings, so attaching it to another
+    # document group would supply wrong evidence.
     if (arm.hop_ladder and not picked and group == "exchange"
             and not _out_of_corpus_period(r, question)):
         for corp in r.companies[:3]:
@@ -1848,20 +1861,25 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
                 _take(event.get("doc_id"), event.get("markdown"), None, corp,
                       record=event)
 
-    # 열거 hop. 위 폴백과 **배타**다 (저쪽은 `not picked`, 이쪽은 `picked`) — 같은 hop
-    # 번호를 쓰므로 배타여야 `parse_hops` 가 두 종류를 한 레코드로 섞어 읽지 않는다.
-    # 사다리가 넓히기만 하고 열거하지 않아 `Q-117` 이 둘째 갈래를 지어냈다 (제동은 위 별항).
+    # Enumeration hop, mutually exclusive with the fallback above: that one
+    # runs on an empty evidence set, this one on a non-empty one. They share a
+    # hop number, so exclusivity is what keeps `parse_hops` from merging two
+    # kinds of candidate into one record.
+    # See docs/design-rationale.md#enumeration-hop
     elif (arm.hop_ladder and picked and len(picked) < MAX_EVIDENCE
             and not _out_of_corpus_period(r, question)
             and _wants_enumeration(r, question, group)):
         _enumerate_events(r, question, budget, trace, _take, extra_lines)
 
-    # 발주처 hop. 사다리 **밖의 스텝 1개**이고, 검색이 예산을 다 쓴 뒤에 남는 것으로만
-    # 움직인다 (제동 ④). 순서를 뒤로 미뤄도 담기는 레코드는 같다 — 그래프 조회라
-    # 검색 상태에 의존하지 않는다.
+    # Counterparty hop: one step from outside the ladder, run only on what is
+    # left after retrieval has spent its budget. Deferring it changes no
+    # record collected, since a graph lookup does not depend on retrieval
+    # state.
+    # See docs/design-rationale.md#counterparty-lane
     #
-    # 🔴 `A22`(`multi_hub`)만 허브를 둘 이상 결속한다. 플래그가 꺼져 있으면 아래는
-    # `hubs = [r.counterparty]` 한 칸이라 종전과 호출도 인자도 같다.
+    # Only the multi-hub arm binds more than one hub. With the flag off the
+    # list below holds a single hub and both the call and its arguments are
+    # unchanged.
     if arm.counterparty_hop:
         primary = getattr(r, "counterparty", None)
         hubs = [primary] if primary else []
@@ -1871,13 +1889,14 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
             hubs += extra_hubs
             cp_cap += MAX_EXTRA_HUB_EVIDENCE * len(extra_hubs)
         for index, hub in enumerate(hubs):
-            # 첫 허브가 질문이 지목한 것이면 종전 상한·순서를 그대로 쓴다. 근거에서
-            # 나온 허브는 칸이 둘이고, 질문이 부른 기업을 파트너 앞줄에 세운다.
+            # The hub the question named keeps the base cap and ordering. A
+            # hub derived from the evidence gets two slots and puts the
+            # companies the question named at the front of the partner list.
             from_question = index == 0 and hub == primary
-            # 🔴 **꺼진 arm 에는 인자를 넘기지 않는다.** `roster_out=None` 을 넘기기만
-            #    해도 `test_w1_arms_call_the_counterparty_hop_with_the_old_arguments`
-            #    가 걸린다 — 그 가드가 지키는 것은 "기본 인자가 움직이면 v1~v4 측정이
-            #    무효" 라는 사실이고, 그 말이 맞다.
+            # No argument is passed on an arm where the feature is off. Even
+            # passing the parameter explicitly as None trips the guard test
+            # that fixes the call signature, and that guard is right: moving
+            # the default arguments invalidates the recorded measurements.
             extra = ({"roster_out": extra_lines}
                      if ablation.enabled("roster_line") and from_question else {})
             _gather_counterparty(
@@ -1885,14 +1904,18 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
                 limit=MAX_COUNTERPARTY_EVIDENCE if from_question else MAX_EXTRA_HUB_EVIDENCE,
                 prefer=() if from_question else tuple(r.companies or ()), **extra)
 
-    # 근거 절단은 체인을 먼저 살린다. 한화오션 잠수함은 검색 5건 + 체인 6건 = 11건이라
-    # 도착 순서대로 자르면 **체인의 마지막 정정본**(=정답)이 잘려 나간다.
+    # Truncation keeps chain members first. A chain can push the collected
+    # set past the cap, and cutting by arrival order would drop the last
+    # revision of the chain, which is the answer.
+    # See docs/design-rationale.md#lane-separation
     if chain_ids:
         picked.sort(key=lambda p: 0 if p["doc_id"] in chain_ids else 1)
 
-    # 🔴 A29c — 검색이 **담지 못하고 버린 것**을 한 줄로 남긴다. 근거 칸을 안 먹으므로
-    #    `A16`(칸 확대)·열거 depth 확대가 기각된 사유에 걸리지 않는다. 머리에 둔다 —
-    #    꼬리에 두면 안 읽힌다는 것을 `Q-023` 이 실측으로 보여 줬다(`_prepend`).
+    # Record what retrieval found but could not carry, as a line. It occupies
+    # no evidence slot, so it does not fall under the reason widening the
+    # window was rejected, and it goes at the head because a line at the tail
+    # is not read.
+    # See docs/design-rationale.md#line-position
     body = _joined()
     if extra_lines and body:
         body = "\n\n".join(extra_lines) + "\n\n" + body
