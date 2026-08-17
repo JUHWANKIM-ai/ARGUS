@@ -23,57 +23,39 @@ import re
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 
-#: 검색 바닥. `meta` 는 BM25 없이 manifest·universe 필터만 쓴다 (§I-1).
+#: Retrieval floor. `meta` uses the manifest and universe filters alone,
+#: without BM25.
 RETRIEVAL_MODES = ("meta", "exchange", "all")
 
-#: `retrieval="meta"` 에서 **코드가 도달하지 않는** 플래그. `pipeline._gather_evidence` 는
-#: `uses_bm25` 가 False 면 `_gather_meta` 직후 `return` 이라 사다리·체인·분해·발주처 hop 이
-#: 전부 그 아래에 있다. 켜도 아무 일이 안 일어나므로 **Δ 가 조용히 0** 이 된다 —
-#: `enabled()` 가 오타 하나에 예외를 던지는 것과 같은 종류의 방어를 여기도 걸어야 한다.
-#:
-#: 🔴 이 함정은 이미 한 라운드를 썼다. 원장 C3/④ 가 `A0 + counterparty_hop=True` 로 강제해도
-#: 발화가 0 임을 실측하고 나서야 계획을 고쳤다. 계획서 '확정된 사항 ②' 는 A8 한 arm 에
-#: 대해서만 "BM25 이후에 세워라" 라고 지시했고, 같은 구조적 의존이 나머지 셋에도 있다는
-#: 일반화는 하지 않았다. 이 상수가 그 일반화다.
+#: Flags the code never reaches under `retrieval="meta"`. When `uses_bm25` is
+#: False, `pipeline._gather_evidence` returns right after `_gather_meta`, and
+#: the ladder, chain, split and counterparty hops all sit below that point.
+#: Enabling one changes nothing, which would report a delta of zero for a
+#: component that never ran.
+#: See docs/design-rationale.md#unreachable-flag-guards
 META_UNREACHABLE_FLAGS = ("hop_ladder", "chain_hop", "split_query", "counterparty_hop",
                           "followup_hop", "reverse_chain", "partner_profile")
 
-#: 🔴 `retrieval="meta"` 에서 **기본값에서 움직이면 안 되는** 축. 뜻은
-#: `META_UNREACHABLE_FLAGS` 와 같고 **검사 형태만 다르다** — 저 목록은 `True = 켠다` 를
-#: 전제로 '켜져 있으면 예외' 인데, 메타 축 LOO 플래그는 기본값이 `True`(= 축을 넘긴다)라
-#: 같은 목록에 넣으면 `A0` 자신이 즉시 예외가 된다. 그래서
-#: `ORACLE_UNREACHABLE_FLAGS` 와 같은 '기본값에서 움직였는가' 형태로 검사한다.
-#:
-#: 근거는 코드다: `_gather_meta` 는 `search_chunks` 를 **한 번도 부르지 않고**
-#: `filter_docs` 만 쓴다. 이 축들은 `search_chunks` 인자에서만 떨어지므로 `A0` 에서
-#: 끄면 근거가 한 글자도 안 바뀐다 — `META_UNREACHABLE_FLAGS` 와 똑같은 **조용한 Δ 0**.
+#: Axes that must stay at their defaults under `retrieval="meta"`. The meaning
+#: matches `META_UNREACHABLE_FLAGS` and only the form of the check differs,
+#: because these flags default to True and would make the meta arm itself raise
+#: if listed there. `_gather_meta` never calls `search_chunks`, and these axes
+#: drop out of its arguments alone, so removing them changes no evidence.
+#: See docs/design-rationale.md#unreachable-flag-guards
 META_UNREACHABLE_AXES = ("meta_corp", "meta_date", "meta_group")
 
-#: 🔴 **플래그 사이의 도달 의존.** 키가 꺼지면 값들도 반드시 함께 꺼져야 한다 —
-#: 부모 hop 안에서만 읽히는 플래그라 부모 없이 켜면 `META_UNREACHABLE_FLAGS` 와 똑같이
-#: **Δ 가 조용히 0** 이 된다. `__post_init__` 이 이 사전으로 막고, LOO 의 '단일 변수 조작'
-#: 검사도 이 사전을 읽어 **부모와 함께 움직인 자식은 예외로 허용**한다.
+#: Reachability dependencies between flags. When a key is off, its values must
+#: be off too: each child is read only inside its parent, so enabling it alone
+#: reports a delta of zero for a component that never ran. `__post_init__`
+#: enforces this, and the single-variable check for leave-one-out reads the
+#: same mapping so that a child moved together with its parent is allowed.
 #:
-#: 산문으로만 적어 두면 검사가 그것을 못 읽는다 — 그래서 데이터로 둔다.
-#: 🔴 `calc_values -> lean_rules` 는 **실측으로 확인한 의존**이다. `shape_evidence` 가
-#: `calc_values=False` 에서 `- 계약금액: …원 (49,290억원)` 의 괄호를 떼므로
-#: `prompts.split_trillion_eok` 이 변환할 자리가 사라지고, 그러면 규칙 8·9 가 **애초에
-#: 붙지 않아** 그것을 빼는 조작이 아무것도 바꾸지 못한다. 저장 응답 전수로 셌다 —
-#: `calc_values=False` 로 성형한 뒤 변환이 남는 문항은 전체 88 · 밸류체인 12 · ORACLE 88
-#: **모두 0건**이다.
-#: 🔴 `verifier -> substitute_verified` 는 **구조적 의존**이다. `pipeline._verify` 가
-#: `if not ablation.current().verifier: return answer` 로 첫 줄에서 나가므로 검증 단계가
-#: 꺼진 arm 에서 치환 플래그를 켜면 코드가 도달하지 않는다.
-#: 🔴 `verifier -> provenance_gate` 도 같은 구조적 의존이다 — `A21` 의 게이트가
-#: `_verify` 안에 있으므로 검증 단계가 꺼진 arm 에서는 코드가 도달하지 않는다.
-#: 🔴 `verifier -> regenerate_on_verify` 도 같다 — `A20r` 의 재생성은 `_verify` 가
-#: 결함을 찾은 **뒤에** 서므로 검증 단계가 꺼지면 재생성이 한 번도 안 돈다.
-#: 🔴 `counterparty_hop -> multi_hub` 도 구조적 의존이다 — `A22` 의 추가 허브는
-#: `_gather_evidence` 의 **발주처 차선 안**에서만 결속되므로, 그 hop 이 꺼진 arm
-#: (`A0`~`A7`·`L3`)에서 켜면 코드가 도달하지 않는다.
-#: 🔴 `function_calling -> calc_tools_only`·`calc_queries_only`·`substitute_tool_results`
-#: 도 구조적 의존이다 — 셋 다 `_answer_with_tools`/`_offer_tools` **안에서만** 읽히므로
-#: 도구를 안 내미는 arm 에서 켜면 코드가 도달하지 않는다 (`A24b` 의 하위 옵션들).
+#: Recorded as data rather than prose, because the checks have to read it.
+#: Most entries are structural: the child is read inside a function the parent
+#: guards. The evidence-shaping entry is different, and was established by
+#: measurement: with the calculated values removed, the parentheses the money
+#: rules act on are gone, so removing the rules changes nothing.
+#: See docs/design-rationale.md#unreachable-flag-guards
 FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     "chain_hop": ("followup_hop", "reverse_chain"),
     "hop_ladder": ("partner_profile",),
@@ -85,18 +67,19 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
                  "counterparty_exempt"),
     "aggregate_line": ("substitute_aggregate",)}
 
-#: 🔴 `golden_oracle=True` 에서 **읽히지 않는** 축. 검색 차선을 통째로 골든 주입으로
-#: 갈아치우므로 이 플래그들을 건드려도 근거가 한 글자도 안 바뀐다 —
-#: `META_UNREACHABLE_FLAGS` 와 같은 종류의 **조용한 Δ 0** 이다.
+#: Axes that go unread when the golden oracle is injected, because the whole
+#: retrieval lane is replaced and touching them changes no evidence.
 #:
-#: 다만 여기서는 '켜면 안 된다' 가 아니라 **'기본값에서 움직이면 안 된다'** 로 막는다.
-#: `ORACLE = A8 + golden_oracle` 이라 이 축들이 전부 켜져 있는 것이 정상이고, 문제는
-#: `L1 + golden_oracle` 처럼 **오라클 위에서 검색 LOO 를 흉내내는 것**이다. 그 Δ 는
-#: 정의상 0 이고, 0 을 "그 구성요소는 기여가 없다" 로 읽는 사고가 이 모듈의 존재 이유다.
-#: 기준값은 `Arm` 의 **필드 기본값**이다 (= A8, 머리말 참조 — 전방참조가 필요 없다).
-#: 🔴 메타 축 셋도 여기 있다. `golden_oracle` 은 exchange 계열에서 `search_chunks` 를
-#: 아예 안 부르고, 정기공시에서는 `doc_id` 로 골든 문서를 못박아 부르므로 `corp_name` ·
-#: 접수일 접두 · `group` 어느 것도 후보 집합을 안 바꾼다.
+#: The guard here is that they must not move from their defaults, rather than
+#: that they must be off: the oracle arm is the complete configuration plus
+#: injection, so these being on is normal. What has to be prevented is
+#: imitating a retrieval leave-one-out on top of the oracle, whose delta is
+#: zero by construction. The reference values are the field defaults of `Arm`.
+#:
+#: The meta axes belong here too: with injection, exchange records skip
+#: `search_chunks` entirely and periodic records pin the document by id, so
+#: none of those axes changes the candidate set.
+#: See docs/design-rationale.md#unreachable-flag-guards
 ORACLE_UNREACHABLE_FLAGS = ("retrieval", "dense", "hop_ladder", "chain_hop",
                             "split_query", "counterparty_hop", "followup_hop",
                             "meta_corp", "meta_date", "meta_group", "multi_hub",
@@ -105,341 +88,178 @@ ORACLE_UNREACHABLE_FLAGS = ("retrieval", "dense", "hop_ladder", "chain_hop",
 
 @dataclass(frozen=True)
 class Arm:
-    """한 arm 의 구성. 얼려 둔다 — 실행 중에 바뀌면 Δ 의 귀속이 깨진다."""
+    """Configuration of one arm. Frozen: mutating it mid-run would break the
+    attribution of the delta."""
 
     name: str
     retrieval: str = "all"
     schema_fields: bool = True
-    #: A2 전용. 기본값이 False 인 것이 G1 격리의 전부다 — 스위치를 안 건드린 운영
-    #: 경로에서는 임베딩 API 가 **한 번도 불리지 않는다** (질의 임베딩 포함).
+    #: Defaulting to False is the whole of the embedding isolation: on the
+    #: operational path, with the switches untouched, the embedding API is
+    #: never called, query embeddings included.
+    #: See docs/design-rationale.md#dense-isolation
     dense: bool = False
     hop_ladder: bool = True
     chain_hop: bool = True
-    #: 발주처(counterparty) 2-hop. **`hop_ladder` 와 따로 둔다** — 묶어 두면 A0·A1b 에서
-    #: 함께 꺼져 이 hop 만의 Δ 를 분리해서 잴 수 없다. `chain_hop` 을 따로 둔 것과 같은
-    #: 이유이고, L3(= 발주처 hop 만 뺀 LOO)이 성립하려면 독립 플래그여야 한다.
-    #: **사다리에서는 A8 에서만 켜진다** (위 머리말 참조 — A4 에 두면 Δ 가 묻힌다).
+    #: Counterparty 2-hop, kept separate from `hop_ladder`. Bundling them turns
+    #: both off together on the lower arms, so this hop's own delta could not
+    #: be isolated, and its leave-one-out would not exist. On the ladder it is
+    #: enabled at the top arm only.
+    #: See docs/design-rationale.md#counterparty-hop-position
     counterparty_hop: bool = True
     split_query: bool = True
     calc_values: bool = True
     verifier: bool = True
     followup_hop: bool = True
-    #: 🔴 **메타 축 LOO 셋 (`L6`·`L7`·`L8`) · v4 신설.** 다른 플래그와 달리 검색 단계를
-    #: 끄는 것이 아니라 **`search_chunks` 에 그 인자를 안 넘긴다.** BM25 는 그대로 돌고
-    #: 후보 집합만 넓어진다 (머리말 §메타 축 LOO 참조).
+    #: Meta-axis leave-one-out. Unlike the other flags these do not disable a
+    #: retrieval stage; they withhold one argument from `search_chunks`, so
+    #: BM25 still runs and only the candidate set widens. The default True is
+    #: the prior behaviour: on the operational path no argument is withheld.
+    #: See docs/design-rationale.md#meta-axis-loo
     #:
-    #: 🔴 기본값 `True` 가 종전 동작이다 — 스위치를 안 건드린 운영 경로는 인자가 한 개도
-    #: 안 빠진다. `META_UNREACHABLE_AXES`·`ORACLE_UNREACHABLE_FLAGS` 가 도달 불가 자리를
-    #: 막는다 (`retrieval="meta"` 는 `filter_docs` 만 쓰고, `golden_oracle` 은 골든 주입).
-    #:
-    #: `meta_corp`  — `corp_name` 필터 (`tools.search_chunks` → `filters["corp_name"]`)
+    #: Company filter, `filters["corp_name"]`.
     meta_corp: bool = True
-    #: `meta_date`  — 접수일 접두 (`ym`·`year`·`rcept_dt` → `prefix["rcept_dt"]`).
-    #: 🔴 정기공시의 `base_year`(사업연도)는 **다른 축**이라 함께 떼지 않는다.
+    #: Receipt-date prefix. The fiscal year of a periodic filing is a
+    #: different axis and is not withheld with it.
     meta_date: bool = True
-    #: `meta_group` — 인덱스 군 (`group`). 빠지면 `tools.search_chunks` 의
-    #: `target = group if group in RECORD_GROUPS else "exchange"` 가 exchange 로 떨어진다.
+    #: Index group. Withheld, `search_chunks` falls back to the exchange
+    #: index.
     meta_group: bool = True
-    #: 🔴 **ORACLE 전용 · 진단용이고 제출 구성이 될 수 없다** (평가 시점에 골든이 없다).
-    #: 참이면 `pipeline.answer_question` 이 검색 대신 골든 근거를 싣는다. 기본값 False 가
-    #: G1 격리(`dense`)와 같은 역할을 한다 — 스위치를 안 건드린 운영 경로는 골든을
-    #: **한 번도 열지 않는다** (러너가 주입하지 않으면 매핑 자체가 없다).
+    #: Diagnostic only, and never a submission configuration: at evaluation
+    #: time there is no golden set. True makes `pipeline.answer_question`
+    #: carry the golden evidence instead of retrieving. The default False
+    #: plays the same role as the embedding isolation: on the operational
+    #: path the golden set is never opened, and without an injection by the
+    #: runner the mapping does not exist at all.
+    #: See docs/design-rationale.md#oracle-arm
     golden_oracle: bool = False
-    #: 🔴 **`A8-lean` 전용 · 이 모듈에서 유일하게 극성이 뒤집힌 플래그다.** 다른 플래그는
-    #: `True = 그 구성요소를 켠다` 인데 이것은 `True = 규칙을 뺀다` 다. 이름의 `lean` 이
-    #: 그 사실이다 — `money_unit_rule` 처럼 구성요소로 이름 붙이면 사다리 A0~A4 가
-    #: `calc_values=False` 라서 기본값을 함께 뒤집어야 하고, 그러면 이미 공표된
-    #: `Δ(A4→A5)` 의 플래그 표가 두 칸 움직여 v1·v2 산출물의 설명이 낡는다.
-    #: 참이면 `prompts.build_answer_messages` 가 `MONEY_UNIT_RULE`(규칙 8·9)을 붙이지
-    #: 않는다. 기본값 False 가 **규칙 전량 = 종전 동작**이고, 스위치를 안 건드린 운영
-    #: 경로의 프롬프트는 한 바이트도 다르지 않다.
-    #: 🔴 `calc_values=False` 와는 함께 켤 수 없다 (`FLAG_DEPENDENCIES` — Δ 가 조용히 0).
+    #: The one flag in this module whose polarity is inverted: True removes
+    #: the money-unit rules from the system prompt rather than enabling a
+    #: component. The default False is the full rule set, so the prompt on
+    #: the operational path is byte-identical.
+    #: See docs/design-rationale.md#lean-prompt-arm
     lean_rules: bool = False
-    #: 🔴 **`A20` 전용.** 참이면 `pipeline._verify` 가 ① `critic.verify_answer_arithmetic`
-    #: 를 라이브 경로에 배선하고 ② 검사가 낸 **유일한** 재계산값으로 답변의 그 수치를
-    #: 치환한다. 기본값 `False` 가 종전 동작이다 — 결함을 찾아도 각주만 붙인다.
-    #:
-    #: 🔴 **기본값을 바꾸지 않는 것이 중요하다.** 현 동작은 버그가 아니라 명시적 설계고
-    #: 근거가 있다 (`pipeline.py` A6 머리말 · SWE-Lancer 부록 C: 판단 44.9% > 생성 26.2%).
-    #: 그러니 갈아엎지 말고 **arm 으로 만들어 켰다 껐다 잰다.**
-    #:
-    #: 🔴 배선을 이 플래그 뒤에 둔 것은 **실측 때문이다.** 무조건 배선하면 플래그를 끈
-    #: 상태에서도 v3 세대 답변에 각주가 새로 붙는다(전수 대조 실측) — 그 자체가 답변
-    #: 변화이고 `A20` 의 Δ 와 섞인다. 계획서 `R1-1` Step 0b 가 그 경우 "배선도 플래그
-    #: 뒤에 두라" 고 지시했다.
-    #:
-    #: 🔴 `verifier=False` 와는 함께 켤 수 없다 (`FLAG_DEPENDENCIES` — 검증 단계가 아예
-    #: 서지 않으므로 Δ 가 조용히 0 이 된다). `META_UNREACHABLE_FLAGS` ·
-    #: `ORACLE_UNREACHABLE_FLAGS` 에는 **넣지 않는다** — `_verify` 는 `_gather_evidence`
-    #: 뒤에 있고 골든 주입 위에서도 그대로 돈다.
+    #: True wires answer-arithmetic verification into the live path and
+    #: replaces the answer's figure with the unique recomputed value. The
+    #: default False is the prior behaviour: a defect is annotated only.
+    #: Keeping that default matters, because the annotate-only behaviour is
+    #: an explicit design with a rationale rather than a bug, so it is
+    #: measured by switching rather than replaced.
+    #: See docs/design-rationale.md#verifier-disposition
     substitute_verified: bool = False
-    #: 🔴 **`A21` 전용.** 참이면 `pipeline._verify` 가 `critic.verify_number_provenance`
-    #: 를 라이브 경로에 배선한다 — 답변의 12자리 이상 금액이 근거에 완전일치로 있는지
-    #: 본다. 기본값 `False` 가 종전 동작이다 (게이트 자체가 v4 신설이다).
-    #:
-    #: 🔴 **`substitute_verified`(A20)와 묻는 것이 다르다.** 저쪽은 *"계산이 맞는가"* 고
-    #: 이쪽은 *"이 숫자가 근거에 있는가"* 다. 그래서 `A15`(`_says_amount` 게이트)의
-    #: 대체 후보이지 `A20` 의 변형이 아니다. 두 플래그는 서로 독립이다.
-    #:
-    #: 🔴 `verifier=False` 와는 함께 켤 수 없다 (`FLAG_DEPENDENCIES` — `_verify` 가
-    #: 첫 줄에서 나가므로 Δ 가 조용히 0 이 된다). `ORACLE_UNREACHABLE_FLAGS` 에는
-    #: **넣지 않는다** — 골든 주입 위에서도 `_verify` 는 그대로 돌고, 실제로 현 세대
-    #: `ORACLE` 에서 이 게이트가 한 건 발화한다(`Q-023`).
+    #: True wires the number-provenance check into the live path, which asks
+    #: whether a large amount in the answer appears verbatim in the evidence.
+    #: A different question from substitution, which asks whether the
+    #: arithmetic holds, so the two flags are independent.
+    #: See docs/design-rationale.md#arm-catalog
     provenance_gate: bool = False
-    #: 🔴 **`A20r` 전용.** 참이면 `pipeline._verify` 가 결함을 찾았을 때 각주를 붙이는
-    #: 대신 **실패 사유를 프롬프트에 실어 답변을 한 번만 다시 생성한다.**
-    #:
-    #: 🔴 **사유 주입이 이 플래그의 전부다.** 온도 0.0 에서 같은 프롬프트로 다시 부르면
-    #: 결정적이라 **같은 답이 나온다 — no-op 이다.** 독립 검토 둘이 초안의 그 결함을
-    #: 같이 찾았고(`base` `05df07b` · `multi_agent` `33c3d99`), 사유 되먹임은 AutoGen 의
-    #: board agent 처방이며(G34·G36 · CAMEL C34) **SWE-Lancer 가 *"사유를 안 넣으면 같은
-    #: 답이 반복된다"* 를 실측했다**(S21·S22).
-    #:
-    #: 🔴 **온도는 0.0 그대로다.** 다양성을 사는 조작은 `A10`(SC k=3)의 것이고 이 arm 이
-    #: 재는 것은 **진단 주입**이다. 둘은 같은 축의 변형이 아니라 서로 다른 기전이라
-    #: 나란히 재야 하고, 한쪽이 통제 변수를 깨면 그 비교가 성립하지 않는다.
-    #:
-    #: 🔴 **`substitute_verified`(A20)와 배타는 아니지만 `A20r` 은 그것을 켜지 않는다** —
-    #: 계획서가 *"치환 대신 재생성"* 으로 두 처분을 **나란히** 재라고 지시했다. 재생성이
-    #: 켜지면 `verify_answer_arithmetic` 배선은 `A20` 과 같이 선다 (사유의 원천이 필요하고,
-    #: 실측 `Q-044` 는 정형 레코드가 0건이라 그 검사 없이는 발화조차 없다).
-    #:
-    #: 🔴 재생성은 **1회**다. 두 번째를 열면 상한이 없어지고 문항당 비용이 흔들린다.
-    #: 🔴 재생성 결과에 검사가 **여전히 발화하면 원본을 쓴다.**
-    #: 🔴 `verifier=False` 와는 함께 켤 수 없다 (`FLAG_DEPENDENCIES`).
+    #: True regenerates the answer once, carrying the failure reasons into
+    #: the prompt, instead of annotating it. Injecting the reasons is the
+    #: whole manipulation: at temperature zero the same prompt returns the
+    #: same answer. The temperature stays at zero, since buying diversity is
+    #: a different arm. Regeneration happens once, and if the checks still
+    #: fire the original answer is kept.
+    #: See docs/design-rationale.md#verifier-disposition
     regenerate_on_verify: bool = False
-    #: 🔴 **`A18`(= `T1-targeted`) 전용.** 참이면 `agent/tools._group_records` 가
-    #: `artifacts/nary_records.jsonl` 의 LLM 추출값을 근거 마크다운에 **덧붙인다.**
-    #: 기본값 `False` 가 종전 동작이고, 파일이 없으면 켜도 아무 일이 안 일어난다.
+    #: True appends the extracted values in `artifacts/nary_records.jsonl` to
+    #: the evidence markdown. The default False is the prior behaviour, and
+    #: with the file absent enabling it does nothing.
     #:
-    #: 🔴 **덮어쓰기가 아니라 합집합이다.** 규칙이 이미 뽑은 라벨(`금액`·`계약상대`·
-    #: `기간`·`대상`)이 그 레코드의 마크다운에 있으면 그 항목은 **건너뛴다.** 규칙의
-    #: 산출물을 LLM 산출물로 갈아치우면 이 arm 이 재는 것이 '추가' 가 아니라 '교체' 가
-    #: 되고, `L2`(노드 속성 LOO)의 −15.3%p 와 겨냥이 겹쳐 Δ 의 귀속이 깨진다.
-    #:
-    #: 🔴 **코퍼스 파일은 한 바이트도 안 바뀐다.** 덧붙임은 런타임에 사본 위에서만
-    #: 일어난다 — `artifacts/*_records.jsonl` 을 고치면 BM25 색인 문자열이 갈려
-    #: v1~v4 의 측정이 전량 무효가 된다. 그래서 **BM25 점수도 안 바뀐다**: 색인은
-    #: 미리 빌드된 파일이고 이 플래그는 검색 **뒤에** 실리는 근거 문자열만 건드린다.
-    #:
-    #: 🔴 `META_UNREACHABLE_FLAGS`·`ORACLE_UNREACHABLE_FLAGS` 에 **넣지 않는다** —
-    #: `_gather_meta`(pipeline.py:1465)도 `_oracle_evidence`(1820)도 `tools._record_of`
-    #: 로 같은 레코드를 읽으므로 두 경로 모두에서 코드가 도달한다.
-    #:
-    #: 🔴 **겨냥 0 인데도 세운 유일한 arm 이다** (계획서 §13 ③ · 사용자 판단).
-    #: `R0-1` 이 238건 중 새로 회수 가능 13건 · 그중 평가셋 골든 **0건**을 실측했고
-    #: **Δ = 0 을 예측으로 박아 뒀다.** 그 예외임을 제안서 §7 이 명시해야 한다.
+    #: The append is a union rather than an overwrite, and it happens at
+    #: runtime on a copy, so no corpus file and no BM25 score changes.
+    #: See docs/design-rationale.md#arm-catalog
     nary: bool = False
-    #: 🔴 **`A22` 전용 — 다중 허브 결속 `W = 1 → 3`.** 참이면 `_gather_evidence` 가
-    #: 발주처 차선에서 허브를 **하나가 아니라 최대 셋** 결속한다. 추가 허브는 질문이
-    #: 아니라 **이미 담은 근거의 `- 계약상대:` 필드**에서 나온다.
-    #:
-    #: 🔴 **`Route.counterparty` 는 단수 그대로 둔다.** 계획서가 그것을 복수로 바꾸는
-    #: 안을 냈지만 `R1-9` 실측이 독자 `pipeline.py` 6곳 + 테스트 단언 약 25건을 셌고,
-    #: 무엇보다 라우터의 결속은 **질문에서 역할을 읽는** 축이라 `R1-11 ①` 이 오탐 3건으로
-    #: 이미 기각한 자리다(`test_disclosing_company_is_never_bound_as_counterparty`).
-    #: 근거의 `계약상대:` 는 **그 공시가 스스로 적은 상대**라 역할이 이미 확정돼 있고,
-    #: 그래서 이 arm 은 그 불변을 깨지 않고 축을 넓힌다.
-    #:
-    #: 🔴 **추가 허브는 자기 칸을 따로 쓴다** (`MAX_EXTRA_HUB_EVIDENCE`). 6칸을 나눠
-    #: 쓰면 첫 허브가 파트너당 1칸씩 담는 fan-in 문항(`Q-110` 실측 2/6 → 5/6)이 깨진다.
-    #:
-    #: 🔴 `counterparty_hop=False` 와는 함께 켤 수 없다 (`FLAG_DEPENDENCIES`).
-    #: 🔴 `ORACLE_UNREACHABLE_FLAGS` 에 **넣는다** — `_gather_golden` 은 발주처 차선을
-    #: 아예 안 탄다.
+    #: True binds up to three counterparty hubs instead of one. The
+    #: additional hubs come from the `계약상대` field of evidence already
+    #: collected rather than from the question, so the router's rule that a
+    #: filing company is never bound as a counterparty still holds. Each
+    #: additional hub uses its own evidence slots.
+    #: See docs/design-rationale.md#multi-hub-binding
     multi_hub: bool = False
-    #: 🔴 **`A24` 전용 — `chat()` 에 `TOOL_SPECS` 를 실제로 넘긴다.** 참이면
-    #: `pipeline.answer_question` 이 답변 생성을 `_answer_with_tools` 로 돌려
-    #: **HCX-005 자신이 도구를 부르고**, 우리가 `tools.execute()` 로 실행한 결과를 다시
-    #: 넣어 한 번 더 부른다. 기본값 `False` 가 종전 동작이다 — 스위치를 안 건드린 운영
-    #: 경로의 요청 본문은 한 바이트도 다르지 않다.
+    #: True passes the tool specifications to `chat()`, so the model calls
+    #: tools itself and the executed results are fed back for one more call.
+    #: The default False is the prior behaviour, and the request body on the
+    #: operational path is byte-identical.
     #:
-    #: 🔴 **`calc_values`(A5)와 축이 다르다.** `A5` 는 *"근거에 박아 둔 계산 결과를
-    #: 뗀다"* 이고 이쪽은 *"모델이 스스로 도구를 부른다"* 다. 그래서
-    #: `FLAG_DEPENDENCIES` 에 `calc_values -> function_calling` 을 걸지 **않는다** —
-    #: 근거의 괄호를 떼도 도구는 그대로 불릴 수 있다(오히려 더 불릴 것이다).
-    #:
-    #: 🔴 **`META_UNREACHABLE_FLAGS`·`ORACLE_UNREACHABLE_FLAGS` 에도 넣지 않는다.**
-    #: 이 플래그가 사는 곳은 검색 차선이 아니라 `answer_question` 의 **생성 호출**이고,
-    #: `retrieval="meta"`(`_gather_meta` 조기 반환) 위에서도 `golden_oracle`(골든 주입)
-    #: 위에서도 그 호출은 똑같이 선다. 도달 불가 자리가 없다.
-    #:
-    #: 🔴 **G1 판단**: 이것은 보조 모델을 답변 경로에 끼우는 것이 아니라 **HCX-005 가
-    #: 자기 도구를 부르는 것**이다. `agent/tools.py` 는 LLM·임베딩 모듈을 하나도
-    #: import 하지 않는다(BM25·manifest·`compute` 뿐) — 도구가 외부 모델을 부르지
-    #: 않음을 코드로 확인했다. 따라서 G1 위반이 아니다.
-    #:
-    #: 🔴 **대가가 하나 있다 — `tools` 와 `maxTokens` 는 동시 지정 불가다**(40001 ·
-    #: `docs/CONVENTION.md` §API 실측). 즉 이 플래그를 켜면 답변 호출의 길이 상한
-    #: (`max_tokens=300`, CoT 800)이 **사라진다.** 단일 변수 조작이 아니라는 뜻이 아니라,
-    #: **API 가 그 둘을 묶어 놨다**는 뜻이다. Δ 를 읽을 때 이 사실을 반드시 함께 읽는다.
+    #: A different axis from the calculated values carried in the evidence,
+    #: so there is no dependency between the two. Enabling it removes the
+    #: length cap on the answer call, because the API does not accept a tool
+    #: list and a token cap together; that has to be read alongside the
+    #: delta.
+    #: See docs/design-rationale.md#function-calling-arm
     function_calling: bool = False
-    #: 🔴 **`A24b` — 계산 도구 7종만 내민다.** `function_calling` 의 하위 옵션이라
-    #: `FLAG_DEPENDENCIES` 로 묶어 뒀다 (부모가 꺼지면 코드가 도달하지 않는다).
-    #:
-    #: 근거는 `A24` 실측이다 — 모델이 부른 47건 중 **26건이 검색**이었고
-    #: (`read_section` 16 · `get_history` 10) 이미 프롬프트에 실린 근거를 다시 읽어
-    #: **희석시켰다.** 회귀 8건 중 7건이 도구 호출 문항이다. 그 차선을 아예 닫는다.
+    #: True offers the calculation tools only. Measurement showed that most
+    #: tool calls went to retrieval and re-read evidence already present in
+    #: the prompt, diluting it.
+    #: See docs/design-rationale.md#function-calling-arm
     calc_tools_only: bool = False
-    #: 🔴 **`A24b` — 계산 질의에만 도구를 연다** (`router.needs_calculation`).
-    #: `tools` 와 `maxTokens` 가 배타(40001)라 도구를 내미는 문항은 길이 상한을 잃는데,
-    #: `A24` 는 그 대가를 **88문항 전부에** 물렸고 도구를 한 번도 안 부른 `Q-106` 까지
-    #: 회귀했다. 겨냥이 계산 문항이므로 전 문항에 열 이유가 없다 — 실측으로 전체 88 중
-    #: 38문항 · 밸류체인 12 중 6문항만 열린다.
+    #: True offers tools only on calculation queries. Offering them costs the
+    #: length cap, and charging that cost to every question regressed answers
+    #: that never called a tool.
+    #: See docs/design-rationale.md#function-calling-arm
     calc_queries_only: bool = False
-    #: 🔴 **`A24b` 의 알맹이 — 도구가 돌려준 값으로 답변의 수치를 치환한다.**
-    #: `A24` 기각 사유 ①이 *"도구가 정답을 줘도 모델이 옮겨 적지 못한다"* 였다
-    #: (`calc_total` → `2,365,868` / 답변 `2,366,968`). 치환에는 **옮겨 적는 단계가
-    #: 아예 없다** — `A20`(`substitute_verified`)이 이미 실측으로 이겨 둔 기전이고,
-    #: 유일성 조건과 치환 코드를 `critic` 에서 **그대로 재사용**한다.
-    #:
-    #: 🔴 `substitute_verified`(A20)와 **배타가 아니다.** 원천이 다르다(도구 결과 대
-    #: 재계산값) — `A24b+A20` 이 그 결합을 재는 arm 이다.
+    #: True replaces the answer's figures with the values the tools returned.
+    #: Substitution has no transcription step, which is where function
+    #: calling lost. Not exclusive with the verifier substitution: the
+    #: sources differ.
+    #: See docs/design-rationale.md#tool-result-substitution
     substitute_tool_results: bool = False
-    #: 🔴 **`A27` 의 알맹이 — 거절할 때 근거를 지어내지 못하게 한다.** 규약 감사 `F-6`.
-    #:
-    #: 사유·실측은 `agent/prompts.REFUSAL_RULE` 독스트링에 적었다.
-    #:
-    #: 🔴 **이 arm 은 프롬프트를 바꾸는 유일한 채택 후보다.** 앞의 `A25`(부착)·`A26`
-    #: (라우팅)은 생성 이후·이전이라 프롬프트가 바이트 동일이었고 그래서 재측정이
-    #: `RequestCache` 를 타 사실상 공짜였다. **여기는 캐시가 통째로 빗나간다** — 88문항
-    #: 전량이 다시 생성되고 크레딧이 든다. 그리고 시스템 프롬프트는 KDD '26 실측에서
-    #: attention 의 36.9% 를 먹는 자리라, 규칙 하나를 더하면 **거절과 무관한 문항의 답도
-    #: 흔들릴 수 있다.** 그래서 단독으로 재고, 흔들리면 기각한다.
+    #: True keeps a refusal from inventing evidence. The only adopted
+    #: candidate that changes the prompt, so re-measurement misses the
+    #: request cache entirely and a system-prompt rule can perturb answers
+    #: to unrelated questions. Measured alone for that reason.
+    #: See docs/design-rationale.md#arm-catalog
     strict_refusal: bool = False
-    #: 🔴 **`A28` 의 알맹이 — 없는 분기보고서를 잡아낸다.** 재감사 `RF-1`.
-    #:
-    #: 실측: *"현대건설의 2026년 3분기 분기보고서"* 를 물으면 없는 보고서인데
-    #: **2026년 1분기 보고서를 찾아 놓고** *"3분기 보고서에 기재되어 있지 않습니다"* 라고
-    #: 거짓 전제를 받아들이고 그 보고서를 근거로 달았다. §5 「근거 기반」과
-    #: 「정보한계 대응」에 함께 걸린다.
-    #:
-    #: 원인은 `missing_named_report` 가 `doc_subtype`·`base_year` 만 봐서 **몇 분기인지가
-    #: 축에 없던 것**이다. 반기는 `doc_subtype=half` 라 우연히 걸러졌을 뿐이고, 분기끼리는
-    #: 종류가 같아 구별할 수단이 없었다.
-    #:
-    #: 🔴 **번짐이 좁다.** `report_hints` 에 키가 하나 늘지만 `plan_section_hops` 는
-    #: `doc_subtype`·`base_year`·`filed` 만 읽고 모르는 키를 무시하므로 **검색 계획은
-    #: 안 흔들린다.** 바뀌는 것은 `NO_SUCH_REPORT` 판정 하나뿐이다.
+    #: True catches a quarterly report that does not exist. Without it the
+    #: named-report check reads only the report subtype and fiscal year, so
+    #: two quarters of the same year are indistinguishable and a false
+    #: premise in the question is accepted.
+    #: See docs/design-rationale.md#arm-catalog
     quarter_gate: bool = False
-    #: 🔴 **`A31` 의 알맹이 — 공시에 없는 미래를 추정해 달라는 질의를 가른다. LLM 0회.**
-    #:
-    #: 사유·실측은 `agent/router._SPEC_TARGET` 주석과 `_asks_speculation` 에 적었다.
-    #: 요약하면: 라우터에 `예측`·`전망`·`주가`·`추세` 가 **한 글자도 없었고**, 방어는
-    #: 프롬프트 규칙 한 줄뿐이라 안전성 3문항에서 **3/3 뚫렸다**(`S-002`~`S-004`).
-    #:
-    #: 🔴 **`ambiguous_gate`(A26)·`quarter_gate`(A28)와 같은 계열이다** — 셋 다
-    #: *"한계의 종류가 다르면 고지도 달라야 한다"* 는 한 원칙의 갈래이고, 셋 다
-    #: 라우팅 단계 LLM 0회다. 다만 **따로 둔다** — 함께 켜면 Δ 를 어디에 귀속할지 모른다.
-    #:
-    #: 🔴 **`META_UNREACHABLE_FLAGS`·`ORACLE_UNREACHABLE_FLAGS` 에 넣지 않는다** —
-    #: 라우팅은 검색 차선 **앞**이라 `retrieval="meta"` 위에서도 골든 주입 위에서도
-    #: 똑같이 선다. `FLAG_DEPENDENCIES` 도 없다 — 부모 hop 안에서 읽히지 않는다.
+    #: True separates questions asking for a projection the filings do not
+    #: contain. No LLM call. Same family as the ambiguous-reference and
+    #: quarter gates, kept as separate flags so the delta stays attributable.
+    #: See docs/design-rationale.md#arm-catalog
     speculation_gate: bool = False
-    #: 🔴 **`A32` 의 알맹이 — 식별번호·연락처 전사 요구를 가른다. LLM 0회.**
-    #:
-    #: 사유·실측은 `agent/router._IDENTIFIER_TARGET` 주석에 적었다. 요약하면:
-    #: `safety.mask_pii` 의 `_RRN` 이 두 번째 그룹 첫 자리에 `[1-4]` 를 요구해
-    #: `180111-0813550`(0)·`110111-6452174`(6)이 **그대로 나갔다** — 마스킹이 막은 것이
-    #: 아니라 **패턴이 안 걸린 것**이다. 뒤에서 지우는 방어는 우연에 기댄다.
-    #:
-    #: 🔴 **`mask_pii` 를 대체하지 않는다.** 저쪽은 근거 원문에 섞여 오는 것을 막고
-    #: 이쪽은 **요구 자체**를 가른다. 두 겹이 다 필요하다.
-    #: 🔴 도달 불가 자리가 없다 (라우팅은 검색 차선 앞).
+    #: True separates requests to transcribe identifier numbers or contact
+    #: details. No LLM call. Does not replace `safety.mask_pii`: that one
+    #: blocks such data arriving inside the evidence, this one separates the
+    #: request itself, and both layers are needed.
+    #: See docs/design-rationale.md#arm-catalog
     identifier_gate: bool = False
-    #: 🔴 **`A33` 의 알맹이 — 최신본을 씨앗으로 받아 원공시로 되돌아간다. LLM 0회.**
-    #:
-    #: v5 오답 `Q-113` 의 R0 실측(2026-08-16): 골든 `20250718800275` 가 어떤 hop
-    #: 후보에도 없었는데, 우리가 회수한 정정본 `20250924800260` 의 `related` 에
-    #: **그 번호가 이미 있다.** 링크가 없어서 못 간 것이 아니라 씨앗 조건에 걸린 것이다.
-    #:
-    #: 🔴 **v3 R2 ④ 의 판정을 뒤집지 않는다.** 그때 기각된 ⓐ(`terminates` 보유면 무조건)
-    #: 는 보호 4문항(`Q-008`·`Q-031`·`Q-033`·`Q-034`)을 흔들었고, 그 판정은 유효하다.
-    #: 이 arm 이 여는 것은 **정정 체인**이라는 다른 갈래이고, `_asks_original` 질문
-    #: 게이트가 함께 걸린다 — 실측 발화 4문항 · 씨앗이 실제로 열리는 것 3문항
-    #: (`Q-113` 겨냥 · `Q-061`·`Q-069` 인질 · `Q-094` 는 근거 불변).
-    #:
-    #: 🔴 `META_UNREACHABLE_FLAGS` 에 **넣는다** — `_gather_meta` 는 체인 차선 위에서
-    #: 조기 반환하므로 `retrieval="meta"` 에서 코드가 도달하지 않는다.
-    #: 🔴 `ORACLE_UNREACHABLE_FLAGS` 에도 **넣는다** — 골든 주입은 검색 차선을 안 탄다.
-    #: 🔴 `FLAG_DEPENDENCIES` 에 `chain_hop -> reverse_chain` 을 건다 — 체인 hop 이
-    #: 꺼진 arm 에서 켜면 `_chain_seeds` 가 아예 안 불린다 (Δ 가 조용히 0).
+    #: True accepts a latest record as a chain seed so the walk can reach the
+    #: original filing. No LLM call. Gated by the question asking for the
+    #: pre-revision value, which is what keeps it from reopening the case
+    #: rejected earlier.
+    #: See docs/design-rationale.md#reverse-seeding
     reverse_chain: bool = False
-    #: 🔴 **`A29a` 의 알맹이 — 집계를 우리가 계산해 근거에 한 줄로 싣는다. LLM 0회.**
-    #:
-    #: 사유·검산은 `agent/aggregate` 모듈 독스트링에 적었다. 요약하면: R0(2026-08-16)이
-    #: 오답 7건에서 **항이 근거에 다 있는데 합·차·몫만 틀린 것**을 실측했고, 그 항으로
-    #: 우리가 계산하면 일곱 건 다 골든이 정확히 나온다.
-    #:
-    #: 🔴 **`calc_values`(A5)와 축이 다르다.** `A5` 는 *"레코드 **하나 안**의 단위
-    #: 환산·기간을 근거에 박는다"* 이고 이쪽은 *"레코드 **여럿에 걸친** 집계를 박는다"*
-    #: 다. 그래서 `FLAG_DEPENDENCIES` 에 걸지 않는다 — `calc_values=False` 여도 레코드의
-    #: `amount` 필드는 그대로 있고 집계는 그 필드에서 나온다.
-    #:
-    #: 🔴 **근거 칸(`MAX_EVIDENCE`)을 안 먹는다.** 그것이 `A16`(칸 확대)·`A17`(블록
-    #: 확대)·열거 depth 확대가 기각된 사유를 피하는 자리다 — 실리는 것은 블록이 아니라
-    #: 한 줄이다.
-    #:
-    #: 🔴 **`META_UNREACHABLE_FLAGS`·`ORACLE_UNREACHABLE_FLAGS` 에 넣지 않는다** —
-    #: 근거 조립은 `_gather_meta` 조기 반환 **뒤**이고 골든 주입 위에서도 그대로 선다.
+    #: True computes the aggregate here and carries it as one line of
+    #: evidence. No LLM call. A different axis from the calculated values
+    #: inside a single record: this one spans several records, and it draws
+    #: on the `amount` field, which survives with those values removed.
+    #: See docs/design-rationale.md#evidence-slot-vs-line
     aggregate_line: bool = False
-    #: 🔴 **`A29s` 의 알맹이 — 답변의 틀린 합계를 결정적 집계값으로 치환한다. LLM 0회.**
-    #:
-    #: 사유·실측은 `agent/aggregate.substitute` 독스트링에 적었다. 요약하면: 집계 줄에
-    #: 정확한 값을 싣고 *"다시 계산하지 말라"* 는 지시까지 붙여도 모델이 **세 문항에서
-    #: 다 자기가 다시 더했다** (`Q-034`·`Q-109`·`Q-115`). 처분의 다섯 번째 갈래다 —
-    #: 각주(v3) · 치환(`A20`) · 재생성(`A20r`) · 부착(`A25`) · **집계 치환**.
-    #:
-    #: 🔴 **`substitute_verified`(A20)와 원천이 다르다.** 저쪽은 `critic` 이 답변에서
-    #: **식을 파싱해** 재계산한다 — `Q-109` 는 `=` 를 안 써서 식이 없어 안 걸린다.
-    #: 이쪽의 원천은 **근거의 `amount` 필드**라 답변의 형태와 무관하다. 배타가 아니다.
-    #:
-    #: 🔴 `aggregate_line` 이 꺼지면 이 플래그도 꺼져야 한다 (`FLAG_DEPENDENCIES`) —
-    #: 같은 규칙으로 계산한 총액을 쓰므로, 줄이 안 실린 근거 위에서 치환만 하면
-    #: 답변에 근거 없는 수가 생긴다.
+    #: True replaces a wrong total in the answer with the deterministic
+    #: aggregate. No LLM call. A different source from the verifier
+    #: substitution, which parses an equation out of the answer, so the two
+    #: are not exclusive.
+    #: See docs/design-rationale.md#model-recomputes
     substitute_aggregate: bool = False
-    #: 🔴 **`A29b` 의 알맹이 — 정정 체인의 금액을 접수일 순으로 편다. LLM 0회.**
-    #:
-    #: 사유·실측은 `agent/aggregate.revision_series` 독스트링에 적었다. 요약하면:
-    #: `Q-023` 은 정정본 다섯 건의 금액이 근거에 **전부 있는데** *"변동 사항은
-    #: 없습니다"* 라고 답했다. 흩어진 다섯 블록을 한 줄로 편다.
-    #:
-    #: 🔴 **`aggregate_line`(A29a)과 축이 다르다** — 저쪽은 값 하나(합·차·몫)이고
-    #: 이쪽은 여러 값의 순서다. 발화 어휘도 겹치지 않게 갈라 뒀다
-    #: (`_OPS` 의 `차` 대 `_SERIES_ASK`). 그래서 `FLAG_DEPENDENCIES` 에 안 건다.
+    #: True lays out the amounts of a revision chain in filing-date order. No
+    #: LLM call. A different axis from the aggregate line, which carries a
+    #: single value, and their trigger vocabularies are kept disjoint.
+    #: See docs/design-rationale.md#revision-series
     revision_series: bool = False
-    #: 🔴 **`A30` 의 알맹이 — 정정사유·주요내용을 런타임 근거에 덧붙인다. LLM 0회.**
-    #:
-    #: 사유·실측은 `agent/tools` 의 `A30` 구역 주석에 적었다. 요약하면: 정형 매칭이
-    #: 정보를 지운다 — `schema_matched=True` 면 넉 줄 요약을 내고 `raw_rows` 19행을
-    #: 버리고, 매칭이 **안 되면** 원문을 실어 752자가 나온다. 그래서 `Q-087` 의
-    #: `올림푸스제일차` 와 `Q-093` 의 `출자일자 확정에 따른 정정` 이 레코드에는 있고
-    #: 근거에는 없다.
-    #:
-    #: 🔴 **`A17` 이 아니다.** `A17` 은 코퍼스 3,150건 중 1,588건(50.4%)을 다시 쓰는
-    #: 조작이라 BM25 색인이 갈려 기각됐다. 이쪽은 `A18`(`nary`)이 연 런타임 이음매에만
-    #: 얹으므로 색인이 한 바이트도 안 바뀐다.
-    #:
-    #: 🔴 **`nary`(A18)와 함께 켤 수 없다** — `_group_records` 가 둘 중 하나만 고르므로
-    #: 함께 켜면 뒤의 것이 조용히 무시된다. `__post_init__` 이 막는다.
-    #:
-    #: 🔴 `META_UNREACHABLE_FLAGS`·`ORACLE_UNREACHABLE_FLAGS` 에 **넣지 않는다** —
-    #: `_gather_meta` 도 `_oracle_evidence` 도 `tools._record_of` 로 같은 레코드를
-    #: 읽으므로 두 경로 모두에서 코드가 도달한다 (`nary` 와 같은 판단).
+    #: True appends the revision reason and summary to the runtime evidence.
+    #: No LLM call. Fills the gap where schema matching discards the source
+    #: rows. Cannot be enabled together with the n-ary append, since the
+    #: grouping picks one of the two and the other is silently ignored.
+    #: See docs/design-rationale.md#arm-catalog
     correction_fields: bool = False
-    #: 🔴 **`A29c` 의 알맹이 — 열거가 버리는 계약상대 분포를 한 줄로 남긴다. LLM 0회.**
-    #:
-    #: 사유·실측은 `agent/aggregate.partner_profile` 독스트링에 적었다. 요약하면:
-    #: `_enumerate_events` 는 계약상대 그룹 사전을 **이미 만들어 놓고** 다섯 칸만 담고
-    #: 버린다. `Q-117` 이 묻는 것이 바로 그 버려진 분포다(*"발주 구조가 두 갈래"*).
-    #:
-    #: 🔴 **상한을 안 올린다.** `MAX_ENUM_EVIDENCE` 를 올리려면 `MAX_EVIDENCE` 를 먼저
-    #: 올려야 하고 그것이 `A16` 이며 `R0-3`(dac2bf0)이 기각했다. 칸이 아니라 줄이다.
-    #:
-    #: 🔴 `META_UNREACHABLE_FLAGS`·`ORACLE_UNREACHABLE_FLAGS` 에 **넣는다** — 열거 hop 은
-    #: `_gather_meta` 조기 반환 아래에 있고 골든 주입은 그 차선을 안 탄다.
-    #: 🔴 `FLAG_DEPENDENCIES` 에 `hop_ladder -> partner_profile` 을 건다 — 열거 hop 이
-    #: 사다리 안에 있으므로 그것이 꺼진 arm 에서 켜면 코드가 도달하지 않는다.
+    #: True records the counterparty distribution the enumeration discards,
+    #: as one line. No LLM call. The cap is not raised: raising it would
+    #: require widening the evidence window, which was rejected.
+    #: See docs/design-rationale.md#partner-profile
     partner_profile: bool = False
     #: 🔴 **`A35` 의 알맹이 — 답변의 괄호 환산을 우리가 다시 쓴다. LLM 0회.**
     #:
