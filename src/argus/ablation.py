@@ -716,129 +716,60 @@ A29_ALL = replace(A28, name="A29all", aggregate_line=True, substitute_aggregate=
 #: See docs/design-rationale.md#multi-hub-binding
 A22 = replace(A8, name="A22", multi_hub=True)
 
-# --- A10 — 자기일관성 `k=3` (사다리 밖 곁가지 · v4 신설) --------------------------
-#: 🔴 **이 저장소에서 통제 변수(온도 0.0)를 깨는 유일한 arm 이다** (§I-3 · 머리말).
-#: 그래서 **단독으로 재고 다른 arm 과 섞지 않는다.** `A20r`(사유 주입 재생성)이 가장
-#: 가까운 이웃인데 그쪽은 온도 0.0 이라 **기전이 다르다** — 저쪽은 진단을 되먹이고
-#: 이쪽은 다양성을 사서 다수결한다. 나란히 놓아야 v3 의 미검증 주장이 닫힌다.
+# --- Self-consistency, off the ladder ---------------------------------------
+#: The only arm that breaks the fixed-temperature control, so it is measured
+#: alone and never combined with another. The nearest neighbour, regeneration
+#: with the failure reasons, stays at temperature zero and is therefore a
+#: different mechanism rather than a variant of this one.
 #:
-#: `k=3` · `temperature=0.7` 은 Self-Consistency 논문(2023)의 기본 설정이다. 🔴 우리
-#: 코퍼스로 재본 적이 없으므로 **그 값 자체가 측정 대상**이고, 채택 여부와 무관하게
-#: "논문의 전제를 우리 데이터에서 재고 판정했다" 가 이 arm 의 산출물이다.
-#:
-#: 🔴 **겨냥 5건 중 둘(`Q-044`·`Q-097`)은 `A20` 이 이미 고쳤다 — 순증만 센다.**
-#: 남는 순증 겨냥은 `Q-018`(그리드) · `Q-109`·`Q-115`(밸류체인) 셋이다.
-#:
-#: 🔴 `LADDER`·`LOO_REMOVED` 에 넣지 않는다 — `A20`·`A21`·`A22` 와 같은 곁가지다.
+#: The sample count and temperature are the defaults of the Self-Consistency
+#: paper. They have never been measured on this corpus, so those values are
+#: themselves the object of measurement, and the verdict is the deliverable
+#: regardless of adoption.
+#: See docs/design-rationale.md#self-consistency-arm
 A10 = replace(A8, name="A10", sc_k=3, temperature=0.7)
 
-# --- A24 — `chat(tools=…)` 을 실제로 켠다 (사다리 밖 곁가지 · v4 신설) -------------
-#: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 답변 생성 호출에 `TOOL_SPECS`(15종 =
-#: 검색 8 + 계산 7)를 넘겨 **HCX-005 자신이 도구를 부르게** 한다.
-#: 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** — `A20`·`A21`·`A18`·`A22` 와 같은 곁가지다.
+# --- Function calling actually enabled, off the ladder ----------------------
+#: One flag apart from the top arm, passing the tool specifications to the
+#: answer generation call so the model calls tools itself.
 #:
-#: 🔴 **이름 충돌 주의.** 계획서 §4b `idea` 표의 ★4 가 `A24` 를 *"modal(의무/재량/예정)
-#: 보존 지시"* 로 적어 뒀는데 **그쪽은 코드로 존재한 적이 없다**(저장소 전 `.py` 에
-#: `A24` 문자열 0건이었다). 사용자 지시가 이 이름을 function calling 에 배정했으므로
-#: 여기가 정본이고, modal arm 은 세울 때 다른 번호를 써야 한다.
-#:
-#: 🔴 **겨냥은 순증 0 이다** (`R1-8` `2aaf46f`). `tools=` 가 새로 겨냥하는 것은
-#: `Q-018`·`Q-044`·`Q-097` 셋인데 셋 다 더 싼 0원 arm 이 이미 가져갔다
-#: (`Q-044`·`Q-097` → `A20` 치환 · `Q-018` → `A21` 게이트). 그래도 세운 이유는
-#: **게이트 F 의 유일한 미완을 측정으로 닫기 위해서**다 — `A18` 과 같은 성격의 예외이고,
-#: *"안 재고 기각"* 보다 *"재고 기각"* 이 제안서 §7 에서 비교할 수 없이 강하다.
-#:
-#: 🔴 **`A8` 대비 도구가 실제로 닿는 상한은 +1 이다.** `Q-044` 는 `calc_total` 이 닿지만
-#: `Q-097` 의 `per_unit`(나눗셈)은 **도구 7종에 대응이 없고**(`calc_share` 는 ×100 이 붙는다)
-#: `Q-018` 은 계산이 아니라 **전사** 오류다.
-#:
-#: ❌ **판정: 기각 (2026-08-15 · 실측 3,759.2원).** 게이트 F 의 `[~]` 를 이것으로 닫았다.
-#:
-#:     그리드 72     A8 65  ->  A24 59      Δ = −6 (−8.3%p)
-#:     전체 88       A8 81  ->  A24 74      Δ = −7
-#:     밸류체인 12   A8  6  ->  A24  6      Δ =  0  (다만 +Q-110 / −Q-111 로 갈렸다)
-#:     회귀          9건    (그리드·전체 8 + 밸류체인 1)
-#:     호출          129 -> 165회 (+27.9%) · 프롬프트 토큰 +44.0% · 비용 +33.3%
-#:
-#: 🔴 **기각 사유는 "모델이 도구를 안 불러서" 가 아니다 — 88문항 중 37문항(42.0%)이
-#: 실제로 불렀다.** 사유는 셋이고, 셋 다 실측이다:
-#:
-#:   ① 🔴 **도구가 정답을 줘도 모델이 옮겨 적지 못한다.** `Q-044` 에서 `calc_total` 이
-#:      골든과 **바이트까지 같은** `2,365,868` 을 돌려줬는데 답변은 `2,366,968` 을 썼다.
-#:      독립 스모크(같은 인자·다른 회차)에서는 `2,366,868` 이 나왔다 — **두 번 다 틀리고
-#:      틀린 자리가 다르다.** 이 저장소의 병목은 계산이 아니라 **전사**이고
-#:      (`Q-018` · `A18` 의 환각률 62.1% 와 같은 기전), function calling 은 그 축을
-#:      건드리지 않는다. 반대로 `A20`(치환)이 이기는 이유가 여기서 설명된다 —
-#:      **치환에는 옮겨 적는 단계가 아예 없다.**
-#:   ② 🔴 **모델이 부른 도구의 과반이 계산이 아니라 검색이다** (47건 중 검색 26 · 계산 21 ·
-#:      `read_section` 16 · `get_history` 10). 근거는 이미 프롬프트에 실려 있는데 모델이
-#:      다시 읽으러 가고, 그 결과가 근거를 희석한다. 회귀 8건 중 7건이 도구를 불렀다.
-#:   ③ 🔴 **`tools` 와 `maxTokens` 가 배타라 길이 상한이 사라진다**(40001). 도구를 한 번도
-#:      안 부른 `Q-106` 도 회귀했다 — 즉 순수 디코딩 조건 변화만으로도 답이 흔들린다.
-#:
-#: 🔴 **`_CALC_SPECS` 만 내밀면 ②는 줄지만 ①·③은 그대로다.** 그리고 ①이 유일한 겨냥
-#: (`Q-044`)을 이미 죽였으므로 그 변형의 상한은 0 이다 — 그래서 재시도를 세우지 않는다.
-#: 🔴 **그 추론은 ①을 고칠 수 없다고 가정한 것이었고, 고칠 수 있다** — `A20` 과 같은
-#: 기전(값을 코드가 문자열에 박는다)을 도구 결과에 걸면 된다. `A24b` 가 그것이다.
+#: Measured and rejected. The rejection is not that tools went uncalled: 42% of
+#: questions called one. The three reasons are transcription of correct tool
+#: results, a majority of calls going to retrieval and diluting evidence
+#: already present, and the loss of the length cap that the API ties to the
+#: tool list. The arm is kept because a rejection measured is stronger than a
+#: rejection assumed.
+#: See docs/design-rationale.md#function-calling-arm
 A24 = replace(A8, name="A24", function_calling=True)
 
-# --- A24b — 🔴 도구 결과를 모델이 옮겨 적게 하지 않는다 (v4 신설) ------------------
-#: 🔴 **`A24` 를 지우지 않는다** — 그 arm 은 기각 판정의 물증이다. `A24b` 는 그 위에
-#: 기각 사유 셋을 **하나씩 겨냥한** 재시도이고, 셋 다 실측에 대응한다:
+# --- Tool results substituted rather than transcribed -----------------------
+#: The rejected arm is kept rather than replaced: it is the evidence for that
+#: verdict. This one is a retry that targets its three rejection reasons one at
+#: a time.
 #:
-#:     ① 전사 오류      `substitute_tool_results` — 도구 결과로 답변의 수를 갈아 끼운다
-#:     ② 근거 희석      `calc_tools_only`         — 계산 7종만 내민다 (검색 8종을 뺀다)
-#:     ③ 길이 상한 소실  `calc_queries_only`       — 계산 질의에만 도구를 연다
-#:
-#: 🔴 **`A24` 의 §9 ③이 *"그 변형의 상한은 0"* 이라고 적어 뒀고, 그 추론은 ①을
-#: 고칠 수 있다는 것을 몰랐다.** ②만 고치면 상한이 0 인 것이 맞다 — ①이 유일한 겨냥
-#: (`Q-044`)을 죽이기 때문이다. `A24b` 가 재는 것은 **①을 고쳤을 때도 그런가** 이다.
-#:
-#: 🔴 **순증 겨냥이 얇다.** 겨냥 셋 중 `Q-044`·`Q-097` 은 `A20`(0원 치환)이 이미
-#: 고쳤고, `Q-018` 은 계산이 아니라 **근거에서 옮겨 적기**라 계산 도구가 낼 값이
-#: 없다. 그래서 `A24b` 단독의 상한은 사실상 `A8` 회복(Δ 0)이고, 볼 만한 것은 아래
-#: 결합 arm 이다.
+#: Its own headroom is thin, because two of the three target questions were
+#: already fixed by a zero-cost substitution arm and the third is a
+#: transcription rather than a calculation. What is worth measuring is the
+#: combination below.
+#: See docs/design-rationale.md#tool-result-substitution
 A24B = replace(A8, name="A24b", function_calling=True, calc_tools_only=True,
                calc_queries_only=True, substitute_tool_results=True)
 
-# --- A24b+A20 — 두 치환의 결합 (v4 신설) -----------------------------------------
-#: 🔴 **원천이 다른 두 치환을 함께 켠다.** `A24b` 는 *도구가 돌려준 값*으로,
-#: `A20` 은 *검사가 재계산한 값*으로 답변의 수를 갈아 끼운다. 배타가 아니고, 순서는
-#: **도구 치환이 먼저**다 (`pipeline._answer_with_tools` → `_verify`) — 도구 값이
-#: 더 이른 원천이고, 치환된 뒤의 답변을 `_verify` 가 다시 본다.
+# --- Both substitutions combined --------------------------------------------
+#: Two substitutions with different sources: one uses the value a tool
+#: returned, the other the value verification recomputed. Not exclusive. The
+#: tool substitution runs first, since it is the earlier source, and
+#: verification then sees the already-substituted answer.
 #:
-#: 🔴 **`A24b` 와 플래그가 하나만 다르다**(`substitute_verified`). 그래야
-#: `Δ(A24b → A24b+A20)` 이 `A20` 의 몫으로 읽힌다.
+#: One flag apart from the arm above, so that the difference reads as the
+#: contribution of the verification substitution alone.
 A24BS = replace(A24B, name="A24b+A20", substitute_verified=True)
 
-#: 실행 순서는 **A8 부터 역순**이다 (§I-4b) — 가장 비싼 구성을 먼저 확보해야
-#: 중간에 예산이 끊겨도 최신 성능을 안다. A2 계열은 사다리를 다 확보한 뒤 맨 끝이다 —
-#: G1 불허로 A2 를 버려도 앞의 여덟 칸이 그대로 남아야 한다.
-#: 🔴 `ORACLE` 은 맨 끝이다 — 진단용이라 사다리·LOO 를 다 확보한 뒤에 붙는다.
-#: 🔴 `A8-lean` 은 **사다리·LOO 뒤, `A2` 계열 앞**이다. 앞의 열두 칸은 이미 측정돼 요청
-#: 캐시로 0원에 재생되고, `A8-lean` 은 **채택 후보**라 G1 미확정인 dense arm(`A2`·`A2F`)과
-#: 진단 arm(`ORACLE`)보다 먼저 확보해야 한다. `--run` 이 정지선에 걸리면 이 순서가 곧
-#: 무엇을 잃는지의 순서다.
-#: 🔴 `A20` 은 `A8-lean` 바로 뒤다 — 같은 이유로 **채택 후보**이고, G1 미확정인 dense
-#: arm 과 진단 arm 보다 먼저 확보해야 한다.
-#: 🔴 `A20r` 은 `A20` 바로 뒤다 — **나란히 재는 짝**이라 둘 사이를 다른 arm 이 갈라
-#: 놓으면 정지선이 하나만 확보하고 끊길 때 그 비교가 통째로 사라진다.
-#: 🔴 `L6`·`L7`·`L8` 은 `L4` 바로 뒤다 — LOO 는 한 덩어리로 확보해야 표가 완성된다.
-#: 🔴 `A18` 은 `A21` 뒤 · dense 앞이다 — **채택 후보가 아니라 기각 예정 arm**이라
-#: (`R0-1` 겨냥 0 · Δ=0 예측) 채택 후보 넷(`A8-lean`·`A20`·`A20r`·`A21`)을 먼저
-#: 확보한 뒤에 선다. 그래도 G1 미확정인 dense·진단 arm 보다는 앞이다 — 이쪽은
-#: **제안서 §7 의 논거**로 반드시 필요하고 저쪽은 아니다.
-#: 🔴 `A22` 는 `A21` 뒤 · `A18` 앞이다 — **밸류체인 근거 회수**를 올리는 arm 이라
-#: 겨냥 0 인 `A18` 보다 앞에 서야 정지선에 걸릴 때 잃는 것이 적다.
-#: 🔴 `A24` 는 `A18` 뒤 · dense 앞이다 — `A18` 과 같은 **기각 예정 arm**(순증 겨냥 0)이라
-#: 채택 후보들 뒤에 서지만, **게이트 F 의 유일한 미완을 닫는 arm** 이라 G1 미확정인
-#: dense·진단 arm 보다는 앞이다.
-#: 🔴 `A24b`·`A24b+A20` 은 `A24` 바로 뒤다 — **나란히 재는 짝**이라(`A20`/`A20r` 과
-#: 같은 이유) 사이를 다른 arm 이 갈라 놓으면 정지선이 하나만 확보하고 끊길 때 그 비교가
-#: 통째로 사라진다. 결합 arm 이 뒤인 것은 단독 Δ 를 먼저 확보해야 결합의 몫을 귀속할 수
-#: 있어서다.
-#: 🔴 `A25` 는 `A20r` 바로 뒤다 — **운영 기본값에 플래그 하나만 더한 짝**이라 사이가
-#: 벌어지면 Δ 를 귀속할 상대를 잃는다. `A20`/`A20r` 과 같은 이유다.
+#: Arms are measured from the complete configuration backwards, so that a run
+#: cut short by budget still knows the newest performance. Arms measured
+#: against each other are kept adjacent, an individual arm precedes its
+#: combinations, and the diagnostic and embedding arms come last.
+#: See docs/design-rationale.md#run-order
 RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A7", "A6", "A5", "A4", "A1b", "A1", "A0",
              "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A27b", "A28",
@@ -848,29 +779,33 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
-#: 사다리(=v2 곡선). A2 계열·LOO 는 여기 들어가지 않는다.
+#: The ladder itself. The embedding arms and the leave-one-outs do not belong
+#: here.
 LADDER = ("A0", "A1", "A1b", "A4", "A5", "A6", "A7", "A8")
 
-#: LOO 구성과 각자가 뺀 것. 보고서가 이 사전을 그대로 읽는다.
-#: 🔴 `L1` 의 라벨을 "정정체인 hop" 이라고만 적으면 안 된다 — `followup_hop` 까지 함께
-#: 끄므로 `※관련공시` 1,267엣지가 그 안에 섞여 있다. `L4` 가 그것을 갈라 준다.
+#: Leave-one-out configurations and what each removes. Reports read this
+#: mapping verbatim, so a label that states only half of what an arm removes
+#: makes the delta be quoted wrongly.
+#: See docs/design-rationale.md#followup-edge-split
 LOO_REMOVED = {"L1": "CHAIN_HOP 전체 (정정체인 550엣지 + 관련공시 후속공시)",
                "L2": "major·holding 필드", "L3": "발주처 2-hop",
-               # 🔴 라벨이 절반만 적고 있었다 (R2A `O-2`). `6d6de5d` 이후 `L4` 는
-               #    역방향 `followups` 와 **순방향 `terminates` 를 함께** 뗀다 —
-               #    둘 다 출처가 `※ 관련공시` 셀이라 `include_followups` 가 같이 가린다.
-               #    값은 그대로 옳지만 라벨이 낡으면 Δ 의 뜻이 잘못 인용된다.
+               # This label used to state only half of what the arm removes.
+               # It now withholds the reverse follow-up edges and the forward
+               # termination edges together, since both come from the same
+               # source cell and one switch hides both.
                "L4": "관련공시 REFERS_TO 계열 — 후속공시(역방향) + 해지→원계약"
                      "(순방향) 둘 다 (정정체인은 유지)",
-               # 🔴 메타 축 셋 (v4). '검색을 끈다' 가 아니라 '필터 인자를 안 넘긴다' 이므로
-               #    라벨에 그 사실을 적는다 — "기업 축" 이라고만 적으면 BM25 까지 끈 것으로
-               #    읽힌다.
+               # The meta axes withhold a filter argument rather than
+               # disabling retrieval, and the labels say so: naming only the
+               # axis would read as having disabled BM25 too.
                "L6": "search_chunks 의 corp_name 필터 (기업 축 · BM25 는 그대로)",
                "L7": "search_chunks 의 접수일 접두 ym·year·rcept_dt "
                      "(사업연도 base_year 는 유지)",
                "L8": "search_chunks 의 group 인자 (인덱스 군 축 — exchange 로 떨어진다)"}
 
-#: dense 를 켜는 arm. G1 이 불허로 확정되면 **이 둘만 빼면 된다.**
+#: Arms that enable the embedding hybrid. If embeddings are ruled out, these
+#: two are the only entries to remove.
+#: See docs/design-rationale.md#dense-isolation
 DENSE_ARMS = ("A2", "A2F")
 
 #: 🔴 **성적으로 인용하면 안 되는 arm.** 평가 시점에 재현할 수 없는 정보(골든)를 쓰므로
