@@ -1,9 +1,14 @@
 # tests/test_v7_run.py
 import json
+import socket
+import ssl
+import urllib.error
 from pathlib import Path
 
+import pytest
+
 from scripts import v7_run
-from scripts.v7_run import out_dir
+from scripts.v7_run import out_dir, with_transport_retry
 
 
 def test_out_dir_separates_arm_cohort_and_round():
@@ -59,3 +64,113 @@ def test_run_arm_records_the_index_fingerprint_in_the_report(tmp_path, monkeypat
         (v7_run.out_dir("A42", "full", 1) / "report.json").read_text(encoding="utf-8"))
     assert report["index_fingerprint"] == v7_run.index_fingerprint()
     assert report["index_fingerprint"]
+
+
+# --- with_transport_retry, resilience against transport faults -------------
+# --- (socket timeouts, connection resets) that with_retry does not retry ---
+
+
+class _FlakyCall:
+    """Callable that raises a given exception a fixed number of times, then
+    returns a fixed result. Used to simulate a transient transport fault
+    without making any network call.
+    """
+
+    def __init__(self, exc, fail_times, result="ok"):
+        self.exc = exc
+        self.fail_times = fail_times
+        self.result = result
+        self.calls = 0
+
+    def __call__(self, *args, **kwargs):
+        self.calls += 1
+        if self.calls <= self.fail_times:
+            raise self.exc
+        return self.result
+
+
+def _no_sleep(seconds):
+    """Stand-in for time.sleep so retry tests run instantly."""
+
+
+def test_transport_retry_returns_eventual_success_after_transient_failures():
+    flaky = _FlakyCall(TimeoutError("The read operation timed out"), fail_times=2)
+
+    result = with_transport_retry(flaky, sleep=_no_sleep)
+
+    assert result == "ok"
+    assert flaky.calls == 3
+
+
+@pytest.mark.parametrize("exc", [
+    TimeoutError("timed out"),
+    ConnectionResetError("connection reset"),
+    ConnectionAbortedError("connection aborted"),
+    ssl.SSLError("ssl error"),
+    socket.gaierror("name resolution failure"),
+    urllib.error.URLError("url error"),
+])
+def test_transport_retry_covers_each_transport_error_type(exc):
+    flaky = _FlakyCall(exc, fail_times=1)
+
+    result = with_transport_retry(flaky, sleep=_no_sleep)
+
+    assert result == "ok"
+    assert flaky.calls == 2
+
+
+def test_transport_retry_does_not_retry_a_non_transport_error():
+    """A programming error must propagate immediately, with no retry at all."""
+    flaky = _FlakyCall(ValueError("not a transport error"), fail_times=99)
+
+    with pytest.raises(ValueError):
+        with_transport_retry(flaky, sleep=_no_sleep)
+
+    assert flaky.calls == 1
+
+
+def test_transport_retry_does_not_retry_a_missing_file_error():
+    flaky = _FlakyCall(FileNotFoundError("no such file"), fail_times=99)
+
+    with pytest.raises(FileNotFoundError):
+        with_transport_retry(flaky, sleep=_no_sleep)
+
+    assert flaky.calls == 1
+
+
+def test_transport_retry_does_not_retry_keyboard_interrupt():
+    flaky = _FlakyCall(KeyboardInterrupt(), fail_times=99)
+
+    with pytest.raises(KeyboardInterrupt):
+        with_transport_retry(flaky, sleep=_no_sleep)
+
+    assert flaky.calls == 1
+
+
+def test_transport_retry_does_not_retry_an_assertion_error():
+    flaky = _FlakyCall(AssertionError("budget exceeded"), fail_times=99)
+
+    with pytest.raises(AssertionError):
+        with_transport_retry(flaky, sleep=_no_sleep)
+
+    assert flaky.calls == 1
+
+
+def test_transport_retry_propagates_the_last_error_once_attempts_are_exhausted():
+    flaky = _FlakyCall(ConnectionError("connection reset"), fail_times=99)
+
+    with pytest.raises(ConnectionError):
+        with_transport_retry(flaky, attempts=3, sleep=_no_sleep)
+
+    assert flaky.calls == 3              # exactly the attempt cap, no more, no fewer
+
+
+def test_transport_retry_widens_the_wait_between_attempts():
+    waits = []
+    flaky = _FlakyCall(TimeoutError("timed out"), fail_times=3)
+
+    with_transport_retry(flaky, base_wait_s=1.0, sleep=waits.append)
+
+    assert len(waits) == 3
+    assert waits == sorted(waits)        # non-decreasing
+    assert waits[-1] > waits[0]           # and it actually widens, not flat
