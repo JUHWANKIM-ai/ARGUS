@@ -111,3 +111,50 @@ def test_q107_lane_now_reaches_the_dukovany_contract():
     if not evidence:
         pytest.skip("artifacts/exchange_records.jsonl 없음")
     assert "20251216801163" in evidence
+
+
+# --- 관련도 배분 (`counterparty_relevance`), v6 ------------------------------
+# 레인 정렬은 파트너 **안**에서만 순서를 바꾼다. 슬롯이 파트너당 하나씩 나가므로
+# 한 파트너가 관련 공시를 둘 가지고 있어도 하나만 실린다. Q-107 이 그 문항이고,
+# 두코바니 계약은 두산에너빌리티 2건 · 한전기술 1건이라 넓이 배분으로는 3건이
+# 절대 못 모인다. 실측은 `docs/design-rationale.md#partner-quota` 에 있다.
+
+def test_relevance_allocation_is_off_by_default():
+    """기본 arm 은 넓이 배분을 유지한다. 켜는 것은 측정으로만 정한다."""
+    from argus import ablation
+
+    assert ablation.ARMS["A42"].counterparty_relevance is False
+    assert pipeline._spends_by_relevance("아무 질문", asks_roster=False) is False
+
+
+def test_relevance_allocation_yields_to_a_roster_question():
+    """열거를 묻는 질문에서는 켜져 있어도 넓이를 지킨다. 파트너를 빠뜨리면
+    답이 곧 틀린다."""
+    from argus import ablation
+
+    with ablation.use(ablation.replace(ablation.ARMS["A42"], name="probe",
+                                       counterparty_relevance=True)):
+        assert pipeline._spends_by_relevance("상장사는 어디인가", asks_roster=True) is False
+        assert pipeline._spends_by_relevance("합계는 얼마인가", asks_roster=False) is True
+        assert pipeline._spends_by_relevance("", asks_roster=False) is False
+
+
+def test_relevance_order_scores_partners_against_one_another():
+    """레인 점수는 레인 안에서 계산돼 파트너끼리 비교할 수 없다. 합집합을 다시
+    채점해야 순위가 의미를 가진다.
+
+    무관한 레코드를 넉넉히 둔다. 문서 넷 중 둘이 어휘를 나누면 BM25 의 IDF 가
+    정확히 0 이 되어 어떤 정렬도 관측되지 않는다.
+    """
+    lanes = {
+        "가": [_record("1", "체코 두코바니 종합설계"), _record("2", "국내 배관 정비"),
+              _record("5", "사옥 관리 용역")],
+        "나": [_record("3", "체코 두코바니 원자로 공급"), _record("4", "사택 신축"),
+              _record("6", "도로 포장 공사")],
+    }
+    order = pipeline._relevance_order("체코 두코바니", ["가", "나"], lanes)
+    assert [r["rcept_no"] for r in order[:2]] == ["1", "3"]
+
+
+def test_relevance_order_survives_an_empty_lane_set():
+    assert pipeline._relevance_order("무엇이든", [], {}) == []

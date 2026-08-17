@@ -488,6 +488,12 @@ def normalize_exchange(doc: dict) -> dict:
         "ratio": ratio,
         "ratio_base": ratio_base,
         "counterparty": _find(body, "계약상대"),
+        # Item 4 of the contract form. It is the only Korean text on a filing
+        # whose contract name is written in English, and overseas plant
+        # contracts are filed that way, so without it a question naming the
+        # country in Korean shares no vocabulary with the record at all.
+        # See docs/design-rationale.md#supply-region
+        "supply_region": _find(body, "공급지역"),
         "period_start": start.isoformat() if start else None,
         "period_end": end.isoformat() if end else None,
         "event_date": event.isoformat() if event else None,

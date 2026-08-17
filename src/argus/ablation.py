@@ -261,6 +261,17 @@ class Arm:
     #: require widening the evidence window, which was rejected.
     #: See docs/design-rationale.md#partner-profile
     partner_profile: bool = False
+    #: True spends the counterparty slots on the records most relevant to the
+    #: question instead of one per partner, and only for questions that do not
+    #: ask for the roster. No LLM call and no extra retrieval; the same
+    #: candidate set is reordered under the same cap.
+    #:
+    #: Off by default because it pairs with the supply-region field. Without
+    #: that field an overseas contract shares no vocabulary with a question
+    #: that names its country in Korean, so relevance ranking hands every slot
+    #: to one partner and the breadth that carried the answer is lost.
+    #: See docs/design-rationale.md#partner-quota
+    counterparty_relevance: bool = False
     #: True recomputes the parenthesised unit conversion in the answer. No LLM
     #: call. Body figures are copied from the evidence and are correct, while
     #: the parenthesised value is divided by the model and is not. One of the

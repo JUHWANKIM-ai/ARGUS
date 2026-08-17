@@ -665,6 +665,49 @@ def _lane_scores(question: str, records: list[dict]) -> list[float]:
     return list(BM25Okapi(corpus).get_scores(bm25_module.tokenize_words(question)))
 
 
+def _spends_by_relevance(question: str, asks_roster: bool) -> bool:
+    """Whether the slots go to the most relevant records rather than one per
+    partner.
+
+    Breadth is the right default only for a question about the set itself. A
+    question that names one project wants every filing on that project, and
+    handing one slot to each partner spends four of six on partners with
+    nothing to say while the partner that has two relevant filings can show
+    one. The roster phrasings already decide the other placement on this hop,
+    so the same predicate decides this one and the two cannot drift apart.
+
+    An empty question leaves breadth in force, matching `_partner_order`.
+    See docs/design-rationale.md#partner-quota
+    """
+    return (ablation.enabled("counterparty_relevance")
+            and bool(question) and not asks_roster)
+
+
+def _relevance_order(question: str, partners: Sequence[str],
+                     lanes: dict[str, list[dict]]) -> list[dict]:
+    """Every partner's records in one order, scored as a single population.
+
+    `_lane_scores` scores inside one lane on purpose, so its numbers are not
+    comparable between partners: the same score means a different thing in a
+    lane of two and a lane of eleven. Ranking across partners therefore has to
+    rescore the union, which is the same function over a wider population and
+    still costs no credits and no network.
+
+    Partner order breaks ties, so a question that distinguishes nothing leaves
+    the previous first pick first.
+    See docs/design-rationale.md#partner-quota
+    """
+    records = [record for corp in partners for record in lanes.get(corp, ())]
+    if not records:
+        return []
+    rank = {corp: index for index, corp in enumerate(partners)}
+    scores = _lane_scores(question, records)
+    order = sorted(zip(scores, range(len(records)), records),
+                   key=lambda item: (-item[0], rank.get(item[2].get("corp_name"), 0),
+                                     item[1]))
+    return [record for _, _, record in order]
+
+
 def _partner_order(records: list[dict], question: str = "") -> list[dict]:
     """Order within a partner: latest first, then question relevance, then
     arrival order.
@@ -856,30 +899,38 @@ def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[st
     roster = " · ".join(partners)
     note = _counterparty_note(out.get("counterparty") or hub, roster, len(partners))
 
+    asks_roster = any(k in (question or "") for k in _ASKS_ROSTER)
+
     # The boundary of the set goes at the head of the evidence. An in-block
     # note alone is not read. Fires only with two or more partners, since one
     # partner is not an enumeration.
     # See docs/design-rationale.md#roster-position
-    if (roster_out is not None and len(partners) >= 2
-            and any(k in (question or "") for k in _ASKS_ROSTER)):
+    if roster_out is not None and len(partners) >= 2 and asks_roster:
         roster_out.append(
             _roster_line(router_module.counterparty_display(hub) or hub, partners))
 
     taken: list[str] = []
-    for depth in range(_partner_quota(len(partners))):
-        for corp in partners:
-            if len(taken) >= limit:
-                break
-            items = lanes[corp]
-            if depth >= len(items):
-                continue
-            record = items[depth]
+    if _spends_by_relevance(question, asks_roster):
+        for record in _relevance_order(question, partners, lanes)[:limit]:
             if take(record.get("doc_id"), _annotate(record.get("markdown", ""), note),
-                    None, corp):
+                    None, record.get("corp_name")):
                 taken.append(record["doc_id"])
+    else:
+        for depth in range(_partner_quota(len(partners))):
+            for corp in partners:
+                if len(taken) >= limit:
+                    break
+                items = lanes[corp]
+                if depth >= len(items):
+                    continue
+                record = items[depth]
+                if take(record.get("doc_id"), _annotate(record.get("markdown", ""), note),
+                        None, corp):
+                    taken.append(record["doc_id"])
 
     trace.append(f'hop={COUNTERPARTY_HOP} strat=counterparty tool=query_by_counterparty '
                  f'via={hub} partners={len(partners)} '
+                 f'alloc={"relevance" if _spends_by_relevance(question, asks_roster) else "breadth"} '
                  f'corp="{",".join(partners) or "-"}" n={len(taken)} top_score=- '
                  f'ids={",".join(taken) or "-"}')
     return len(taken)

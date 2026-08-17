@@ -33,6 +33,29 @@ def test_markdown_header_has_company_and_title():
     assert "반도체 위탁생산 공급계약" in md
 
 
+# --- 공급지역, 서식 4번 항목 ------------------------------------------------
+# 계약명이 영문인 공시(해외 플랜트 37건)에서 **유일한 한글 텍스트**다. 이것이 빠지면
+# 한글로 국가를 부르는 질문과 그 레코드가 어휘를 하나도 안 나눈다. 실측: `두코바니`
+# 질문에서 골든 2건이 자기 레인 5건 중 4·5위였다.
+# See docs/design-rationale.md#supply-region
+
+def test_markdown_carries_the_supply_region():
+    md = to_markdown(dict(RECORD, supply_region="체코 남부 Dukovany Site"))
+    assert "- 공급지역: 체코 남부 Dukovany Site" in md
+
+
+def test_supply_region_sits_next_to_the_counterparty():
+    """서식에서 계약상대가 3번, 공급지역이 4번이다. 순서를 그대로 둔다."""
+    md = to_markdown(dict(RECORD, supply_region="체코 남부 Dukovany Site")).split("\n")
+    assert md.index("- 공급지역: 체코 남부 Dukovany Site") == md.index(
+        "- 계약상대: 글로벌 대형기업") + 1
+
+
+def test_a_record_without_a_region_renders_exactly_as_before():
+    """값이 없는 레코드는 한 글자도 안 바뀐다. 출하된 색인과 갈라지지 않는 근거다."""
+    assert to_markdown(dict(RECORD, supply_region=None)) == to_markdown(RECORD)
+
+
 def test_markdown_formats_amount_with_commas_and_eok():
     md = to_markdown(RECORD)
     assert "22,764,764,160,000원" in md

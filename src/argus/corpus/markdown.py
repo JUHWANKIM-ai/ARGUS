@@ -66,6 +66,11 @@ def to_markdown(record: dict) -> str:
         lines.append(f"- {record.get('ratio_base') or '매출액'} 대비: {record['ratio']}%")
     if record.get("counterparty"):
         lines.append(f"- 계약상대: {record['counterparty']}")
+    # Placed next to the counterparty because both come from the same part of
+    # the form and a question that names one usually names the other.
+    # See docs/design-rationale.md#supply-region
+    if record.get("supply_region"):
+        lines.append(f"- 공급지역: {record['supply_region']}")
 
     # Form-specific fields: use-of-proceeds amounts and conversion prices for
     # the major group, ownership ratios for the holding group.
