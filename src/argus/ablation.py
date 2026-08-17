@@ -1166,7 +1166,7 @@ def attach_citation(answer: str, evidence: str, arm: Arm | None = None,
     arm = arm or current()
     if not arm.attach_citation:
         return answer, []
-    from argus.agent.critic import quick_check       # 순환 import 회피 — 호출 시점에 든다
+    from argus.agent.critic import quick_check       # imported at call time to avoid a cycle
     if not answer:
         return answer, []
 

@@ -113,7 +113,7 @@ def _free_text_lines(record: dict, lines: list[str]) -> list[str]:
     head = "\n".join(lines)
     out = []
     for label, value in free_text_items(record.get("raw_rows") or []):
-        if value in head:                 # 제목이 머리글로 이미 올라간 서식
+        if value in head:                 # forms whose title is already the heading
             continue
         out.append(f"- {label}: {value}")
     return out

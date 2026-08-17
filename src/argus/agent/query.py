@@ -295,7 +295,7 @@ def _twin_paths(question: str, pool) -> list[str]:
     """
     out: list[str] = []
     if _ASK_CORRECTION.search(question or ""):
-        out.append(CORRECTION_PATH)          # 모집단 밖이라 pool 검사를 하지 않는다
+        out.append(CORRECTION_PATH)          # outside the common population, so no pool check
     if _ASK_CORP_NUMBER.search(question or "") and AFFILIATE_PATH in pool:
         out.append(AFFILIATE_PATH)
     if _SUMMARY_METRIC.search(question or ""):

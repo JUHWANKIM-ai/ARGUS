@@ -29,17 +29,17 @@ from argus.corpus.manifest import load_manifest
 CORPUS_START = "20230102"
 
 def _is_reference_label(cell: str) -> bool:
-    """`※ 관련공시` 라벨인가.
+    """Whether a cell is the related-filings label.
 
-    부분일치로 '관련공시' 를 찾으면 정정공시의 `1. 정정관련 공시서류` 가 같이
-    걸린다. 그러면 그 옆의 `2. 정정관련 공시서류제출일` 날짜가 **서식명 없는
-    가짜 참조**로 새어 들어와, 같은 날 아무 문서에나 붙는다.
+    A substring match would also catch the revision label, and the date beside
+    that one would then leak in as a reference with no form name, binding to
+    any document filed the same day.
     """
     packed = _WS.sub("", cell)
     return "관련공시" in packed and "정정관련공시" not in packed
-# '2022-09-06 단일판매ㆍ공급계약체결' — 날짜가 앞
+# Date first, then the form name.
 _DATE_FIRST = re.compile(r"(\d{4})[-.](\d{2})[-.](\d{2})")
-# '특수관계인으로부터의 주식의 취득(2024.07.11)' — 서식명이 앞, 날짜가 괄호 안
+# Form name first, with the date in parentheses.
 _DATE_IN_PAREN = re.compile(r"\(\s*(\d{4})[-.](\d{1,2})[-.](\d{1,2})\s*\)")
 _EMPTY = {"-", "–", "—", ""}
 _WS = re.compile(r"\s+")
@@ -47,20 +47,20 @@ _WS = re.compile(r"\s+")
 
 @dataclass(frozen=True)
 class Reference:
-    """한 건의 `※ 관련공시` 항목."""
+    """One related-filings entry."""
 
     source_rcept_no: str
     source_doc_id: str
     corp_name: str
-    target_date: str                     # yyyymmdd (원문이 적어 둔 선행 공시 접수일)
-    form_name: str                       # 원문이 적어 둔 서식명
+    target_date: str                     # receipt date as the source wrote it
+    form_name: str                       # form name as the source wrote it
     resolved: bool
     reason: str                          # resolved | before_corpus | not_found
     targets: tuple[str, ...] = field(default_factory=tuple)
-    # 원문이 적어 둔 서식명이 붙은 문서의 서식과 맞는가. False 면 '같은 날 같은
-    # 기업' 만으로 붙은 약한 엣지다 — 참조된 서식(조회공시 요구·풍문해명 등)이
-    # 애초에 코퍼스에 없는 종류일 때 이렇게 된다. 정밀도를 따지는 소비자는
-    # 이 값으로 거를 수 있어야 한다.
+    # Whether the form named by the source matches the form of the document
+    # bound to. False leaves an edge held together by company and date alone,
+    # which happens when the referenced form is of a kind the corpus does not
+    # carry at all. A consumer that cares about precision filters on this.
     form_matched: bool = False
 
     def as_dict(self) -> dict:
@@ -78,16 +78,17 @@ class Reference:
 
 
 def parse_reference_cell(cell: str) -> list[tuple[str, str]]:
-    """참조 칸 -> `[(yyyymmdd, 서식명), ...]`.
+    """A reference cell to (date, form name) pairs.
 
-    한 칸에 여러 건이 **구분자 없이** 이어 붙으므로 날짜 위치를 경계로 자른다.
+    Several entries run together in one cell with no separator, so the dates
+    are used as the boundaries.
     """
     text = (cell or "").strip()
     if text in _EMPTY:
         return []
 
-    # 날짜로 **시작하면** '날짜 서식명' 나열이다. 괄호 안 날짜
-    # ('...취득(2024.07.11)')를 여기서 처리하면 서식명이 ')' 로 잘린다.
+    # Starting with a date means a list of date and form name. Handling the
+    # parenthesised form here instead would cut the form name at the bracket.
     if _DATE_FIRST.match(text):
         matches = list(_DATE_FIRST.finditer(text))
         out = []
@@ -97,7 +98,7 @@ def parse_reference_cell(cell: str) -> list[tuple[str, str]]:
             out.append(("".join(m.groups()), name))
         return out
 
-    # 서식명이 앞, 날짜가 괄호 안인 주요사항보고서 형태
+    # The other shape: form name first, date in parentheses.
     out = []
     for m in _DATE_IN_PAREN.finditer(text):
         year, month, day = m.groups()
@@ -108,8 +109,8 @@ def parse_reference_cell(cell: str) -> list[tuple[str, str]]:
 
 _FORM_NOISE = re.compile(r"[\s·ㆍ()\[\]]")
 _FORM_PREFIX = re.compile(r"^\[[^\]]*\]")
-# 서식명 표기는 원문과 manifest 가 조금씩 다르다('단일판매 공급계약 체결' vs
-# '단일판매ㆍ공급계약체결'). 앞부분만 맞으면 같은 서식으로 본다.
+# The source and the manifest space and punctuate a form name differently, so
+# a prefix match counts as the same form.
 _FORM_HEAD = 8
 
 
@@ -141,17 +142,18 @@ def _reference_cells(doc: dict) -> list[str]:
         return []
     cells: list[str] = []
     for row in extract_rows(read_document(path)):
-        # 라벨 칸에 '관련공시' 가 있으면 값 칸이 참조 목록이다.
+        # With the label in a label cell, the value cell is the reference list.
         if any(_is_reference_label(cell) for cell in row[:-1]):
             cells.append(row[-1])
-        # 주요사항보고서는 서술문 안에 '※ 관련공시 : ...' 로 끼워 넣는다.
+        # One lineage embeds the label inside prose instead.
         elif (last := row[-1]) and _is_reference_label(last):
             cells.append(last.split("관련공시", 1)[-1].lstrip(" :："))
     return cells
 
 
 def extract_references(doc: dict) -> list[Reference]:
-    """공시 한 건 -> REFERS_TO 후보들. 해소 실패도 이유를 달아 남긴다."""
+    """One filing to its reference candidates. A reference that does not
+    resolve is kept with the reason it did not."""
     index = _by_corp_date()
     out: list[Reference] = []
     seen: set[tuple[str, str]] = set()
@@ -166,7 +168,8 @@ def extract_references(doc: dict) -> list[Reference]:
                 other for other in index.get((doc["corp_name"], target_date), ())
                 if other["rcept_no"] != doc["rcept_no"]
             ]
-            # 같은 날 여러 건이면 원문이 적어 둔 서식명으로 좁힌다.
+            # Several filings on one day are narrowed by the form the source
+            # named.
             same_form = [o for o in siblings if _forms_agree(form_name, o["report_nm"])]
             chosen = same_form or siblings
             candidates = tuple(o["rcept_no"] for o in chosen)
@@ -174,7 +177,8 @@ def extract_references(doc: dict) -> list[Reference]:
             if candidates:
                 reason = "resolved"
             elif target_date < CORPUS_START:
-                # 코퍼스가 2023-01-02 부터라 애초에 없는 문서다.
+                # Earlier than the corpus start, so the document is absent by
+                # construction.
                 reason = "before_corpus"
             else:
                 reason = "not_found"
@@ -194,12 +198,14 @@ def extract_references(doc: dict) -> list[Reference]:
 
 
 def iter_all_references(doc_groups: tuple[str, ...] = ("exchange", "major")):
-    """코퍼스 전체를 훑어 REFERS_TO 를 낸다. 🔴 **분석 전용 — 호출부가 0건이다.**
+    """Sweep the whole corpus for reference edges. Analysis only: nothing calls
+    this.
 
-    운영 경로도 러너도 이 함수를 안 부른다 (`extract_references` 를 문서 단위로 부른다).
-    지우지 않는 이유는 REFERS_TO 전수 통계가 `corrections.attach_related` 독스트링의
-    판정 근거(*"강한 엣지 출처 453건 중 해지는 11건뿐"*)이고, 그 수를 다시 세는 유일한
-    수단이 이 함수이기 때문이다. **새 코드에서 부르기 전에 비용을 재라 — 전수 훑기다.**
+    Neither the operational path nor the runner uses it; they extract
+    references one document at a time. It is kept because the corpus-wide
+    counts behind the termination-link decision can only be recomputed here.
+    Measure the cost before calling it from new code: it is a full sweep.
+    See docs/design-rationale.md#termination-links
     """
     for doc in load_manifest():
         if doc["doc_group"] in doc_groups:

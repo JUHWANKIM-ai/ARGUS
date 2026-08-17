@@ -94,7 +94,7 @@ def free_text_amount(cells: list[str]) -> tuple[int, str] | None:
             if _FOREIGN_BEFORE.search(cell[:match.start(2)][-12:]):
                 continue
             if not magnitude and currency != "원":
-                continue          # 단위가 없으면 금액이라 단정할 수 없다
+                continue          # without a unit it cannot be called an amount
             try:
                 value = float(number.replace(",", ""))
             except ValueError:
@@ -142,7 +142,7 @@ def _rows_matching(rows: list[list[str]], *keywords: str):
     """Rows whose label contains every keyword, in order."""
     for row in rows:
         if len(row) < 2:
-            continue  # 값 칸이 없는 서술 행
+            continue  # a prose row with no value cell
         if all(_WS_ALL.sub("", k) in _labels(row) for k in keywords):
             yield row
 
@@ -404,7 +404,7 @@ def free_text_items(rows: list[list[str]]) -> list[tuple[str, str]]:
                 continue
             values = [c for c in nxt if _clean(c)]
             used.add(index + 1)
-        for value in values[:1]:            # 라벨 하나에 값 하나. 짝이 늘면 근거가 부푼다
+        for value in values[:1]:            # one value per label; more would inflate the evidence
             items.append((label, _clip_free(value)))
     return items
 
@@ -417,7 +417,7 @@ def _clip_free(value: str) -> str:
 def normalize_exchange(doc: dict) -> dict:
     html = read_document(_doc_path(doc))
     rows = extract_rows(html)
-    body = exchange_body_rows(rows)           # 정정 표는 필드 추출에서 반드시 뺀다
+    body = exchange_body_rows(rows)           # the revision table must be excluded from extraction
     title = extract_title(html)
 
     # The termination form and the investment form each label their amount
@@ -795,7 +795,7 @@ def correction_pairs(rows: list[list[str]]) -> list[tuple[str, str, str]]:
             continue
         before, after = _clean(row[-2]), _clean(row[-1])
         if before is None and after is None or before == after:
-            continue          # 바뀐 게 없으면 근거가 아니다
+            continue          # nothing changed, so it is not evidence
         pairs.append((row[0].strip(), before or "-", after or "-"))
     return pairs
 
@@ -816,7 +816,7 @@ def body_rows(rows: list[list[str]]) -> list[list[str]]:
 def normalize_major(doc: dict) -> dict:
     html = read_document(_doc_path(doc))
     rows = extract_rows(html)
-    body = body_rows(rows)                    # 정정 표는 필드 추출에서 반드시 뺀다
+    body = body_rows(rows)                    # the revision table must be excluded from extraction
     form = major_form(doc["report_nm"])
 
     fields = _collect(body, MAJOR_FIELDS.get(form, ()))

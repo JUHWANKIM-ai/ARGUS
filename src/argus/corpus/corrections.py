@@ -155,7 +155,7 @@ def _drop_cycles(parent: dict[str, str]) -> list[tuple[str, str]]:
             state[node] = 0
             path.append(node)
             node = parent[node]
-        if state.get(node) == 0:                    # 진행 중인 노드로 되돌아왔다
+        if state.get(node) == 0:                    # returned to a node still in progress
             for member in path[path.index(node):]:
                 dropped.append((member, parent.pop(member)))
         for member in path:
@@ -182,7 +182,7 @@ def build_chains(doc_group: str = "exchange") -> dict[str, list[str]]:
             form = _form_key(doc)
             for clue in _clue_dates(doc):
                 if clue > doc["rcept_dt"]:
-                    continue  # 미래 문서를 고칠 수는 없다
+                    continue  # a later document cannot be revised by an earlier one
                 candidates = [
                     other for other in by_date.get(clue, ())
                     if other["rcept_no"] != doc["rcept_no"]
@@ -213,7 +213,7 @@ def build_chains(doc_group: str = "exchange") -> dict[str, list[str]]:
         current = rcept_no
         while current in parent:
             nxt = parent[current]
-            if nxt in seen:      # `_drop_cycles` 뒤라 도달 불가. 방어만 남긴다
+            if nxt in seen:      # unreachable after cycles are dropped; kept as a guard
                 break
             seen.add(nxt)
             current = nxt

@@ -265,7 +265,7 @@ def missing_named_report(question: str, companies: Sequence[str]) -> str:
             seen = (str(d.get("base_year", "")) if axis == "base_year"
                     else str(d.get("rcept_dt", ""))[:6] for d in docs)
             if any(v == value for v in seen):
-                return ""                     # 문턱 ②③ — 한 축·한 기업이라도 맞으면 통과
+                return ""                     # one matching axis is enough to pass
     return f'{subtype}:' + ",".join(f"{k}={v}" for k, v in sorted(axes.items()))
 
 
@@ -315,9 +315,10 @@ _COUNTERPARTY_HINT = ("계약상대", "발주", "시행")
 #: legal terms that carry no directional meaning.
 #: See docs/design-rationale.md#gate-conjunction
 _COUNTERPARTY_ROLE = re.compile(
-    r"^(?:(?:을|를|이|가)(?:계약상대|발주)"      # 주격·목적격 — 노드가 발주 주체
-    r"|(?:이|가)시행(?=하|사|중)"                # 주격 전용 — 시행사가 도급을 준다 (Q-111)
-    r"|의발주(?!처|사|업체|기업))")               # 관형격은 '발주' 에만 (X의 발주처 ≠ X가 발주)
+    r"^(?:(?:을|를|이|가)(?:계약상대|발주)"      # nominative or accusative: the node orders
+    r"|(?:이|가)시행(?=하|사|중)"                # nominative only: a developer awards the work
+    r"|의발주(?!처|사|업체|기업))")               # genitive only before the bare verb, since the
+                                              # noun forms reverse the direction
 
 # --- Rejected extension: marker preceding the node name --------------------
 # Word order placing the marker before the node name is not matched. The
@@ -378,7 +379,7 @@ def find_counterparty(question: str, group: str = "exchange") -> str:
     key = canonical(question or "")
     if not any(h in key for h in _COUNTERPARTY_HINT):
         return ""
-    for node in _counterparty_nodes():          # 긴 이름부터
+    for node in _counterparty_nodes():          # longest name first
         start = 0
         while (index := key.find(node, start)) >= 0:
             if _COUNTERPARTY_ROLE.match(key[index + len(node):]):

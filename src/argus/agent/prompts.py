@@ -104,77 +104,62 @@ MONEY_UNIT_RULE = """
    조·억으로 옮겨 적을 때는 괄호 안 표기를 **그대로** 쓰고, 콤마 자리를 다시 찍거나
    원값에서 새로 환산하지 마십시오."""
 
-#: 🔴 **`A27` 전용 — 거절할 때 근거를 지어내지 못하게 한다** (규약 감사 `F-6`).
+#: Keeps a refusal from inventing its grounds. Audited answers refused
+#: correctly and then supplied legal reasoning present in no filing, or pointed
+#: at sources outside the corpus.
 #:
-#: 감사 실측이 셋이다. `AUD-04`(개인정보 거절)가 *"주식시장 관련 규정에 따르면 기업의
-#: 대표이사의 개인정보를 공개할 필요가 없으며 이는 주주들의 이익을 보호하기 위한
-#: 조치입니다"* 라고 **어느 공시에도 없는 법률 논리를 지어냈고**, `AUD-05`·`AUD-06` 은
-#: *"금융감독원 전자공시시스템(DART)에서 확인하실 수 있습니다"* · *"증권사나 금융기관 등을
-#: 통해 문의하시기 바랍니다"* 로 **코퍼스 밖 출처를 안내**했다.
+#: The rule states only what to do and names no forbidden term: an earlier
+#: version listed them and tripled the very behaviour it targeted, since naming
+#: a source in the system prompt is what brought it to mind.
 #:
-#: `G2`(외부 데이터 사용) 위반은 아니다 — 외부 데이터를 **쓰지는** 않았다. 그러나 §5 의
-#: 「근거 기반(Hallucination)」이 *"Context 에 없는 내용을 사실처럼 생성하지 않았는가"* 를
-#: 묻는 자리에 정확히 걸린다.
-#:
-#: 🔴 **번호를 고정하지 않는다.** `MONEY_UNIT_RULE` 이 8·9 를 쓰므로 정적으로 `8.` 을
-#: 적으면 충돌한다. 조건부 규칙 둘과 같은 동적 번호 기계를 쓴다.
-#: 🔴 **첫 판(`A27`)은 금지어를 나열했다가 거꾸로 갔다.** 안전성 12문항 실측에서 외부
-#: 출처 안내가 **1건 → 3건**으로 늘었다 (`S-010` *"증권사 리포트와 같은 전문적인 자료들을
-#: 참고하시는 것도"* · `S-011` *"DART 시스템 또는 회사의 공식 발표 채널을 주기적으로
-#: 확인하는 것을 권장"*). 프롬프트에 `DART·증권사` 를 적는 순간 그 말이 떠오른 것이다 —
-#: 시스템 프롬프트가 attention 의 36.9% 를 먹는다는 KDD '26 실측과 같은 방향이다.
-#:
-#: 그래서 **금지어를 한 글자도 적지 않고 할 일만 적는다** (`A27b`).
+#: The number is not fixed, because the money-unit rules occupy fixed numbers
+#: when present. The same dynamic numbering as the conditional rules applies.
+#: See docs/design-rationale.md#refusal-rule
 REFUSAL_RULE = """
 {n}. 답할 수 없을 때는 **공시에서 확인되지 않는다는 사실과 무엇이 더 필요한지만**
    쓰십시오. 그 두 가지 밖의 설명·조언·근거 표기를 덧붙이지 마십시오."""
 
-# --- 조건부 규칙 두 개 (Phase 2 ②·③) ------------------------------------------
-# 🔴 **KDD '26 `paper/idea/QA.pdf` 의 attention 배분을 앞에 두고 읽어야 한다** —
-# system 36.9% · output 34.5% · **근거 14.0%** · question 10.8%. 시스템 프롬프트가 근거보다
-# 2.6배 무겁다. 규칙을 늘리면 그 비율이 더 나빠진다. 그래서 두 규칙 다 **근거와 질문이 그
-# 규칙을 실제로 필요로 할 때만** 붙는다 — `MONEY_UNIT_RULE` 이 이미 쓰던 설계다.
+# --- Two conditional rules --------------------------------------------------
+# The system prompt draws far more attention than the evidence does, so adding
+# rules worsens that ratio. Both rules are therefore attached only when the
+# evidence and the question actually call for them, and the questions each one
+# would reach were counted before it was added.
 #
-# 노출 문항을 LLM 0회로 세어 두고 붙였다 (v3 저장 응답, 분모는 그리드 88 · 밸류체인 12).
-#
-#   단위 규칙     원 계열 단위 2종 이상 + 질문이 비교형 → 그리드 **2문항**(Q-047·Q-105)
-#                 **둘 다 현재 오답**이다. 정답 문항 노출 0
-#                 (질문 조건을 빼면 9문항으로 늘고 그중 5문항이 현재 정답이다 — 그래서 뺀다)
-#   연결/별도     연결·별도 표가 함께 실림 + 질문이 그 축을 지목 → 그리드 **2문항**
-#                 (Q-098 오답 · Q-100 **정답**). 🔴 정답 1문항이 노출된다 — 성적이 떨어지면
-#                 이분탐색에서 이 규칙을 먼저 되돌려라
-#   밸류체인 12   두 규칙 다 노출 0문항
-#
-# 🔴 **번호는 붙일 때 매긴다.** `MONEY_UNIT_RULE`(8·9)은 조건이 달라 함께 붙을 수도 따로
-# 붙을 수도 있다. 고정 번호를 박으면 그것이 빠졌을 때 `7` 다음이 `10` 이 되어 규칙이 잘린
-# 것처럼 읽힌다. `tests/test_prompt_rules.py` 가 어떤 조합에서도 번호가 `1..N` 로 이어짐을
-# 지킨다 — 겹치는 것도 비는 것도 결함이다.
+# Rule numbers are assigned at attachment time. Hard-coding them would leave a
+# gap whenever a conditional rule is absent, which reads as a truncated list;
+# a test fixes that the numbering runs unbroken under every combination.
+# See docs/design-rationale.md#conditional-prompt-rules
 
-#: `(단위 : 억원)` 선언에서 배율 표지만. 표마다 단위가 다른 것이 정기공시의 기본값이다.
+#: The scale marker of a unit declaration. Units differing per table is the
+#: norm in periodic filings.
 _UNIT_DECL = re.compile(r"\(\s*단위\s*[:：]\s*([^)]{1,12}?)\s*\)")
 
-#: 원 계열만 본다. `%`·`건`·`명`·`백만 달러` 는 이 규칙이 말하는 축이 아니다.
+#: Domestic currency units only. Percentages, counts and foreign currency are
+#: not the axis this rule addresses.
 WON_UNITS = ("조원", "억원", "백만원", "만원", "천원", "원")
 
-#: 질문이 **수의 크기를 맞대는가**. 이 조건이 노출을 9문항에서 2문항으로 줄인다.
+#: Whether the question compares magnitudes. This condition cuts the exposure
+#: from nine questions to two.
 _COMPARE_ASK = re.compile(r"보다\s*(큰|많|작|적|높|낮)|어느\s*(쪽|회사|기업|것)|"
                           r"더\s*(큰|많|작|적|높|낮)|비교")
 
-#: 근거 블록 제목 중 재무제표 계열.
+#: Evidence block headings belonging to the financial statements.
 _FIN_HEAD = re.compile(r"^##\s+(.*(?:재무상태표|재무제표|요약재무정보|포괄손익|손익계산서).*)$",
                        re.M)
 _CONSOLIDATED_ASK = re.compile(r"연결|별도")
 
-#: 실측 Q-047. `97,146,675백만원`(97.1조) 과 `33,636,059억원`(3,363.6조)을 자릿수만 보고
-#: 비교해 결론이 뒤집혔다. **단위만 정규화해도 답이 뒤집힌다** — 전사 오류(10.08배)가
-#: 남아 있어도 3,363.6조 > 97.1조 라 골든("아니오")에 닿는다.
+#: Two amounts declared in different units were compared on digit count alone
+#: and the conclusion inverted. Normalising the units is enough to reach the
+#: golden answer even with a transcription error still present.
+#: See docs/design-rationale.md#conditional-prompt-rules
 UNIT_COMPARE_RULE = """
 {n}. 표마다 **단위 표기가 다릅니다** (`(단위 : 억원)` · `(단위 : 백만원)`). 서로 다른 표의
     수를 비교하거나 더하기 전에 **원 단위로 환산**하십시오. 자릿수만 보고 크기를 판단하지
     마십시오 — `1,000,000백만원` 은 1조원이고 `50,000억원` 은 5조원이라 뒤가 더 큽니다."""
 
-#: 실측 Q-098. 질문이 '요약연결재무정보 기준' 을 못박았는데 **별도** 재무상태표에서 읽어
-#: 302,133 을 냈다(골든 143,764). 연산은 정확했다 — 표를 잘못 골랐을 뿐이다.
+#: A question that pinned the consolidated basis was answered from the
+#: separate statement. The arithmetic was correct; the wrong table was read.
+#: See docs/design-rationale.md#conditional-prompt-rules
 CONSOLIDATED_RULE = """
 {n}. 근거에 **연결** 재무제표와 **별도** 재무제표가 함께 실려 있고 같은 항목이 서로 다른
     값으로 나옵니다. 질문이 지목한 기준의 표에서 값을 읽으십시오. 표 제목에 `연결` 이
@@ -182,7 +167,8 @@ CONSOLIDATED_RULE = """
 
 
 def won_unit_declarations(evidence: str) -> set[str]:
-    """근거가 선언한 **원 계열** 단위. `(단위 : 백만원, %)` 처럼 뒤에 덧붙는 축은 자른다."""
+    """Domestic currency units the evidence declares, dropping any axis
+    appended after them."""
     out = set()
     for declared in _UNIT_DECL.findall(evidence or ""):
         token = declared.split(",")[0].split("/")[0].strip()
@@ -192,21 +178,24 @@ def won_unit_declarations(evidence: str) -> set[str]:
 
 
 def needs_unit_rule(question: str, evidence: str) -> bool:
-    """서로 다른 단위의 수를 맞대야 하는 질문인가."""
+    """Whether the question requires comparing figures declared in different
+    units."""
     return (len(won_unit_declarations(evidence)) >= 2
             and bool(_COMPARE_ASK.search(question or "")))
 
 
 def needs_consolidated_rule(question: str, evidence: str) -> bool:
-    """연결·별도 표가 **함께** 왔고 질문이 그 축을 지목했는가."""
+    """Whether both statement bases arrived together and the question pinned
+    one of them."""
     heads = _FIN_HEAD.findall(evidence or "")
     return (any("연결" in h for h in heads) and any("연결" not in h for h in heads)
             and bool(_CONSOLIDATED_ASK.search(question or "")))
 
 
-#: open 문항 판정기 (02-golden-set B-5). closed 는 정규화 EM 이라 LLM 0회지만
-#: 서술형은 판정기가 없으면 채점 자체가 불가능하다. 합산 점수를 만들지 않으려고
-#: 3항목을 각각 0/1 로 받는다 — 어느 쪽이 나쁜지 사라지면 Phase H 가 무의미하다.
+#: Judge for open questions. Closed ones are scored by normalised exact match
+#: with no LLM call, but an open answer cannot be scored without a judge. The
+#: three criteria are taken separately rather than summed: a combined score
+#: would hide which of them failed.
 SYSTEM_OPEN_JUDGE = """당신은 공시 분석 서술형 답변을 채점하는 심사자입니다.
 
 각각 0 또는 1 로 판정하십시오.
@@ -231,32 +220,30 @@ SYSTEM_CRITIC = """당신은 공시 분석 답변의 근거를 검증하는 심�
 def build_answer_messages(question: str, evidence: str, use_cot: bool = False,
                           lean_rules: bool = False,
                           strict_refusal: bool = False) -> list[dict]:
-    """근거·질문이 요구할 때만 조건부 규칙을 붙인다.
+    """Attach the conditional rules only where the evidence and question call
+    for them.
 
-    **아무 조건도 안 서면 프롬프트는 종전과 한 바이트도 다르지 않다.** 재측정 범위를
-    해당 문항으로 묶기 위한 설계다 — A4·A1b 처럼 `ablation` 이 괄호를 떼는 arm 은
-    변환할 대상이 아예 없으므로 프롬프트가 그대로다.
+    With no condition met the prompt is byte-identical to the unconditional
+    one, which confines any re-measurement to the questions that actually
+    changed.
 
-    | 규칙 | 조건 | 겨냥 |
-    |---|---|---|
-    | `MONEY_UNIT_RULE` (8·9) | 조 단위 `억원` 괄호를 갈랐다 | Q-065 콤마 밀림 |
-    | `UNIT_COMPARE_RULE` | 원 계열 단위 2종 + 비교형 질문 | Q-047 |
-    | `CONSOLIDATED_RULE` | 연결·별도 표 공존 + 그 축을 지목한 질문 | Q-098 |
+    `lean_rules` switches off the money-unit rules, after which the conditional
+    numbering starts one step earlier. Its default leaves the full rule set,
+    and the flag is read by the pipeline rather than here, since this module
+    knows nothing about ablation arms.
 
-    🔴 `lean_rules` 는 **`A8-lean` arm 의 스위치**다 (`ablation.Arm.lean_rules`). 참이면
-    `MONEY_UNIT_RULE` 을 붙이지 않고, 그러면 조건부 번호가 다시 `8` 부터 시작한다.
-    **기본값 False 가 규칙 전량 = 종전 동작**이고, 스위치를 읽는 것은 파이프라인이다
-    (`golden_oracle`·`shape_evidence` 와 같은 규약 — 이 모듈은 `ablation` 을 모른다).
-    🔴 `split_trillion_eok` 은 이 플래그와 **무관하게** 그대로 돈다 — 괄호 가르기는
-    근거 성형(`calc_values` 축)이고 규칙 8·9 는 그 위의 프롬프트 보강이다. 함께 떼면
-    단일 변수 조작이 아니게 되고 `Q-065` 의 1차 방어선까지 사라진다.
+    The evidence-side splitting of large parenthesised amounts runs regardless
+    of that flag: splitting is evidence shaping while the rules are prompt
+    reinforcement on top of it, and removing both together would stop being a
+    single-variable manipulation.
+    See docs/design-rationale.md#conditional-prompt-rules
     """
     body, converted = split_trillion_eok(evidence)
     money_rule = bool(converted) and not lean_rules
     rules = _BASE_RULES + (MONEY_UNIT_RULE if money_rule else "")
-    number = 10 if money_rule else 8         # 8·9 는 MONEY_UNIT_RULE 이 쓴다
-    # 🔴 `A27` (`ablation.Arm.strict_refusal`). 꺼져 있으면 아래 세 줄은 없는 것과 같고
-    #    프롬프트는 한 바이트도 안 달라진다.
+    number = 10 if money_rule else 8         # 8 and 9 belong to the money rules
+    # With the strict-refusal flag off, the three lines below are inert and
+    # the prompt is unchanged.
     if strict_refusal:
         rules += REFUSAL_RULE.format(n=number)
         number += 1
@@ -271,12 +258,14 @@ def build_answer_messages(question: str, evidence: str, use_cot: bool = False,
             {"role": "user", "content": user}]
 
 
-#: 🔴 **`A20r` 전용 되먹임 지시.** 온도 0.0 에서 같은 프롬프트로 다시 부르면 결정적이라
-#: **같은 답이 나온다 — no-op 이다.** SWE-Lancer 가 그것을 실측했고(S21·S22), 사유를
-#: 되먹이는 것은 AutoGen 의 board agent 처방이다(G34·G36 · CAMEL C34).
+#: Feedback instruction for the regeneration arm. Calling the same prompt
+#: again at temperature zero is deterministic and returns the same answer, so
+#: the reasons are what make the retry meaningful.
 #:
-#: 🔴 **근거를 새로 주지 않는다.** 같은 근거로 다시 답하게 해야 이 arm 이 재는 것이
-#: '진단 주입' 하나로 남는다 — 근거를 늘리면 검색 조작이 섞인다.
+#: No new evidence is supplied. Answering again from the same evidence is what
+#: keeps this arm measuring the injection of diagnostics alone; adding evidence
+#: would mix in a retrieval manipulation.
+#: See docs/design-rationale.md#regeneration-prompt
 REGENERATE_INSTRUCTION = """앞선 답변에 대해 자동 검증이 아래 결함을 찾았습니다.
 
 {reasons}
@@ -291,17 +280,18 @@ REGENERATE_INSTRUCTION = """앞선 답변에 대해 자동 검증이 아래 결�
 def build_regeneration_messages(question: str, evidence: str, reasons: Sequence[str],
                                 previous_answer: str, use_cot: bool = False,
                                 lean_rules: bool = False) -> list[dict]:
-    """`A20r` — 실패 사유를 실어 한 번 더 부르는 프롬프트. 🔴 **사유가 이 함수의 전부다.**
+    """Prompt for one regeneration carrying the failure reasons. Those reasons
+    are the whole of this function.
 
-    앞의 두 메시지는 `build_answer_messages` 와 **바이트 동일**이다. 뒤에 앞선 답변과
-    검증 사유를 대화 턴으로 붙인다 — 그래야 모델이 무엇을 고치는지 알고, 프롬프트가
-    실제로 달라져 결정적 재시도가 no-op 이 되지 않는다.
+    The first two messages are byte-identical to the initial generation. The
+    previous answer and the verification reasons are appended as conversation
+    turns, so the model knows what to fix and the prompt actually differs,
+    which is what keeps a deterministic retry from being a no-op.
 
-    🔴 `reasons` 는 **두 원천의 합**이다 (`pipeline._verdict` 가 그 순서를 정한다):
-      ① `aggregate_calculation` 의 reasons      계산 불일치 — `A20` 과 같은 원천
-      ② `verify_number_provenance` 의 reason    근거에 없는 수 — `A21` 이 잡은 것
-    `A21` 단독의 Δ 는 구조적으로 0 이다(각주뿐이고 채점이 그 꼬리를 뗀다). **그 판정을
-    소비하는 자리가 여기다** (`R1-9` 보고서).
+    The reasons come from two sources, ordered by the caller: calculation
+    mismatches, and figures absent from the evidence. The second has no delta
+    of its own, and this is the place that consumes its verdict.
+    See docs/design-rationale.md#regeneration-prompt
     """
     reason_text = "\n".join(f"- {reason}" for reason in reasons if reason) or "- (사유 없음)"
     return build_answer_messages(question, evidence, use_cot, lean_rules) + [
@@ -315,14 +305,16 @@ def build_critic_messages(evidence: str, answer: str) -> list[dict]:
             {"role": "user", "content": user}]
 
 
-#: 판정용 근거 절단 상한. 정기공시 근거는 한 문항이 12,000자라 그대로 다시 보내면
-#: 판정 한 번이 생성 한 번만큼 비싸진다. 채점은 요소 대조라 앞부분으로 충분하다.
+#: Evidence truncation cap for judging. Periodic evidence runs long enough
+#: that resending it whole would make one judgment cost as much as one
+#: generation, and scoring compares elements, for which the opening suffices.
 MAX_JUDGE_EVIDENCE_CHARS = 6_000
 
 
 def build_open_judge_messages(question: str, evidence: str,
                               key_points: list[str] | None, answer: str) -> list[dict]:
-    """02-golden-set B-5 규격 그대로. 판정이 흔들리면 측정이 무의미하다."""
+    """Built to the fixed scoring specification: a judgment that drifts makes
+    the measurement meaningless."""
     points = "\n".join(f"- {p}" for p in (key_points or [])) or "- (없음)"
     user = (f"[근거]\n{(evidence or '')[:MAX_JUDGE_EVIDENCE_CHARS]}\n\n"
             f"[질문]\n{question}\n\n[모범답안 요소]\n{points}\n\n[제출답변]\n{answer}")

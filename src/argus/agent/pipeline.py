@@ -983,7 +983,7 @@ def _enumerate_events(r, question: str, budget: Budget, trace: list[str], take,
     groups: dict[str, list[dict]] = {}
     for event in out.get("events") or ():
         groups.setdefault(canonical(event.get("counterparty") or ""), []).append(event)
-    for members in groups.values():        # 그룹 안은 접수일 내림차순 = 최신 대표
+    for members in groups.values():        # newest first within a group
         members.sort(key=lambda e: (str(e.get("rcept_dt", "")), e.get("rcept_no", "")),
                      reverse=True)
     order = sorted(groups, key=lambda key: (-len(groups[key]), key))
@@ -1348,7 +1348,7 @@ def _drain_report_cells(plan, cells: list[dict], corps: list, quota: dict,
 
     counts: dict = {}
     cap = _report_quota(len(cells), len(corps))
-    for limit in (cap, MAX_SECTION_EVIDENCE):      # 1차 공평 몫 · 2차 남은 칸
+    for limit in (cap, MAX_SECTION_EVIDENCE):      # fair share first, remaining slots second
         for key, corp, hits in pools:
             for chunk in hits:
                 if taken >= MAX_SECTION_EVIDENCE:
@@ -1391,13 +1391,13 @@ def _gather_sections(r, question: str, budget: Budget,
     plans = plan_section_hops(question, report_hints(question), paths,
                               _fiscal_years(r, question))
     if not ablation.current().hop_ladder:
-        plans = plans[:1]                       # A1b 이하 — 재검색 사다리를 태우지 않는다
+        plans = plans[:1]                       # no reformulation ladder on this arm
     corps = r.companies[:3] or [None]
     # A comparison is not answered by filling one side, so slots are divided to
     # keep one company from consuming them all.
     per_corp = max(1, MAX_SECTION_EVIDENCE // len(corps))
     quota = {corp: per_corp for corp in corps}
-    named = _report_cells(question)             # 질문이 이름을 부른 보고서들
+    named = _report_cells(question)             # reports the question names
     taken = 0
     for plan in plans:
         if plan.hop > 0:
@@ -1555,7 +1555,7 @@ def _citation_source(record: dict) -> dict | None:
         # index by chunk id.
         tail = str(record.get("path") or source.get("path") or "")
         raw = str(source.get("rcept_dt") or "")
-    else:                                                   # 정형 레코드
+    else:                                                   # structured record
         source = record if record.get("doc_subtype") or record.get("title") else {}
         if not source:
             source = tools._record_of(rcept) or record
@@ -2575,7 +2575,7 @@ def answer_question(question_id: str, question: str) -> dict:
             if not verdict.passed:
                 answer += f"\n\n(주의: 근거 검증을 통과하지 못했습니다 — {_verdict_reason(verdict)})"
         except BudgetExceeded as exc:
-            trace.append(f"critic 생략: {exc}")            # 우리 상한이다 — 장애가 아니다
+            trace.append(f"critic 생략: {exc}")            # our own cap, not a fault
         except RuntimeError as exc:
             trace.append(f"{_upstream_mark('critic', exc)} critic 생략: {exc}")
 
@@ -2777,7 +2777,7 @@ def _verdict(question: str, answer: str, evidence: str, records: list[dict], r,
     # evidence.
     reasons = agg["reasons"][:1] if calc_failed else []
     if not reasons and arith_reports and arith_reports[0]["reason"]:
-        reasons = [arith_reports[0]["reason"]]      # 레코드가 0건인 문항 (실측 Q-044)
+        reasons = [arith_reports[0]["reason"]]      # questions with no structured record
     if complete["reason"]:
         reasons.append(complete["reason"])
     if provenance and provenance["reason"]:

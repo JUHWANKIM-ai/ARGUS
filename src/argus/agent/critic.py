@@ -328,11 +328,11 @@ def _targets(expected: float, claims: list[tuple[float, float, str]]) -> list[st
     out = []
     for value, tol, literal in claims:
         if abs(value - expected) <= tol + 1e-9:
-            continue                          # 맞는 후보다 — 건드리지 않는다
+            continue                          # a matching candidate, left alone
         if not value or not expected or (value > 0) != (expected > 0):
             continue
         if abs(math.log10(abs(value) / abs(expected))) > SUBSTITUTE_LOG_TOLERANCE:
-            continue                          # 다른 수치다 (총액·다른 계약)
+            continue                          # a different figure, such as a total
         out.append(literal)
     return list(dict.fromkeys(out))
 
@@ -400,7 +400,7 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
         if any(abs(value - expected) <= tol + 1e-9 for value, tol, _ in claims):
             return
         if any(m["kind"] == kind and m.get("hard") for m in mismatches):
-            return                       # 같은 값을 자릿수 오류로 이미 보고했다
+            return                       # already reported as a magnitude error
         value, tol, literal = min(claims, key=lambda c: abs(c[0] - expected))
         mismatches.append({"kind": kind, "claimed": literal, "claimed_value": value,
                            "expected": expected, "tolerance": tol, "detail": detail,

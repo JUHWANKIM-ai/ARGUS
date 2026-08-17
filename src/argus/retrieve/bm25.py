@@ -33,7 +33,7 @@ from argus import ablation, embed
 _MIDDOT = re.compile(r"[ㆍ·・･]")
 _TOKEN = re.compile(r"[0-9]+(?:[,.][0-9]+)*|[가-힣]+|[A-Za-z]+")
 
-BIGRAM_MIN = 3   # 이 길이 이상인 한글 토큰만 bigram 으로 분해한다
+BIGRAM_MIN = 3   # only Korean tokens at least this long are split into bigrams
 
 
 def _bigrams(word: str) -> list[str]:
@@ -320,7 +320,7 @@ def iter_section_parts(record: dict, text: str,
 
 BM25_K1 = 1.5
 BM25_B = 0.75
-BM25_EPSILON = 0.25          # rank_bm25 와 동일 — 음수 IDF 를 eps*평균IDF 로 바닥친다
+BM25_EPSILON = 0.25          # matches the library default: floors a negative IDF
 
 #: Indexed body length ceiling. Full-text indexing exceeds the memory budget
 #: even under CSR.
