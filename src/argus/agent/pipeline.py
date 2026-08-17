@@ -2170,6 +2170,22 @@ def _sc_key(answer: str) -> str:
     return "|".join(values) if values else " ".join(text.split())
 
 
+def _sc_applies(first: str) -> bool:
+    """Whether the extra samples are worth drawing for this answer.
+
+    The majority is taken over the figures a sample states, so an answer with
+    none has nothing to vote on. Reusing the key builder keeps the gate and the
+    aggregation from disagreeing about what counts as a figure.
+    See docs/design-rationale.md#self-consistency-scope
+    """
+    if not ablation.enabled("sc_figures_only"):
+        return True
+    from argus.agent import critic
+
+    text = first or ""
+    return bool(critic._money_spans(text) or critic._PCT_RE.search(text))
+
+
 def _self_consistent(messages: list[dict], max_tokens: int, arm, first: str,
                      budget: Budget, trace: list[str]) -> str:
     """Answer chosen by majority across `k` samples. The first sample already
@@ -2619,8 +2635,10 @@ def answer_question(question_id: str, question: str) -> dict:
             budget.spend_llm(result.prompt_tokens, result.completion_tokens)
             answer = result.text
             trace.append(f"generate tokens={result.prompt_tokens}+{result.completion_tokens}")
-        if arm.sc_k > 1:
+        if arm.sc_k > 1 and _sc_applies(answer):
             answer = _self_consistent(messages, max_tokens, arm, answer, budget, trace)
+        elif arm.sc_k > 1:
+            trace.append("sc skip=no_figures k=1/%d" % arm.sc_k)
     except BudgetExceeded as exc:
         trace.append(f"예산 초과: {exc}")
         return _respond(question_id, question, evidence, trace, UNANSWERABLE, budget)

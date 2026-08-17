@@ -2581,22 +2581,24 @@ def test_w1_arms_call_the_counterparty_hop_with_the_old_arguments():
                                         "prefer": ()})
 
 
-# --- A10, 자기일관성 k=3 (온도 통제 변수를 깨는 유일한 arm) ---------------------
+# --- A10, V7-1: the two arms allowed to move the temperature control -------
 # 09-ablation §I-3 이 "온도 0.0" 을 고정으로 못박았고 v3 까지 그 값은 파이프라인에
 # **하드코딩**돼 있었다. `Arm` 으로 옮기는 조작의 위험은 하나다. **기본값이 0.0 이
-# 아니면 v1~v4 측정이 전부 무효가 된다.** 아래 첫 두 검사가 그것만 본다.
+# 아니면 v1~v4 측정이 전부 무효가 된다.** A10 은 전 문항에 건 자기일관성이고, V7-1
+# 은 논문이 그은 범위(고정 답변 집합과 파서)로 좁힌 자기일관성이다. 같은 축을 재는
+# 둘뿐이므로 통제를 함께 깬다. 아래 첫 검사가 그것만 본다.
 
 def test_temperature_moved_to_the_arm_but_the_default_is_still_zero():
     assert "temperature" in FLAGS and "sc_k" in FLAGS
     for name, arm in ablation.ARMS.items():
-        if name == "A10":
+        if name in ("A10", "V7-1"):
             continue
         assert arm.temperature == 0.0, f"{name} 의 온도가 0.0 이 아니다 — 통제가 깨졌다"
         assert arm.sc_k == 1, f"{name} 이 표본을 둘 이상 뽑는다"
     assert ablation.current().temperature == 0.0        # 스위치를 안 건드린 운영 경로
 
 
-def test_a10_is_the_only_arm_that_moves_the_temperature():
+def test_a10_moves_only_sc_k_and_temperature_from_a8():
     diff = [f for f in FLAGS
             if getattr(ablation.ARMS["A10"], f) != getattr(ablation.A8, f)]
     assert sorted(diff) == ["sc_k", "temperature"], diff
@@ -2604,6 +2606,17 @@ def test_a10_is_the_only_arm_that_moves_the_temperature():
     assert ablation.ARMS["A10"].temperature > 0.0
     assert "A10" in ablation.SIDE_ARMS
     assert "A10" not in ablation.LADDER and "A10" not in ablation.LOO_REMOVED
+
+
+def test_v7_1_narrows_self_consistency_to_the_papers_scope():
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["V7-1"], f) != getattr(ablation.A42, f)]
+    assert sorted(diff) == ["sc_figures_only", "sc_k", "temperature"], diff
+    assert ablation.ARMS["V7-1"].sc_k == 3
+    assert ablation.ARMS["V7-1"].temperature > 0.0
+    assert ablation.ARMS["V7-1"].sc_figures_only is True
+    assert "V7-1" in ablation.SIDE_ARMS
+    assert "V7-1" not in ablation.LADDER and "V7-1" not in ablation.LOO_REMOVED
 
 
 def test_self_consistency_at_temperature_zero_is_rejected():

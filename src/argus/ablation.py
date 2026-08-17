@@ -295,6 +295,13 @@ class Arm:
     #: to the evidence. No LLM call and no retrieval.
     #: See docs/design-rationale.md#unit-line
     unit_line: bool = False
+    #: True draws the extra self-consistency samples only for an answer that
+    #: states a figure. The technique needs a fixed answer set and a parser to
+    #: take a majority over, which its own paper states, and a narrative answer
+    #: has neither: every sample becomes its own key and the first is selected
+    #: after paying for the rest.
+    #: See docs/design-rationale.md#self-consistency-scope
+    sc_figures_only: bool = False
     #: True recomputes the parenthesised unit conversion in the answer. No LLM
     #: call. Body figures are copied from the evidence and are correct, while
     #: the parenthesised value is divided by the model and is not. One of the
@@ -764,6 +771,11 @@ A22 = replace(A8, name="A22", multi_hub=True)
 #: See docs/design-rationale.md#self-consistency-arm
 A10 = replace(A8, name="A10", sc_k=3, temperature=0.7)
 
+# --- Self-consistency narrowed to the paper's stated scope, off the ladder --
+#: v7, self-consistency inside the range its paper states. See the
+#: `sc_figures_only` field for why the scope gate exists.
+V7SC = replace(A42, name="V7-1", sc_k=3, temperature=0.5, sc_figures_only=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -811,7 +823,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42",
-             "A21", "A22", "A10", "A18", "A24",
+             "A21", "A22", "A10", "V7-1", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
 #: The ladder itself. The embedding arms and the leave-one-outs do not belong
@@ -855,7 +867,8 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
                          A24B, A24BS, A25, A26, A25_A26, A27B, A28, A31, A32, A33,
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
-                         A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42)}
+                         A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
+                         V7SC)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
