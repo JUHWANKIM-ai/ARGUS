@@ -656,118 +656,113 @@ A29A = replace(A28, name="A29a", aggregate_line=True)
 #: then be missing once the arithmetic is fixed.
 A29A_A33 = replace(A28, name="A29a+A33", aggregate_line=True, reverse_chain=True)
 
-# --- A29a+A20 — 집계 한 줄 + 치환 (v5 실측이 이 결합을 요구했다) --------------------
-#: 🔴 **집계 줄만으로는 `Q-034` 가 안 뒤집혔다** (2026-08-16 실측). 정확한 값
-#: 817,900,000,000 을 근거에 싣고 *"다시 계산하지 말라"* 는 지시까지 붙였는데 모델은
-#: **여전히 자기가 더했다**(817,100,000,000). v4 의 발견이 여기서 한 번 더 확인됐다 —
-#: *"모델이 숫자를 손에 쥐는 순간 틀린다."*
-#:
-#: 🔴 **그런데 헛일이 아니었다.** 집계 줄이 모델에게 **식을 쓰게 만들었다**:
-#:
-#:     A28  답변 "합계는 757,900,000,000원"        식 없음 → equation 검사 미발화
-#:                                                → provenance 만 발화 (재계산값 없음)
-#:     A29a 답변 "72,200 + 398,800 + 346,900 = 817,100"
-#:                                                → equation 발화 · 재계산 **817,900,000,000**
-#:                                                → judge 세 축 전부 통과
-#:
-#: 즉 이 arm 이 판 것은 정답이 아니라 **고칠 수 있는 형태**다. 그리고 그 형태를 고치는
-#: 기전은 이미 측정으로 이겨 둔 것이 있다 — `A20`(`substitute_verified`).
+# --- Aggregate line plus substitution ---------------------------------------
+#: The aggregate line alone does not flip the target question: the model
+#: recomputes even with the exact value supplied and an instruction not to.
+#: What the line buys is not the answer but a correctable form, because it
+#: makes the model write an equation that verification can then act on.
+#: See docs/design-rationale.md#model-recomputes
 A29A_A20 = replace(A28, name="A29a+A20", aggregate_line=True, substitute_verified=True)
 
-# --- A29s — 집계 한 줄 + 집계 치환 (처분의 다섯 번째 갈래) --------------------------
-#: 🔴 `A20` 이 못 잡는 자리를 잡는다 — 저쪽은 답변의 **식**을 파싱하고 이쪽은 **근거의
-#: `amount` 필드**를 쓴다. `Q-109` 는 `=` 를 안 써서 식이 없다. 사유는
-#: `Arm.substitute_aggregate` 와 `agent/aggregate.substitute` 독스트링.
+# --- Aggregate line plus aggregate substitution -----------------------------
+#: Reaches a case the equation-based substitution cannot: that one parses an
+#: equation out of the answer, while this one draws on the `amount` field of
+#: the evidence, so an answer written without an equation is still covered.
+#: See docs/design-rationale.md#substitution-scope
 A29S = replace(A28, name="A29s", aggregate_line=True, substitute_aggregate=True)
 
-# --- A29s+A20 — 두 치환을 함께 (원천이 다르므로 배타가 아니다) ----------------------
+# --- Both substitutions together, whose sources differ ----------------------
 A29S_A20 = replace(A28, name="A29s+A20", aggregate_line=True,
                    substitute_aggregate=True, substitute_verified=True)
 
-# --- A29s+A20+A33 — v5 산술·검색 채택 후보 전량 -------------------------------------
-#: 🔴 `Q-113` 은 셋이 다 있어야 넘어간다 — `A33` 이 골든을 4/4 로 회수하고,
-#: 집계가 체인별 차의 합을 내고, 치환이 모델의 오기를 갈아 끼운다.
+# --- Every arithmetic and retrieval candidate together ----------------------
+#: One question needs all three: the reverse chain recovers its golden
+#: records, the aggregate sums the per-chain differences, and substitution
+#: replaces the model's transcription error.
 A29S_A20_A33 = replace(A28, name="A29s+A20+A33", aggregate_line=True,
                        substitute_aggregate=True, substitute_verified=True,
                        reverse_chain=True)
 
-# --- A29b — 정정 금액 시계열 한 줄 (사다리 밖 곁가지 · v5 오답 Q-023) ---------------
-#: 🔴 **채택된 산술 구성 위에 얹어 잰다.** `A28` 위에 세우면 Δ 에 산술 몫이 안 섞이는
-#: 대신, 결합에서 다시 재야 한다 — `Q-023` 은 산술 arm 이 안 건드리는 문항이라
-#: (`_op` 가 빈 값) 여기서는 `A28` 위에 세워 단독 Δ 를 깨끗이 본다.
+# --- Revision amount series as one line, off the ladder ---------------------
+#: Stacked on the adopted base rather than on the arithmetic arms, because the
+#: target question carries no arithmetic operation for them to act on, so this
+#: base gives a clean individual delta.
 A29B = replace(A28, name="A29b", revision_series=True)
 
-# --- A30 — 정정사유·주요내용 런타임 적재 (사다리 밖 곁가지 · v5 오답 Q-087·Q-093) ----
-#: 🔴 **v5 에서 인질이 가장 큰 arm 이다.** R0 실측 번짐: 정정본이 실린 문항 54 ·
-#: 투자판단이 실린 문항 15 (평가 문항 124 중). 겨냥은 둘이다 — 흔들리면 기각한다.
+# --- Revision reason and summary loaded at runtime, off the ladder ----------
+#: The arm with the widest blast radius of this generation: it touches the
+#: evidence of far more questions than it targets, so any regression rejects
+#: it.
+#: See docs/design-rationale.md#arm-catalog
 A30 = replace(A28, name="A30", correction_fields=True)
 
-# --- A34 — v5 채택분 전량 결합 (새 운영 기본값 후보) --------------------------------
-#: 🔴 **단독 Δ 를 먼저 다 확보하고 나서 결합을 잰다** (`A25+A26` 과 같은 규칙).
-#: 여섯 플래그의 겨냥이 서로 다른 문항이라 상호작용이 없을 것이라 보지만,
-#: **없을 것이라 보는 것과 재 보는 것은 다르다.**
+# --- Counterparty distribution line, off the ladder -------------------------
 A29C = replace(A28, name="A29c", partner_profile=True)
 
 
-# --- A34 — v5 채택분 전량 결합 (새 운영 기본값 후보) --------------------------------
+# --- Every adopted component combined, candidate operational default --------
+#: The individual deltas are all secured before the combination is measured.
+#: The flags target different questions, so no interaction is expected, but
+#: expecting none and measuring none are different things.
 A34 = replace(A28, name="A34",
-              speculation_gate=True,      # Task 1 — S-003·S-004
-              identifier_gate=True,       # Task 2 — S-002
-              reverse_chain=True,         # Task 3 — Q-113 (골든 회수)
-              aggregate_line=True,        # Task 4 — 산술
-              substitute_aggregate=True,  # Task 4 — 집계 치환
-              substitute_verified=True,   # Task 4 — 식 치환 (A20)
-              revision_series=True,       # Task 5 — Q-023
-              correction_fields=True)     # Task 7 — Q-087·Q-093
+              speculation_gate=True,      # speculation refusal
+              identifier_gate=True,       # identifier refusal
+              reverse_chain=True,         # reverse chain seeding
+              aggregate_line=True,        # deterministic aggregate
+              substitute_aggregate=True,  # aggregate substitution
+              substitute_verified=True,   # equation substitution
+              revision_series=True,       # revision amount series
+              correction_fields=True)     # revision reason and summary
 
-# --- A35 — 답변의 괄호 환산 교정 (사다리 밖 곁가지 · 규약 「정확성」) ----------------
-#: 🔴 **채택된 결합(`A34`) 위에 얹어 잰다.** 겨냥 넷 중 하나가 `A29s`(집계 치환)가
-#: 만든 불일치라(`Q-115`), `A28` 위에 세우면 그 자리가 재현되지 않는다.
-#: 사유는 `Arm.fix_unit_parens` 와 `agent/aggregate.fix_unit_parens` 독스트링.
+# --- Parenthesised unit conversion fix, off the ladder ----------------------
+#: Stacked on the combined arm rather than the base, because one of its four
+#: targets is a mismatch the aggregate substitution creates, which does not
+#: reproduce on the base.
+#: See docs/design-rationale.md#unit-conversion
 A35 = replace(A34, name="A35", fix_unit_parens=True)
 
-# --- A36 — 발주처를 `missing_corp` 에서 면제 (사다리 밖 곁가지 · 규약 「정확성」) -----
+# --- Exempt an orderer from the missing-company check, off the ladder -------
+# See docs/design-rationale.md#verifier-disposition
 A36 = replace(A34, name="A36", counterparty_exempt=True)
 
-# --- A37 — v5 정확성 개선 둘을 함께 (새 기본값 후보) --------------------------------
+# --- The two accuracy fixes together, candidate default ---------------------
 A37 = replace(A34, name="A37", fix_unit_parens=True, counterparty_exempt=True)
 
-# --- A38 — 자기정합 교정 (사다리 밖 곁가지 · 규약 「추론 논리성」) -------------------
-#: 🔴 이 축을 재는 **첫 수단**이다. 사유는 `Arm.self_consistency_fix`.
+# --- Self-consistency correction, off the ladder ----------------------------
+#: The first instrument built for this axis.
+#: See docs/design-rationale.md#self-contradiction
 A38 = replace(A37, name="A38", self_consistency_fix=True)
 
-#: 🔴 v6 채택 — 열거 완전성. 사유는 `Arm.roster_line`.
+#: Enumeration completeness.
+#: See docs/design-rationale.md#roster-position
 A39 = replace(A38, name="A39", roster_line=True)
 
-#: 🔴 v6 채택 — 반올림 복원. 사유는 `Arm.expand_rounded`.
+#: Rounding restoration.
+#: See docs/design-rationale.md#unit-conversion
 A40 = replace(A39, name="A40", expand_rounded=True)
 
-#: 🔴 v6 채택 — 결과값 부재. 사유는 `Arm.state_total`.
+#: Missing result value.
+#: See docs/design-rationale.md#state-total
 A41 = replace(A40, name="A41", state_total=True)
 
-#: 🔴 v6 채택 — 같은 날 공시 가르기. 사유는 `Arm.date_disambiguation`.
+#: Separating same-day filings.
+#: See docs/design-rationale.md#date-disambiguation
 A42 = replace(A41, name="A42", date_disambiguation=True)
 
-# --- v5 채택 후보 전량 (산술 + 시계열 + 검색) ---------------------------------------
+# --- Every candidate together: arithmetic, series and retrieval -------------
 A29_ALL = replace(A28, name="A29all", aggregate_line=True, substitute_aggregate=True,
                   substitute_verified=True, reverse_chain=True, revision_series=True)
 
-# --- A22 — 다중 허브 결속 `W=1→3` (사다리 밖 곁가지 · v4 신설) --------------------
-#: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 발주처 차선의 허브를 하나에서 최대 셋으로
-#: 넓힌다. 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** — `A20`·`A21`·`A18` 과 같은 곁가지다.
+# --- Multi-hub binding, off the ladder --------------------------------------
+#: One flag apart from the top arm, widening the counterparty lane from one
+#: hub to at most three.
 #:
-#: 🔴 **이 arm 은 정답률을 올리지 않는다 — 근거 회수를 올린다.** 계획서 §4·§9pre 가
-#: 예측을 박아 뒀다: **뒤집기 0 · 근거 회수 +2**(`Q-108`·`Q-117`). 보고할 때 두 분모를
-#: 반드시 갈라야 한다(그리드 72 / 밸류체인 골든 46). 성적 표에 섞으면 "유료 arm 이
-#: 성적을 못 올렸다" 와 "근거를 더 가져왔다" 가 한 칸에서 상쇄된다.
-#:
-#: 🔴 겨냥 셋의 성격이 다르다:
-#:   `Q-107`  hop 은 이미 발화한다(`via=한국수력원자력` · partners=6). 단수라 **진짜
-#:            계약상대**(두산에너빌리티)를 허브로 못 잡는 것이 병목이다 (`R1-11 ②` 이관)
-#:   `Q-108`  `Route.counterparty` 가 **아예 None** 이라 hop 이 안 선다. 라우터 결속은
-#:            `R1-11 ①` 이 기각했고(두 회사가 다 공시한 쪽), 근거의 `계약상대:` 는 그
-#:            기각과 충돌하지 않는다
-#:   `Q-117`  열거 hop(`strat=enumerate`)이 서는데 갈래가 계약상대별이라 허브가 더 필요하다
+#: This arm raises evidence recovery rather than accuracy, and the prediction
+#: recorded before it ran was zero flips with two more golden records
+#: recovered. The two denominators have to be reported separately: merged into
+#: one accuracy table, "a paid arm did not raise the score" and "it recovered
+#: more evidence" cancel out in the same cell.
+#: See docs/design-rationale.md#multi-hub-binding
 A22 = replace(A8, name="A22", multi_hub=True)
 
 # --- A10 — 자기일관성 `k=3` (사다리 밖 곁가지 · v4 신설) --------------------------
