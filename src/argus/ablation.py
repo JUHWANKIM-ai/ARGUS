@@ -291,6 +291,10 @@ class Arm:
     #: at all and the model did the arithmetic and the unit conversion itself.
     #: See docs/design-rationale.md#comparison-line
     compare_line: bool = False
+    #: True prepends the scale a periodic table declares, with its multiplier,
+    #: to the evidence. No LLM call and no retrieval.
+    #: See docs/design-rationale.md#unit-line
+    unit_line: bool = False
     #: True recomputes the parenthesised unit conversion in the answer. No LLM
     #: call. Body figures are copied from the evidence and are correct, while
     #: the parenthesised value is divided by the model and is not. One of the

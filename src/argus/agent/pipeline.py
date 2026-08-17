@@ -2541,6 +2541,20 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, extra)
             trace.append(f"aggregate line=1 chars={len(extra)}")
 
+    # A periodic table states its scale in a header above the table rather
+    # than in the cell, so the figure's meaning depends on a line the model
+    # has to carry across the table. Restated at the head alongside the other
+    # deterministic lines, since a recorded run held the correct scale in the
+    # evidence throughout and still misread the figure.
+    # See docs/design-rationale.md#unit-line
+    if ablation.enabled("unit_line"):
+        from argus.agent import units
+
+        scales = units.unit_line(evidence)
+        if scales:
+            evidence = _prepend(evidence, scales)
+            trace.append(f"unit_line scales={scales.count('=')}")
+
     # Separate the filing a date points at. Where two filings share a date and
     # a title and both are in the evidence, the selection rather than the
     # retrieval is what goes wrong, so the remedy matches `_roster_line`: one
