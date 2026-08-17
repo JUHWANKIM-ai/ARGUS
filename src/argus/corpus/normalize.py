@@ -706,9 +706,9 @@ MAJOR_FIELDS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     ),
 }
 
-#: 서식 -> (표시할 금액 이름, 라벨 키워드, 형제 행 키워드).
-#: 형제 행은 `보통주식/기타주식` 처럼 rowspan 으로 갈라진 같은 항목이라 **더한다**.
-#: 여기 없는 서식은 금액 칸이 애초에 없다 (합병·분할·소송·상장폐지 등).
+#: Form to (display name for the amount, label keywords, sibling keywords).
+#: Sibling rows are the same item split by a row span and are summed. A form
+#: absent from this table has no amount cell at all.
 MAJOR_AMOUNT: dict[str, tuple[str, tuple[str, ...], tuple[str, ...] | None]] = {
     "전환사채권발행결정": ("권면(전자등록)총액", ("권면", "총액"), None),
     "교환사채권발행결정": ("권면(전자등록)총액", ("권면", "총액"), None),
@@ -719,8 +719,8 @@ MAJOR_AMOUNT: dict[str, tuple[str, tuple[str, ...], tuple[str, ...] | None]] = {
     "자기주식취득결정": ("취득예정금액", ("취득예정금액", "보통주식"), ("기타주식",)),
     "자기주식처분결정": ("처분예정금액", ("처분예정금액", "보통주식"), ("기타주식",)),
     "자기주식취득신탁계약체결결정": ("계약금액", ("1.계약금액",), None),
-    # 해지 서식의 '해지 후' 칸은 43건 전부 '-' 다(계약이 끝났으니 당연하다).
-    # 의미 있는 금액은 '해지 전' 이다.
+    # In the termination form the after cell is always empty, since the
+    # contract has ended. The meaningful amount is the before cell.
     "자기주식취득신탁계약해지결정": ("해지 전 계약금액", ("1.계약금액", "해지전"), None),
     "타법인주식및출자증권양수결정": ("양수금액", ("양수금액",), None),
     "타법인주식및출자증권양도결정": ("양도금액", ("양도금액",), None),
@@ -730,12 +730,13 @@ MAJOR_AMOUNT: dict[str, tuple[str, tuple[str, ...], tuple[str, ...] | None]] = {
     "영업정지": ("영업정지금액", ("영업정지금액",), None),
 }
 
-#: 금액 대비 비율. exchange 와 같은 뜻이라 ratio/ratio_base 로 올린다.
+#: Ratio against the amount. Same meaning as in the exchange group, so it is
+#: promoted to the same fields.
 _MAJOR_RATIO = (("자기자본대비", "자기자본"), ("자산총액대비", "자산총액"),
                 ("매출액대비", "매출액"), ("총자산대비", "총자산"))
 
-#: 기간 칸이 있는 서식만. 없는 서식에서 아무 `시작일/종료일` 이나 주우면 청약예정일이
-#: '기간' 으로 나간다 — 유상증자 근거에 '기간: 2025-05-27 ~ 2025-05-27' 이 그 사고다.
+#: Forms that actually have a period cell. Picking up any start and end date
+#: in a form that has none emits a subscription date as a contract period.
 _MAJOR_PERIOD = {
     "자기주식취득결정": "취득예상기간",
     "자기주식처분결정": "처분예정기간",
@@ -746,9 +747,10 @@ _MAJOR_PERIOD = {
 }
 
 
-#: 정정 표가 끝나고 서식 본문이 시작되는 지점의 표지. **첫 칸만** 본다 —
-#: 정정 표의 '정정 후' 칸은 블록을 통째로 담고 있어서 그 안에도 '금융위원회 귀중'
-#: 이 들어 있다. 행 전체를 보면 정정 표의 첫 행에서 본문이 시작했다고 오판한다.
+#: Marker where the revision table ends and the form body begins. Only the
+#: first cell is examined: an after cell of the revision table can contain a
+#: whole block including this marker, and reading the whole row would place the
+#: body start at the first revision row.
 _BODY_START = ("귀중", "회 사 명")
 
 
@@ -757,10 +759,11 @@ def _is_body_start(row: list[str]) -> bool:
 
 
 def _correction_span(rows: list[list[str]]) -> tuple[int, int] | None:
-    """기재정정 표의 `(머리행, 끝)` 구간. 없으면 None.
+    """Span of the revision table, or None.
 
-    머리행 위치는 문서마다 다르다 — 앞에 '제출이력' 표가 붙으면 8행이 아니라 9행째다
-    (삼성SDI 20250409001154). 그래서 고정 창이 아니라 **본문 시작 전까지**를 찾는다.
+    The header row sits at a different index per document, since a submission
+    history table may precede it, so the search runs up to the body start
+    rather than over a fixed window.
     """
     body = next((i for i, row in enumerate(rows) if _is_body_start(row)), len(rows))
     for index, row in enumerate(rows[:min(body, 25)]):
@@ -773,13 +776,14 @@ def _correction_span(rows: list[list[str]]) -> tuple[int, int] | None:
 
 
 def correction_pairs(rows: list[list[str]]) -> list[tuple[str, str, str]]:
-    """기재정정 표의 `(항목, 정정 전, 정정 후)`. 없으면 빈 목록.
+    """Revision rows as (item, before, after), or an empty list.
 
-    Q-030 이 정확히 이 표에 걸린다 — 원공시(유상증자결정)만 보면 '증자 진행 중'으로
-    답하게 되고, '철회' 라는 판정은 정정본의 '정정 후' 칸에만 있다.
+    Some answers exist only in the after cell: read from the original filing
+    alone, the matter still appears to be in progress.
 
-    정정사유가 rowspan 으로 합쳐지면 칸 수가 4 -> 3 으로 줄어든다. 그래서 항목은
-    맨 앞 칸, 값은 **끝 두 칸**으로 읽는다. 칸 위치를 고정하면 절반이 어긋난다.
+    A revision reason merged by a row span drops the cell count, so the item is
+    read from the first cell and the values from the last two. Fixing the cell
+    positions misreads half of them.
     """
     span = _correction_span(rows)
     if span is None:
@@ -797,17 +801,13 @@ def correction_pairs(rows: list[list[str]]) -> list[tuple[str, str, str]]:
 
 
 def body_rows(rows: list[list[str]]) -> list[list[str]]:
-    """정정 표를 뺀 서식 본문. **필드 추출은 반드시 여기서 해야 한다.**
+    """Form body with the revision table removed. Field extraction has to
+    happen here.
 
-    정정 표의 한 행이 블록을 통째로 담는 경우가 있다.
-
-        ['4. 자금조달의 목적',
-         '시설자금 (원) 1,200,052,500,000 영업양수자금 (원) - 운영자금 (원) - …',
-         '시설자금 (원) 700,020,800,000 영업양수자금 (원) - 운영자금 (원) - …']
-
-    이 한 행에 6개 자금용도 라벨이 전부 들어 있어서, 라벨로 찾으면 6개 필드가
-    **모두 같은 덩어리**를 값으로 집는다. 실측: 한화에어로스페이스 20250408000012 의
-    조달금액이 7,000억 × 6 = 4조 2,001억으로 부풀었다.
+    A single revision row can hold a whole block containing every sub-label of
+    a section, so searching by label makes all of those fields take the same
+    chunk as their value, multiplying the total.
+    See docs/design-rationale.md#table-row-shapes
     """
     span = _correction_span(rows)
     return rows if span is None else rows[:span[0]] + rows[span[1]:]
@@ -821,7 +821,8 @@ def normalize_major(doc: dict) -> dict:
 
     fields = _collect(body, MAJOR_FIELDS.get(form, ()))
 
-    # 유상증자는 총 조달 규모 칸이 없다. 자금용도별 금액의 합이 그 값이다(Q-022).
+    # The share-issue form has no total cell; the total is the sum of the
+    # per-purpose amounts.
     amount, amount_type = None, None
     spec = MAJOR_AMOUNT.get(form)
     if spec is not None:
@@ -837,7 +838,8 @@ def normalize_major(doc: dict) -> dict:
         if parts:
             amount, amount_type = sum(parts), "조달금액"
 
-    # 값 칸이 마지막이 아닌 서식(발행가액)은 행 전체를 훑는 폴백으로 건진다.
+    # Forms whose value cell is not the last are recovered by the whole-row
+    # fallback.
     if form in {"유상증자결정", "무상증자결정"}:
         price = _find_loose(body, "발행가", "보통주식")
         if price:
@@ -855,8 +857,8 @@ def normalize_major(doc: dict) -> dict:
             ratio, ratio_base = found, base
             break
 
-    # 기간은 서식이 실제로 기간 칸을 가질 때만. 없는 서식에서 아무 시작일이나 주우면
-    # 청약예정일이 계약기간처럼 나간다.
+    # A period is read only from forms that have one. Otherwise a subscription
+    # date is emitted as a contract period.
     start = end = None
     header = _MAJOR_PERIOD.get(form)
     if header:
@@ -885,8 +887,9 @@ def normalize_major(doc: dict) -> dict:
         "period_end": end.isoformat() if end else None,
         "event_date": event.isoformat() if event else None,
         "reserved_reason": reserved_reason,
-        # 서식을 알고 그 서식의 값을 실제로 뽑았을 때만 True.
-        # 금액 칸이 있는 서식은 금액이, 없는 서식(합병·소송·상장폐지)은 고유 필드가 기준이다.
+        # True only when the form is known and a value for it was actually
+        # extracted. Forms with an amount cell are judged on the amount; the
+        # rest on their own characteristic field.
         "schema_matched": bool(
             form in MAJOR_FIELDS
             and (amount is not None if amount_type else bool(fields))
@@ -897,29 +900,28 @@ def normalize_major(doc: dict) -> dict:
 
 
 # =============================================================================
-# 지분공시(holding) — 대량보유상황보고서 요약정보
+# Holding filings: the summary block of a large-holding report.
 # =============================================================================
-# 앞선 트랙은 '보유비율·주식수는 라벨로 안 나온다'고 봤다. 셀을 못 읽던 파서 기준의
-# 관측이었다. 지금 실측하면 1,083건 중 99.7% 에 `직전/이번 보고서` 행이 있다.
+# An earlier reading concluded that the ratio and share count do not appear as
+# labels. That was an artefact of a parser that could not read the cells:
+# almost every record carries the previous and current rows.
 #
-# 다만 이 표는 **라벨:값이 아니라 격자**다.
-#
-#     ['보유주식등의 수 및 보유비율', '보유주식등의 수', '보유비율']   <- 머리행
-#     ['직전 보고서', '196,452,737', '30.67']
-#     ['이번 보고서', '196,488,145', '30.67']
-#
-# 값의 이름은 행이 아니라 **머리행의 열 위치**에 있다. row[-1] 을 값으로 쓰는
-# 라벨:값 계약으로는 비율만 잡히고 주식수가 통째로 사라진다.
+# This table is a grid rather than label-and-value pairs. The name of a value
+# lives in the column position of the header row, not in the row itself, so a
+# label-and-value contract that takes the last cell captures the ratio and
+# loses the share count entirely.
+# See docs/design-rationale.md#table-row-shapes
 
 _SUMMARY_START = "요약정보"
-#: 요약정보 블록의 끝. 이 확인문 뒤로는 같은 이름('직전보고서')의 상세표가 또 나오는데,
-#: 그쪽은 칸이 9개라 위치가 다르다. 경계를 안 그으면 상세표 값을 요약값으로 집는다.
+#: End of the summary block. A detail table with the same row names follows
+#: it, with a different column layout, so without this boundary the detail
+#: values are taken as the summary.
 _SUMMARY_END = ("보고자 본인은", "회사코드", "법인구분")
 _PREV, _CURRENT = "직전보고서", "이번보고서"
 
 
 def summary_rows(rows: list[list[str]]) -> list[list[str]]:
-    """요약정보 블록만 잘라낸다."""
+    """Cut out the summary block alone."""
     start = 0
     for index, row in enumerate(rows[:20]):
         if row and _WS_ALL.sub("", row[0]) == _SUMMARY_START:
@@ -934,15 +936,14 @@ def summary_rows(rows: list[list[str]]) -> list[list[str]]:
 
 
 def holding_summary(rows: list[list[str]]) -> dict[str, tuple[str | None, str | None]]:
-    """요약정보 격자 -> `{열 이름: (직전, 이번)}`.
+    """Summary grid to {column name: (previous, current)}.
 
-    머리행(3칸 이상, 첫 칸이 항목명)을 만나면 그 아래 `직전/이번 보고서` 행을
-    열 위치로 읽는다.
+    On a header row, the previous and current rows below it are read by column
+    position.
 
-    같은 열 이름이 두 번 나온다 — `보유비율` 은 '보유주식등' 블록과 '의결권' 블록에
-    모두 있다. **먼저 나온 블록만** 남긴다. 실측 사례(HMM 20250918000358)에서
-    의결권 블록은 직전·이번이 둘 다 `-` 라, 덮어쓰면 앞 블록의 36.02/32.60 이
-    통째로 지워진다.
+    A column name occurs twice, since the ratio appears in two blocks, and only
+    the first is kept. The second block can be empty in both rows, and
+    overwriting would erase the values of the first.
     """
     out: dict[str, tuple[str | None, str | None]] = {}
     claimed: set[str] = set()
@@ -960,26 +961,30 @@ def holding_summary(rows: list[list[str]]) -> dict[str, tuple[str | None, str | 
             claimed.update(n for n in columns if n)
             continue
         if len(row) >= 3 and "보고서" not in head:
-            # 머리행: 첫 칸은 블록 이름, 나머지가 열 이름. 이미 쓴 이름은 비워 둔다.
+            # Header row: the first cell names the block, the rest name the
+            # columns. Names already used are left blank.
             columns = [None if (n := c.strip()) in claimed else n for c in row[1:]]
     return out
 
 
-#: 요약정보 블록의 단순 `라벨 | 값` 행들. (`발행회사명` 은 4칸 행이라 _find_beside 로 읽는다)
+#: Plain label-and-value rows of the summary block. The issuer name sits in a
+#: four-cell row and is read by the adjacent-cell accessor instead.
 HOLDING_FIELDS = (
     ("보고구분", ("보고구분",)),
     ("보고사유", ("보고사유",)),
     ("보유목적", ("보유목적",)),
 )
-#: 라벨 옆 칸에서 읽는 필드.
+#: Fields read from the cell beside their label.
 HOLDING_BESIDE = (("발행회사명", "발행회사명"),
                   ("발행회사와의 관계", "발행회사와의 관계"),
                   ("의결권있는 발행주식 총수", "의결권있는 발행주식 총수(주)"))
-#: 보고자 이름의 상한. 정정본은 요약 블록이 통째로 한 칸에 들어가는 경우가 있어,
-#: 이름 자리에 문서 전문이 들어가면 제목이 폭주한다(실측 20250919000067, 891자).
+#: Cap on the reporter name. A revision can put the whole summary block into
+#: one cell, and the full document text in the name position would blow up the
+#: title.
 _REPORTER_MAX = 40
-#: 요약 격자에서 마크다운으로 올릴 열. 의결권 블록은 보유주식 블록과 값이 거의 같아
-#: 근거만 길어지므로 싣지 않는다.
+#: Columns of the summary grid promoted into the markdown. The voting-rights
+#: block nearly duplicates the holdings block and only lengthens the
+#: evidence.
 _STAKE_COLUMNS = (
     ("보유주식등의 수", "보유주식등의 수", "주"),
     ("보유비율", "보유비율", "%"),
@@ -989,7 +994,8 @@ _STAKE_COLUMNS = (
 
 
 def _pair_line(pair: tuple[str | None, str | None], unit: str) -> str | None:
-    """`(직전, 이번)` -> `직전 A → 이번 B`. 한쪽만 있으면 있는 쪽만 쓴다."""
+    """Render a (previous, current) pair as one line, using whichever side is
+    present when only one is."""
     prev, current = pair
     parts = []
     if prev:
@@ -1002,8 +1008,9 @@ def _pair_line(pair: tuple[str | None, str | None], unit: str) -> str | None:
 def normalize_holding(doc: dict) -> dict:
     html = read_document(_doc_path(doc))
     rows = extract_rows(html)
-    # 정정본은 앞에 정정 표가 붙고 그 안에 '요약정보' 라는 **항목명**이 있다.
-    # 그대로 두면 요약 블록의 시작을 정정 표에서 잘못 잡는다.
+    # A revision prepends its revision table, which itself contains the
+    # summary item name, so the summary block would otherwise be located
+    # inside that table.
     body = body_rows(rows)
     block = summary_rows(body)
     summary = holding_summary(body)
@@ -1040,12 +1047,14 @@ def normalize_holding(doc: dict) -> dict:
         "shares_current": shares_current,
         "ratio_prev": _to_number(ratio_prev or ""),
         "ratio_current": _to_number(ratio_current or ""),
-        # ratio 는 일부러 비운다. 지분공시 질의는 '직전 대비 몇 %p' 처럼 **차이**를
-        # 묻는 경우가 있어서, 이번 보유비율을 ratio 로 올리면 critic 이 정답인
-        # 차이값(3.42)을 보유비율(32.60)과 대조해 틀렸다고 판정한다(Q-016).
-        # 두 값은 이미 '보유비율' 필드 한 줄에 직전·이번이 다 들어 있다.
+        # The ratio field is deliberately left empty. Holding questions often
+        # ask for the change in percentage points, and promoting the current
+        # ratio here would make verification compare that correct difference
+        # against the ratio and call it wrong. Both values already appear in
+        # the ratio line.
         "event_date": (_d.isoformat() if (_d := parse_date(doc["rcept_dt"])) else None),
-        # 지분공시의 핵심 값은 '이번 보고서'의 주식수와 비율이다. 둘 다 있어야 매칭.
+        # The essential values are the current share count and ratio; both are
+        # required for a schema match.
         "schema_matched": bool(shares_current and ratio_current),
     })
     return record
@@ -1055,6 +1064,7 @@ def normalize_holding(doc: dict) -> dict:
 
 
 def normalize_doc(doc: dict) -> dict:
-    """문서군에 맞는 정규화기로 보낸다. 모르는 군은 거래소 서식으로 시도한다."""
+    """Dispatch to the normaliser for the document group, defaulting to the
+    exchange form for an unknown group."""
     return {"major": normalize_major,
             "holding": normalize_holding}.get(doc.get("doc_group"), normalize_exchange)(doc)
