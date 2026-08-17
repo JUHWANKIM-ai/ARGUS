@@ -1,26 +1,15 @@
-"""시스템 프롬프트와 few-shot exemplar."""
+"""System prompts and few-shot exemplars."""
 from __future__ import annotations
 
 import re
 from collections.abc import Sequence
 
-#: 근거 표기가 있는가. 🔴 **`접수번호` 라는 낱말을 요구하지 않는다** (2026-08-17).
-#:
-#: 아래 §7.5 형식은 우리가 모델에게 **가르치는** 문안이고, 규약 `R2` 가 요구하는 것은
-#: *"모든 답변에 근거 공시를 표시(공시명·공시일)"* 다. 낱말을 요구하면 **우리 문안
-#: 취향을 규약 검사로 쓰는 것**이 된다.
-#:
-#: 실측(112문항): 모델이 라벨 없이 14자리만 적은 답변이 **4건**이고
-#: (`Q-030`·`Q-052`·`Q-087`·`Q-101`) 전부 추적 가능한 정당한 표기였다:
-#:
-#:     (근거: [유상증자결정] 고려아연, 2024-11-14, 20241114000001)
-#:                                              ↑ 낱말이 없어 '표기 없음' 으로 셌다
-#:
-#: 손실이 두 겹이었다 — `critic` 을 헛되이 한 번 더 부르고(돈), 그 판정이 각주로 나가
-#: *"근거 표기가 없습니다"* 라고 **틀린 말**을 했다.
-#:
-#: 🔴 `\d{14}` 는 유지한다. 날짜(`2024-11-14`)는 연속 14자리가 아니고, `근거:` 뒤의
-#: 연속 14자리는 접수번호 말고 나올 것이 없다. 문턱을 더 낮추면 금액이 걸린다.
+#: Detects a citation in an answer. The literal word for receipt number is
+#: not required: the convention asks for the filing name and date, and
+#: requiring our own phrasing would test prompt style rather than the rule.
+#: The 14-digit run is kept, since a date is not 14 consecutive digits and
+#: nothing else of that length follows a citation marker.
+#: See docs/design-rationale.md#citation-detection
 CITATION_RE = re.compile(r"근거\s*:.*?(?:접수번호\s*)?\d{14}", re.DOTALL)
 
 _BASE_RULES = """당신은 DART 전자공시 원문만을 근거로 답하는 공시 분석 전문가입니다.
@@ -53,44 +42,29 @@ SYSTEM_ANSWER = _BASE_RULES + _DIRECT
 SYSTEM_ANSWER_COT = _BASE_RULES + _COT
 
 
-# --- 조 단위 `억원` 괄호 재설계 ------------------------------------------------
-# `corpus/markdown._amount_line` 은 금액을 이렇게 싣는다.
+# --- Splitting large 억원 parentheses into 조 and 억 --------------------------
 #
-#     - 계약금액: 4,928,968,079,043원 (49,290억원)
+# Evidence renders amounts as `4,928,968,079,043원 (49,290억원)`. The model
+# copies the parenthesised value and occasionally shifts a comma group,
+# turning 49,290 into 492,909 and inflating the answer tenfold. The division
+# itself is correct; only the transcription fails.
 #
-# 실측 Q-065 (`docs/total_plan.md §0b ③`). **우리 환산은 정확하다** —
-# 4,928,968,079,043 / 1e8 = 49,289.68 → `49,290억원` 이 맞다. 그런데 모델이 그 값을
-# 다시 쓸 때 `492,909억 원` 으로 옮겼다. 나눗셈을 틀린 것이 아니다 —
+# Splitting the value at the 조 boundary removes the digits that can shift:
+# `(4조 9,290억원)` leaves a four-digit figure to copy, and a shifted comma
+# becomes visibly malformed.
 #
-#     49,290  ->  492,909          세 자리 콤마 그룹이 한 자리 밀렸다 (배율 10.0002)
-#
-# 같은 답변의 신한울 `23,381억원` 은 정확히 옮겼고, 차이 계산(492,909 − 23,381 =
-# 469,528)도 자기 값 안에서는 맞다. **틀린 것은 옮겨 적기 한 번뿐인데 답 전체가 10배로
-# 나간다.** 괄호를 뗀 A4 는 원 단위 16자리를 그대로 복사해 정답이었다 (A5 가 오답).
-#
-# 그래서 처방은 '모델에게 조심하라고 말하기' 가 아니라 **밀릴 콤마 자리를 없애는 것**이다.
-# 1조원 = 10,000억원이므로 억원 값이 5자리가 되는 순간 조·억으로 가른다.
-#
-#     (49,290억원)   ->   (4조 9,290억원)
-#
-# 이제 콤마가 한 자리 밀리면 `4조 92,909억원` 처럼 **눈에 보이게** 깨지고, 무엇보다
-# 옮겨 적을 숫자가 4자리(9,290)라 밀 자리가 없다.
-#
-# 이 변환은 **프롬프트를 만들 때만** 한다. `markdown._amount_line` 을 고치면 근거
-# 문자열이 통째로 바뀌어 `critic._figures`·`verify_completeness` 의 수치 대조와
-# `ablation._EOK_SUFFIX`(A4 의 괄호 제거)까지 같이 흔들린다. 모델이 읽는 자리에서만
-# 바꾸는 것이 이 결함에 필요한 최소 변경이다.
-
-#: 1조원 = 10,000억원. 이 미만은 억원 값이 4자리 이하라 밀릴 콤마가 없다.
+# The transform runs at prompt build time only. Changing the evidence string
+# itself would alter numeric comparison in critic and the ablation switches
+# that strip these parentheses.
 EOK_PER_JO = 10_000
 
-#: `…원 (49,290억원)` — **우리가 붙인 주석**만 잡는다. `원` 을 앞에 두는 lookbehind 가
-#: 그 조건이다. 원문 본문에 실린 `(3,500억원)` 같은 표기는 건드리지 않는다.
+#: Matches only parentheses we appended, identified by the preceding 원.
+#: Figures written in the source narrative are left untouched.
 _EOK_ANNOTATION = re.compile(r"(?<=원)(\s*)\(\s*(-?[\d,]+)\s*억원\s*\)")
 
 
 def _split_jo(eok: float) -> str:
-    """`49290` -> `4조 9,290억원`. 나머지가 없으면 `4조원`."""
+    """Format an 억 value as 조 and 억, omitting 억 when the remainder is zero."""
     sign = "-" if eok < 0 else ""
     jo, rest = divmod(int(abs(eok)), EOK_PER_JO)
     if not rest:
@@ -99,7 +73,10 @@ def _split_jo(eok: float) -> str:
 
 
 def split_trillion_eok(evidence: str) -> tuple[str, int]:
-    """근거의 조 단위 `억원` 괄호를 조·억으로 가른다. (바뀐 근거, 바꾼 자리 수)."""
+    """Split large 억원 parentheses in the evidence.
+
+    Returns the rewritten evidence and the number of sites changed.
+    """
     hits = 0
 
     def _sub(match: re.Match) -> str:
@@ -116,24 +93,10 @@ def split_trillion_eok(evidence: str) -> tuple[str, int]:
     return _EOK_ANNOTATION.sub(_sub, evidence or ""), hits
 
 
-#: 조 단위 금액이 근거에 실렸을 때만 붙는 규칙. 붙지 않으면 `SYSTEM_ANSWER` 그대로다.
-#: 괄호를 갈라 놓아도 모델이 **원값에서 스스로 다시 환산**하면 같은 실수를 할 수 있다.
-#: 규칙 8·9 가 그 경로를 막는다 — 계산은 원 단위로, 억원은 괄호 값을 그대로.
-#:
-#: 🔴 **`A8-lean`(`ablation.lean_rules`)이 떼는 것이 정확히 이 문자열이다.**
-#: 이 규칙이 지키던 것과 그 방어선이 어디까지 남는지:
-#:
-#:   지키던 것 ①  `Q-065` 콤마 한 자리 밀림(`49,290억` -> `492,909억` · 답이 10배).
-#:                🔴 **1차 방어선은 규칙이 아니라 `split_trillion_eok` 이고 그것은 남는다** —
-#:                괄호가 `(4조 9,290억원)` 이라 옮겨 적을 숫자가 4자리이고 밀 자리가 없다.
-#:                규칙 8·9 는 "원값에서 스스로 다시 환산" 경로를 막는 2차 방어선이다.
-#:   지키던 것 ②  `차이·합계는 원 단위 원값으로` — 조·억 단위로 계산하고 되돌리는 과정에서
-#:                단위를 잃는 경로를 막는다. 🔴 이쪽은 규칙밖에 없다. 뺐을 때 무너지면
-#:                `number_won` 문항의 `calc_mismatch`(`equation`·`restatement`)로 나타난다.
-#:
-#: 🔴 **인질 12건** — 규칙이 붙는 문항은 전체 88 중 16(밸류체인 12 중 10)이고 그중 현재
-#: 정답이 12건(밸류체인 5)이다. 겨냥은 `Q-018` 1건이다. 되돌릴 순서는
-#: `tests/test_prompt_rules.py::MONEY_RULE_EXPOSED_WHILE_CORRECT` 가 든다.
+#: Appended only when the evidence carries a 조-scale amount. Splitting the
+#: parentheses removes the transcription hazard, and these rules close the
+#: remaining path where the model re-derives the 억 value from the raw figure.
+#: Calculations are to be performed on raw won values.
 MONEY_UNIT_RULE = """
 8. 금액은 `4,928,968,079,043원 (4조 9,290억원)` 처럼 **원 단위 원값**과 **조·억 환산값**이
    함께 실립니다. 두 표기는 같은 금액입니다.
