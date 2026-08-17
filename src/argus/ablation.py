@@ -281,6 +281,16 @@ class Arm:
     #: original because a provenance defect remained.
     #: See docs/design-rationale.md#regeneration-adoption
     regenerate_partial: bool = False
+    #: True emits the two amounts a comparison question names, their
+    #: difference and which side is larger, as one deterministic line. No LLM
+    #: call: the values come from the evidence records.
+    #:
+    #: The aggregate line reads sums, differences within a revision chain and
+    #: per-unit quotients. A comparison between two separate contracts matched
+    #: none of those, so questions of that shape received no deterministic line
+    #: at all and the model did the arithmetic and the unit conversion itself.
+    #: See docs/design-rationale.md#comparison-line
+    compare_line: bool = False
     #: True recomputes the parenthesised unit conversion in the answer. No LLM
     #: call. Body figures are copied from the evidence and are correct, while
     #: the parenthesised value is divided by the model and is not. One of the
