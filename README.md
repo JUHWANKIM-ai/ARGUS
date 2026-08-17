@@ -208,7 +208,7 @@ python scripts/ablation.py --arm A8 --dry   # arm 별 기여도 측정. --dry �
 | 1 | 소스코드 + 환경 구성 정보 + `README.md` | 이 저장소 · 이 파일 · `requirements.txt` | ✅ **완비** (2026-08-15) |
 | 2 | 기술 제안서 (자유 양식 · 분량 제한 없음) | [`docs/proposal/technical-proposal.md`](docs/proposal/technical-proposal.md) | 🟡 **초안 — 본문 완결 (2026-08-15 · v4 성적·판정 전량 반영).** 🔴 **남은 빈칸 둘은 08-25 이후에만 채울 수 있다**: 새 heldout 18 성적(`R4`) · 배포 완주 기록(`R4-2` = `TBD-1`·`TBD-3`) |
 | 3 | End-point URL + API 명세서 | **이 파일 §1 · §2** | 명세 있음 / **URL 은 `TBD-1`** |
-| 4 | 전처리 산출물 (대용량은 스토리지 링크) | `artifacts/` · `evalset/` | 저장소에 있음 / **대용량 링크는 `TBD-3`** |
+| 4 | 전처리 산출물 (대용량은 스토리지 링크) | `artifacts/` · `evalset/` + 아래 스토리지 | ✅ **닫힘 (2026-08-17)** — [artifacts](https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=drive_link) · [data](https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEOZIsJ?usp=sharing). 🔴 `artifacts/`·`data/` 는 gitignore 라 **저장소만으로는 시스템이 안 돈다** — 이 두 링크가 그 구멍을 메운다 |
 
 ---
 
@@ -217,8 +217,21 @@ python scripts/ablation.py --arm A8 --dry   # arm 별 기여도 측정. --dry �
 | # | 미정 항목 | 채우는 주체 | 시점 |
 |---|---|---|---|
 | `TBD-1` | 평가용 End-point 공인 IP (§1) | 배포 담당(사용자) | **08-25 코드 동결 이후 배포 리허설.** 일정 정본은 [`docs/total_plan.md`](docs/total_plan.md) 일정표 — 날짜를 여기 박아 두지 않는다 |
+> ### 🔴 새로 클론한 사람이 시스템을 세우는 법
+>
+> 저장소에는 코드만 있다. `artifacts/`(1.3GB)·`data/`(5.2GB)는 gitignore 라 위 두 링크에서 받아야 한다.
+>
+> ```
+> git clone … && cd ARGUS && pip install -r requirements.txt
+> # artifacts 를 받아 저장소 루트에 artifacts/ 로 푼다
+> # data 를 받아 저장소 루트에 data/ 로 푼다
+> #   🔴 data/dart-disclosures/manifest.jsonl · universe.csv 가 없으면
+> #      라우터가 70개사를 못 읽어 전 질의가 "범위 밖" 으로 떨어진다 (실측)
+> PYTHONIOENCODING=utf-8 python -m pytest -q      # 1,409 통과
+> ```
+
 | ~~`TBD-2`~~ | ✅ **닫힘 (2026-08-15)** — `requirements.txt` 작성 완료. 🔴 `pip freeze` 가 아니라 `pyproject` 선언에 검증 버전을 고정해 손으로 썼다 | — | — |
-| `TBD-3` | 전처리 산출물 클라우드 스토리지 링크 (§6) | 배포 담당 | 같은 칸 — 동결 시 스냅샷 업로드 |
+| ~~`TBD-3`~~ | ✅ **닫힘 (2026-08-17)** — 구글 드라이브 업로드 완료. [artifacts](https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=drive_link) (1.3GB · 색인·레코드·계약상대 그래프) · [data](https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEOZIsJ?usp=sharing) (5.2GB · 원본 공시 + `manifest.jsonl`·`universe.csv`). 무결성 대조표는 `artifacts/audit/preprocessing_manifest.json` (20개 SHA256) | — | — |
 | `TBD-4` | 주최측 발신 IP 대역 (§1) | **주최측 공지 대기** | 미정 |
 | `TBD-5` | 평가 서버 운영 일자·시간대 (§1) | **주최측 공지 대기** | 09-07 ~ 09-20 중 |
 
