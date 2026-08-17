@@ -703,68 +703,54 @@ def _partner_order(records: list[dict], question: str = "") -> list[dict]:
 
 
 def _counterparty_note(display: str, roster: str, n_partners: int) -> str:
-    """근거 블록 안에 발주 관계를 박아 둔다. **별도 요약 블록으로 빼지 않는다** —
-    요약 블록은 원문 없이도 '골든이 실렸다' 로 세어져 성적표를 부풀린다 (`_chain_note` 주석).
+    """Stamp the ordering relation inside the evidence block itself.
 
-    접수번호를 한 자도 싣지 않는다. 그래서 이 줄은 근거 적중 집계를 흔들 수 없고,
-    '상장사가 몇 곳인가' 처럼 어느 한 레코드에도 안 적혀 있는 사실만 전한다.
+    Not split into a summary block, for the same reason as `_chain_note`.
 
-    🔴 **회사별 건수를 싣지 않는다.** 한때 `f"{corp} {len(lanes[corp])}건"` 이었고 그 수가
-    실제로 답변에 나왔다 (기록: `artifacts/ablation/v2/vc/A8/responses/Q-114.json` —
-    근거 `삼성E&A 47건`, 답변 `"삼성E&A: 총 47건의 계약을 통해 …"`). 두 겹으로 틀렸다.
+    No receipt number appears here, so this line cannot move the evidence-hit
+    count, and it carries only facts written in no single record, such as how
+    many listed companies there are.
 
-      (a) `query_by_counterparty` 는 `is_latest` 로 걸러 주지 않는다 — 삼성E&A 47건 중
-          **35건이 정정으로 대체된 공시**다(최신본 12건). 바로 위 `_partner_order` 가
-          "대체된 공시로 파트너를 대표시키면 안 된다" 며 `is_latest` 를 올리는데,
-          **정렬은 최신본을 아는데 집계는 몰랐다** — 한 함수 안에서 규칙이 갈렸다.
-      (b) 질문 범위와 무관한 **전역 집계**다. Q-114 가 묻는 것은 평택·기흥 공장의 공정
-          분담이고 근거에 실린 레코드는 4건인데, 47 은 그 어디에도 없는 수다.
-
-    `is_latest` 로 걸러 '참인 수' 를 만드는 것으로는 안 고쳐진다 — (b) 의 범주 오류가
-    남아 모델이 `"총 12건의 계약"` 으로 오보할 여지가 그대로다. 그래서 수를 **뺀다.**
-    이 hop 의 mandate 는 개수가 아니라 **집합의 경계**('몇 곳 · 누구') 이고, 밸류체인
-    12문항 중 건수를 묻는 문항은 **0개**다(전부 열거·비교). Q-116 의 '상장사 세 곳' 은
-    파트너 수이고 그건 `n_partners` 로 옳게 전달된다.
-
-    건수를 다시 넣고 싶어지면 먼저 **어느 문항이 그것을 요구하는지** 적어라. 그리고
-    그 수는 `is_latest` 로 걸러야 하고, 질문 범위 밖 집계라는 사실을 라벨에 박아야 한다.
+    Per-company filing counts are deliberately absent: a global count is both
+    unfiltered for supersession and outside the scope of the question, and it
+    leaked into an answer verbatim once.
+    See docs/design-rationale.md#counterparty-note-no-counts
     """
     return f"- 발주처 관계: {display} 를 계약상대로 한 공시 상장사 {n_partners}곳 — {roster}"
 
 
-#: 🔴 **`A22` — 결속할 허브 상한 `W`.** 종전은 `W=1`(질문이 지목한 허브 하나)이다.
-#: 3 으로 못박은 이유는 실측이다 — 근거의 `계약상대:` 에서 나오는 후보가 밸류체인
-#: 문항에서 5~11개까지 나오는데(그 자체가 `Q-117` 의 갈래 수다), 전부 결속하면 스텝
-#: 상한 8을 먼저 먹고 근거가 두 배가 된다. 상한 없이 여는 것은 조작이 아니라 사고다.
+#: Cap on hubs bound into one question. Candidates read out of the evidence
+#: run to between five and eleven on value-chain questions, and binding them
+#: all exhausts the step cap and doubles the evidence.
+#: See docs/design-rationale.md#multi-hub-binding
 MAX_COUNTERPARTY_HUBS = 3
-#: 추가 허브 하나가 가져가는 근거 칸. 🔴 **첫 허브의 6칸을 나눠 쓰지 않는다** —
-#: 나누면 파트너 6인 노드에서 몫이 1 밑으로 떨어져 fan-in 문항이 깨진다
-#: (`_partner_quota` 독스트링의 Q-110 실측 2/6 → 5/6 이 그 값에 걸려 있다).
+#: Evidence slots for one additional hub. These are separate slots rather than
+#: a division of the first hub's six: dividing drops the quotient below one on
+#: a six-partner node and breaks the fan-in questions.
 MAX_EXTRA_HUB_EVIDENCE = 2
 
-#: 근거 블록의 `- 계약상대: …` 줄. `corpus/markdown.to_markdown` 이 `record["fields"]`
-#: 로 찍은 것과 **같은 서식**이라 정규식으로 추측하는 것이 아니다.
+#: The `- 계약상대: …` line of an evidence block. Same format
+#: `corpus/markdown.to_markdown` writes from `record["fields"]`, so this is not
+#: a guess about the shape of the text.
 _EVIDENCE_HUB_RE = re.compile(r"^-\s*계약상대\s*:\s*(.+?)\s*$", re.M)
 
 
 def _evidence_hubs(picked: list[dict], primary: str | None,
                    companies: Sequence[str] = ()) -> list[str]:
-    """🔴 `A22` — **이미 담은 근거**의 `계약상대:` 필드에서 추가 허브를 뽑는다.
-    LLM 0회 · 검색 0회 · 스텝 0. canonical 이름을 **많이 나온 순 · 먼저 나온 순**으로.
+    """Extract additional hubs from the `계약상대:` field of evidence already
+    collected. No LLM call, no retrieval, no step.
 
-    질문이 아니라 근거에서 뽑는 것이 이 함수의 전부다. 라우터의 역할 결속
-    (`find_counterparty`)은 *질문 문장에서* 발주 방향을 읽는데, `R1-11 ①` 이 그 축을
-    넓히는 안을 **오탐 3건으로 기각**했다 (`Q-108` 은 두 회사가 다 공시한 쪽이라 결속하면
-    근거가 역방향으로 뒤집힌다). 근거의 `계약상대:` 는 **그 공시가 스스로 적은 상대**라
-    방향이 이미 확정돼 있어 그 기각과 충돌하지 않는다.
+    Returns canonical names ordered by frequency, then by first appearance.
 
-    제동 셋:
-      ① 그래프 노드가 아닌 이름은 버린다 — `query_by_counterparty` 가 2회 미만 등장
-         상대를 거부하므로, 넘기면 스텝만 쓰고 `skip=tool_error` 가 된다
-      ② 비실명(`classify == "vague"`)은 버린다 — 같은 이유이고 사유가 다르다
-      ③ 🔴 `companies`(질문이 지목한 기업)는 버린다 — 그 회사는 이 질문에서 **공시한
-         쪽**일 수 있고, 그것을 허브로 세우는 것이 `R1-11 ①` 이 기각한 바로 그 조작이다.
-         질문이 지목한 허브(`primary`)는 라우터가 역할을 읽고 세운 것이라 예외다
+    Reading hubs out of the evidence rather than the question is the whole
+    point. The router reads the ordering direction from the question sentence,
+    and widening that axis was rejected on false positives; the `계약상대:`
+    field is the counterparty the filing named itself, so its direction is
+    already fixed and the rejection does not apply.
+
+    Three filters apply: names that are not graph nodes, non-specific names,
+    and the companies the question named.
+    See docs/design-rationale.md#multi-hub-binding
     """
     from argus.corpus.counterparty import canonical, classify
 
@@ -787,23 +773,24 @@ def _evidence_hubs(picked: list[dict], primary: str | None,
     return sorted(order, key=lambda k: (-counts[k], order.index(k)))
 
 
-#: 열거를 요구하는 문면. 🔴 **이 목록이 성적을 가르고 있었다** (2026-08-17 실측).
-#: `N-013`·`N-014` 는 *"…공시한 상장사는 **어디인가**?"* 라 3곳 중 2곳만 답했고,
-#: `heldout_v2`·`heldout_v3` 의 같은 축 문항은 *"**빠짐없이** 알려줘"* 라 전건을 답했다.
-#: 근거는 양쪽 다 3곳을 싣고 있었다 — **문면 한 낱말이 답을 갈랐다.**
-#:
-#: 그래서 로스터를 근거 **머리**로 올린다. 열거를 명시적으로 요구하지 않는 문면에서도
-#: 집합의 경계가 첫 줄에 보이게 하는 것이 이 장치의 전부다.
+#: Phrasings that call for an enumeration. The roster line is placed at the
+#: head of the evidence so that the boundary of the set is visible on the first
+#: line even for phrasings that do not ask for enumeration explicitly.
+#: See docs/design-rationale.md#roster-position
 _ASKS_ROSTER = ("상장사", "기업은", "기업들", "어느 기업", "어디인가", "누구인가",
                 "빠짐없이", "모두 알려", "전부 알려", "목록", "나열")
 
 
 def _roster_line(display: str, partners: Sequence[str]) -> str:
-    """열거 집합을 한 줄로. 🔴 **접수번호도 건수도 싣지 않는다** — 사유는
-    `_counterparty_note` 독스트링에 있다(전역 집계가 답변에 새어 나간 기록).
+    """The enumerated set as one line.
 
-    `aggregate.line` 과 같은 자리다: 우리가 결정적으로 아는 것을 근거 머리에 싣고,
-    **처분을 명시한다.** 값만 주면 모델이 자기 판단을 더 믿는다는 것이 v5 의 발견이다.
+    Carries neither receipt numbers nor filing counts, for the reason given in
+    `_counterparty_note`.
+
+    Same position as `aggregate.line`: what the system knows deterministically
+    goes at the head of the evidence together with an explicit disposition,
+    since supplying the value alone leaves the model trusting its own judgment.
+    See docs/design-rationale.md#roster-position
     """
     return (f"[결정적 조회] {display} 를 계약상대로 공시한 상장사는 "
             f"{len(partners)}곳이다: {' · '.join(partners)}\n"
@@ -815,34 +802,38 @@ def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[st
                          take, limit: int = MAX_COUNTERPARTY_EVIDENCE,
                          prefer: Sequence[str] = (),
                          roster_out: list[str] | None = None) -> int:
-    """발주처 그래프에서 파트너별 근거를 담는다. LLM 0회 · 스텝 1.
+    """Collect per-partner evidence from the counterparty graph. No LLM call,
+    one step.
 
-    `plan_hops` 사다리 **밖의 스텝 1개**다 (정정 체인 hop 과 같은 선례) — 재검색
-    예산(hop 3)을 쓰지 않는다. 그래프 조회는 질의 재구성이 아니라 인접 노드 열거라서
-    '넓히기' 사다리의 칸을 차지할 이유가 없다.
+    The step comes from outside the `plan_hops` ladder, the same precedent as
+    the revision chain hop, so it does not consume the retrieval budget. A
+    graph lookup enumerates adjacent nodes rather than reformulating a query,
+    so it has no reason to occupy a widening slot.
 
-    `question` 은 **레인 안 정렬에만** 쓴다 (`_partner_order`). 후보 집합도 파트너
-    목록도 질문과 무관하게 그래프가 정한다 — 질문이 바꾸는 것은 순서뿐이다.
+    `question` is used only for ordering within a lane (`_partner_order`). The
+    candidate set and the partner list are fixed by the graph regardless of the
+    question, which changes the order alone.
 
-    🔴 `limit`·`prefer` 는 **`A22`(다중 허브) 전용 인자**다. 기본값이 종전 동작이고,
-    `W=1` arm 에서는 두 인자가 아무것도 안 바꾼다 (`limit` 은 종전 상한 그대로,
-    `prefer` 가 비면 파트너 순서가 그래프 순서 그대로다).
-    `prefer` 를 두는 이유는 실측 구조다 — 추가 허브는 칸이 2개뿐이라 파트너를 그래프
-    순서로 담으면 **질문이 부른 기업이 그 둘 안에 들어온다는 보장이 없다.** 추가 허브는
-    애초에 *그 기업들의 근거*에서 나온 것이므로 그 기업으로 되돌아가는 것이 정의에 맞다.
+    `limit` and `prefer` serve the multi-hub path; their defaults reproduce the
+    prior behaviour exactly. `prefer` exists because an additional hub has only
+    two slots, so taking partners in graph order gives no guarantee that the
+    companies the question named are among them. An additional hub was derived
+    from those companies' evidence in the first place, so returning to them
+    matches its definition.
+    See docs/design-rationale.md#multi-hub-binding
     """
     try:
         budget.spend_step()
     except BudgetExceeded as exc:
         trace.append(f"hop={COUNTERPARTY_HOP} stop=step_budget ({exc})")
         return 0
-    # 🔴 도구에 넘기는 이름은 **원문 표기**다. `hub` 는 canonical(공백·`·`·`,`·`.`
-    # 제거 + 소문자)이고, `query_by_counterparty` 는 그 값을 `classify()` 에 넣는데
-    # `ANON_COUNTERPARTY` 의 여러 대안이 **공백 경계에 의존한다** (`지역\s*선주` ·
-    # `(?:^|\s)글로벌(?:\s|$)`). 실측: `classify('글로벌 기업')=vague` 인데
-    # `classify(canonical('글로벌 기업'))='other'` — canonical 을 되먹이면 비실명 가드가
-    # 빗나간다. 그래프 145 노드 전량 대조로 `canonical(display) == canonical` ·
-    # `classify(display) != vague` 를 확인했으므로 조회 결과는 글자 하나 안 바뀐다.
+    # The name handed to the tool is the display form, not the canonical one.
+    # `query_by_counterparty` feeds its argument to `classify()`, and several
+    # alternatives of the anonymous-counterparty pattern depend on whitespace
+    # boundaries that canonicalisation removes, so feeding back a canonical
+    # name makes the non-specific guard miss. All 145 graph nodes were checked
+    # to confirm the display form canonicalises identically, so the lookup
+    # result is unchanged.
     name = router_module.counterparty_display(hub) or hub
     out = tools.execute("query_by_counterparty", {"name": name})
     if "error" in out:
@@ -860,14 +851,15 @@ def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[st
         by_partner.setdefault(record.get("corp_name"), []).append(record)
     lanes = {corp: _partner_order(by_partner.get(corp, []), question)
              for corp in partners}
-    # 회사명만. **건수를 붙이지 않는다** — 사유는 `_counterparty_note` 독스트링에 있다
-    # (정정본 포함 전역 집계가 답변에 `"총 47건"` 으로 새어 나간 기록이 있다).
+    # Company names only, with no filing counts attached. See
+    # `_counterparty_note` for why.
     roster = " · ".join(partners)
     note = _counterparty_note(out.get("counterparty") or hub, roster, len(partners))
 
-    # 🔴 집합의 경계를 근거 **머리**에 올린다. 블록 안 주석만으로는 안 읽힌다 —
-    #    `N-013` 에서 두산퓨얼셀 블록이 근거 59% 지점(세 번째)이었고 답변에서 빠졌다.
-    #    둘 이상일 때만 발화한다. 한 곳뿐이면 열거가 아니다.
+    # The boundary of the set goes at the head of the evidence. An in-block
+    # note alone is not read. Fires only with two or more partners, since one
+    # partner is not an enumeration.
+    # See docs/design-rationale.md#roster-position
     if (roster_out is not None and len(partners) >= 2
             and any(k in (question or "") for k in _ASKS_ROSTER)):
         roster_out.append(
