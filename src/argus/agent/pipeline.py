@@ -885,54 +885,34 @@ def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[st
     return len(taken)
 
 
-# --- 열거 hop (`EVENTS_HOP` strat=enumerate) — v3 R2 ③ --------------------------
-# `Q-117` 5건의 처방이다. `router.py` 262–296 이 그 처방을 **여기로 재정의**해 뒀다 —
-# 원안(`total_plan §5 #4`)은 "노드 이름 인식" 이었는데 라우터가 명시적으로 기각했다:
-# 한전기술은 그 질문에서 **공시한 쪽**이고, 결속시키면 근거가 두산퓨얼셀 4건(한전기술을
-# *계약상대로* 한 공시)으로 **뒤집힌다.** 즉 hop 이 안 터진 것은 결함이 아니라 정상이고,
-# `tests/test_router.py::test_disclosing_company_is_never_bound_as_counterparty` 가
-# 그 불변을 지킨다. **여기서도 그 불변을 깨지 않는다.**
+# --- Enumeration hop (`EVENTS_HOP` strat=enumerate) -------------------------
+# The hop ladder widens the same query rather than enumerating, so a question
+# asking how a set divides can stop at `sufficient` with every block drawn from
+# one branch, leaving the model to invent the other branch.
 #
-# 실제 기전은 열거다. 기록된 A8 궤적은 `hop=0 strat=narrow top_k=5` 로 5블록을 받고
-# `verdict=sufficient evidence=5` 에서 멈췄고(`MIN_EVIDENCE["closed_lookup"]=1`),
-# 그 5블록에 발전 공기업만 있어서 모델이 둘째 갈래를 **'공공부문' 으로 지어냈다.**
-# hop 사다리는 같은 질의를 **넓힐** 뿐 **열거하지 않는다.**
-#
-# 🔴 과잉 발화가 진짜 위험이다 — 이 hop 은 그리드 72 의 검색 경로에 닿는다(발주처 hop 과
-# 달리 밸류체인 전용이 아니다). 그래서 제동 다섯을 실측으로 정했다.
-#
-#   ① 문서군이 **exchange** 일 것        — `query_events` 모집단이 거래소공시다 (§7.7 ②).
-#                                          기존 폴백에 건 것과 같은 제동
-#   ② 기업이 **정확히 하나**일 것         — 열거의 모집단은 '한 기업의 한 서식' 이다.
-#                                          둘 이상이면 어느 쪽을 열거할지 정의되지 않는다
-#   ③ 그 기업이 **발주처가 아닐 것**      — `Q-114` 가 이 경계다. 삼성전자는 그 질문에서
-#                                          **발주한 쪽**이라 `query_events(corp_name=삼성전자)`
-#                                          는 정반대 문서(삼성전자 자신의 공시)를 준다
-#   ④ 질문이 **갈래를 묻고 있을 것**      — 아래 `_ENUMERATION_HINT`
-#   ⑤ 검색이 이미 뭔가 찾았을 것          — 아무것도 못 찾은 경우는 아래 **기존 폴백** 몫이다.
-#                                          둘을 배타로 두면 `parse_hops` 가 같은 hop 번호에서
-#                                          두 종류를 한 레코드로 섞어 읽지 않는다
-#
-# 실측 발화 (LLM 0회 · dev 78 + 회귀 10 + 밸류체인 12 = 100문항): **1건 — `Q-117` 뿐**이다.
-# `_ENUMERATION_HINT` 만으로는 11문항이 걸리는데(`각각` 이 넓다) ①②③ 이 10건을 거른다.
+# Over-firing is the real risk, because unlike the counterparty hop this one
+# reaches the general retrieval path. Five brakes gate it, and across the
+# 100-question cohort exactly one question fires it.
+# See docs/design-rationale.md#enumeration-hop
 
-#: 갈래를 묻는 표지. `각각`·`모두` 는 **넣지 않았다** — 100문항에서 9건이 걸리고 그중
-#: 8건이 열거 질의가 아니다 (`Q-085` `Q-089` `Q-090` `Q-105` 등 단순 병렬 조회).
-#: 이 셋은 "집합이 몇 갈래로 나뉘는가" 를 묻는 표현만 남긴 것이다.
+#: Markers for a question asking how a set divides. Broad quantifiers are
+#: deliberately excluded: they match plain parallel lookups far more often than
+#: enumerations.
 _ENUMERATION_HINT = ("갈래", "나뉘", "나뉜", "유형")
 
-#: 열거가 담을 상한. `MAX_EVIDENCE` 의 절반이다 — 열거가 검색 근거를 밀어내지 못하도록
-#: `_take` 뒤에 **붙기만** 하고(절단은 `picked[:MAX_EVIDENCE]` 가 한다), 그 절반을 넘지
-#: 않는다. 4·5·6 을 다 재 봤고 `Q-117` 회수는 셋 다 같다(4/7) — 값이 결과를 안 바꾼다.
+#: Cap on what the enumeration may contribute. Half of `MAX_EVIDENCE`, so that
+#: enumeration appends after `_take` without displacing retrieval evidence.
+#: Values of 4, 5 and 6 were measured and recover identically.
 MAX_ENUM_EVIDENCE = MAX_EVIDENCE // 2
 
-#: 그룹핑에 필요한 후보 풀. **프롬프트에 실리는 수가 아니다** — 발주처별 그룹 크기와
-#: 각 그룹의 최신본을 알아야 하므로 모집단 전체가 필요하다. `query_events` 의 기본
-#: 20건으로는 `Q-117` 의 골든 3건이 잘린다 (한전기술 최신본 27건 중 21번째 이후).
+#: Candidate pool needed for grouping, not the number carried into the prompt.
+#: Group sizes per counterparty and the latest record of each group both
+#: require the full population; the tool default truncates it.
 ENUM_EVENT_POOL = 200
 
-#: 질문 어휘 -> 거래소 `doc_subtype`. 순서가 중요하다 — `해지` 를 먼저 봐야
-#: '공급계약 해지' 가 '체결' 로 안 샌다 (`doc_group` 이 `보고서` 를 뒤에 두는 것과 같다).
+#: Question vocabulary mapped to an exchange `doc_subtype`. Order matters: the
+#: termination form has to be tested first so that a termination question does
+#: not fall through to the conclusion form.
 _EVENT_SUBTYPE = (("해지", "단일판매공급계약해지"),
                   ("철회", "단일판매공급계약해지"),
                   ("단일판매", "단일판매공급계약체결"),
@@ -942,7 +922,8 @@ _EVENT_SUBTYPE = (("해지", "단일판매공급계약해지"),
 
 
 def _event_subtype(question: str) -> str | None:
-    """질문이 지목한 거래소 서식. 못 고르면 None (서식 필터 없이 연다)."""
+    """Exchange form named by the question, or None to open without a form
+    filter."""
     text = question or ""
     for word, subtype in _EVENT_SUBTYPE:
         if word in text:
@@ -951,62 +932,35 @@ def _event_subtype(question: str) -> str | None:
 
 
 def _wants_enumeration(r, question: str, group: str) -> bool:
-    """열거 hop 을 켤 질의인가. 제동 ①~④ (⑤ 는 호출부가 본다)."""
+    """Whether to open the enumeration hop. Applies the first four brakes; the
+    caller applies the fifth.
+    See docs/design-rationale.md#enumeration-hop
+    """
     if group != "exchange" or len(getattr(r, "companies", []) or []) != 1:
         return False
     if getattr(r, "counterparty", None) == r.companies[0]:
-        return False                       # 그 기업은 발주한 쪽이다 (Q-114 경계)
+        return False                       # that company placed the order
     return any(h in (question or "") for h in _ENUMERATION_HINT)
 
 
 def _enumerate_events(r, question: str, budget: Budget, trace: list[str], take,
                       extra: list[str] | None = None) -> int:
-    """한 기업의 한 서식을 **계약상대별로 한 건씩** 담는다. LLM 0회 · 검색 0회 · 스텝 1.
+    """Take one record per counterparty from one company's filings of one form.
+    No LLM call, no retrieval, one step.
 
-    질문이 묻는 것이 "갈래" 이므로 담는 규칙도 갈래다 — 계약상대(canonical)로 묶고
-    **그룹이 큰 순서로 돌면서 각 그룹의 최신본**을 한 건씩 가져온다. 두 하위 규칙 다
-    이 저장소에 이미 있는 것이다: 그룹 대표를 최신본으로 두는 것은 `_partner_order` ·
-    `query_events(is_latest=True)` 와 같은 규칙이고, 큰 갈래를 먼저 보는 것은 '두
-    갈래' 를 묻는 질문에 큰 갈래가 답일 확률이 높기 때문이다.
+    The question asks how a set divides, so the collection rule divides too:
+    group by canonical counterparty, walk the groups largest first, and take
+    the latest record of each. Both sub-rules already exist in this repository.
+    Representing a group by its latest record matches `_partner_order` and
+    `query_events(is_latest=True)`, and taking the larger branches first
+    reflects that a question about two branches is more likely answered by the
+    large ones.
 
-    🔴 **정책을 여섯 가지 재고 골랐다** (`Q-117` 골든 7 · LLM 0회 · hop 0 회수 2/7 위):
-
-        도착순                     3/7      질문 적합도(BM25)              3/7
-        상대별 · 도착순             3/7      상대별 · 최신 · 도착순 그룹    4/7
-        상대별 · 최신 · **크기 그룹**  **4/7**  상대별 · 최신 · 최근 그룹      3/7 (k=7 에서만 5/7)
-
-    **질문 적합도는 여기서 안 듣는다.** `Q-117` 의 골든 7건은 나머지 20건과 텍스트로
-    구별되지 않는다 — 라벨러가 두 갈래의 대표를 고른 것이라 질문에 단서가 없다.
-    `_partner_order` 에서 BM25 가 이긴 것과 정반대 상황이고, 그래서 같은 함수를
-    재사용하지 않았다. **어느 정렬이 이기는지는 문항이 정한다.**
-
-    🔴 **겨냥 5건 중 실측 회수는 2건이다** (Q-117 2/7 → 4/7). 남은 3건은 같은 발주처
-    그룹의 **두 번째 건**이라(한수원 2건 · 두산 2건 중 각각 1건씩) 그룹당 1건 규칙과
-    정면으로 충돌한다. depth 를 2로 늘리면 근거가 상대 수만큼 부풀고, 그것은
-    `_partner_quota` 가 실측으로 기각한 것과 같은 거래다.
-
-    🔴 **v4 `R1-11` 이 `depth < 1` 을 올리자고 했고, 실측으로 기각했다 — 하중 상수가
-    이것이 아니다.** `MAX_ENUM_EVIDENCE`(5)가 **먼저** 찬다:
-
-        Q-117 (한전기술 · 단일판매공급계약체결)  pool=27  계약상대 그룹 **11개**
-        depth<1 -> 5건   depth<2 -> 5건   depth<3 -> 5건      (전부 동일)
-
-    그룹이 11개인데 담을 칸이 5개뿐이라 `depth 0` 한 바퀴에서 이미 상한이 찬다.
-    즉 `depth` 를 아무리 올려도 이 코퍼스에서 **집합이 한 건도 안 바뀐다.** 열거 hop 이
-    발화하는 문항은 100문항 중 `Q-117` **하나뿐**이고(전수 확인), 그 하나가 이렇다.
-
-    미회수 3건의 실제 위치도 depth 문제가 아니다:
-        20260209801845  한국남부발전 — **1건짜리 그룹**이다. depth 0 인데 그룹 순위가
-                        11개 중 9번째라 5칸 상한에 잘린다 (필요한 것은 `depth` 가
-                        아니라 `MAX_ENUM_EVIDENCE >= 9`)
-        20251224800396  두산에너빌리티 2번째 — 전체 13번째 (`>= 13` 필요)
-        20230330800844  두산에너빌리티 4번째 — 전체 20번째 (`>= 20` 필요)
-
-    그런데 최종 절단은 `picked[:MAX_EVIDENCE]`(10)이고 `MAX_ENUM_EVIDENCE` 는 그
-    **절반**이다 — 열거가 검색 근거를 밀어내지 않게 하려고 그렇게 뒀다(위 상수 주석).
-    셋을 다 회수하려면 `MAX_EVIDENCE` 를 올려야 하는데 **그것이 `A16` 이고 `R0-3`
-    (커밋 `dac2bf0`)이 이미 기각했다.** `tests/test_enumeration_hop.py::
-    test_the_evidence_cap_binds_before_the_group_depth` 가 이 사실을 고정한다.
+    Question relevance does not help here, unlike in `_partner_order`, which is
+    why that function is not reused. Group depth is not the binding constant
+    either: `MAX_ENUM_EVIDENCE` fills on the first pass, so raising the depth
+    changes no set in this corpus.
+    See docs/design-rationale.md#enumeration-grouping
     """
     corp = r.companies[0]
     try:
