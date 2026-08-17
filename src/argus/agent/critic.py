@@ -1,28 +1,26 @@
-"""근거 지지 판정. 생성보다 싸고 정확한 검증 수단.
+"""Support verification: cheaper and more accurate than generating again.
 
-🔴 **머리말이 "4단 검증" 이라고만 적혀 있었다. 이 모듈은 다섯 가지를 한다** (v4 조사 §1-b).
-아래가 실제 책임이고, 새 코드를 어디에 놓을지는 이 목록으로 정한다.
+The module carries five responsibilities, and this list decides where new code
+belongs.
 
-① 결정적 검사 넷 — 앞의 셋은 공짜다 (policy §6)
-    quick_check              — 근거 표기 정규식        LLM 0회
-    verify_calculation       — 결정적 재계산 대조      LLM 0회
-    verify_answer_arithmetic — 답변 내부 산술 대조      LLM 0회
-    verify_number_provenance — 답변 수의 출처 대조      LLM 0회
-    verify_completeness      — 근거 완전성 대조         LLM 0회
-② 금액·비율·배율 파싱 — `_money_spans`·`money_values`·`_scale_of`·`_to_float`·
-   `_bare_claims`. 🔴 저장소가 **단일 원천으로 선언한 자리**다.
-   `scripts/error_analysis._MONEY_RE` 는 사본이 아니라 **다른 갈래**다 (표지가 선택적이고
-   환산값과 원값을 둘 다 후보로 낸다). 합치면 후보 집합이 줄어 **채점이 뒤집힌다** —
-   v4 조사가 `C2` 로 명시 기각했다.
-③ 답변을 **고쳐 쓰는** 기계 — `substitute_recomputed`·`_rendered`·`unique_recomputed`·
-   `tool_result_reports`. 판정이 아니라 **변경**이다. A20·A24b 가 공유한다.
-④ LLM 판정자 — `judge`·`judge_open`. 이 모듈에서 LLM 을 부르는 유일한 자리다.
-⑤ 오프라인 채점·집계 헬퍼 — `aggregate_calculation`·`completeness_audit`.
-   운영 경로가 아니라 `scripts/error_analysis.py` 가 쓴다.
+1. Deterministic checks, none of which call an LLM: citation presence,
+   recomputation against the source records, arithmetic internal to the answer,
+   provenance of the answer's figures, and completeness of the evidence.
+2. Parsing of amounts, ratios and scale markers. This is the single source for
+   that in the repository. The pattern in `scripts/error_analysis` is a
+   deliberate variant rather than a copy: its marker is optional and it offers
+   both the converted and the exact figure as candidates, so merging the two
+   would shrink the candidate set and change scoring.
+3. Machinery that rewrites the answer rather than judging it, shared by the
+   substitution arms.
+4. The LLM judges. The only place in this module that calls an LLM.
+5. Offline scoring and aggregation helpers, used by the analysis scripts rather
+   than by the operational path.
 
-🔴 **이 모듈은 arm 을 모른다.** `import ablation` 이 없고 플래그를 하나도 안 읽는다 —
-arm gating 은 전부 `pipeline._verify` 에 있다. **설계다.** 여기에 arm 분기를 넣으면
-검사의 결정성이 arm 에 딸리게 되고, 그러면 Δ 가 검사 변화인지 arm 변화인지 안 갈린다.
+This module knows nothing about ablation arms: it imports no flags and reads
+none. All arm gating lives in the pipeline. That is deliberate. Branching on an
+arm here would make the determinism of a check depend on the arm, and a delta
+could no longer be separated into a change of check and a change of arm.
 """
 from __future__ import annotations
 
@@ -56,7 +54,7 @@ class Verdict:
 
 @dataclass
 class OpenVerdict:
-    """서술형 채점 결과 (02-golden-set B-5). 3항목을 합산하지 않는다."""
+    """Open-question scoring result. The three criteria are not summed."""
     covers_key_points: bool
     grounded: bool
     no_fabrication: bool
@@ -68,50 +66,33 @@ class OpenVerdict:
 
 
 def quick_check(answer: str) -> dict:
-    """LLM 없이 하는 선검사. 여기서 걸리면 critic 호출을 아낀다."""
+    """Pre-check with no LLM call. Passing here saves a judge call."""
     return {"has_citation": bool(CITATION_RE.search(answer or ""))}
 
 
-# --- G. 계산 검증 (LLM 0회) --------------------------------------------------
-# policy §4 의 논리를 그대로 뒤집는다 — 계산이 Tool 의 일이면 계산 검증도 Tool 의 일이다.
-# 답변에서 수치를 뽑아 compute.py 로 재계산한 값과 대조한다.
+# --- Calculation verification. No LLM call ----------------------------------
+# The inverse of the rule that calculation belongs to a tool: if it does, so
+# does verifying it. Figures are extracted from the answer and compared against
+# values recomputed from the source records.
 
 _PCT_RE = re.compile(r"(-?\d[\d,]*(?:\.\d+)?)\s*%")
 _DUR_RE = re.compile(r"(\d+)\s*년\s*(\d+)\s*개월")
-#: 배율 표지의 **단일 원천**. `_MONEY_RE` 와 `_unit_at` 이 같은 목록을 써야 한다 —
-#: 같은 목록이 두 곳에 있으면 한쪽만 고쳐진다(이 저장소가 이미 다섯 번 겪은 실패 양식).
-#: 🔴 **긴 표지가 앞에 와야 한다.** `만원` 이 `백만원` 앞에 있으면 `백|만원` 으로 갈려
-#: 배율이 1e4 로 잡히고 100배를 놓친다. 같은 이유로 `천억원`·`백억원` 이 `억원` 앞이다.
-#: **`_SCALE_UNITS` 의 순서가 그 규율의 정본이다** — 아래 `_SCALE_ALT` 는 이 순서를
-#: 그대로 이어 붙인다.
-#:
-#: 🔴 **`천만원` 은 일부러 빼 뒀다 — 넣으면 거짓 경보가 난다.** 저장 답변 2,449건에서
-#: `천만 원`·`천만원` 은 13회 쓰이는데 **13회 전부 복합 수사의 꼬리**다
-#: (`33조 3,605억 9천만 원` 10회 · `1조 8,287억 5천만 원` · `5,157억 5천만 원` ·
-#: `75억 8천만원`). 단독 금액으로 쓰인 예가 **0건**이다. 표지를 넣으면 `_COMPOUND_MONEY_RE`
-#: 가 `조…억` 까지만 묶고 남은 꼬리가 **별개의 5천만원(5e7)** 이 되어, 실측 `Q-113`
-#: (`v3/ORACLE` 밸류체인)에서 `amount: 답변 5천만 원 vs 재계산 499,950,000,000
-#: (10^-4 배 자릿수 오류)` 라는 **거짓 경보 1건**이 새로 났다. 그 답변의 금액은 옳다.
+#: Single source for the scale markers, shared by the money pattern and the
+#: unit lookup. Order matters: a longer marker has to precede a shorter one it
+#: contains, or the alternation splits it and the scale comes out wrong by two
+#: orders of magnitude. One marker is deliberately absent, because in the
+#: recorded answers it never appears as a standalone amount and adding it
+#: creates a false alarm on a correct answer.
+#: See docs/design-rationale.md#money-scale-units
 _SCALE_UNITS = ("조원", "천억원", "백억원", "십억원", "억원",
                 "백만원", "만원", "천원", "조", "억", "원")
 
-#: 🔴 **표지 **안**의 공백을 허용한다** (v4 `R3b`). 종전에는 수와 표지 **사이**만
-#: `\s*` 였고 표지 자체는 붙임형뿐이라, 정기공시가 흔히 쓰는 띄어쓰기 표기를 금액으로
-#: **아예 못 봤다.** 저장 답변 2,449건 전수 실측(공백형 대 붙임형):
-#:
-#:     억 원      1,307 :   526      ← 붙임 `억` 대체 경로가 있어 값은 맞았다
-#:     백만 원      608 :    86      🔴 대체 경로가 없다 — 통째로 안 보였다
-#:     십억 원       36 :     0      🔴 표지 자체가 목록에 없었다
-#:     천 원         19 :     0      🔴
-#:     만 원         11 :     0      🔴
-#:     천만 원       12 :     1      ⬜ 표지를 **일부러 안 넣는다** (`_SCALE_UNITS` 주석)
-#:
-#: `억 원`·`조 원` 은 붙임 `억`·`조` 가 같은 배율로 받아 값은 맞았지만 **표지가 원문에서
-#: 잘려** 재기술 짝(`X원 (Y억 원)`)의 괄호 닫힘 판정이 서지 못했다 —
-#: `_restatement_pairs` 가 `억` 다음의 ` 원)` 을 닫는 괄호로 읽지 못한다.
-#:
-#: 공백은 **가로 공백만** 허용한다. `\s` 로 넓히면 표 안에서 줄이 갈린 `1,000\n원` 이
-#: 하나의 금액이 되어 없던 금액이 생긴다.
+#: Whitespace is allowed inside a marker, not only between the figure and the
+#: marker. Periodic filings commonly space their markers out, and without this
+#: those amounts were not seen as amounts at all. Only horizontal whitespace is
+#: allowed: matching any whitespace would join a figure and a unit split across
+#: two table lines into an amount that does not exist.
+#: See docs/design-rationale.md#money-scale-units
 _SCALE_SP = "[ \t\u00a0]*"
 _SCALE_ALT = "|".join(_SCALE_SP.join(unit) for unit in _SCALE_UNITS)
 _MONEY_RE = re.compile(rf"(-?\d[\d,]*(?:\.\d+)?)\s*({_SCALE_ALT})")
@@ -121,40 +102,37 @@ _TOTAL_KW = re.compile(r"합계|합산|총계|총액|총합")
 _MEAN_KW = re.compile(r"평균")
 _WS = re.compile(r"\s+")
 
-#: 답변이 스스로 나눗셈을 한 자리. `1척당`·`1건당`·`1호기당`.
-#: **`1` 을 반드시 요구한다.** `건당`·`대당` 만 보면 `사건 당시`·`확대 당시` 같은 평문이
-#: 걸려 전제가 헛서고, 그 문장에 건수까지 있으면 정답이 거짓 경보로 뒤집힌다.
+#: Where the answer divided by a unit count itself. The literal `1` is
+#: required: matching the counter word alone also matches ordinary prose, and
+#: if that sentence happens to carry a count as well, a correct answer is
+#: turned into a false alarm.
 _UNITS = "척|건|개|기|호기|대|동|기지"
 _PER_UNIT_KW = re.compile(rf"1\s*({_UNITS})\s*당")
 _COUNT_KW = re.compile(rf"(\d[\d,]*)\s*({_UNITS})")
 
-#: 🔴 `백만원`·`천억원`·`백억원` 이 빠져 있었다 (2026-08-11 실측으로 보강).
-#: 색인 jsonl 전량에서 `백만원` **91회** · `천억원` 7회 · `백억원` 2회가 쓰인다.
-#: 빠진 동안 정기공시의 백만원 표가 파서에서 통째로 사라졌다 — SK 의
-#: `97,146,675백만원` 이 `_MONEY_RE` 에 안 걸려 Q-047 의 검증이 아예 서지 못했다
-#: (A8 88문항 중 답변 12건·근거 21건이 백만원을 쓴다).
-#: 🔴 `십억원` 이 빠져 있었다 (v4 `R3b` 실측으로 보강). 저장 답변 2,449건에서 `십억 원`
-#: 이 36회 쓰이는데(붙임형 0회) **표지 자체가 목록에 없어서** 대체 경로도 없이 통째로
-#: 안 보였다 — `454십억 원` 은 `십원` 도 `억원` 도 매치하지 않아 아무것도 안 걸린다.
-#: 실측 용례는 전부 단독 금액이다(`시설자금 454십억 원` · `2,990십억 원`).
-#: **`천만원` 은 넣지 않았다** — 사유는 `_SCALE_UNITS` 주석에 있다.
+#: Marker to multiplier. Several markers were missing here at various points,
+#: and each omission made a whole class of amounts invisible to the parser
+#: rather than merely mis-scaled.
+#: See docs/design-rationale.md#money-scale-units
 _SCALE = {"원": 1.0, "천원": 1e3, "만원": 1e4, "백만원": 1e6,
           "억": 1e8, "억원": 1e8, "십억원": 1e9, "백억원": 1e10, "천억원": 1e11,
           "조": 1e12, "조원": 1e12}
 
-#: 🔴 **`_SCALE_UNITS` 와 `_SCALE` 이 같은 목록을 말해야 한다.** 한쪽만 늘리면
-#: `_money_spans` 가 `KeyError` 로 죽거나(표지만 늘린 경우) 새 표지가 조용히 안 보인다.
+#: The marker tuple and the multiplier mapping have to name the same set.
+#: Extending one alone either raises at parse time or leaves the new marker
+#: silently unseen.
 assert set(_SCALE_UNITS) == set(_SCALE), sorted(set(_SCALE_UNITS) ^ set(_SCALE))
 
 
 def _scale_of(marker: str) -> float:
-    """표지의 배율. **표지 안의 공백을 지우고** 찾는다 (`백만 원` → `백만원`)."""
+    """Multiplier for a marker, looked up with whitespace inside the marker
+    removed."""
     return _SCALE["".join(marker.split())]
 
-#: 반올림 1자리까지 허용한다 (docs/pipeline/07-verifier.md G-2).
+#: Rounding tolerance of one decimal place.
 ROUND_TOLERANCE = 0.05
 
-#: 계산 불일치는 Phase H Error Analysis 에서 이 단계로 귀속한다.
+#: Failure stage a calculation mismatch is attributed to.
 FAILURE_STAGE = "TOOL"
 
 # --- 자릿수(단위) 오류 — 관용에서 **뺀다** ------------------------------------
