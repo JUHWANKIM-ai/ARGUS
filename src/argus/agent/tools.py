@@ -772,19 +772,20 @@ def _counterparty_graph() -> dict | None:
 
 
 def query_by_counterparty(name: str, year: str | None = None) -> dict:
-    """발주처 이름으로 그 발주처와 계약한 universe 기업들의 레코드를 모은다.
+    """Collect the records of every universe company that contracted with a
+    given counterparty.
 
-    밸류체인 문항의 fan-in/fan-out 완전 열거(Q-110·Q-114·Q-117)는 `query_events` 에
-    계약상대 필터가 없어 구조적으로 불가하다 — `partners` 를 통째로 돌려주는 것이
-    이 도구의 존재 이유다. `year` 는 거래소공시 `rcept_dt`(접수일) 접두 필터다 — 이
-    도구가 보는 모집단이 정기공시가 아니라 거래소공시라 접수연도와 사업연도가 갈리는
-    문제가 없다.
+    Complete fan-in and fan-out enumeration is structurally impossible through
+    the event query, which has no counterparty filter, and returning the whole
+    partner list is why this tool exists. The year argument filters on the
+    receipt-date prefix; since the population here is exchange filings rather
+    than periodic ones, receipt year and fiscal year do not diverge.
 
-    비실명("글로벌 대형기업")과 보일러플레이트 안내문("...비밀유지...")은 둘 다
-    노드가 아니지만 사유가 다르다 — 전자는 실체를 특정할 수 없고, 후자는 회사명이
-    아니라 안내문 문장이다. 후자는 그래프의 `excluded_boilerplate` 에 이미 사유가
-    기록돼 있어 재사용한다(정규식을 여기 새로 복제하지 않는다 — `scripts/
-    build_counterparty_graph.py::BOILERPLATE_NOTE` 가 그 유일한 원천이다).
+    A non-specific counterparty and a boilerplate confidentiality notice are
+    both non-nodes for different reasons: the first cannot be identified, the
+    second is not a company name at all. The reason for the second is already
+    recorded in the graph and is reused rather than reimplemented here, so the
+    pattern has a single source.
     """
     kind = classify(name)
     if kind == "vague":
@@ -814,9 +815,10 @@ def query_by_counterparty(name: str, year: str | None = None) -> dict:
             "partners": node["partners"], "records": records}
 
 
-# --- 계산 도구 (policy §4) ---------------------------------------------------
-# 반환 형태를 통일한다. `rounded` 는 답변에 그대로 쓰라고 주는 값이고
-# `expr` 은 LLM 이 계산 과정을 설명할 때 쓰라고 주는 식이다 (LLM 은 재계산하지 않는다).
+# --- Calculation tools ------------------------------------------------------
+# The return shape is uniform. The rounded value is what the answer should
+# quote verbatim, and the expression is what the model should use when
+# explaining the calculation. The model does not recompute either.
 
 _fmt = compute.fmt_num
 
@@ -856,10 +858,9 @@ def calc_compare(a: float, b: float) -> dict:
 
 
 def calc_period(start: str, end: str) -> dict:
-    """계약기간 등 두 날짜 사이의 만 년·개월.
+    """Whole years and months between two dates, such as a contract duration.
 
-    실측에서 HCX 가 Direct·CoT 모두 틀린 영역이다
-    (2025-07-24 ~ 2033-12-31 → 8년 5개월인데 9년 5개월로 답했다).
+    An area the model gets wrong on both the direct and the reasoning path.
     """
     parts = compute.period_parts(start, end)
     if parts is None:
@@ -930,7 +931,8 @@ _RETRIEVAL_SPECS = [
           ["name"]),
 ]
 
-# policy §4 — 수치 연산은 전부 여기를 통과해야 한다. LLM 이 직접 계산하면 안 된다.
+# Every numeric operation passes through this registry. The model must not
+# perform one itself.
 _CALC_SPECS = [
     _spec("calc_pct_change", "증감률(%)을 계산한다. 전기 대비 증가율·감소율은 반드시 이 도구를 쓴다",
           {"before": {**_NUM, "description": "기준 시점 값 (0 불가)"},
@@ -957,11 +959,10 @@ _CALC_SPECS = [
 
 TOOL_SPECS = _RETRIEVAL_SPECS + _CALC_SPECS
 
-#: 🔴 **`A24b` 가 내미는 목록.** `TOOL_SPECS` 15종을 전부 내민 `A24` 는 모델이 부른 47건
-#: 중 **26건이 검색**이었고(`read_section` 16 · `get_history` 10), 이미 프롬프트에 실려
-#: 있는 근거를 다시 읽어 **희석시켰다** — 회귀 8건 중 7건이 도구 호출 문항이다
-#: (정본 `docs/pipeline/09-ablation.md` §I-5g · `A24` 기각 사유).
-#: 계산 7종만 내밀면 그 차선이 아예 닫힌다.
+#: The subset offered when tools are restricted to calculation. Offering every
+#: tool sent most calls to retrieval, which re-read evidence already in the
+#: prompt and diluted it; restricting the list closes that lane entirely.
+#: See docs/design-rationale.md#function-calling-arm
 CALC_SPECS = list(_CALC_SPECS)
 
 RETRIEVAL_TOOLS = frozenset(s["function"]["name"] for s in _RETRIEVAL_SPECS)
@@ -995,39 +996,42 @@ def execute(name: str, args: dict) -> dict:
     except TypeError as exc:
         return {"error": f"인자 오류: {exc}"}
     except ValueError as exc:
-        # 0 나눗셈·빈 목록 등 계산이 성립하지 않는 입력. 파이프라인을 죽이지 않는다.
+        # Input on which the calculation does not hold, such as a zero
+        # divisor or an empty list. This must not take the pipeline down.
         return {"error": f"계산 오류: {exc}"}
     except (KeyError, OSError) as exc:
-        # 인덱스 컬럼 누락·블롭 부재 등 산출물 불일치. 도구 하나가 죽어도 다음 수단이 있다.
+        # Artifact mismatch, such as a missing index column or absent blob.
+        # One failing tool still leaves the next means available.
         return {"error": f"인덱스 오류: {type(exc).__name__} {exc}"}
 
 
-# --- 법인등록번호 행 조회 (LLM 0회 · 2026-08-17) ------------------------------
+# --- Corporate registration number row lookup. No LLM call ------------------
+# The problem was chunking rather than evidence slots: narrowing the table of
+# contents makes retrieval choose the right report, but the section is large
+# enough to split and the chunk that wins on BM25 is not the chunk holding the
+# row.
 #
-# 🔴 **조각이 문제였지 근거 칸이 문제가 아니었다.** `AFFILIATE_PATH` 로 목차를 좁히면
-# 검색은 **맞는 보고서**를 고른다. 그런데 그 섹션이 34,122자라 6조각으로 쪼개지고,
-# BM25 는 회사명이 빽빽한 4번 조각을 고른다 — 정작 찾는 행은 703자 지점(1번 조각)이다.
+# Widening the window was rejected repeatedly, and carrying every chunk would
+# let one section consume the whole evidence, so a single row is extracted from
+# the full section instead.
 #
-#     [4/6 조각]  | CHONGQING HAPPYNARAE Co., Ltd. | - |  |  |   ← 골라 온 것
-#     [1/6 조각]  | SK하이닉스㈜ | 134411-0001387 |            ← 답이 있는 곳
-#
-# 칸을 더 주는 것(`MAX_SECTION_CHARS` 확대)은 v4 가 세 번 기각한 방향이고, 조각을 다
-# 실으면 34K 자가 근거를 통째로 먹는다. 그래서 **섹션 전문에서 행 하나만 뽑아 온다** —
-# `aggregate.line` 이 집계를 한 줄로 싣는 것과 같은 자리다.
-#
-# 🔴 **`aggregate` 에 두지 않는 이유**: 그 모듈은 네트워크·파일 접근이 없다는 것이
-# 규약 감사 `G2` 의 근거다. 코퍼스를 읽는 일은 코퍼스를 소유한 여기의 몫이다.
+# It lives here rather than in the aggregation module, because that module
+# having no file or network access is what a compliance check depends on.
+# Reading the corpus belongs to the module that owns it.
+# See docs/design-rationale.md#section-chunking
 
-#: 법인등록번호가 실린 목차. `query.AFFILIATE_PATH` 와 **같은 값이어야 한다** —
-#: 한쪽만 고치면 라우팅은 그 섹션을 부르는데 조회는 딴 데를 뒤진다.
+#: Table-of-contents path carrying the registration numbers. It has to equal
+#: the value the query planner uses: changing one alone makes routing request
+#: that section while the lookup searches elsewhere.
 CORP_NUMBER_PATH = "XII. 상세표 > 2. 계열회사 현황(상세)"
 
-#: 표 행: `| SK하이닉스㈜ | 134411-0001387 |`. 회사명은 호출부가 끼운다.
+#: A table row pairing a company name with its number. The name is
+#: interpolated by the caller.
 _CORP_NUMBER_CELL = r"[|｜]\s*{name}\s*(?:㈜|\(주\)|주식회사)?\s*[|｜]\s*(\d{{6}}\s*-\s*\d{{7}})\s*[|｜]"
 
 
 def _section_full_text(record: dict) -> str:
-    """섹션 **전문**. `_section_body` 와 달리 조각으로 자르지 않는다."""
+    """The full section body, uncut, unlike the chunked accessor."""
     offset, length = record.get("text_offset", -1), record.get("text_bytes", 0)
     if offset < 0 or length <= 0:
         return ""
@@ -1037,16 +1041,18 @@ def _section_full_text(record: dict) -> str:
 
 
 def corp_number_line(corp_name: str, doc_ids) -> str:
-    """`corp_name` 의 법인등록번호를 계열회사 표에서 찾아 한 줄로 돌려준다.
+    """Find a company's registration number in the affiliate table and return
+    it as one line.
 
-    돌려주는 것은 근거에 그대로 실을 문장이고, 못 찾으면 빈 문자열이다.
-    **찾은 문서의 접수번호를 함께 싣는다** — 근거 표기 규칙(§7.5)을 지켜야 하고,
-    그러지 않으면 `critic` 이 출처 없는 수로 읽는다.
+    The return value is a sentence to place in the evidence, or an empty string
+    when nothing is found. The receipt number of the document it came from is
+    included, because the citation rule requires it and without it the verifier
+    reads the figure as having no source.
 
-    🔴 `doc_ids` 는 **검색이 이미 고른 문서**로 한정한다. 코퍼스 전체를 뒤지면
-    남의 보고서에 실린 행을 끌어와 *"이 회사가 저 회사의 계열사"* 라는 사실을
-    출처 없이 주장하게 된다. 실측(70개사): 자기 보고서에 자기 번호를 싣는 기업이
-    **16개**, 남의 보고서에만 실린 기업이 1개(기아)다. 뒤엣것은 안 집는다.
+    The search is limited to documents retrieval already chose. Scanning the
+    whole corpus would pull a row out of another company's report and assert an
+    affiliation without a source.
+    See docs/design-rationale.md#section-chunking
     """
     index = _section_index()
     if index is None or not corp_name:
@@ -1064,5 +1070,6 @@ def corp_number_line(corp_name: str, doc_ids) -> str:
     return ""
 
 
-#: 조회할 문서 수 상한. 검색 상위 몇 건이면 충분하고, 넘기면 블롭을 반복해 읽는다.
+#: Cap on documents inspected. The top few retrieval results suffice, and
+#: going further re-reads the blob repeatedly.
 MAX_CORP_NUMBER_DOCS = 4
