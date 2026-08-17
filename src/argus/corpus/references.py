@@ -1,22 +1,18 @@
-"""`※ 관련공시` -> REFERS_TO 엣지 (Phase C 게이트 항목).
+"""Extraction of REFERS_TO edges from the related-disclosure section.
 
-정정 체인과 **다른 관계**다. 정정은 '이 문서가 저 문서를 고친다' 이고, 관련공시는
-'같은 사안의 선행 공시가 이것들이다' 다. 한 사안이 조회공시 요구 -> 답변 ->
-계약체결 -> 해지로 이어지는 흐름이 여기 남는다.
+Distinct from correction chains. A correction says one document amends
+another; a related disclosure says these are the preceding filings on the
+same matter, such as an inquiry, its answer, a contract and its termination.
 
-실측(exchange+major 2,067건 스캔): 참조 행 존재 1,463건(70.8%), 총 2,088개 참조.
+Unresolved references are recorded rather than discarded, so that a parser
+failure remains distinguishable from a genuine absence:
 
-해소되지 않는 참조를 **조용히 버리지 않는다.** 버리면 "파서가 못 읽은 것" 과
-"코퍼스에 없는 것" 이 구분되지 않아 Phase H 오류분석이 왜곡된다. 그래서 이유를
-세 가지로 나눠 기록한다.
+    resolved       bound to a document inside the corpus
+    before_corpus  filed before the corpus start date, a structural bound
+    not_found      within range but absent, either uncollected or out of form
 
-    resolved       코퍼스 안의 문서로 붙었다
-    before_corpus  2023-01-02 이전 공시다 — 코퍼스가 거기서 시작하므로 **구조적 상한**
-    not_found      기간 안인데 해당 문서가 없다 (수집 범위 밖 서식이거나 미수집)
-
-`targets` 를 리스트로 두는 이유는 같은 기업이 같은 날 같은 서식으로 여러 건을
-내는 경우가 실제로 있기 때문이다(LG에너지솔루션 2024-10-15 계약체결 2건).
-하나를 임의로 고르면 근거 인용이 틀릴 수 있어 후보를 모두 남긴다.
+`targets` is a list because one company can file several documents of the same
+form on the same day. Selecting one arbitrarily would produce a wrong citation.
 """
 from __future__ import annotations
 
@@ -29,7 +25,7 @@ from argus.config import settings
 from argus.corpus.html_doc import extract_rows, read_document
 from argus.corpus.manifest import load_manifest
 
-# 코퍼스 시작일. 이보다 이른 참조는 코드로 넘을 수 없다.
+# Corpus start date. References earlier than this cannot be resolved.
 CORPUS_START = "20230102"
 
 def _is_reference_label(cell: str) -> bool:
