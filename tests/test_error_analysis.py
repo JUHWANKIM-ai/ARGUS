@@ -1,4 +1,4 @@
-"""Phase H 귀속 로직 회귀. **LLM 0회** — conftest 의 block_clova_network 를 우회하지 않는다."""
+"""Phase H 귀속 로직 회귀. **LLM 0회**, conftest 의 block_clova_network 를 우회하지 않는다."""
 import json
 from collections import Counter
 from pathlib import Path
@@ -12,7 +12,7 @@ from scripts import validate_evalset as V
 # --- 입력 가드 ---------------------------------------------------------------
 
 def test_only_dev_split_is_loaded():
-    """dev 문항 수는 **그리드 규격에서 유도**한다 — 리터럴 42 를 박아 두지 않는다.
+    """dev 문항 수는 **그리드 규격에서 유도**한다. 리터럴 42 를 박아 두지 않는다.
 
     02 B-9 가 셀당 dev 문항을 2 → 4 로 올리면서 42 → 78 이 됐다. 예전처럼 숫자를
     적어 두면 증설할 때마다 손으로 고쳐야 하고, 고치는 순간 "왜 그 값인지" 를
@@ -52,7 +52,7 @@ def test_cohort_flag_selects_the_question_set():
 
 
 def test_valuechain_cohort_is_separate_from_the_grid():
-    """밸류체인은 그리드 밖이다 — 같이 세면 정답률이 오염된다."""
+    """밸류체인은 그리드 밖이다. 같이 세면 정답률이 오염된다."""
     vc = ea.load_cohort("valuechain")
     assert len(vc) == 12
     assert {q["track"] for q in vc} == {"valuechain"}
@@ -108,13 +108,13 @@ def test_boolean_reads_the_conclusion_not_the_first_polarity_word():
 
 
 def test_boolean_lead_yes_wins_over_later_wording():
-    """실측 Q-025 — '네, … 정정공시를 했습니다' 는 명백한 예다."""
+    """실측 Q-025, '네, … 정정공시를 했습니다' 는 명백한 예다."""
     assert ea.boolean_verdict("네, 삼성전자는 이후 정정공시를 했습니다.") is True
     assert ea.boolean_verdict("아니오, 정정된 바 없습니다.") is False
 
 
 def test_boolean_takes_the_last_polarity_when_both_appear():
-    """실측 Q-047 — 'A가 B보다 큽니다 … 따라서 B는 A보다 작습니다' 의 결론은 '작다'."""
+    """실측 Q-047, 'A가 B보다 큽니다 … 따라서 B는 A보다 작습니다' 의 결론은 '작다'."""
     text = ("삼성전자의 매출액이 SK하이닉스보다 큽니다. "
             "따라서 SK하이닉스의 매출액은 삼성전자보다 작습니다.")
     assert ea.boolean_verdict(text) is False
@@ -135,10 +135,10 @@ def test_boolean_ignores_the_citation_tail():
 # --- C/I-4: 정규식으로 한국어 부정을 판정하는 접근의 한계선 ---------------------
 
 def test_double_negation_is_not_judged_instead_of_being_judged_backwards():
-    """이중부정은 마지막 극성 표지만 보면 **뒤집힌다** — 판정하지 않는다.
+    """이중부정은 마지막 극성 표지만 보면 **뒤집힌다**. 판정하지 않는다.
 
     `"없지 않습니다"` = 있다 인데 마지막 표지가 `없습니다` 라 종전에는 `False` 가 나왔다.
-    뒤집힌 답은 오답을 정답으로도 만들 수 있어 `no_verdict` 보다 나쁘다 —
+    뒤집힌 답은 오답을 정답으로도 만들 수 있어 `no_verdict` 보다 나쁘다.
     `no_verdict` 는 채점상 오답이지만 `by="boolean:no_verdict"` 로 **판정 불가임이
     산출물에 남는다**(정답률을 조용히 부풀리지 않는다).
     """
@@ -147,7 +147,7 @@ def test_double_negation_is_not_judged_instead_of_being_judged_backwards():
                  "해당 사실이 없다고 할 수 없습니다",
                  "정정 이력이 없지 않은 것으로 보입니다"):
         assert ea.boolean_verdict(text) is None, text
-    # `있지 않습니다`(= 없다)는 뒤집히지 않으므로 **판정한다** — 과잉 수정 방지 회귀.
+    # `있지 않습니다`(= 없다)는 뒤집히지 않으므로 **판정한다**. 과잉 수정 방지 회귀.
     assert ea.boolean_verdict("있지 않습니다") is False
     # 판정 불가는 채점상 오답이지만 라벨로 드러난다.
     case = {"answer_form": "boolean", "answer": "있다", "tolerance": 0}
@@ -156,7 +156,7 @@ def test_double_negation_is_not_judged_instead_of_being_judged_backwards():
 
 
 def test_conditional_clauses_are_not_read_as_factual_assertions():
-    """조건절은 **사실 주장이 아니다** — `있었` 하나로 긍정을 찍으면 안 된다."""
+    """조건절은 **사실 주장이 아니다**. `있었` 하나로 긍정을 찍으면 안 된다."""
     for text in ("만약 정정공시가 있었다면 공시했을 것입니다",
                  "정정공시가 있었다면 접수번호가 부여되었을 것입니다",
                  "만일 해당 계약이 변경되었다면 재공시 대상입니다"):
@@ -177,7 +177,7 @@ def test_the_measured_boolean_cases_do_not_regress():
 
 
 def test_the_deciding_sentence_is_the_last_one_with_a_polarity_marker():
-    """어형 판정은 **결론 문장**에서 한다 — 앞쪽 조건절 설명이 명확한 결론을 무효화하면
+    """어형 판정은 **결론 문장**에서 한다. 앞쪽 조건절 설명이 명확한 결론을 무효화하면
     안 된다(과잉 수정 방지).
     """
     text = ("만약 정정공시가 있었다면 접수번호가 부여됩니다. "
@@ -192,7 +192,7 @@ def test_refusal_form_matches_limitation_phrase():
 
 
 def test_refusal_accepts_the_models_own_wording():
-    """실측 Q-040 — 고정 문구가 아니어도 거절은 거절이다. 환각으로 세면 안 된다."""
+    """실측 Q-040, 고정 문구가 아니어도 거절은 거절이다. 환각으로 세면 안 된다."""
     case = {"answer_form": "refusal", "answer": "제공된 공시 데이터에서 확인되지 않습니다."}
     said = "공시된 자료에는 2026년 반기보고서에 기재될 매출액 정보가 포함되어 있지 않습니다."
     assert ea.score_closed(case, said)["correct"]
@@ -282,7 +282,7 @@ def test_withheld_only_blocks_when_question_asks_for_the_value():
 
 
 def test_partial_withheld_is_not_a_data_limit():
-    """골든 중 하나만 유보면 나머지로 답이 나온다 — 상한으로 세면 실패가 숨는다."""
+    """골든 중 하나만 유보면 나머지로 답이 나온다. 상한으로 세면 실패가 숨는다."""
     records = {"A": {"withheld": True, "amount": None}, "B": {"withheld": False, "amount": 5}}
     case = {"question": "계약금액은 얼마인가?",
             "evidence": [{"rcept_no": "A"}, {"rcept_no": "B"}]}
@@ -405,10 +405,10 @@ def test_generation_when_evidence_is_right_but_answer_is_wrong():
 # --- B/I-7: VERIFY 가 만능 버킷이 되지 않는다 -----------------------------------
 
 def test_verify_no_longer_swallows_rows_that_generation_can_explain():
-    """🔴 "A6 병목 1위" 를 두 번 만든 기전의 회귀 고정.
+    """"A6 병목 1위" 를 두 번 만든 기전의 회귀 고정.
 
     `critic` 은 파이프라인의 **마지막** 게이트다. 따라서 critic 통과는 '첫 실패' 가 될
-    수 없다 — 앞에서 이미 무언가 틀렸다. 종전에는 ⑦ VERIFY 가 ⑧ GENERATION 보다
+    수 없다. 앞에서 이미 무언가 틀렸다. 종전에는 ⑦ VERIFY 가 ⑧ GENERATION 보다
     앞에 있어 `critic_supported is True` 인 모든 오답을 삼켰고, `root_cause` 의 분기
     (INDEX_FIELD_MISSING / REASONING)가 가려졌다. 실측: A6 3건 과대 · A5 0건
     (수동 원문 대조는 A6 1 · A5 4).
@@ -429,7 +429,7 @@ def test_verify_no_longer_swallows_rows_that_generation_can_explain():
 def test_critic_pass_is_recorded_even_when_the_stage_is_not_verify():
     """VERIFY 버킷을 좁혔으므로 이 신호가 사라지면 A6 을 볼 방법이 없어진다.
 
-    귀속 단계와 **무관하게** 남는다 — `attribute` 의 `why` 와 행의
+    귀속 단계와 **무관하게** 남는다. `attribute` 의 `why` 와 행의
     `critic_passed_wrong_answer`, 그리고 보고서의 대조표가 각각 들고 있다.
     """
     case = {"answerable": True, "corp_name": ["A"], "doc_group": "exchange"}
@@ -448,7 +448,7 @@ def test_the_arm_map_does_not_claim_a6_for_the_verify_bucket():
     자동 히스토그램에 `A6` 을 박아 두면 그 수가 문서로 옮겨 적힌다.
     """
     label = ea.ARM_BY_ROOT_CAUSE["VERIFY/VERIFY"]
-    # arm 을 **지목**하지 않는다 — `**A6**` 형태의 겨냥 표기가 없어야 한다.
+    # arm 을 **지목**하지 않는다. `**A6**` 형태의 겨냥 표기가 없어야 한다.
     assert ea._arm_of({"first_failure": "VERIFY", "root_cause": "VERIFY"}) == "미분류"
     assert "**A6**" not in label
     assert "원문 대조" in label
@@ -459,13 +459,13 @@ def test_the_arm_map_does_not_claim_a6_for_the_verify_bucket():
 def test_the_report_reconciles_the_automatic_and_manual_arm_allocations():
     """두 배분표가 **대조 없이** 한 보고서에 공존하던 것이 오판을 두 번 만들었다.
 
-    침묵이 최악이다 — 차이와 정본을 산출물에 명시한다.
+    침묵이 최악이다. 차이와 정본을 산출물에 명시한다.
     """
     rows = [_row("Q-087", "search_extract", "closed", "중", False, "VERIFY"),
             # 자동·수동이 **일치**하는 사례. Q-023 은 GENERATION/REASONING → 양쪽 다 A4 다.
-            # (종전에는 Q-094/A3 를 썼는데 그 문항이 정답이 되어 상수에서 빠졌다 —
+            # (종전에는 Q-094/A3 를 썼는데 그 문항이 정답이 되어 상수에서 빠졌다.
             #  일치 사례를 상수 밖 문항으로 쓰면 상수가 바뀔 때마다 이 테스트가 깨진다.)
-            # 🔴 A5/TOOL 행은 쓰지 않는다 — 아래 `auto_grid == 0` 단언과 부딪힌다.
+            # A5/TOOL 행은 쓰지 않는다. 아래 `auto_grid == 0` 단언과 부딪힌다.
             _row("Q-023", "search_extract", "closed", "중", False, "GENERATION",
                  root_cause="REASONING"),
             _row("Q-001", "search_extract", "closed", "중", True)]
@@ -481,7 +481,7 @@ def test_the_report_reconciles_the_automatic_and_manual_arm_allocations():
     # 일치하는 것은 불일치 목록에 없다.
     assert "Q-097" not in disagree
     by_arm = {i["arm"]: i for i in rec["by_arm"]}
-    # 🔴 건수를 리터럴로 박지 않는다 — 상수에서 센다. 종전의 `== 4` 는 겨냥이 갱신되자
+    # 건수를 리터럴로 박지 않는다. 상수에서 센다. 종전의 `== 4` 는 겨냥이 갱신되자
     #    상수가 아니라 **테스트가** 낡음을 붙잡고 있었다.
     expected_a5 = sum(len(ids) for arm, ids, _ in ea.TARGETED_BY_MANUAL_REVIEW if arm == "A5")
     assert by_arm["A5"]["manual_all_tracks"] == expected_a5
@@ -489,13 +489,13 @@ def test_the_report_reconciles_the_automatic_and_manual_arm_allocations():
 
 
 def test_the_manual_allocation_is_a_single_source_shared_with_the_gate():
-    """🔴 `scripts/ablation.py::render_gate` §9 의 `targeted` 와 갈리면 안 된다.
+    """`scripts/ablation.py::render_gate` §9 의 `targeted` 와 갈리면 안 된다.
 
-    같은 표가 두 곳에 하드코딩돼 있으면 한쪽만 고쳐진다 — 이 프로젝트가 배분표
+    같은 표가 두 곳에 하드코딩돼 있으면 한쪽만 고쳐진다. 이 프로젝트가 배분표
     불일치로 이미 두 번 오판했다. 여기가 단일 원천이고, 게이트가 이 상수를 읽어야 한다.
     """
     mine = {arm: set(ids) for arm, ids, _ in ea.TARGETED_BY_MANUAL_REVIEW}
-    # 🔴 건수와 arm 집합을 리터럴로 박지 않는다. 종전에는 `== 13` 과
+    # 건수와 arm 집합을 리터럴로 박지 않는다. 종전에는 `== 13` 과
     #    `== {"A4","A5","A1b","A6","A3"}` 가 박혀 있었고, 재측정으로 오답이 11 로 줄고
     #    A3 겨냥이 0 이 됐을 때 **상수가 아니라 이 테스트가** 낡음을 붙잡았다.
     #    총수의 정본 대조는 `test_manual_targeting_matches_the_current_wrong_set` 이 한다.
@@ -523,7 +523,7 @@ def test_merge_this_run_carries_forward_when_recompute_has_no_live_run(tmp_path)
     """재집계(`live=None`)는 이전 실행이 남긴 지출 기록을 지우면 안 된다.
 
     이전 버그: `if live: report["this_run"] = live` 는 `live` 가 없으면 아무것도 안 써서
-    `this_run` 이 **키째로 사라졌다** — 0 원으로 덮이는 것보다 나쁘다. 실측:
+    `this_run` 이 **키째로 사라졌다**. 0 원으로 덮이는 것보다 나쁘다. 실측:
     `artifacts/eval/error_analysis.json` · `_v2.json` 둘 다 이미 이 사고를 겪었다.
     """
     out_path = tmp_path / "report.json"
@@ -536,7 +536,7 @@ def test_merge_this_run_carries_forward_when_recompute_has_no_live_run(tmp_path)
 
 
 def test_merge_this_run_keeps_the_previous_spend_when_a_second_live_run_happens(tmp_path):
-    """두 번째 유료 실행도 앞의 지출 기록을 지우지 않는다 — 새 값을 권위값으로 쓰되
+    """두 번째 유료 실행도 앞의 지출 기록을 지우지 않는다. 새 값을 권위값으로 쓰되
     앞의 값을 `spent_won_previous` 로 남긴다 (`scripts/ablation.py::_write_run` 과 같은 패턴)."""
     out_path = tmp_path / "report.json"
     out_path.write_text(json.dumps({"this_run": {"spent_won": 1153.0}}), encoding="utf-8")
@@ -548,7 +548,7 @@ def test_merge_this_run_keeps_the_previous_spend_when_a_second_live_run_happens(
 
 
 def test_merge_this_run_does_not_fabricate_a_value_when_the_record_was_already_lost(tmp_path):
-    """이전 산출물은 있는데 `this_run` 이 이미 없다 — 사고가 이미 일어난 상태다.
+    """이전 산출물은 있는데 `this_run` 이 이미 없다. 사고가 이미 일어난 상태다.
 
     없는 값을 추정해 채우지 않는다. 이번 재집계 자체는 `execute()` 를 안 부르므로
     **이번 실행의 신규 지출은 확실히 0원**이고, 그 사실과 '이전 기록 없음'만 남긴다.
@@ -564,7 +564,7 @@ def test_merge_this_run_does_not_fabricate_a_value_when_the_record_was_already_l
 
 
 def test_merge_this_run_returns_none_for_a_brand_new_report():
-    """이전 산출물 자체가 없는 최초 실행은 '유실' 이 아니다 — 경고를 만들어내지 않는다."""
+    """이전 산출물 자체가 없는 최초 실행은 '유실' 이 아니다. 경고를 만들어내지 않는다."""
     assert ea._merge_this_run(Path("no/such/report.json"), live=None) is None
 
 
@@ -594,7 +594,7 @@ def test_recompute_via_main_keeps_this_run_end_to_end(tmp_path, monkeypatch):
 def test_totals_cost_won_is_labelled_as_cohort_replay_not_new_spend():
     """`totals["cost_won"]` 은 코호트 전 행의 누적 재생 비용이지 이번 실행의 신규
     지출이 아니다 (`scripts/ablation.py` 가 같은 필드를 `arm_cost_won` 으로 그렇게
-    쓴다). 실측으로 두 수가 갈렸다 — v2 전수 재집계 `totals.cost_won` 2,370.0원 vs
+    쓴다). 실측으로 두 수가 갈렸다. v2 전수 재집계 `totals.cost_won` 2,370.0원 vs
     그 재집계 자체의 신규 지출 `this_run.spent_won` 1,505.1원. 필드명은 호환을 위해
     유지하되(바꾸면 `ablation.py`·게이트 문서가 깨진다) 범위를 라벨로 드러낸다.
     """
@@ -608,7 +608,7 @@ def test_totals_cost_won_is_labelled_as_cohort_replay_not_new_spend():
 # --- 근본 원인 세분 ------------------------------------------------------------
 
 def test_chain_not_traversed_when_missing_golden_is_a_known_correction():
-    """related 로 이미 연결된 정정본을 못 찾은 것은 검색력 문제가 아니다 — 안 밟은 것이다."""
+    """related 로 이미 연결된 정정본을 못 찾은 것은 검색력 문제가 아니다. 안 밟은 것이다."""
     positions = {"golden": ["orig", "fix"], "in_candidates": ["orig"], "rank": {"orig": 1}}
     cause = ea.root_cause("RETRIEVAL", {}, positions, {}, {"orig": ["fix"]}, None)
     assert cause == "CHAIN_NOT_TRAVERSED"
@@ -638,7 +638,7 @@ def test_gold_value_in_evidence_ignores_receipt_numbers_and_short_digits():
     case = {"answer": None,
             "answer_key_points": ["권면총액 50,182,840,320원", "근거 접수번호 20250522000332"]}
     ctx = "- 공시일: 2025-05-22 (접수번호 20250522000332)\n- 기간: 2026-05-30 ~ 2028-05-29"
-    # 접수번호가 겹친다고 '값이 있다'가 되면 안 된다 — 그러면 A1b 병목이 통째로 사라진다.
+    # 접수번호가 겹친다고 '값이 있다'가 되면 안 된다. 그러면 A1b 병목이 통째로 사라진다.
     assert ea.gold_value_in_evidence(case, ctx) is False
     assert ea.gold_value_in_evidence(case, ctx + " 권면총액 50,182,840,320원") is True
 
@@ -677,7 +677,7 @@ def test_crosstab_has_eighteen_cells_and_three_marginals():
 
 
 def test_regression_and_valuechain_never_enter_the_grid_rate():
-    """🔴 회귀·밸류체인을 그리드에 섞으면 v1 과 비교할 축이 사라진다.
+    """회귀·밸류체인을 그리드에 섞으면 v1 과 비교할 축이 사라진다.
 
     두 트랙은 3축 라벨을 갖고 있어(answerable=true · task_type 채움) 예전 필터
     `answerable and task_type` 로는 걸러지지 않는다. **track 으로 걸러야 한다.**
@@ -695,21 +695,21 @@ def test_regression_and_valuechain_never_enter_the_grid_rate():
 
 
 def test_root_cause_histogram_is_reported_grid_scoped_too():
-    """🔴 09 의 arm 겨냥표가 이 값을 읽는다. 회귀가 섞이면 겨냥 건수가 부풀고,
-    실측에서 정확히 그랬다 — VERIFY 전체 4건 중 Q-065 는 회귀 트랙이라 그리드는 3건이다."""
+    """09 의 arm 겨냥표가 이 값을 읽는다. 회귀가 섞이면 겨냥 건수가 부풀고,
+    실측에서 정확히 그랬다. VERIFY 전체 4건 중 Q-065 는 회귀 트랙이라 그리드는 3건이다."""
     rows = [_row("Q1", "search_extract", "closed", "중", False, "VERIFY"),
             _row("R1", "search_extract", "closed", "중", False, "VERIFY",
                  track="regression")]
     report = ea.build_report([], rows)
     assert report["root_cause_histogram"]["VERIFY/VERIFY"] == 2
     assert report["root_cause_histogram_grid"]["VERIFY/VERIFY"] == 1
-    # 렌더된 표도 그리드만 세야 한다 — 문서가 이 표를 그대로 옮긴다.
+    # 렌더된 표도 그리드만 세야 한다. 문서가 이 표를 그대로 옮긴다.
     text = ea.render_matrix(rows, report)
     assert "그리드 밖 트랙" in text and "R1" in text
 
 
 def test_new_sector_threshold_counts_grid_only():
-    """문턱 판정 분모가 다른 arm 겨냥 수치와 같아야 한다 — 표 안에서 분모가 둘이면 안 된다."""
+    """문턱 판정 분모가 다른 arm 겨냥 수치와 같아야 한다. 표 안에서 분모가 둘이면 안 된다."""
     rows = [_row(f"Q{i}", "search_extract", "closed", "중", False, "RETRIEVAL", sector=s)
             for i, s in enumerate(("게임", "로봇"))]
     rows.append(_row("R1", "search_extract", "closed", "중", False, "RETRIEVAL",
@@ -781,21 +781,21 @@ def test_boolean_verdict_reads_past_tense_forms():
     """
     assert ea.boolean_verdict("해당 기간에 정정공시는 없었습니다.") is False
     assert ea.boolean_verdict("정정공시가 2건 있었습니다.") is True
-    # 마지막 판정이 이긴다 — 확인 과정을 서술한 뒤 부정으로 끝나는 형태
+    # 마지막 판정이 이긴다. 확인 과정을 서술한 뒤 부정으로 끝나는 형태
     assert ea.boolean_verdict("변동이 있었는지 확인했으나 없었습니다.") is False
 
 
 # --- 겨냥 상수의 신선도 --------------------------------------------------------
-# 🔴 `TARGETED_BY_MANUAL_REVIEW` 는 Task 7 시점에 굳어 **넉 달을 낡은 채 살았다.**
+# `TARGETED_BY_MANUAL_REVIEW` 는 Task 7 시점에 굳어 **넉 달을 낡은 채 살았다.**
 # 재측정으로 오답이 13 → 11 로 줄었는데 표는 그대로였고, `gate_I §5·§9` 가 이미 정답이 된
-# 문항(Q-094)을 겨냥으로 렌더했다. **사람이 기억으로 갱신하는 상수는 다시 낡는다** —
+# 문항(Q-094)을 겨냥으로 렌더했다. **사람이 기억으로 갱신하는 상수는 다시 낡는다**.
 # 그래서 최신 세대 산출물과 기계적으로 대조한다.
 
 def _latest_final_arm_report() -> Path | None:
     """가장 최근 ablation 세대의 최종 arm 보고서. **경로를 손으로 박지 않는다.**
 
     `v2` → `v3` 처럼 세대가 올라가면 자동으로 따라간다(문자열 정렬이라 `v9` 까지).
-    🔴 **최종 arm 이 `A8` 이 아니게 되면 이 glob 을 갱신해야 한다** — 그때는 매치가
+    **최종 arm 이 `A8` 이 아니게 되면 이 glob 을 갱신해야 한다**. 그때는 매치가
     0건이 되어 아래 테스트가 skip 되고, skip 사유가 그 사실을 말한다.
     """
     found = sorted(Path("artifacts/ablation").glob("v*/A8/report.json"))
@@ -808,7 +808,7 @@ def test_manual_targeting_matches_the_current_wrong_set():
     두 방향 다 결함이다:
       * 상수에만 있는 문항 → **이미 정답인 것을 겨냥**하고 있다 (Q-094 가 그랬다)
       * 산출물에만 있는 문항 → **배분을 빠뜨렸다.** 배분할 arm 이 없다고 판단했다면
-        빈 arm(`—`)으로 **명시**한다 (Q-093 이 그렇다). 침묵과 구분되어야 한다
+        빈 arm(`,`)으로 **명시**한다 (Q-093 이 그렇다). 침묵과 구분되어야 한다
     """
     report = _latest_final_arm_report()
     if report is None:

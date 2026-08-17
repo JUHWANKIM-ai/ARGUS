@@ -52,7 +52,7 @@ def test_parse_inline_form_then_date():
 
 
 def test_extract_references_from_termination_disclosure():
-    """해지 공시는 원계약을 `※관련공시` 로 **명시**한다 — 추측 매칭이 아니다."""
+    """해지 공시는 원계약을 `※관련공시` 로 **명시**한다. 추측 매칭이 아니다."""
     refs = extract_references(_doc("exchange", "20251217800800"))
     assert len(refs) == 1
     ref = refs[0]
@@ -118,7 +118,7 @@ def test_extracted_references_always_carry_a_form_name():
 
 
 def test_build_references_writes_only_to_out_dir(tmp_path):
-    """실제 artifacts/ 를 덮지 않는다 — 과거에 테스트가 인덱스를 날린 사고가 있었다."""
+    """실제 artifacts/ 를 덮지 않는다. 과거에 테스트가 인덱스를 날린 사고가 있었다."""
     subprocess.run(
         [sys.executable, "scripts/build_references.py",
          "--limit", "40", "--out-dir", str(tmp_path)],

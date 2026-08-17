@@ -1,8 +1,8 @@
-"""A2 — 임베딩·RRF·벡터 저장소 검증. **API 0회 · LLM 0회.**
+"""A2, 임베딩·RRF·벡터 저장소 검증. **API 0회 · LLM 0회.**
 
 `conftest.block_clova_network` 가 `clova._post` 를 막고 있고, `embed.embed_text` 는 그
 `_post` 를 통해 나간다. 즉 **여기서 실수로 진짜 임베딩을 부르면 테스트가 죽는다.**
-그게 이 파일의 1차 안전장치다 — 임베딩은 문서 하나에 호출 하나라 루프 하나가
+그게 이 파일의 1차 안전장치다. 임베딩은 문서 하나에 호출 하나라 루프 하나가
 크레딧을 태운다.
 """
 import json
@@ -24,7 +24,7 @@ DOCS = [
 
 
 def fake_vector(text: str) -> np.ndarray:
-    """결정적 가짜 임베딩. 문자 해시로 방향을 만든다 — 값은 뜻이 없고 **재현성만** 있다."""
+    """결정적 가짜 임베딩. 문자 해시로 방향을 만든다. 값은 뜻이 없고 **재현성만** 있다."""
     rng = np.random.default_rng(abs(hash(text)) % (2 ** 32))
     return embed.normalize(rng.standard_normal(embed.EMBED_DIM).astype(np.float32))
 
@@ -42,7 +42,7 @@ def offline(monkeypatch, tmp_path):
 # --- RRF ----------------------------------------------------------------------
 
 def test_rrf_ranks_a_document_found_by_both_lists_first():
-    """두 순위표에 다 든 문서가 이긴다 — 그것이 융합의 정의다."""
+    """두 순위표에 다 든 문서가 이긴다. 그것이 융합의 정의다."""
     fused = embed.rrf(["x", "a", "b"], ["y", "a", "c"])
     assert fused[0][0] == "a"
 
@@ -65,7 +65,7 @@ def test_rrf_breaks_ties_by_the_first_list():
 
 
 def test_fetch_depth_is_deeper_than_top_k():
-    """두 리스트를 top_k 로 잘라 융합하면 집합이 절대 안 바뀐다 — 순서만 바뀐다."""
+    """두 리스트를 top_k 로 잘라 융합하면 집합이 절대 안 바뀐다. 순서만 바뀐다."""
     assert embed.fetch_depth(5) > 5
 
 
@@ -81,7 +81,7 @@ def test_store_roundtrip_keeps_ranking(tmp_path, offline):
 
 
 def test_store_is_float16_for_the_memory_gate(offline):
-    """게이트 500MB 는 dtype 에서 갈린다 — float32 로 두면 정기공시가 2배가 된다."""
+    """게이트 500MB 는 dtype 에서 갈린다. float32 로 두면 정기공시가 2배가 된다."""
     store = embed.VectorStore()
     store.ensure(["a"], lambda d: d)
     assert store.vectors.dtype == np.float16
@@ -174,7 +174,7 @@ def test_fusion_keeps_bm25_scores_not_rrf_scores(offline, monkeypatch):
 
 
 def test_meta_prefilter_stays_in_front_of_dense(offline, monkeypatch):
-    """§I-1 — 프리필터가 A0 이자 최대 기여 요소다. dense 가 그 앞에 서면 안 된다."""
+    """§I-1, 프리필터가 A0 이자 최대 기여 요소다. dense 가 그 앞에 서면 안 된다."""
     index = Bm25Index.build(DOCS)
     dense = index.attach_dense("t")
     dense.store.ensure([d["doc_id"] for d in DOCS], lambda d: d)
@@ -233,11 +233,11 @@ def test_records_then_warm_accumulates_spent_won_instead_of_overwriting(tmp_path
     **이번 호출분뿐**인데 원장의 `spent_won` 을 통째로 대입해 앞선 지출을 지웠다.
 
     실측 흔적: `artifacts/ablation/A2/embedding_cost.json` 의 `spent_won` 이
-    110.82(records 단독 usage)로 남아 1단계 표본 2.64원이 빠져 있다 — 올바른 누계는
+    110.82(records 단독 usage)로 남아 1단계 표본 2.64원이 빠져 있다. 올바른 누계는
     `embedding_spend_won` 113.44(그 필드는 이미 `+=` 로 고쳐져 있었다). 이 테스트는
     같은 사고가 `spent_won` 에도 다시 나지 않는지를 잰다: `--records` 로 0.1원 쓴 뒤
     (별도 프로세스를 흉내내어 `embed.USAGE` 를 리셋하고) `--warm` 으로 0.2원을 더 쓰면
-    원장의 `spent_won` 은 **0.3원(누계)** 이어야 한다 — 0.2원(warm 단독)이면 회귀다.
+    원장의 `spent_won` 은 **0.3원(누계)** 이어야 한다. 0.2원(warm 단독)이면 회귀다.
     """
     from argus import embed
     from scripts import build_embeddings as be
@@ -263,7 +263,7 @@ def test_records_then_warm_accumulates_spent_won_instead_of_overwriting(tmp_path
     after_records = json.loads(ledger_path.read_text(encoding="utf-8"))
     assert after_records["spent_won"] == pytest.approx(0.1, abs=1e-9)
 
-    # 두 번째 호출을 **별도 프로세스**로 흉내낸다 — usage 누적기는 리셋되지만 디스크의
+    # 두 번째 호출을 **별도 프로세스**로 흉내낸다. usage 누적기는 리셋되지만 디스크의
     # 원장은 이어받는다 (실제 CLI 는 매번 새 프로세스라 embed.USAGE 가 0에서 시작한다).
     monkeypatch.setattr(embed, "USAGE", embed.EmbedUsage())
     be.main(["--warm"])
@@ -271,13 +271,13 @@ def test_records_then_warm_accumulates_spent_won_instead_of_overwriting(tmp_path
 
     # 회귀의 핵심 주장: 두 번째 실행 뒤에도 **첫 실행의 지출이 남아 있다.**
     assert after_warm["spent_won"] == pytest.approx(0.3, abs=1e-9)
-    # 대입 버그였다면 여기서 0.2(=warm 단독)가 나왔을 것이다 — 명시적으로 부정한다.
+    # 대입 버그였다면 여기서 0.2(=warm 단독)가 나왔을 것이다. 명시적으로 부정한다.
     assert after_warm["spent_won"] != pytest.approx(0.2, abs=1e-9)
 
 
 def test_evalset_snapshot_is_frozen_at_the_gate_d_cohort():
-    """🔴 다른 트랙이 dev 를 42 -> 78 로 늘렸다. A2 의 Δ 는 **얼려 둔 42문항**에서만
-    A6 과 비교 가능하다 — 확장분이 섞이면 재는 것이 arm 이 아니라 문항이다."""
+    """다른 트랙이 dev 를 42 -> 78 로 늘렸다. A2 의 Δ 는 **얼려 둔 42문항**에서만
+    A6 과 비교 가능하다. 확장분이 섞이면 재는 것이 arm 이 아니라 문항이다."""
     from scripts import validate_evalset as V
 
     root = embed.settings().repo_root

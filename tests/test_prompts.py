@@ -13,9 +13,9 @@ def test_system_prompt_states_hard_rules():
 # --- A7 ② 시점 지정 질의 -------------------------------------------------------
 # 체인 hop 이 붙은 뒤 파이프라인이 **항상 최신값으로 수렴**한다. 실측 Q-022 는
 # '2025년 3월에 결의한' 으로 시점을 못박았는데 체인 최신본 값을 답했고, 채점기의
-# 이유가 그대로다 — "제출답변에는 최초 공시가 아닌 최종 수정된 공시 내용만 포함".
+# 이유가 그대로다. "제출답변에는 최초 공시가 아닌 최종 수정된 공시 내용만 포함".
 #
-# 🔴 반대 방향이 더 위험하다. Q-005·Q-006·Q-052 는 **같은 문장 안에 날짜가 있는데
+# 반대 방향이 더 위험하다. Q-005·Q-006·Q-052 는 **같은 문장 안에 날짜가 있는데
 # 정답이 최신값**이다 ("2023년 6월에 공시한 … 정정공시에서 얼마로 바뀌었는가"). 그래서
 # 규칙의 축은 '질문에 날짜가 있는가' 가 아니라 **질문이 어느 시점의 값을 요구하는가** 다.
 
@@ -28,7 +28,7 @@ def test_time_anchor_rule_is_in_both_prompt_variants():
 
 
 def test_time_anchor_rule_keeps_latest_as_the_default():
-    """시점 표현이 없으면 최신본이다 — 종전 동작을 규칙으로 못박아 둔다."""
+    """시점 표현이 없으면 최신본이다. 종전 동작을 규칙으로 못박아 둔다."""
     assert "시점 표현이 없으면" in SYSTEM_ANSWER
 
 
@@ -52,10 +52,10 @@ def test_cot_flag_changes_instruction():
 
 
 # --- 조 단위 `억원` 괄호 재설계 (Q-065 실측) -----------------------------------
-# `docs/total_plan.md §0b ③`. 우리 환산은 정확했다 — 4,928,968,079,043 / 1e8 =
+# `docs/total_plan.md §0b ③`. 우리 환산은 정확했다. 4,928,968,079,043 / 1e8 =
 # 49,289.68 → `49,290억원`. 모델이 그 5자리를 다시 쓸 때 콤마 그룹을 한 자리 밀어
 # `492,909억 원` 으로 옮겼다 (배율 10.0002). 괄호를 뗀 A4 는 원 단위 16자리를 그대로
-# 복사해 정답이었고 A5 가 오답이다 — **arm 이 원인**이라 처방이 뒤집힌 자리다.
+# 복사해 정답이었고 A5 가 오답이다. **arm 이 원인**이라 처방이 뒤집힌 자리다.
 
 Q065_EVIDENCE = ("## [공급계약 체결] 두산에너빌리티 – Dukovany 5&6 NSSS Contract\n"
                  "- 계약금액: 4,928,968,079,043원 (49,290억원)\n"
@@ -84,7 +84,7 @@ def test_the_period_parenthesis_is_untouched():
 
 
 def test_only_our_own_annotation_is_rewritten():
-    """원문 본문에 실린 표기는 고치지 않는다 — 앞에 `원` 이 붙은 주석만 잡는다."""
+    """원문 본문에 실린 표기는 고치지 않는다. 앞에 `원` 이 붙은 주석만 잡는다."""
     raw = "투자 규모는 (46,000억원) 수준으로 알려졌다."
     body, hits = split_trillion_eok(raw)
     assert hits == 0 and body == raw
@@ -114,7 +114,7 @@ def test_prompt_is_byte_identical_without_a_trillion_figure():
     """재측정 범위를 조 단위 문항으로 묶기 위한 조건이다.
 
     `ablation` 이 괄호를 떼는 arm(A0·A1·A1b·A4)은 변환 대상이 아예 없으므로
-    프롬프트가 종전 그대로다 — 그 arm 들은 재측정이 필요하지 않다.
+    프롬프트가 종전 그대로다. 그 arm 들은 재측정이 필요하지 않다.
     """
     for cot, base in ((False, SYSTEM_ANSWER), (True, SYSTEM_ANSWER_COT)):
         msgs = build_answer_messages("질문", "- 계약금액: 575,000,000,000원", use_cot=cot)
@@ -144,7 +144,7 @@ def test_citation_regex_rejects_missing_receipt():
 
 # --- 근거 표기 검사는 규약을 재지 우리 문안을 재지 않는다 (2026-08-17) ----------
 #
-# 🔴 실측 4건(Q-030·Q-052·Q-087·Q-101)이 라벨 없이 14자리만 적었고 전부 추적 가능한
+# 실측 4건(Q-030·Q-052·Q-087·Q-101)이 라벨 없이 14자리만 적었고 전부 추적 가능한
 #    정당한 표기인데 '표기 없음' 으로 세어졌다. 아래 문자열은 Q-030 의 실제 답변 꼬리다.
 
 def test_citation_without_the_label_still_counts():
@@ -159,7 +159,7 @@ def test_citation_with_the_label_still_counts():
 
 
 def test_a_date_alone_is_not_a_citation():
-    """🔴 문턱을 낮추다 날짜가 걸리면 표기 없는 답변이 통과한다."""
+    """문턱을 낮추다 날짜가 걸리면 표기 없는 답변이 통과한다."""
     assert not CITATION_RE.search("(근거: 사업보고서 2024, 2024-11-14)")
 
 

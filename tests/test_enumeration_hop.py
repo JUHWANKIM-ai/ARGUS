@@ -1,10 +1,10 @@
-"""열거 hop (`EVENTS_HOP` `strat=enumerate`) — v3 R2 ③.
+"""열거 hop (`EVENTS_HOP` `strat=enumerate`), v3 R2 ③.
 
 `Q-117` 5건의 처방이다. 원안(`total_plan §5 #4` "노드 이름 인식")은 `router.py`
-262–296 이 실측 3근거로 **기각**하고 처방을 여기로 재정의했다 — 한전기술은 그 질문에서
+262–296 이 실측 3근거로 **기각**하고 처방을 여기로 재정의했다. 한전기술은 그 질문에서
 **공시한 쪽**이라 발주처로 결속하면 근거가 뒤집힌다.
 
-🔴 그래서 이 파일은 **불변을 함께 지킨다**: 열거 hop 이 생겨도 라우터는 여전히 공시한
+그래서 이 파일은 **불변을 함께 지킨다**: 열거 hop 이 생겨도 라우터는 여전히 공시한
 쪽을 결속하지 않는다. `tests/test_router.py::test_disclosing_company_is_never_bound_as_counterparty`
 가 원본 계약이고 여기서는 그 계약이 살아 있는 채로 회수가 되는지를 본다.
 """
@@ -51,7 +51,7 @@ def test_enumeration_needs_exactly_one_company():
 
 
 def test_the_ordering_party_is_not_enumerated():
-    """🔴 `Q-114` 경계 — 그 기업이 **발주한 쪽**이면 열거는 정반대 문서를 준다.
+    """`Q-114` 경계, 그 기업이 **발주한 쪽**이면 열거는 정반대 문서를 준다.
 
     `query_events(corp_name='삼성전자')` 는 삼성전자 **자신의** 공시를 주는데, 질문이
     묻는 것은 삼성전자를 **계약상대로 한** 상장사들의 공시다. 방향이 뒤집힌다.
@@ -64,7 +64,7 @@ def test_the_ordering_party_is_not_enumerated():
 
 
 def test_parallel_lookup_words_do_not_open_the_enumeration_hop():
-    """`각각`·`모두` 를 표지에서 뺀 이유 — 100문항에서 9건이 걸리고 8건이 열거가 아니다."""
+    """`각각`·`모두` 를 표지에서 뺀 이유, 100문항에서 9건이 걸리고 8건이 열거가 아니다."""
     r = _Route(["LG이노텍"])
     assert pipeline._wants_enumeration(
         r, "LG이노텍이 2024년과 2025년에 각각 공시한 계약금액은?", "exchange") is False
@@ -73,7 +73,7 @@ def test_parallel_lookup_words_do_not_open_the_enumeration_hop():
 
 
 def test_form_words_pick_the_document_subtype_and_termination_wins():
-    """`해지` 를 먼저 본다 — 뒤에 두면 '공급계약 해지' 가 '체결' 로 샌다.
+    """`해지` 를 먼저 본다. 뒤에 두면 '공급계약 해지' 가 '체결' 로 샌다.
 
     `doc_group` 이 '보고서' 를 뒤에 두는 것과 같은 순서 규율이다.
     """
@@ -86,13 +86,13 @@ def test_form_words_pick_the_document_subtype_and_termination_wins():
 # --- `query_events` 의 limit 축 -------------------------------------------------
 
 def test_query_events_limit_defaults_to_the_old_page_size():
-    """기본값이면 종전과 글자 하나 안 바뀐다 — 조용한 Δ 방지."""
+    """기본값이면 종전과 글자 하나 안 바뀐다. 조용한 Δ 방지."""
     out = tools.query_events()
     if not out["count"]:
         pytest.skip("artifacts/exchange_records.jsonl 없음")
     assert len(out["events"]) == min(out["count"], tools.EVENTS_PAGE)
-    # 🔴 `assert tools.EVENTS_PAGE == 20` 을 뺐다 (R2F). 위 줄이 이미 파생으로 같은 성질을
-    #    재고, 리터럴은 페이지 크기를 바꾸려는 다음 사람을 **아무 신호 없이** 막는다 —
+    # `assert tools.EVENTS_PAGE == 20` 을 뺐다 (R2F). 위 줄이 이미 파생으로 같은 성질을
+    #    재고, 리터럴은 페이지 크기를 바꾸려는 다음 사람을 **아무 신호 없이** 막는다.
     #    이 저장소가 `== 13` 세 곳에서 겪은 사고와 같은 모양이다.
     wide = tools.query_events(limit=tools.EVENTS_PAGE * 10)
     assert wide["count"] == out["count"]          # count 는 필터 통과 전량이다
@@ -104,23 +104,23 @@ def test_query_events_limit_defaults_to_the_old_page_size():
 
 @pytest.mark.skipif(not _VC.exists(), reason="evalset/valuechain.jsonl 없음")
 def test_q117_recovers_two_of_the_five_targeted_golden():
-    """🔴 겨냥 5건 중 **실측 회수는 2건**이다. 그 사실을 테스트로 고정한다.
+    """겨냥 5건 중 **실측 회수는 2건**이다. 그 사실을 테스트로 고정한다.
 
     남은 3건은 같은 발주처 그룹의 **두 번째 건**이라(한수원 2건 · 두산 2건 중 각각
-    1건씩) '그룹당 1건' 규칙과 정면으로 충돌한다 — 사유는 `_enumerate_events`
+    1건씩) '그룹당 1건' 규칙과 정면으로 충돌한다. 사유는 `_enumerate_events`
     독스트링에 정책 6종 비교와 함께 적어 두었다.
     """
     from argus.agent.budget import Budget
 
     row = _rows()["Q-117"]
     r = route(row["question"])
-    assert r.counterparty is None          # 🔴 불변 — 공시한 쪽은 결속되지 않는다
+    assert r.counterparty is None          # 불변, 공시한 쪽은 결속되지 않는다
     evidence, trace = pipeline._gather_evidence(r, row["question"], Budget())
     if not evidence:
         pytest.skip("artifacts/exchange_records.jsonl 없음")
     enum = [line for line in trace if "strat=enumerate" in line]
     assert enum
-    # 🔴 `tools.execute` 는 `fn(**args)` 이고 `TypeError` 를 `{"error": …}` 로 **삼킨다.**
+    # `tools.execute` 는 `fn(**args)` 이고 `TypeError` 를 `{"error": …}` 로 **삼킨다.**
     #    그러면 이 hop 은 `skip=tool_error` 를 남기고 0건을 돌려주는데, 그 줄에도
     #    `strat=enumerate` 가 들어 있어 발화 단언만으로는 인자명 오타가 통과한다.
     #    `_enumerate_events` 가 넘기는 키 넷(`corp_name`·`is_latest`·`limit`·`doc_subtype`)
@@ -143,10 +143,10 @@ def test_the_enumeration_hop_does_not_fire_for_q114():
     assert not any("strat=enumerate" in line for line in trace)
 
 
-# --- v4 R1-11 ③ 기각 — 하중 상수가 `depth` 가 아니다 ----------------------------
+# --- v4 R1-11 ③ 기각, 하중 상수가 `depth` 가 아니다 ----------------------------
 
 def test_the_evidence_cap_binds_before_the_group_depth():
-    """🔴 `R1-11` ③ 의 기각을 고정한다 — `depth < 1` 을 올려도 집합이 안 바뀐다.
+    """`R1-11` ③ 의 기각을 고정한다. `depth < 1` 을 올려도 집합이 안 바뀐다.
 
     `R1-6` 보고서는 `Q-117` 미회수 3건의 원인을 `_enumerate_events` 의 `depth < 1`
     하드코딩(*"그룹당 1건"*)으로 짚었다. 실측하면 **하중 상수는 그것이 아니다**:
@@ -154,7 +154,7 @@ def test_the_evidence_cap_binds_before_the_group_depth():
     한 바퀴에서 이미 상한이 찬다. `depth` 를 올려도 두 번째 바퀴가 **아예 안 돈다.**
 
     셋을 회수하려면 `MAX_EVIDENCE`(10)를 올려야 하고 그것은 `A16` 이라
-    `R0-3`(`dac2bf0`)이 이미 기각했다 — 사유는 `_enumerate_events` 독스트링에 있다.
+    `R0-3`(`dac2bf0`)이 이미 기각했다. 사유는 `_enumerate_events` 독스트링에 있다.
     """
     from argus.corpus.counterparty import canonical
 
@@ -169,7 +169,7 @@ def test_the_evidence_cap_binds_before_the_group_depth():
     for event in out["events"]:
         groups.setdefault(canonical(event.get("counterparty") or ""), []).append(event)
 
-    # 🔴 이 부등식이 기각의 전부다. 뒤집히면(그룹 < 상한) depth 가 하중이 되고
+    # 이 부등식이 기각의 전부다. 뒤집히면(그룹 < 상한) depth 가 하중이 되고
     #    그때는 `R1-11` ③ 을 다시 재야 한다.
     assert len(groups) > pipeline.MAX_ENUM_EVIDENCE, (
         f"그룹 {len(groups)} <= 상한 {pipeline.MAX_ENUM_EVIDENCE} — depth 가 하중이 됐다")
@@ -190,7 +190,7 @@ def test_the_evidence_cap_binds_before_the_group_depth():
     assert taken_at(1) == taken_at(2) == taken_at(3), "depth 를 올렸더니 집합이 바뀌었다"
     assert len(taken_at(1)) == pipeline.MAX_ENUM_EVIDENCE
 
-    # 미회수 3건이 어디 있는지도 못 박는다 — 하나는 **1건짜리 그룹**이라 depth 와
+    # 미회수 3건이 어디 있는지도 못 박는다. 하나는 **1건짜리 그룹**이라 depth 와
     # 무관하고(순위가 상한 밖), 둘은 같은 그룹의 2·4번째다.
     order = sorted(groups, key=lambda key: (-len(groups[key]), key))
     assert len(groups["한국남부발전"]) == 1
@@ -203,10 +203,10 @@ def test_the_evidence_cap_binds_before_the_group_depth():
 
 
 def test_the_enumeration_hop_fires_on_exactly_one_question_in_the_corpus():
-    """🔴 위 기각이 `Q-117` 하나에만 걸린 판정이 아니라는 것을 못 박는다.
+    """위 기각이 `Q-117` 하나에만 걸린 판정이 아니라는 것을 못 박는다.
 
     열거 hop 이 발화하는 문항은 전체 88 + 밸류체인 12 = 100문항 중 **하나뿐**이다
-    (저장 응답의 질문만 읽는다 — LLM 0회 · `evalset/` 미접촉). 이 수가 늘면 그때는
+    (저장 응답의 질문만 읽는다. LLM 0회 · `evalset/` 미접촉). 이 수가 늘면 그때는
     그룹 수가 상한보다 작은 문항이 생겼을 수 있으므로 `depth` 를 다시 재야 한다.
     """
     import json
@@ -223,7 +223,7 @@ def test_the_enumeration_hop_fires_on_exactly_one_question_in_the_corpus():
     if len(questions) < 100:
         pytest.skip("v3 저장 응답이 없다")
 
-    # 🔴 문서군을 `"exchange"` 로 **박지 않는다** — 그러면 제동 ① 을 건너뛴다.
+    # 문서군을 `"exchange"` 로 **박지 않는다**. 그러면 제동 ① 을 건너뛴다.
     #    호출부(`_gather_evidence`)가 넘기는 것은 라우터가 정한 `r.group` 이고,
     #    박아 두면 `Q-076`(정기공시)처럼 어휘만 걸리는 문항이 발화한 것처럼 보인다.
     fired = []

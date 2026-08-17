@@ -1,6 +1,6 @@
-"""`agent/reasoning` — 「추론 논리성」의 ⑥ 순서 오류 · ⑦ 자기부정.
+"""`agent/reasoning`, 「추론 논리성」의 ⑥ 순서 오류 · ⑦ 자기부정.
 
-🔴 **검출만 하고 처분하지 않는 모듈이다.** 자기부정이나 순서 오류를 코드가 고치려면
+**검출만 하고 처분하지 않는 모듈이다.** 자기부정이나 순서 오류를 코드가 고치려면
 문장을 지우거나 다시 써야 하는데, 그것은 답변의 뜻을 바꾸는 일이라 결정적 규칙으로
 감당할 범위를 넘는다.
 
@@ -29,7 +29,7 @@ def test_a_plain_answer_is_clean():
 
 
 def test_our_own_citation_block_is_not_the_model_speaking():
-    """🔴 각주·근거 표기의 금액은 **우리가 붙인 것**이다. 본문만 본다."""
+    """각주·근거 표기의 금액은 **우리가 붙인 것**이다. 본문만 본다."""
     answer = ("공시에서 확인되지 않습니다.\n\n"
               "(근거: 공급계약 체결 (2023-03-29), 접수번호 20230329801112, "
               "계약금액 532,040,000,000원)")
@@ -52,7 +52,7 @@ def test_ascending_is_clean():
 
 
 def test_descending_is_clean():
-    """🔴 내림차순도 정당한 서술이다. 뒤섞인 것만 잡는다."""
+    """내림차순도 정당한 서술이다. 뒤섞인 것만 잡는다."""
     assert reasoning.out_of_order(
         "2025-06-05 905,200,000,000원, 2024-03-22 443,500,000,000원, "
         "2023-12-22 1,102,000,000,000원")["ok"]
@@ -75,7 +75,7 @@ def test_check_all_returns_only_firings():
 
 
 def test_the_module_has_no_disposition():
-    """🔴 검출만 한다 — 답변을 고치는 함수가 있으면 안 된다."""
+    """검출만 한다. 답변을 고치는 함수가 있으면 안 된다."""
     import inspect
 
     src = inspect.getsource(reasoning)

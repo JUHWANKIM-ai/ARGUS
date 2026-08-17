@@ -136,7 +136,7 @@ def test_clinical_trial_disclosure_has_no_amount_and_stays_unmatched():
     assert rec["withheld"] is False
 
 
-# --- 복합단위 `1조 1,500억원` (§2b 정규화 결함 — 이마트) -----------------------
+# --- 복합단위 `1조 1,500억원` (§2b 정규화 결함. 이마트) -----------------------
 # 앞 단위에서 끊으면 1조가 되고 1,500억이 통째로 사라진다. 실측 11건이 이 모양이다
 # (현대건설 7 · 삼성SDI 2 · 이마트 1 · 대우건설 1).
 
@@ -148,7 +148,7 @@ def test_free_text_amount_adds_compound_magnitude_tail():
 
 
 def test_free_text_amount_compound_tail_requires_won_suffix():
-    """꼬리가 `원` 으로 끝나지 않으면 붙이지 않는다 — `100만주` 는 주식수다.
+    """꼬리가 `원` 으로 끝나지 않으면 붙이지 않는다. `100만주` 는 주식수다.
 
     없는 값을 만드는 것이 값이 비는 것보다 나쁘다는 원칙이 여기서도 그대로다.
     """
@@ -160,7 +160,7 @@ def test_free_text_amount_compound_tail_requires_descending_units():
     assert free_text_amount(["투자금액 1억 2조원"])[0] == 100_000_000
 
 
-# --- 기재정정 표를 필드 추출에서 뺀다 (§2b 정규화 결함 — NAVER · 크래프톤) ------
+# --- 기재정정 표를 필드 추출에서 뺀다 (§2b 정규화 결함. NAVER · 크래프톤) ------
 # exchange 는 major·holding 과 달리 `body_rows()` 를 쓰지 않고 있었다. 정정 표의
 # 3칸 행 `[항목, 정정전, 정정후]` 에서 정정 **전** 블록이 `_labels` 의 라벨이 되고
 # 값으로는 정정 후 블록의 첫 숫자가 잡힌다.
@@ -175,7 +175,7 @@ def test_exchange_correction_span_is_found_in_kind_correction_form():
     assert exchange_correction_span(rows) == (5, 9)
     body = exchange_body_rows(rows)
     # major·holding 의 `_is_body_start`(귀중·회 사 명)는 exchange 에 없다. 그걸 쓰면
-    # 구간 끝이 문서 끝이 되어 본문이 통째로 날아간다 — 본문이 남아 있는지 못 박는다.
+    # 구간 끝이 문서 끝이 되어 본문이 통째로 날아간다. 본문이 남아 있는지 못 박는다.
     assert any(row and row[0].startswith("1. 제목") for row in body)
     assert len(body) == len(rows) - 4
 
@@ -190,39 +190,39 @@ def test_exchange_correction_span_is_none_for_original_filing():
 
 
 def test_naver_wallapop_chain_amount_follows_the_latest_correction():
-    """§2b 결함 #1 — 3본 체인의 `amount` 가 원공시 값에 멈춰 있었다 (Q-099).
+    """§2b 결함 #1, 3본 체인의 `amount` 가 원공시 값에 멈춰 있었다 (Q-099).
 
     2차 정정본의 정정 **후** 칸은 `902,863,854,765` 로 단위(`원`)를 빼먹었다. 그래서
     단위 없는 숫자를 기각하는 규칙에 걸리고, 같은 행의 정정 **전** 칸
     `903,559,577,175원` 으로 흘러내렸다. 본문에는 `902,863,854,765원` 이 있다.
     """
     assert normalize_exchange(_doc("20260130800888"))["amount"] == 902_863_854_765
-    # 1차 정정은 거래종결일만 바꿨다 — 그때 금액은 정말로 원공시 값이다.
+    # 1차 정정은 거래종결일만 바꿨다. 그때 금액은 정말로 원공시 값이다.
     assert normalize_exchange(_doc("20250930800838"))["amount"] == 903_559_577_175
     assert normalize_exchange(_doc("20250918800247"))["amount"] == 903_559_577_175
 
 
 def test_krafton_correction_does_not_invent_a_ratio():
-    """§2b 결함 #2 — 정정본 `ratio` 가 1.0 이었다 (본문은 2.93%).
+    """§2b 결함 #2, 정정본 `ratio` 가 1.0 이었다 (본문은 2.93%).
 
     `자기자본대비` 가 정정 전 서술 블록에서 걸리고, 값으로 정정 후 블록 첫머리
     `(1) 조합명` 의 **1** 이 잡혔다. 이 서식에는 비율 칸이 아예 없으므로 None 이
-    정답이다 — 원공시도 None 이다. 2.93% 는 자유서술문 안에 있어 회수 대상이 아니다.
+    정답이다. 원공시도 None 이다. 2.93% 는 자유서술문 안에 있어 회수 대상이 아니다.
     """
     assert normalize_exchange(_doc("20260306801011"))["ratio"] is None
     assert normalize_exchange(_doc("20251219800469"))["ratio"] is None
 
 
 def test_emart_ssg_correction_amount_reads_the_compound_unit():
-    """§2b 결함 #3 — 본문 '1조 1,500억원' 이 1조로 잘려 있었다 (Q-087 근거)."""
+    """§2b 결함 #3, 본문 '1조 1,500억원' 이 1조로 잘려 있었다 (Q-087 근거)."""
     assert normalize_exchange(_doc("20241114800538"))["amount"] == 1_150_000_000_000
 
 
 def test_amorepacific_recent_sales_mismatch_is_in_the_source_document():
-    """§2b 결함 #4 — **우리 결함이 아니다.** 원문이 문서 안에서 100만원 어긋난다.
+    """§2b 결함 #4, **우리 결함이 아니다.** 원문이 문서 안에서 100만원 어긋난다.
 
     정정 표(행 7)는 `4,134,932,512,111`, 본문(행 16)은 `4,134,931,512,111` 이다.
-    최근매출액은 정규화 스키마의 필드가 아니라 고칠 대상이 없다 — 고를 수 있는 값이
+    최근매출액은 정규화 스키마의 필드가 아니라 고칠 대상이 없다. 고를 수 있는 값이
     둘인데 어느 쪽이 옳은지는 원문이 말해 주지 않는다. 기각을 실행 가능한 사실로 남긴다.
     """
     from argus.corpus.html_doc import extract_rows, read_document
@@ -232,24 +232,24 @@ def test_amorepacific_recent_sales_mismatch_is_in_the_source_document():
     flat = " ".join(cell for row in rows for cell in row)
     assert "4,134,932,512,111" in flat          # 정정 표
     assert "4,134,931,512,111" in flat          # 본문
-    # 정정 표를 빼도 계약금액·비율은 본문에 그대로 있다 — 이 문서가 회귀 감시점이다.
+    # 정정 표를 빼도 계약금액·비율은 본문에 그대로 있다. 이 문서가 회귀 감시점이다.
     rec = normalize_exchange(_doc("20240228800335"))
     assert rec["amount"] == 209_606_962_407
     assert rec["ratio"] == 5.07
 
 
-# --- 정정 표 제외의 부수 효과 — 회귀 감시점 ------------------------------------
+# --- 정정 표 제외의 부수 효과, 회귀 감시점 ------------------------------------
 # 실측 173/1469 건이 바뀌고 대부분이 결함 해소다. 대표 사례를 못 박아 둔다.
 
 
 def test_correction_footnote_no_longer_leaks_into_ratio_as_an_absolute_amount():
-    """`- 매출액 대비: 905200000000.0%` — 90건이 이 모양이었다 (Q-023 근거 3건 포함)."""
+    """`- 매출액 대비: 905200000000.0%`, 90건이 이 모양이었다 (Q-023 근거 3건 포함)."""
     assert normalize_exchange(_doc("20250605800294"))["ratio"] == 12.9
     assert normalize_exchange(_doc("20251204800395"))["ratio"] == 12.8
 
 
 def test_correction_footnote_no_longer_leaks_into_amount_as_a_list_number():
-    """`- 계약금액: 2원 (0억원)` — 정정 후 서술 블록 첫머리의 순번이 금액이었다."""
+    """`- 계약금액: 2원 (0억원)`, 정정 후 서술 블록 첫머리의 순번이 금액이었다."""
     rec = normalize_exchange(_doc("20240628800803"))
     assert rec["amount"] == 400_000_000_000
     assert rec["counterparty"] == "두산에너빌리티㈜"
@@ -258,7 +258,7 @@ def test_correction_footnote_no_longer_leaks_into_amount_as_a_list_number():
 def test_withheld_amount_in_a_correction_is_not_masked_by_a_footnote_number():
     """NC 20250905800516 은 계약금액이 `-` 이고 유보사유가 붙은 문서다.
 
-    정정 표에서 `24` 를 집어 `schema_matched=True` 로 나가 있었다 — 파싱 실패도
+    정정 표에서 `24` 를 집어 `schema_matched=True` 로 나가 있었다. 파싱 실패도
     아니고 값이 있는 것도 아닌, **거짓 회수**다.
     """
     rec = normalize_exchange(_doc("20250905800516"))
@@ -274,12 +274,12 @@ def test_correction_footnote_no_longer_overwrites_the_contract_period():
 
 
 def test_correction_footnote_no_longer_becomes_the_title():
-    """삼성전자 20250731800028 — 제목이 유보 안내문이었다 (Q-025 근거)."""
+    """삼성전자 20250731800028, 제목이 유보 안내문이었다 (Q-025 근거)."""
     assert "반도체 위탁생산 공급계약" in normalize_exchange(_doc("20250731800028"))["title"]
 
 
 # =============================================================================
-# major — 주요사항보고서는 서식이 28종이고 서식마다 필드가 다르다
+# major, 주요사항보고서는 서식이 28종이고 서식마다 필드가 다르다
 # =============================================================================
 
 
@@ -443,7 +443,7 @@ def test_withdrawn_rights_offering_keeps_the_correction_verdict():
 
 
 # =============================================================================
-# holding — 요약정보 블록. 라벨은 있다 (실측 1,083건 중 99.7%)
+# holding, 요약정보 블록. 라벨은 있다 (실측 1,083건 중 99.7%)
 # =============================================================================
 
 
@@ -549,7 +549,7 @@ def test_normalize_doc_dispatches_by_group():
 
 # --- R2C 자유서술 회수 (schema_matched=False) ---------------------------------
 # 실측 v3/A8: 근거 레코드 208건 중 schema_matched=False 가 10건(그리드 72 안의 7문항)
-# 이고 10건 전부 원문에 금액이 있는데 근거에는 한 자리도 안 실렸다. 대표가 Q-101 —
+# 이고 10건 전부 원문에 금액이 있는데 근거에는 한 자리도 안 실렸다. 대표가 Q-101,
 # 근거 108자 · 숫자 0개인데 원문 `2. 주요내용` 에 `○ 투자금액 : $58억` 이 있다.
 
 
@@ -573,7 +573,7 @@ def test_free_text_items_reads_the_label_row_and_the_row_after_it():
 
 
 def test_free_text_items_never_carries_the_correction_table():
-    """🔴 정정 표 행은 `[항목, 정정전, 정정후]` 라 그대로 읽으면 **대체된 옛 값**이
+    """정정 표 행은 `[항목, 정정전, 정정후]` 라 그대로 읽으면 **대체된 옛 값**이
     근거에 실린다. `exchange_body_rows` 와 같은 이유로 먼저 떼어 낸다."""
     items = dict(free_text_items([
         ["정정일자", "2025-09-05"],
@@ -587,7 +587,7 @@ def test_free_text_items_never_carries_the_correction_table():
 
 
 def test_free_text_items_clips_a_long_cell_but_keeps_the_cap_generous():
-    """상한은 필드값 상한(90)보다 **일부러 크다** — 겨냥한 금액이 칸 끝에 온다.
+    """상한은 필드값 상한(90)보다 **일부러 크다**. 겨냥한 금액이 칸 끝에 온다.
 
     실측 20250325800001 의 `$58억` 은 240자 칸의 205번째 자리다. 90 으로 자르면
     고치려는 값이 그대로 잘려 나간다.
@@ -616,11 +616,11 @@ def test_investment_disclosure_free_text_carries_the_amount_the_schema_missed():
 
 
 def test_amount_type_is_empty_when_no_amount_was_found():
-    """🔴 금액을 못 찾았으면 레이블도 없다.
+    """금액을 못 찾았으면 레이블도 없다.
 
     종전에는 루프 초기값 `계약금액` 이 남아 투자판단 서식이
     `amount=None · amount_type="계약금액"` 이라는 없는 사실을 들고 있었다.
-    마크다운은 안 바뀐다 — `_amount_line` 이 `amount is None` 에서 먼저 빠진다.
+    마크다운은 안 바뀐다. `_amount_line` 이 `amount is None` 에서 먼저 빠진다.
     """
     rec = normalize_exchange(_doc("20250325800001"))
     assert rec["amount"] is None
@@ -629,7 +629,7 @@ def test_amount_type_is_empty_when_no_amount_was_found():
 
 
 def test_foreign_currency_still_never_becomes_a_won_amount():
-    """`$58억` 은 USD 다. 원 단위 `amount` 에 넣으면 금액이 통째로 틀린다 —
+    """`$58억` 은 USD 다. 원 단위 `amount` 에 넣으면 금액이 통째로 틀린다.
     값이 비는 것보다 나쁘다. 자유서술은 **원문 그대로** 근거에 싣고 파싱은 안 한다."""
     assert free_text_amount(["○ 투자금액 : $58억"]) is None
     assert normalize_exchange(_doc("20250325800001"))["amount"] is None

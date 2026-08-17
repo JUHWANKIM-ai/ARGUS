@@ -1,10 +1,10 @@
-"""A28 — 없는 분기보고서를 잡아낸다 (규약 재감사 RF-1).
+"""A28, 없는 분기보고서를 잡아낸다 (규약 재감사 RF-1).
 
-🔴 실측 결함: *"현대건설의 2026년 3분기 분기보고서에 기재된 수주잔고는?"* 을 물었더니
+실측 결함: *"현대건설의 2026년 3분기 분기보고서에 기재된 수주잔고는?"* 을 물었더니
 2026년 1분기 보고서(20260515002899)를 찾아 놓고 *"3분기 보고서에 기재되어 있지
 않습니다"* 라고 **거짓 전제를 받아들이고** 그 보고서를 근거로 달았다.
 
-원인 — `missing_named_report` 가 `doc_subtype`·`base_year` 만 봐서 "2026년 3분기" 가
+원인, `missing_named_report` 가 `doc_subtype`·`base_year` 만 봐서 "2026년 3분기" 가
 "2026년 1분기" 의 존재로 통과했다. **몇 분기인지가 축에 없었다.**
 """
 import pytest
@@ -31,7 +31,7 @@ def gate_on():
     ("2024년 사업보고서", None),
 ])
 def test_quarter_axis_is_extracted(question, expected):
-    r"""🔴 `_REPORT_YEAR` 이 `(?:\d\s*분기\s*)?` 로 이 자리를 건너뛰기만 하고 값을
+    r"""`_REPORT_YEAR` 이 `(?:\d\s*분기\s*)?` 로 이 자리를 건너뛰기만 하고 값을
     안 챙긴 것이 결함의 시작이었다."""
     assert report_hints(question).get("quarter") == expected
 
@@ -44,7 +44,7 @@ def test_quarter_axis_does_not_disturb_the_others():
 # --- 기본값은 종전 그대로 -------------------------------------------------------
 
 def test_flag_off_keeps_the_old_verdict():
-    """🔴 꺼진 arm 의 판정은 v1~v4 산출물과 바이트 동일이어야 한다.
+    """꺼진 arm 의 판정은 v1~v4 산출물과 바이트 동일이어야 한다.
 
     기본값은 2026-08-16 재감사에서 `A28` 이 됐으므로 **명시적으로 끄고** 확인한다.
     """
@@ -55,7 +55,7 @@ def test_flag_off_keeps_the_old_verdict():
 # --- 켜면 갈린다 ---------------------------------------------------------------
 
 def test_catches_the_quarter_that_does_not_exist(gate_on):
-    """코퍼스는 2026.03 접수분까지 — 2026년 3분기 보고서(2026-11 접수)는 없다."""
+    """코퍼스는 2026.03 접수분까지. 2026년 3분기 보고서(2026-11 접수)는 없다."""
     assert missing_named_report("현대건설의 2026년 3분기 분기보고서는?", CORP)
 
 
@@ -65,12 +65,12 @@ def test_catches_the_quarter_that_does_not_exist(gate_on):
     "현대건설의 2025년 1분기 분기보고서는?",
 ])
 def test_does_not_touch_reports_that_exist(gate_on, question):
-    """🔴 이것이 깨지면 답할 수 있는 질의를 스스로 버린다."""
+    """이것이 깨지면 답할 수 있는 질의를 스스로 버린다."""
     assert missing_named_report(question, CORP) == ""
 
 
 def test_half_year_verdict_is_unchanged(gate_on):
-    """반기는 doc_subtype 이 달라 이미 갈렸다 — 이 arm 이 건드리면 안 된다."""
+    """반기는 doc_subtype 이 달라 이미 갈렸다. 이 arm 이 건드리면 안 된다."""
     assert missing_named_report("현대건설의 2026년 반기보고서는?", CORP)
 
 
@@ -79,7 +79,7 @@ def test_half_year_verdict_is_unchanged(gate_on):
     "현대건설의 2026년 4분기 분기보고서는?",
 ])
 def test_second_and_fourth_quarter_are_left_alone(gate_on, question):
-    """🔴 2분기·4분기는 각각 반기보고서·사업보고서다. 질문자가 그 뜻으로 썼는지
+    """2분기·4분기는 각각 반기보고서·사업보고서다. 질문자가 그 뜻으로 썼는지
     '분기보고서' 를 잘못 부른 것인지 알 수 없으므로 판정하지 않는다."""
     assert missing_named_report(question, CORP) == ""
 
@@ -93,5 +93,5 @@ def test_a28_differs_from_baseline_by_one_flag():
 
 
 def test_baseline_adopted_it():
-    """🔴 재고 채택했다 — 평가셋 88문항 답변이 **전부 바이트 동일**이고 겨냥만 닫힌다."""
+    """재고 채택했다. 평가셋 88문항 답변이 **전부 바이트 동일**이고 겨냥만 닫힌다."""
     assert ablation.current().quarter_gate is True

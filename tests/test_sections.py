@@ -1,4 +1,4 @@
-"""periodic 섹션 청킹 — 04-retriever D-2.
+"""periodic 섹션 청킹, 04-retriever D-2.
 
 기준점은 CONVENTION §7.3 슬라이드에 인쇄된 삼성전자 2025 사업보고서
 (periodic_20260310002820) 의 'II. 사업의 내용 > 2. 주요 제품 및 서비스' 청크다.
@@ -196,7 +196,7 @@ def built(tmp_path_factory):
 
 
 def test_build_writes_index_and_blob(built):
-    """실제 artifacts/ 를 덮지 않는다 — 덮으면 API 가 3건만 서빙하게 된다."""
+    """실제 artifacts/ 를 덮지 않는다. 덮으면 API 가 3건만 서빙하게 된다."""
     index = built / sections.INDEX_NAME
     blob = built / sections.BLOB_NAME
     assert index.exists() and blob.exists()

@@ -1,16 +1,16 @@
-"""`scripts/build_service_data.py` — 서비스 데이터의 계약과 보안 게이트를 고정한다.
+"""`scripts/build_service_data.py`, 서비스 데이터의 계약과 보안 게이트를 고정한다.
 
 LLM **0회** · 크레딧 **0원**. 빌드는 `artifacts/` 의 **공시 원본**과 `universe.csv` 만
 읽어 `site/public/data/` 아래 JSON 을 낸다.
 
-🔴 이 파일이 지키는 것은 넷이다.
+이 파일이 지키는 것은 넷이다.
 
     ① 빌드가 **공시 원본에서만** 온다        `evalset/`·`artifacts/ablation/` 를 안 연다
     ② 화면에 **실험 어휘가 새지 않는다**      산출물 전량을 훑는다
     ③ 산출물이 **스펙 §2 의 실측과 같다**     70개사 · 정정 631 · 노드 145 · 쌍 44
     ④ **추정하지 않는다**                    값이 없으면 `null` 이고, 그 자리는 비어 있다
 
-`tests/test_site.py`(v1) 가 쓰던 방식을 이었다 — **게이트는 발화를 확인해야 게이트다.**
+`tests/test_site.py`(v1) 가 쓰던 방식을 이었다. **게이트는 발화를 확인해야 게이트다.**
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "build_service_data.py"
 DATA = ROOT / "site" / "public" / "data"
 
-#: 🔴 스펙 §2 의 실측(2026-08-15). **이 수는 이 저장소의 코퍼스가 고정이라 상수다.**
+#: 스펙 §2 의 실측(2026-08-15). **이 수는 이 저장소의 코퍼스가 고정이라 상수다.**
 #: 어긋나면 코퍼스가 바뀌었다는 뜻이고, 그때는 스펙과 이 표를 **함께** 고친다.
 EXPECTED = {
     "companies": 70,
@@ -85,14 +85,14 @@ def test_build_produces_the_five_files(built):
 
 
 def test_builder_never_reads_the_evalset_or_ablation():
-    """🔴 서비스 데이터는 공시 원본에서만 온다."""
+    """서비스 데이터는 공시 원본에서만 온다."""
     src = SCRIPT.read_text(encoding="utf-8")
     for forbidden in ("evalset", "ablation", "heldout", "from argus", "import argus"):
         assert forbidden not in src, f"빌드 스크립트가 {forbidden!r} 를 건드린다"
 
 
 def test_output_carries_no_research_vocabulary(built):
-    """🔴 화면에 실험 어휘가 새면 안 된다."""
+    """화면에 실험 어휘가 새면 안 된다."""
     banned = ("정답률", "ablation", "기여도", "judge", "코호트", "골든")
     for path in built.rglob("*.json"):
         text = path.read_text(encoding="utf-8")
@@ -101,7 +101,7 @@ def test_output_carries_no_research_vocabulary(built):
 
 
 def test_builder_imports_only_the_standard_library():
-    """🔴 규율 ① — `src/argus` 를 import 하지 않는다. `config.py` 가 `.env` 경로를 안다."""
+    """규율 ①, `src/argus` 를 import 하지 않는다. `config.py` 가 `.env` 경로를 안다."""
     import ast
 
     tree = ast.parse(SCRIPT.read_text(encoding="utf-8"))
@@ -118,12 +118,12 @@ def test_builder_imports_only_the_standard_library():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. 보안 게이트 — 🔴 발화를 확인해야 게이트다
+# 2. 보안 게이트, 발화를 확인해야 게이트다
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 def test_read_gate_refuses_the_paths_the_service_must_never_open():
-    """🔴 문서가 아니라 **코드**가 막는다 (스펙 §5b a)."""
+    """문서가 아니라 **코드**가 막는다 (스펙 §5b a)."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("bsd", SCRIPT)
@@ -146,7 +146,7 @@ def test_read_gate_allows_the_disclosure_corpus():
 
 
 def test_unknown_source_field_kills_the_build():
-    """🔴 규율 ③ — 모르는 필드가 붙으면 빌드가 죽는다. 블랙리스트는 조용히 샌다."""
+    """규율 ③, 모르는 필드가 붙으면 빌드가 죽는다. 블랙리스트는 조용히 샌다."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("bsd", SCRIPT)
@@ -158,7 +158,7 @@ def test_unknown_source_field_kills_the_build():
 
 
 def test_no_secret_shaped_string_reaches_the_output(built):
-    """🔴 스펙 §5b b — import 금지와 **독립된 두 번째 층**이다."""
+    """스펙 §5b b, import 금지와 **독립된 두 번째 층**이다."""
     import re
 
     patterns = (re.compile(r"nv-[A-Za-z0-9]{8,}"), re.compile(r"sk-[A-Za-z0-9]{8,}"),
@@ -171,7 +171,7 @@ def test_no_secret_shaped_string_reaches_the_output(built):
 
 
 def test_no_corpus_path_or_public_ip_is_republished(built):
-    """🔴 스펙 §5b — **읽기 금지와 출력 금지는 다른 게이트다.** universe.csv 는 읽지만 안 싣는다."""
+    """스펙 §5b, **읽기 금지와 출력 금지는 다른 게이트다.** universe.csv 는 읽지만 안 싣는다."""
     import re
 
     ip = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
@@ -183,7 +183,7 @@ def test_no_corpus_path_or_public_ip_is_republished(built):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. 🔴 스펙 §2 의 실측과 대조한다
+# 3. 스펙 §2 의 실측과 대조한다
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -207,7 +207,7 @@ def test_network_matches_the_measured_graph(network, meta):
 
 
 def test_slugs_are_url_safe(companies):
-    """🔴 한글 회사명을 경로에 그대로 쓰지 않는다."""
+    """한글 회사명을 경로에 그대로 쓰지 않는다."""
     for c in companies:
         assert c["slug"].isascii() and c["slug"].replace("-", "").isalnum(), c["slug"]
 
@@ -218,12 +218,12 @@ def test_every_company_has_its_own_file(built, companies):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. 🔴 추정하지 않는다
+# 4. 추정하지 않는다
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-#: 🔴 정기공시의 「요약재무정보」에서 **눈으로 대조한** 값(2026-08-16).
-#: 원문 표의 행과 단위를 사람이 직접 읽어 확인했다 — 파서가 조용히 어긋나면 여기서 깨진다.
+#: 정기공시의 「요약재무정보」에서 **눈으로 대조한** 값(2026-08-16).
+#: 원문 표의 행과 단위를 사람이 직접 읽어 확인했다. 파서가 조용히 어긋나면 여기서 깨진다.
 VERIFIED_FINANCIALS = {
     #: 삼성전자 · 백만원 단위 표 · `매출액 133,873,444` · `영업이익 57,232,797`
     "삼성전자": (133_873_444_000_000, 57_232_797_000_000),
@@ -241,7 +241,7 @@ def _detail_by_name(built, companies, name):
 
 @pytest.mark.parametrize("name", sorted(VERIFIED_FINANCIALS))
 def test_financials_match_the_document_that_was_read_by_hand(built, companies, name):
-    """🔴 단위 환산이 어긋나면 매출이 백만 배 틀린다. 세 회사를 손으로 대조해 못박는다."""
+    """단위 환산이 어긋나면 매출이 백만 배 틀린다. 세 회사를 손으로 대조해 못박는다."""
     revenue, operating = VERIFIED_FINANCIALS[name]
     financials = _detail_by_name(built, companies, name)["financials"]
     assert financials is not None, f"{name} 의 재무 요약이 비었다"
@@ -250,7 +250,7 @@ def test_financials_match_the_document_that_was_read_by_hand(built, companies, n
 
 
 def test_financials_are_either_labelled_or_empty(built, companies):
-    """🔴 **기간을 모르는 매출액은 뜻이 없다** — 분기 매출을 연간으로 읽으면 네 배 틀린다.
+    """**기간을 모르는 매출액은 뜻이 없다**. 분기 매출을 연간으로 읽으면 네 배 틀린다.
 
     그래서 값을 실을 때는 기간·기준(연결/별도)·출처 접수번호가 반드시 함께 온다.
     못 갖추면 통째로 `None` 이다. 어림수도 0도 쓰지 않는다.
@@ -268,14 +268,14 @@ def test_financials_are_either_labelled_or_empty(built, companies):
         assert financials["revenue"] > 0, c["name"]
         assert financials["source_rcept_no"].isdigit(), c["name"]
         operating = financials["operating_income"]
-        #: 영업이익이 매출을 넘으면 엉뚱한 칸을 집었다는 뜻이다 — 그런 짝은 싣지 않는다.
+        #: 영업이익이 매출을 넘으면 엉뚱한 칸을 집었다는 뜻이다. 그런 짝은 싣지 않는다.
         assert operating is None or abs(operating) <= financials["revenue"], c["name"]
     assert filled, "재무 요약이 하나도 안 뽑혔다 — 파서가 죽었는지 보라"
     assert filled < len(companies), "🔴 전부 뽑혔다 — 못 뽑은 것을 지어내고 있지 않은지 보라"
 
 
 def test_the_body_of_the_periodic_corpus_is_never_republished(built):
-    """🔴 926MB 본문에서 가져오는 것은 **수 둘과 기간 표기**뿐이다.
+    """926MB 본문에서 가져오는 것은 **수 둘과 기간 표기**뿐이다.
 
     산출물의 재무 칸에 문장이 실리면 코퍼스 재배포다. 기간 표기는 40자를 넘지 않는다.
     """
@@ -286,7 +286,7 @@ def test_the_body_of_the_periodic_corpus_is_never_republished(built):
 
 
 def test_unresolved_corrections_are_kept_and_marked(corrections):
-    """🔴 감추면 목록이 실제보다 완전해 보인다 (스펙 §4.3)."""
+    """감추면 목록이 실제보다 완전해 보인다 (스펙 §4.3)."""
     unresolved = [c for c in corrections if not c["resolved"]]
     assert unresolved, "추적 실패가 하나도 없다 — 정말인가?"
     for c in unresolved:
@@ -304,7 +304,7 @@ def test_amount_diff_is_never_estimated(corrections):
 
 
 def test_amount_diff_only_pairs_disclosures_about_the_same_contract(built, corrections):
-    """🔴 **2026-08-16 의 결함을 고정한다.**
+    """**2026-08-16 의 결함을 고정한다.**
 
     첫 구현은 `exchange_records` 의 `related` 로 원공시를 찾았다. 그 필드는 정정 체인이
     아니라 *관련공시 묶음*이라 **같은 회사의 다른 사업끼리 이어졌고**, 삼성E&A 에서
@@ -336,7 +336,7 @@ def test_amount_diff_only_pairs_disclosures_about_the_same_contract(built, corre
 
 
 def test_ambiguous_chains_keep_their_candidates_but_drop_the_amount(corrections):
-    """🔴 후보가 여럿이면 금액을 **비운다**. 아무거나 고르면 없는 변화를 만든다."""
+    """후보가 여럿이면 금액을 **비운다**. 아무거나 고르면 없는 변화를 만든다."""
     ambiguous = [c for c in corrections if c["resolved"] and c["origin"] is None]
     assert ambiguous, "모호한 체인이 하나도 없다 — 분기가 죽은 코드인가?"
     for c in ambiguous:
@@ -346,9 +346,9 @@ def test_ambiguous_chains_keep_their_candidates_but_drop_the_amount(corrections)
 
 
 def test_the_builder_does_not_use_the_related_cluster_as_a_chain():
-    """🔴 `related` 로 되돌아가지 마라 — 위 테스트가 잡은 결함의 원인이다.
+    """`related` 로 되돌아가지 마라, 위 테스트가 잡은 결함의 원인이다.
 
-    필드 이름은 원본 화이트리스트(`SOURCE_EXCHANGE`)에 **적혀 있어야** 한다 — 원본이
+    필드 이름은 원본 화이트리스트(`SOURCE_EXCHANGE`)에 **적혀 있어야** 한다. 원본이
     들고 있는 필드니까. 금지하는 것은 **그 값을 읽는 것**이다.
     """
     import re
@@ -359,7 +359,7 @@ def test_the_builder_does_not_use_the_related_cluster_as_a_chain():
 
 
 def test_partner_counts_are_null_when_they_cannot_be_verified(built, companies):
-    """🔴 셀 수 없는 것은 `null` 이다 — 0 으로도 어림수로도 쓰지 않는다."""
+    """셀 수 없는 것은 `null` 이다. 0 으로도 어림수로도 쓰지 않는다."""
     seen_null = seen_int = False
     for c in companies:
         for p in _load(built, f"company/{c['slug']}.json")["partners"]:

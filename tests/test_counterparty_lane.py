@@ -1,14 +1,14 @@
-"""발주처 레인 정렬 (`_partner_order`) — v3 R2 ①.
+"""발주처 레인 정렬 (`_partner_order`), v3 R2 ①.
 
 `T5-a` 가 밸류체인 미회수 18건 중 **8건**을 "허브 레인 절단"((iii′))으로 갈랐다.
-기전은 `_partner_order` 가 **질문을 안 보는 것**이었다 — 최신본 우선 + 도착순이라
+기전은 `_partner_order` 가 **질문을 안 보는 것**이었다. 최신본 우선 + 도착순이라
 같은 허브·같은 파트너면 어떤 질문이 와도 순서가 같았다.
 
-🔴 **상한을 올리는 것은 처방이 아니다** (`T5-a` §4 실측: 8건을 다 회수하려면 한 문항에
+**상한을 올리는 것은 처방이 아니다** (`T5-a` §4 실측: 8건을 다 회수하려면 한 문항에
 발주처 근거 57블록 = 현행 6칸의 9.5배). 그래서 후보 집합도 `MAX_COUNTERPARTY_EVIDENCE`
 도 `_partner_quota` 도 건드리지 않고 **같은 칸에 무엇이 들어가는가**만 바꾼다.
 
-🔴 **리랭커가 아니다.** `A3` 는 겨냥 0 으로 최종 기각됐다(`05 §E-4b`). 여기는 LLM 0회 ·
+**리랭커가 아니다.** `A3` 는 겨냥 0 으로 최종 기각됐다(`05 §E-4b`). 여기는 LLM 0회 ·
 네트워크 0회 · 크레딧 0원이고, 점수는 레인 안에서 계산되는 BM25 다.
 """
 from __future__ import annotations
@@ -33,7 +33,7 @@ def _record(rcept_no: str, text: str, is_latest: bool = True) -> dict:
 
 
 def test_empty_question_keeps_the_old_order_byte_for_byte():
-    """질문이 없으면 종전 동작 그대로 — 최신본 우선 + 도착순.
+    """질문이 없으면 종전 동작 그대로, 최신본 우선 + 도착순.
 
     호출부가 질문을 안 넘기는 경로가 새로 생겨도 **조용히 성능이 바뀌지 않는다**.
     이 저장소가 최악으로 보는 것이 그 조용한 Δ 다.
@@ -57,7 +57,7 @@ def test_question_relevance_reorders_within_the_lane():
 def test_is_latest_still_wins_over_relevance():
     """1순위 키는 그대로 `is_latest` 다.
 
-    대체된 공시로 파트너를 대표시키면 열거가 옛 값을 말한다 — `query_events` 가
+    대체된 공시로 파트너를 대표시키면 열거가 옛 값을 말한다. `query_events` 가
     `is_latest=True` 를 기본으로 두는 것과 같은 이유다. 적합도가 아무리 높아도
     그 규칙을 뒤집지 않는다 (뒤집으면 `Q-113` 1건을 얻고 열거의 전제를 잃는다).
     """
@@ -79,7 +79,7 @@ def test_lane_scores_survive_empty_and_singleton_lanes():
 def test_common_lane_tokens_do_not_decide_the_order():
     """레인 전원이 가진 토큰(발주처 이름·서식명)은 IDF 가 0 이라 순서를 못 바꾼다.
 
-    이게 성립해야 '불용어 목록' 을 손으로 관리하지 않아도 된다 — 모집단을 레인으로
+    이게 성립해야 '불용어 목록' 을 손으로 관리하지 않아도 된다. 모집단을 레인으로
     좁힌 것이 곧 불용어 처리다.
     """
     records = [_record("1", "창고 신축"), _record("2", "창고 신축")]
@@ -90,12 +90,12 @@ def test_common_lane_tokens_do_not_decide_the_order():
 
 @pytest.mark.skipif(not _RECORDS.exists(), reason="evalset/valuechain.jsonl 없음")
 def test_q107_lane_now_reaches_the_dukovany_contract():
-    """🔴 겨냥 실측 — `Q-107` 이 두코바니 계약을 레인에서 건져 온다.
+    """겨냥 실측, `Q-107` 이 두코바니 계약을 레인에서 건져 온다.
 
     `T5-a` 표 #2: `20251216801163` 은 두산에너빌리티 레인 **5/5번째**이고 quota=1 이라
     도착순으로는 영원히 도달 불가였다. 상한을 안 건드리고 순서만 바꿔 회수한다.
 
-    ⚠️ **겨냥 8건 중 실측 회수는 1건이다.** 나머지는 정렬 밖에서 막힌다 — 사유는
+    **겨냥 8건 중 실측 회수는 1건이다.** 나머지는 정렬 밖에서 막힌다. 사유는
     `pipeline._partner_order` 독스트링에 실측표와 함께 적어 두었다.
     """
     from argus.agent.budget import Budget

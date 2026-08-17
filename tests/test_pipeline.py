@@ -17,11 +17,11 @@ _GRAPH_PATH = Path(__file__).resolve().parents[1] / "artifacts/counterparty_grap
 
 @pytest.fixture(autouse=True)
 def ensure_counterparty_graph():
-    """산출물이 없으면 값싸게 재생성한다 — `tests/test_tools.py::ensure_counterparty_graph`
+    """산출물이 없으면 값싸게 재생성한다. `tests/test_tools.py::ensure_counterparty_graph`
     와 같은 패턴 (`14b0953` 에서 같은 사유로 도입됐다).
 
     `artifacts/` 는 gitignore 대상이라 신규 클론·격리 워크트리·CI 에는 파일이 없다.
-    발주처 테스트는 그 경우 **skip 이 아니라 하드 실패**한다 — 라우터가 빈 노드 목록을
+    발주처 테스트는 그 경우 **skip 이 아니라 하드 실패**한다. 라우터가 빈 노드 목록을
     받아 발주처를 하나도 못 찾기 때문이다.
 
     만든 직후 **캐시를 푼다.** `router._counterparty_nodes` 와 `tools._counterparty_graph`
@@ -65,7 +65,7 @@ def test_unanswerable_short_circuits_without_llm(monkeypatch):
     monkeypatch.setattr(pipeline, "chat", lambda *a, **k: called.append(1))
     out = pipeline.answer_question("Q-006", "존재하지않는기업ZZZ의 2025년 매출액은?")
     assert "확인되지 않" in out["answer"]
-    assert called == []            # LLM 호출 0회 — 비용 절약
+    assert called == []            # LLM 호출 0회, 비용 절약
 
 
 def test_response_has_exact_five_keys():
@@ -153,7 +153,7 @@ def test_generated_answer_is_pii_masked(monkeypatch):
 # --- F-3 ReAct 반복 루프 ------------------------------------------------------
 
 def test_sufficient_evidence_stops_after_first_hop(monkeypatch):
-    """근거가 충분하면 재검색하지 않는다. ReAct 단독은 CoT 보다 낮다 — 과잉 반복 금지."""
+    """근거가 충분하면 재검색하지 않는다. ReAct 단독은 CoT 보다 낮다. 과잉 반복 금지."""
     captured = []
     monkeypatch.setattr(pipeline.tools, "execute",
                         lambda name, args: captured.append((name, args)) or _hits(_chunk("d1")))
@@ -221,7 +221,7 @@ def test_low_score_triggers_rehop(monkeypatch):
 
 
 def test_hop_ceiling_is_three_rehops(monkeypatch):
-    """hop ≤ 3 — ReAct 논문의 7스텝 궤적 0.84% 근거. 초과하면 현재 근거로 진행한다."""
+    """hop ≤ 3, ReAct 논문의 7스텝 궤적 0.84% 근거. 초과하면 현재 근거로 진행한다."""
     calls = []
     monkeypatch.setattr(pipeline.tools, "execute",
                         lambda name, args: calls.append(name) or _hits())
@@ -246,7 +246,7 @@ def test_step_ceiling_stops_the_loop(monkeypatch):
 
 
 def test_global_hop_is_skipped_when_company_evidence_exists(monkeypatch):
-    """기업이 특정된 질문에서 근거가 이미 있으면 기업 필터를 풀지 않는다 — 오염이다."""
+    """기업이 특정된 질문에서 근거가 이미 있으면 기업 필터를 풀지 않는다. 오염이다."""
     calls = []
 
     def fake(name, args):
@@ -279,7 +279,7 @@ def test_out_of_range_year_is_not_rescued_by_broadening(monkeypatch):
 
 
 def test_out_of_range_multi_year_does_not_leak_through_query_events(monkeypatch):
-    """연도가 둘 이상이면 query_events 에 기간을 걸 수 없다 — 범위 밖은 폴백도 막아야 한다."""
+    """연도가 둘 이상이면 query_events 에 기간을 걸 수 없다. 범위 밖은 폴백도 막아야 한다."""
     def fake(name, args):
         if name == "search_chunks":
             return _hits()
@@ -304,7 +304,7 @@ def test_in_range_year_still_broadens(monkeypatch):
 
 
 def test_global_hop_drops_candidates_below_the_noise_floor(monkeypatch):
-    """필터가 없는 전역 검색은 점수만이 관련성의 보증이다 — 잡음 바닥 밑은 근거가 아니다."""
+    """필터가 없는 전역 검색은 점수만이 관련성의 보증이다. 잡음 바닥 밑은 근거가 아니다."""
     calls = []
 
     def fake(name, args):
@@ -324,7 +324,7 @@ def test_global_hop_drops_candidates_below_the_noise_floor(monkeypatch):
 
 
 def test_two_stalled_hops_stop_the_loop(monkeypatch):
-    """넓혀도 새 후보가 안 나오면 인덱스에 없는 것이다 — 남은 hop 을 태우지 않는다."""
+    """넓혀도 새 후보가 안 나오면 인덱스에 없는 것이다. 남은 hop 을 태우지 않는다."""
     calls = []
 
     def fake(name, args):
@@ -415,7 +415,7 @@ def test_superseded_evidence_pulls_the_rest_of_the_chain(monkeypatch):
 
 
 def test_latest_evidence_never_starts_a_chain_hop(monkeypatch):
-    """제동 ② — 최신본이 씨앗이 되면 지금 맞히는 문항에 무관한 체인이 붙는다."""
+    """제동 ②, 최신본이 씨앗이 되면 지금 맞히는 문항에 무관한 체인이 붙는다."""
     calls = []
     monkeypatch.setattr(pipeline.tools, "execute",
                         lambda name, args: calls.append(name) or _hits(_chunk("d1")))
@@ -427,7 +427,7 @@ def test_latest_evidence_never_starts_a_chain_hop(monkeypatch):
 
 
 def test_chain_seeds_are_limited_to_the_top_candidates(monkeypatch):
-    """제동 ① — 하위 후보의 체인까지 끌면 무관한 공시가 근거 칸을 먹는다."""
+    """제동 ①, 하위 후보의 체인까지 끌면 무관한 공시가 근거 칸을 먹는다."""
     probed = []
 
     def probe(doc_id):
@@ -446,7 +446,7 @@ def test_chain_seeds_are_limited_to_the_top_candidates(monkeypatch):
 
 
 def test_chain_expansion_is_capped(monkeypatch):
-    """제동 ③ — 상한이 없으면 긴 체인 하나가 근거 칸을 통째로 먹는다."""
+    """제동 ③, 상한이 없으면 긴 체인 하나가 근거 칸을 통째로 먹는다."""
     long_chain = _history(("origin", False),
                           *[(f"2024010{i}800000", False) for i in range(1, 9)])
 
@@ -503,8 +503,8 @@ def test_chain_position_is_marked_inside_the_evidence_block(monkeypatch):
 def test_as_of_marker_only_fires_without_correction_language():
     """시점 표식의 전제. 정정 이후 값·이력을 묻는 질의에는 절대 붙지 않는다.
 
-    🔴 Q-005·Q-006 은 **같은 문장에 날짜가 있는데 정답이 최신값**이다. 날짜만 보고
-    표식을 달면 지금 맞히는 문항이 뒤집힌다 — 순이득 0 이 아니라 마이너스다.
+    Q-005·Q-006 은 **같은 문장에 날짜가 있는데 정답이 최신값**이다. 날짜만 보고
+    표식을 달면 지금 맞히는 문항이 뒤집힌다. 순이득 0 이 아니라 마이너스다.
     """
     assert pipeline._as_of_ym("삼성SDI가 2025년 3월에 결의한 유상증자의 시설자금은?") == "202503"
     for question in (
@@ -535,7 +535,7 @@ def test_chain_note_keeps_the_markers_the_critic_reads(monkeypatch):
 
     `critic._STALE_NOTE` / `_LATEST_NOTE` 가 이 두 낱말로 블록의 체인 위치를 읽는다.
     낱말을 갈아치우면 `verify_completeness` 의 `stale_value` 전제가 통째로 무너져
-    정밀도 1.00 스냅샷이 깨진다 — 표식은 **더하기만** 한다.
+    정밀도 1.00 스냅샷이 깨진다. 표식은 **더하기만** 한다.
     """
     from argus.agent import critic
 
@@ -544,12 +544,12 @@ def test_chain_note_keeps_the_markers_the_critic_reads(monkeypatch):
     assert "원공시" in note
     assert critic._STALE_NOTE.search(pipeline._chain_note({"is_latest": False}, 3, 5))
     assert critic._LATEST_NOTE.search(pipeline._chain_note({"is_latest": True}, 5, 5))
-    # 후속 공시는 정정이 아니다 — 체인 번호도 원공시 표식도 붙지 않는다
+    # 후속 공시는 정정이 아니다. 체인 번호도 원공시 표식도 붙지 않는다
     assert "원공시" not in pipeline._chain_note({"kind": "followup"}, 1, 1)
 
 
 def test_open_chain_makes_the_verdict_insufficient(monkeypatch):
-    """집합 완결성 — 개수 규칙을 다 만족해도 체인이 열려 있으면 근거는 덜 온 것이다."""
+    """집합 완결성, 개수 규칙을 다 만족해도 체인이 열려 있으면 근거는 덜 온 것이다."""
     def fake(name, args):
         if name == "get_history":
             return {"error": "레코드 없음: 20260203800709"}
@@ -583,7 +583,7 @@ def test_an_unclosable_chain_does_not_burn_the_remaining_hops(monkeypatch):
 
 
 def test_chain_hop_respects_the_step_ceiling(monkeypatch):
-    """CONVENTION §7.6 — 체인이 붙어도 총 스텝 8을 넘지 않는다."""
+    """CONVENTION §7.6, 체인이 붙어도 총 스텝 8을 넘지 않는다."""
     monkeypatch.setattr(pipeline.tools, "execute",
                         lambda name, args: (_history(("origin", False), ("x", True))
                                             if name == "get_history"
@@ -631,7 +631,7 @@ def test_periodic_questions_do_not_take_the_chain_hop(monkeypatch):
 # --- 실데이터 회귀: 정정 체인이 실제로 최신본까지 닿는가 ---------------------------
 
 def test_correction_chain_reaches_the_latest_disclosure():
-    """Q-005 — 원공시만 보면 227,500,000,000 을 답하게 되는 함정 문항."""
+    """Q-005: 원공시만 보면 227,500,000,000 을 답하게 되는 함정 문항."""
     evidence, trace = pipeline._gather_evidence(route(CHAIN_Q), CHAIN_Q, Budget())
     assert "20230602800079" in evidence          # 원공시
     assert "20260203800709" in evidence          # 정정본 (골든)
@@ -640,7 +640,7 @@ def test_correction_chain_reaches_the_latest_disclosure():
 
 
 def test_termination_chain_reaches_the_reference_linked_disclosure():
-    """Q-035 — 해지 공시는 `related` 가 비어 있고 ※관련공시로만 이어진다."""
+    """Q-035: 해지 공시는 `related` 가 비어 있고 ※관련공시로만 이어진다."""
     question = ("LG에너지솔루션이 2024년 10월에 공시한 Ford Motor Company 와의 "
                 "전기차 배터리 공급계약은 이후 어떻게 처리되었는지 정정·해지 이력을 함께 설명해줘.")
     evidence, _ = pipeline._gather_evidence(route(question), question, Budget())
@@ -649,7 +649,7 @@ def test_termination_chain_reaches_the_reference_linked_disclosure():
 
 
 def test_chain_hop_spans_document_groups():
-    """Q-030 — 고려아연 유상증자 철회는 `major` 체인이다."""
+    """Q-030: 고려아연 유상증자 철회는 `major` 체인이다."""
     question = "고려아연이 2024년 10월 30일 이사회에서 결의한 일반공모 유상증자는 이후 철회되었는가?"
     evidence, _ = pipeline._gather_evidence(route(question), question, Budget())
     assert "20241030000098" in evidence and "20241113000148" in evidence
@@ -721,7 +721,7 @@ def test_critic_transport_failure_is_marked_too(monkeypatch):
 
 
 # --- 정기공시 섹션 근거 --------------------------------------------------------
-# 정기공시는 검색 축이 다르다 — 기간이 접수일이 아니라 사업연도이고, 목차 경로가
+# 정기공시는 검색 축이 다르다. 기간이 접수일이 아니라 사업연도이고, 목차 경로가
 # 메타 필터의 축이다. 같은 사다리를 태우면 골든이 필터에서 통째로 빠진다.
 
 PERIODIC_Q = "삼성전자 2023년 사업보고서(제55기) 기준 DX 부문 매출액은 얼마인가?"
@@ -772,7 +772,7 @@ def test_periodic_period_filter_is_the_fiscal_year_not_the_filing_year(monkeypat
 
 
 def test_periodic_uses_the_filing_date_axis_when_the_question_gives_one(monkeypatch):
-    """'2024년 3월 20일 제출한 제25기 사업보고서' 는 사업연도가 질문에 없다 — 접수일이 유일한 축."""
+    """'2024년 3월 20일 제출한 제25기 사업보고서' 는 사업연도가 질문에 없다. 접수일이 유일한 축."""
     captured = []
     monkeypatch.setattr(pipeline.tools, "execute",
                         lambda name, args: captured.append(args) or
@@ -785,7 +785,7 @@ def test_periodic_uses_the_filing_date_axis_when_the_question_gives_one(monkeypa
 
 
 def test_periodic_selects_the_toc_path_deterministically(monkeypatch):
-    """§7.7 ③④⑤ — 목차 경로가 결정적 선택의 축이다. 실측 회수 0.679 -> 0.929."""
+    """§7.7 ③④⑤, 목차 경로가 결정적 선택의 축이다. 실측 회수 0.679 -> 0.929."""
     captured = []
     monkeypatch.setattr(pipeline.tools, "execute",
                         lambda name, args: captured.append(args) or
@@ -837,7 +837,7 @@ def test_exchange_field_rules_are_unchanged():
 
 
 def test_periodic_out_of_range_year_never_searches(monkeypatch):
-    """범위 밖은 못 찾은 게 아니라 없는 것이다 — 섹션 검색도 태우지 않는다."""
+    """범위 밖은 못 찾은 게 아니라 없는 것이다. 섹션 검색도 태우지 않는다."""
     calls = []
     monkeypatch.setattr(pipeline.tools, "execute",
                         lambda name, args: calls.append(name) or {"count": 0, "chunks": []})
@@ -851,14 +851,14 @@ def test_periodic_out_of_range_year_never_searches(monkeypatch):
 # 저장 응답 관측: Q-040 은 hop 0 이 `base_year=2026, doc_subtype=half` 로 **n=0** 을 받고,
 # hop 1 `toc_corp` 가 필터를 통째로 풀어 같은 기업의 **다른 보고서** 10건을 근거로 실었다.
 # 근거가 풍부해지자 모델이 그걸로 답을 지었다. 나머지 정보한계 5문항은 이 경로에 들어오지
-# 않는다 — 4건은 라우터가 이미 단락시키고(범위 밖 기업·연도), 1건은 미래 예측이라 어떤
+# 않는다. 4건은 라우터가 이미 단락시키고(범위 밖 기업·연도), 1건은 미래 예측이라 어떤
 # 공시에도 값이 없다. 그래서 겨냥점은 '완화하면 답이 생기는 질의' 하나뿐이다.
 
 NO_HALF_2026 = "두산에너빌리티의 2026년 반기보고서에 기재된 매출액을 알려줘."
 
 
 def test_named_report_that_does_not_exist_never_searches(monkeypatch):
-    """지목한 문서가 manifest 에 없으면 완화해도 답이 없다 — 스텝 0 · LLM 0회."""
+    """지목한 문서가 manifest 에 없으면 완화해도 답이 없다. 스텝 0 · LLM 0회."""
     calls = []
     monkeypatch.setattr(pipeline.tools, "execute",
                         lambda name, args: calls.append(name) or {"count": 0, "chunks": []})
@@ -873,7 +873,7 @@ def test_named_report_that_does_not_exist_never_searches(monkeypatch):
 
 
 def test_named_report_that_exists_is_not_blocked():
-    """있는 보고서를 지목한 질의는 종전 그대로 검색으로 간다 — 과잉 거절이 진짜 위험이다."""
+    """있는 보고서를 지목한 질의는 종전 그대로 검색으로 간다. 과잉 거절이 진짜 위험이다."""
     for question in ("삼성전자의 2023년 사업보고서 연결 매출액은?",
                      "HD현대중공업이 2025년 3월 18일 제출한 사업보고서의 자산총계는?",
                      "고려아연이 2023년 5월 15일 제출한 1분기 분기보고서 순이익은?"):
@@ -922,7 +922,7 @@ def test_document_group_picks_the_record_index(monkeypatch):
 
 
 def test_exchange_questions_do_not_carry_a_group(monkeypatch):
-    """거래소공시 질의는 종전 호출 그대로여야 한다 — 16/16 회귀의 전제."""
+    """거래소공시 질의는 종전 호출 그대로여야 한다. 16/16 회귀의 전제."""
     captured = []
     monkeypatch.setattr(pipeline.tools, "execute",
                         lambda name, args: captured.append(args) or _hits(_chunk("d1")))
@@ -951,7 +951,7 @@ def test_two_time_points_are_searched_separately(monkeypatch):
 
 
 def test_a_single_time_point_is_never_decomposed(monkeypatch):
-    """단일 시점 질의에 분해를 걸면 지금 맞히는 문항이 깨진다 — 발동 조건을 좁게 둔다."""
+    """단일 시점 질의에 분해를 걸면 지금 맞히는 문항이 깨진다. 발동 조건을 좁게 둔다."""
     captured = []
     monkeypatch.setattr(pipeline.tools, "execute",
                         lambda name, args: captured.append(args) or _hits(_chunk("d1")))
@@ -982,12 +982,12 @@ def test_each_cell_gets_a_quota_so_evidence_does_not_inflate(monkeypatch):
 
 
 def test_cell_quota_is_the_whole_slate_when_there_is_no_split():
-    """분해가 없으면 종전 동작 그대로 — 셀 할당량이 근거 상한을 깎으면 안 된다."""
+    """분해가 없으면 종전 동작 그대로, 셀 할당량이 근거 상한을 깎으면 안 된다."""
     assert pipeline._cell_quota(1, 3) == pipeline.MAX_EVIDENCE
 
 
 def test_decomposition_stays_inside_the_step_ceiling(monkeypatch):
-    """CONVENTION §7.6 — 스텝 8 이 상한이다. 분해가 그것을 넘기면 안 된다."""
+    """CONVENTION §7.6, 스텝 8 이 상한이다. 분해가 그것을 넘기면 안 된다."""
     monkeypatch.setattr(pipeline.tools, "execute", lambda name, args: _hits())
     question = ("삼성SDI가 2025년 3월에 결의한 유상증자는 고려아연이 2024년 10월에 "
                 "결의한 유상증자, 그리고 2023년 2월 결의분보다 큰가?")
@@ -1040,7 +1040,7 @@ def test_secondary_paths_take_one_slot_each_not_half():
 
 
 def test_cover_order_interleaves_companies_but_keeps_arrival_order():
-    """도착 순서는 목차 순위와 BM25 점수가 이미 정한 순서다 — 기업 축만 번갈아 놓는다."""
+    """도착 순서는 목차 순위와 BM25 점수가 이미 정한 순서다. 기업 축만 번갈아 놓는다."""
     picked = [{"corp": "A", "markdown": "a1"}, {"corp": "A", "markdown": "a2"},
               {"corp": "B", "markdown": "b1"}]
     assert [p["markdown"] for p in pipeline._cover_order(picked)] == ["a1", "b1", "a2"]
@@ -1150,9 +1150,9 @@ def test_section_tool_errors_do_not_break_pipeline(monkeypatch):
     assert pipeline.tools.execute("list_sections", {"doc_id": "x"})["error"]
 
 
-# --- 게이트 D — Recall@5 는 dev 만으로 잰다 -------------------------------------
+# --- 게이트 D, Recall@5 는 dev 만으로 잰다 -------------------------------------
 # 게이트 문구가 한때 "dev 60문항 … 70/93" 이었다. 60 은 dev 42 + heldout 18 의 **문항
-# 수**이고 93 은 그 60문항의 골든 근거 수다 — 즉 heldout 을 섞어 잰 값이었다. heldout 은
+# 수**이고 93 은 그 60문항의 골든 근거 수다. 즉 heldout 을 섞어 잰 값이었다. heldout 은
 # 최종 1회용이므로 그것으로 게이트를 재는 것 자체가 오염이다. 아래 두 테스트가 분모를
 # dev 에 못 박는다.
 
@@ -1174,7 +1174,7 @@ def _require_eval_artifact(path: Path) -> None:
     """gitignore 된 실행 산출물에 의존하는 게이트 D 테스트의 관문.
 
     `artifacts/eval/error_analysis*.json` 은 `.gitignore` 에 걸려 커밋되지 않는다.
-    가드 없이 `read_text` 하면 **클린 클론·CI 에서 `FileNotFoundError` 로 하드 실패**한다 —
+    가드 없이 `read_text` 하면 **클린 클론·CI 에서 `FileNotFoundError` 로 하드 실패**한다.
     스킵이 아니라 에러라서 "게이트 D 문서 정합성" 과 무관한 빨간불이 뜬다. 같은 파일의
     `ensure_counterparty_graph` 와 `test_ablation.py` 의 `SNAPSHOT_PATH` 가드가 쓰는
     패턴으로 맞춘다.
@@ -1189,11 +1189,11 @@ def _require_eval_artifact(path: Path) -> None:
 
 
 def _dev_golden_total() -> int:
-    """Recall@5 의 유일한 정당한 분모 — **잰 dev 문항**의 골든 근거 건수.
+    """Recall@5 의 유일한 정당한 분모, **잰 dev 문항**의 골든 근거 건수.
 
     분모를 좁히는 축이 둘이고 둘 다 필요하다.
-      ① split — heldout 을 섞으면 최종 1회용으로 게이트를 재는 오염이다(93 이 그 값이었다).
-      ② 코호트 — 골든셋은 §B-7 갱신 규칙에 따라 늘어난다(B-9 에서 dev 42 → 78).
+      ① split, heldout 을 섞으면 최종 1회용으로 게이트를 재는 오염이다(93 이 그 값이었다).
+      ② 코호트, 골든셋은 §B-7 갱신 규칙에 따라 늘어난다(B-9 에서 dev 42 → 78).
          새 문항은 아직 리트리버를 통과시킨 적이 없으므로 분모에 넣으면
          **재지도 않은 것을 잰 척**하게 된다.
 
@@ -1223,7 +1223,7 @@ def test_gate_d_recall_denominator_is_the_dev_golden_count():
 def test_gate_d_recall_line_names_the_measured_cohort():
     """게이트 줄의 문항 수는 **잰 코호트 크기**여야 한다.
 
-    한때 'dev 60문항' 이었다 — 그것은 dev 42 + heldout 18 이라 split 이 섞인 값이다.
+    한때 'dev 60문항' 이었다. 그것은 dev 42 + heldout 18 이라 split 이 섞인 값이다.
     지금 파일에 든 dev 는 78문항이지만 게이트를 잰 것은 42문항이므로, 문서가
     말해야 하는 수는 78 이 아니라 42 다. 다시 재면 코호트가 커지고 이 테스트가
     문서 갱신을 강제한다.
@@ -1249,7 +1249,7 @@ def test_gate_d_difficulty_recall_partitions_the_dev_golden_total():
 def test_recall_at_5_excludes_a_golden_that_only_ranks_sixth():
     """Recall@5 는 후보 순위 5 이내다. 근거 칸(10건)에 실린 것과 다른 값이다.
 
-    실측 Q-023 이 정확히 이 경계다 — 골든 5건 중 하나가 6위라 Recall@5 는 4/5 인데,
+    실측 Q-023 이 정확히 이 경계다. 골든 5건 중 하나가 6위라 Recall@5 는 4/5 인데,
     체인 hop 이 그 문서를 근거로 끌어와서 근거 적중은 5/5 다. 두 수를 섞으면
     게이트가 재는 대상이 흐려진다.
     """
@@ -1266,17 +1266,17 @@ def test_recall_at_5_excludes_a_golden_that_only_ranks_sixth():
     assert len(positions["in_candidates"]) == 2   # 후보에는 둘 다 있다
 
 
-# --- 게이트 D 재측정 — full 코호트 88문항 (D-4b) ------------------------------
+# --- 게이트 D 재측정, full 코호트 88문항 (D-4b) ------------------------------
 # 평가셋이 42 → 88 문항으로 늘었다. `70/93` 사고는 "모집단·시점이 안 적혀 낡은 줄 몰랐다"
 # 였으므로, 새 코호트로 재는 줄에는 코호트 이름과 시점을 강제로 박아 둔다. 위 세 테스트
-# (measured 42 · dev 골든 총수 · 난이도 3행)는 v1 비교축이라 **그대로 둔다** — 이 아래
+# (measured 42 · dev 골든 총수 · 난이도 3행)는 v1 비교축이라 **그대로 둔다**. 이 아래
 # 테스트들은 그것과 별도로 `full 88` 줄에 대해서만 검사한다.
 
 _FULL_GATE_RE = re.compile(r"full 코호트 88문항.*?근거 회수\s*\*\*(\d+)\s*/\s*(\d+)", re.DOTALL)
 
 
 def test_gate_d_line_carries_a_cohort_label():
-    """모집단·시점이 안 적힌 게이트 수치는 낡는다 — 70/93 사건의 재발 방지."""
+    """모집단·시점이 안 적힌 게이트 수치는 낡는다. 70/93 사건의 재발 방지."""
     text = RETRIEVER_DOC.read_text(encoding="utf-8")
     line = next(l for l in text.splitlines() if "Recall@5" in l and l.startswith("- ["))
     assert "코호트" in line or "cohort" in line
@@ -1286,7 +1286,7 @@ def test_gate_d_line_carries_a_cohort_label():
 def test_gate_d_full_cohort_recall_matches_the_v2_artifact():
     """`full 88` 줄의 분자·분모가 T7 산출물(`error_analysis_v2.json`)의 재집계와 같아야 한다.
 
-    손으로 적은 숫자가 실측 산출물과 갈리면 다음 사람이 어느 쪽을 믿어야 할지 모른다 —
+    손으로 적은 숫자가 실측 산출물과 갈리면 다음 사람이 어느 쪽을 믿어야 할지 모른다.
     v1 의 `측정 후 채택` 원칙을 이 코호트에도 그대로 적용한다.
     """
     artifact = ROOT / "artifacts" / "eval" / "error_analysis_v2.json"
@@ -1295,7 +1295,7 @@ def test_gate_d_full_cohort_recall_matches_the_v2_artifact():
     assert data["cohort"] == "full"
     assert data["n_cases"] == 88
     rows = data["rows"]
-    # 게이트 D 의 full 코호트는 dev(그리드+정보한계) + 회귀 뿐이다 — heldout·valuechain 은
+    # 게이트 D 의 full 코호트는 dev(그리드+정보한계) + 회귀 뿐이다. heldout·valuechain 은
     # 이 산출물 자체에 애초에 들어오지 않는다(scripts.error_analysis.load_cohort("full")).
     assert set(r["track"] for r in rows) <= {"grid", "info_limit", "regression"}
 
@@ -1313,10 +1313,10 @@ def test_gate_d_full_cohort_recall_matches_the_v2_artifact():
 
 
 def test_gate_d_excludes_valuechain_from_the_pass_population():
-    """밸류체인은 그리드 밖 실험 트랙이다 — heldout 과 다른 이유로 게이트 판정 모집단이 아니다.
+    """밸류체인은 그리드 밖 실험 트랙이다. heldout 과 다른 이유로 게이트 판정 모집단이 아니다.
 
     2-hop 검색이 원리상 아직 안 되는 문항(Q-117)을 의도적으로 포함하므로, 게이트 통과/실패에
-    섞으면 "무엇이 아직 안 되는지" 신호가 통과 판정에 묻힌다 — heldout 을 뺀 것과는 다른
+    섞으면 "무엇이 아직 안 되는지" 신호가 통과 판정에 묻힌다. heldout 을 뺀 것과는 다른
     이유지만 결과적으로 같은 자리(게이트 미포함, 별도 관찰 행)에 둔다.
     """
     doc = RETRIEVER_DOC.read_text(encoding="utf-8")
@@ -1329,7 +1329,7 @@ def test_gate_d_excludes_valuechain_from_the_pass_population():
 # 밸류체인 fan-in/fan-out 문항은 '한 발주처와 계약한 상장사 전체' 를 요구한다.
 # BM25 자유텍스트로는 파트너 하나에 쏠려 열거가 성립하지 않는다 (실측 Q-110 2/6 · Q-114 0/5).
 #
-# 🔴 과잉 발화가 진짜 위험이다. 이 hop 은 **자기 차선**에서만 근거를 담는다 —
+# 과잉 발화가 진짜 위험이다. 이 hop 은 **자기 차선**에서만 근거를 담는다.
 # 검색이 담을 칸(MAX_EVIDENCE)을 한 칸도 뺏지 않는다. 그래서 이 hop 이 발화해도
 # 종전에 맞히던 문항의 근거가 줄어들 수 없다.
 
@@ -1379,7 +1379,7 @@ def test_counterparty_hop_gives_every_partner_a_slot():
 
 
 def test_counterparty_hop_never_takes_a_search_evidence_slot():
-    """자기 차선. 검색 근거 상한(MAX_EVIDENCE)은 그대로 남는다 — 종전 문항이 안 깨진다."""
+    """자기 차선. 검색 근거 상한(MAX_EVIDENCE)은 그대로 남는다. 종전 문항이 안 깨진다."""
     q, _ = pipeline.sanitize_question(
         "삼성전자가 발주한 평택 P4 Ph4(상동) 마감공사를 삼성E&A와 삼성중공업이 각각 공시했는가?")
     r = route(q)
@@ -1394,7 +1394,7 @@ def test_counterparty_hop_never_takes_a_search_evidence_slot():
 
 
 def test_counterparty_note_carries_the_partner_roster_without_rcept_numbers():
-    """'상장사가 몇 곳인가' 는 어느 레코드에도 안 적혀 있다 — 블록 주석이 유일한 출처다.
+    """'상장사가 몇 곳인가' 는 어느 레코드에도 안 적혀 있다. 블록 주석이 유일한 출처다.
 
     접수번호를 싣지 않는 것이 조건이다. 요약이 접수번호를 나열하면 원문 없이도
     '골든이 실렸다' 로 세어져 자기 성적표가 부풀어 오른다 (`_chain_note` 주석).
@@ -1409,7 +1409,7 @@ def test_counterparty_note_carries_the_partner_roster_without_rcept_numbers():
 
 
 def test_counterparty_note_never_carries_a_per_company_disclosure_count():
-    """🔴 회사별 건수를 근거에 심으면 **틀린 수가 답변으로 나간다** — 기록된 사고다.
+    """회사별 건수를 근거에 심으면 **틀린 수가 답변으로 나간다**. 기록된 사고다.
 
     한때 roster 가 `f"{corp} {len(lanes[corp])}건"` 이었다. `lanes` 는
     `query_by_counterparty` 가 돌려준 전체 레코드이고 `_partner_order` 는 `is_latest` 로
@@ -1422,10 +1422,10 @@ def test_counterparty_note_never_carries_a_per_company_disclosure_count():
         근거   `- 발주처 관계: … 삼성E&A 47건 · 삼성중공업 19건`
         답변   `- 삼성E&A: 총 47건의 계약을 통해 설계 및 마감공사 담당`
 
-    Q-114 가 묻는 것은 평택·기흥 공장의 공정 분담이고 근거에 실린 레코드는 4건이다 —
+    Q-114 가 묻는 것은 평택·기흥 공장의 공정 분담이고 근거에 실린 레코드는 4건이다.
     47 은 **질문 범위 밖 전역 집계**이기도 하다. `verify_completeness` 는 그 수가
     근거(우리 note)에 있으니 통과시켰고 채점기는 골든이 '어느 회사냐' 라서 `correct` 를
-    줬다. **결정적 검증도 채점기도 못 잡는다** — 그래서 테스트로 못 박는다.
+    줬다. **결정적 검증도 채점기도 못 잡는다**. 그래서 테스트로 못 박는다.
 
     `is_latest` 로 걸러 참인 수를 만드는 것으로는 안 고쳐진다. 범위 밖 집계라는 범주
     오류가 남아 `"총 12건의 계약"` 으로 오보할 여지가 그대로다. 밸류체인 12문항 중
@@ -1439,7 +1439,7 @@ def test_counterparty_note_never_carries_a_per_company_disclosure_count():
     roster = note.split("—", 1)[1]
     assert not re.search(r"\d+\s*건", roster), f"회사별 건수가 되살아났다: {note}"
     assert "47" not in roster and "19" not in roster
-    # 파트너 수(`{n_partners}곳`)는 남는다 — 그건 어느 레코드에도 없는 참인 사실이다
+    # 파트너 수(`{n_partners}곳`)는 남는다. 그건 어느 레코드에도 없는 참인 사실이다
     # (Q-116 의 '상장사 세 곳' 이 그것을 요구한다).
     assert "상장사 2곳" in note
     assert [c.strip() for c in roster.split("·")] == ["삼성E&A", "삼성중공업"]
@@ -1451,7 +1451,7 @@ def test_counterparty_hop_does_not_eat_the_search_step_budget(monkeypatch):
     처음 판은 검색 루프 **앞에서** 공용 `Budget` 을 한 칸 먼저 썼다. 근거 칸·충분성
     판정·체인 씨앗을 다 갈라 놓고도 **예산 축 하나가 남아 있어서**, 스텝을 많이 쓰는
     질의(3기업 × 4단)가 발주처 hop 때문에 `stop=step_budget` 으로 한 칸 일찍 잘렸다.
-    사다리 뒤로 옮겨 그 축까지 닫는다 — 검색이 먼저 먹고 남는 것으로 움직인다.
+    사다리 뒤로 옮겨 그 축까지 닫는다. 검색이 먼저 먹고 남는 것으로 움직인다.
     """
     from dataclasses import replace
 
@@ -1485,11 +1485,11 @@ def test_counterparty_hop_does_not_eat_the_search_step_budget(monkeypatch):
 
 
 def test_the_counterparty_tool_receives_the_raw_name_not_the_canonical_key():
-    """도구 안의 `classify()` 는 공백 경계를 전제한다 — canonical 을 되먹이면 안 된다.
+    """도구 안의 `classify()` 는 공백 경계를 전제한다. canonical 을 되먹이면 안 된다.
 
     `r.counterparty` 는 canonical 이고 `ANON_COUNTERPARTY` 의 여러 대안이 공백에 의존하므로
     (`classify('글로벌 기업')=vague` vs `classify('글로벌기업')='other'`), 그대로 넘기면
-    비실명 가드가 빗나간다. 결과는 안 바뀐다 — 그래프 전량에서 `canonical(display)` 가
+    비실명 가드가 빗나간다. 결과는 안 바뀐다. 그래프 전량에서 `canonical(display)` 가
     노드 키와 같아 조회가 동일하다. 바뀌는 것은 **가드가 원문을 본다**는 사실이다.
     """
     seen: list[str] = []
@@ -1517,18 +1517,18 @@ def test_the_counterparty_tool_receives_the_raw_name_not_the_canonical_key():
 def test_partner_quota_holds_at_the_boundaries():
     """그래프 노드 145개 중 **120개(83%)가 파트너 1** 인데 그 경로가 미검증이었다.
 
-    간접 검증만 있었다 — 실제 그래프의 두 노드(한국수력원자력 6 · 삼성전자 2)를 태우는
+    간접 검증만 있었다. 실제 그래프의 두 노드(한국수력원자력 6 · 삼성전자 2)를 태우는
     통합 테스트뿐이라 `width=1`·`width=0`·`width > MAX_EVIDENCE` 는 한 번도 안 불렸다.
     `min(width, …)` 가 없으면 파트너 1인 노드가 5칸을 가져가고, `max(1, …)` 가 없으면
     폭이 클 때 몫이 0 이 되어 **아무 파트너도 근거를 못 받는다**. 둘 다 데이터 없이
     검증되는 순수 함수라 비용이 0 이다.
     """
     quota = pipeline._partner_quota
-    assert quota(0) == 1                       # 방어적 경로 — 0 나눗셈도 무발화도 없다
+    assert quota(0) == 1                       # 방어적 경로, 0 나눗셈도 무발화도 없다
     assert quota(1) == 1                       # 노드의 83%
-    assert quota(2) == 2                       # 유일하게 몫 2 (삼성전자 — 독스트링의 실측)
+    assert quota(2) == 2                       # 유일하게 몫 2 (삼성전자, 독스트링의 실측)
     assert quota(3) == 1
-    assert quota(6) == 1                       # 최대 폭 — 모든 파트너가 한 칸씩
+    assert quota(6) == 1                       # 최대 폭, 모든 파트너가 한 칸씩
     assert quota(pipeline.MAX_EVIDENCE) == 1
     assert quota(pipeline.MAX_EVIDENCE + 15) == 1
 
@@ -1546,7 +1546,7 @@ def test_a_meta_arm_cannot_switch_on_the_hops_its_early_return_hides():
     """`retrieval="meta"` 는 `_gather_meta` 직후 `return` 이라 그 아래 hop 이 **도달 불가**다.
 
     이 파일에 두는 이유: 막아야 하는 사실이 ablation 의 것이 아니라 **파이프라인의
-    제어 흐름**이다 (`if not arm.uses_bm25: … return`). 이 함정은 이미 한 라운드를 썼다 —
+    제어 흐름**이다 (`if not arm.uses_bm25: … return`). 이 함정은 이미 한 라운드를 썼다.
     원장 C3/④ 가 `A0 + counterparty_hop=True` 로 강제해도 발화 0 임을 실측하고 나서야
     계획을 고쳤다. `enabled()` 가 오타 하나에 예외를 던지는 모듈이 **Δ 를 조용히 0 으로
     만드는 조합**에는 침묵하고 있었다.
@@ -1559,7 +1559,7 @@ def test_a_meta_arm_cannot_switch_on_the_hops_its_early_return_hides():
     for flag in ablation.META_UNREACHABLE_FLAGS:
         with pytest.raises(ValueError, match="도달하지 않"):
             _replace(ablation.A0, name=f"A0-{flag}", **{flag: True})
-    # BM25 이후 arm 에서는 같은 플래그가 정상이다 — 막는 것은 조합이지 플래그가 아니다.
+    # BM25 이후 arm 에서는 같은 플래그가 정상이다. 막는 것은 조합이지 플래그가 아니다.
     assert _replace(ablation.A1, name="A1-cp", counterparty_hop=True).counterparty_hop
 
 
@@ -1568,11 +1568,11 @@ def test_a0_checks_the_fields_of_the_document_group_it_actually_read(monkeypatch
 
     `uses_group_index` 는 `retrieval == "all"` 이라 A0(`meta`)에도 False 다. 그래서 한때
     A0 은 근거를 holding 매니페스트에서 가져오면서 요구 필드는 exchange 스키마로
-    검사했다 — Q-016 이 `reason=missing_field:비율` 을 냈고 그 `비율` 은 exchange 의
+    검사했다. Q-016 이 `reason=missing_field:비율` 을 냈고 그 `비율` 은 exchange 의
     `대비\\s*:` 다. holding 근거에는 `보유비율:` 이 1.000 확률로 있다. **없는 것을 없다고
     한 것이 아니라 있는 것을 다른 이름으로 찾은 것**이고, `parse_hops` 가 그 사유를
     되읽어 Phase H 의 귀속 입력으로 쓴다. 실측 그리드 88문항 중 52문항이 비-exchange
-    group 이고 라벨이 틀렸던 문항은 19개다 (근거·답변은 불변 — A0 은 판정을 소비하지
+    group 이고 라벨이 틀렸던 문항은 19개다 (근거·답변은 불변, A0 은 판정을 소비하지
     않고, 88문항 전량 대조에서 근거 문자열이 바이트 단위로 같았다).
     """
     from argus import ablation
@@ -1590,7 +1590,7 @@ def test_a0_checks_the_fields_of_the_document_group_it_actually_read(monkeypatch
     assert "missing_field:비율" not in joined, (
         "holding 근거를 exchange 필드로 검사하면 있는 것을 없다고 보고한다")
 
-    # A1 의 되돌림(exchange 인덱스 1,469건)은 그대로여야 한다 — 그것이 A1b 의 Δ 다.
+    # A1 의 되돌림(exchange 인덱스 1,469건)은 그대로여야 한다. 그것이 A1b 의 Δ 다.
     args_seen: list[dict] = []
     monkeypatch.setattr(pipeline.tools, "execute",
                         lambda name, a: args_seen.append(a) or {"count": 0, "chunks": []})
@@ -1605,7 +1605,7 @@ def test_counterparty_evidence_is_deduped_against_the_truncated_head(monkeypatch
 
     `seen` 은 검색 차선이 담은 전부이고 프롬프트에 가는 것은 `picked[:MAX_EVIDENCE]` 다.
     `seen` 과 대조하면 절단 밖 문서와 겹치는 발주처 레코드가 **양쪽에서 다 빠지는데**,
-    `_gather_counterparty` 의 trace 는 그 doc_id 를 `ids=` 에 적고 `n=` 에 센다 —
+    `_gather_counterparty` 의 trace 는 그 doc_id 를 `ids=` 에 적고 `n=` 에 센다.
     근거 소실과 자기 성적표 부풀림이 동시에 난다. trace 가 실렸다고 말한 것은 실려 있어야
     한다는 것이 이 테스트의 단언이다.
     """
@@ -1644,7 +1644,7 @@ def test_a_relative_period_query_is_not_killed_by_the_search_lane(monkeypatch):
     기준점만 범위 밖인 질의를 죽이면 답할 수 있는 걸 못 답한다"* 고 주석에 약속했다.
     그런데 `_out_of_corpus_period` 가 `r.years` 만 보고 질문을 안 봐서 hop 1~3 ·
     이벤트 폴백을 전부 닫았고, `_period_args` 는 범위 밖 연도 2021 을 **검색 필터로**
-    걸어 hop 0 조차 0건이었다 — 근거 0건 → UNANSWERABLE. **면제가 아무것도 사지
+    걸어 hop 0 조차 0건이었다. 근거 0건 → UNANSWERABLE. **면제가 아무것도 사지
     못했다.** 두 술어를 하나로 모아야 라우터 주석이 코드 전체로 성립한다.
 
     현 코호트(dev 78 + 회귀 10 + 밸류체인 12 = 100문항) 발화는 0건이라 기록된 측정은
@@ -1653,7 +1653,7 @@ def test_a_relative_period_query_is_not_killed_by_the_search_lane(monkeypatch):
     def fake(name, args):
         if name != "search_chunks":
             return {"count": 0, "events": []}
-        # 범위 밖 연도를 필터로 걸면 후보가 없다 — 그게 종전 동작이었다.
+        # 범위 밖 연도를 필터로 걸면 후보가 없다. 그게 종전 동작이었다.
         return _hits() if ("year" in args or "ym" in args) else _hits(_chunk("d1"))
 
     monkeypatch.setattr(pipeline.tools, "execute", fake)
@@ -1667,18 +1667,18 @@ def test_a_relative_period_query_is_not_killed_by_the_search_lane(monkeypatch):
     assert "period=none" in joined, "기준점 연도는 검색 조건이 아니라 비교의 출발점이다"
     assert "97,000,000,000" in evidence
 
-    # 상대 시점이 없으면 종전대로 막는다 — 면제는 넓히기가 아니라 예외다.
+    # 상대 시점이 없으면 종전대로 막는다. 면제는 넓히기가 아니라 예외다.
     hard = "삼성전자의 2021년 공급계약 계약금액은 얼마인가?"
     r2 = route(hard)
     assert pipeline._out_of_corpus_period(r2, hard)
 
 
 def test_two_brakes_at_once_land_on_unanswerable_without_an_llm_call(monkeypatch):
-    """제동은 **겹칠 때도** 안전해야 한다 — 개별 제동만 검증돼 있던 갭이다.
+    """제동은 **겹칠 때도** 안전해야 한다. 개별 제동만 검증돼 있던 갭이다.
 
     여기서 두 제동이 같은 질의에 동시에 걸린다.
-      ① 도구 오류 — 기업 필터가 붙은 hop 0~2 가 전부 `skip=tool_error`
-      ② 잡음 바닥 폐기 — 전역 hop 의 후보가 `MIN_TOP_SCORE` 밑이라 통째로 버려진다
+      ① 도구 오류, 기업 필터가 붙은 hop 0~2 가 전부 `skip=tool_error`
+      ② 잡음 바닥 폐기, 전역 hop 의 후보가 `MIN_TOP_SCORE` 밑이라 통째로 버려진다
     거기에 이벤트 폴백까지 빈손이면 근거가 0건이다. 이 경로는 죽지 않고
     **LLM 호출 없이** 한계 고지로 낙착해야 한다 (`answer_question` 의 `not evidence` 분기).
     """
@@ -1708,7 +1708,7 @@ def test_two_brakes_at_once_land_on_unanswerable_without_an_llm_call(monkeypatch
 
 
 # --- 정기공시 사업연도 축: 접수·정정 일자를 사업연도로 착각하지 않는다 ---------------
-# 실측 Q-076 — `report_hints` 는 옳게 사업연도를 비우는데 `plan_section_hops` 의
+# 실측 Q-076, `report_hints` 는 옳게 사업연도를 비우는데 `plan_section_hops` 의
 # `years[0]` 폴백이 **정정 일자의 연도**를 사업연도로 만들어 골든 2건이 통째로 빠졌다.
 
 Q076 = ("기아 제80기 사업보고서는 2024년 3월 12일 정정됐다. 연결재무제표 주석 "
@@ -1740,7 +1740,7 @@ def test_a_correction_date_does_not_become_the_fiscal_year(monkeypatch):
 
 
 def test_the_report_label_year_survives_a_correction_date(monkeypatch):
-    """Q-100 — '2025년 사업보고서' 는 폴백이 아니라 표기에서 온 권위값이라 안 지운다.
+    """Q-100: '2025년 사업보고서' 는 폴백이 아니라 표기에서 온 권위값이라 안 지운다.
 
     `_FILED` 에 '정정' 을 넣는 대안을 기각한 근거가 이 문항이다 (실측 골든 2/2 -> 1/2).
     """
@@ -1758,7 +1758,7 @@ def test_fiscal_years_only_drops_the_filing_date_form():
 
 
 # --- 정기공시 다문서 질의: 부른 보고서마다 셀 하나 -------------------------------
-# 실측 Q-105 — `doc_subtype` 은 세 번째 언급에서, `base_year` 는 첫 번째 언급에서 와서
+# 실측 Q-105, `doc_subtype` 은 세 번째 언급에서, `base_year` 는 첫 번째 언급에서 와서
 # 필터가 `annual + 2025` 가 됐다. 질문이 부르지도 않은 문서 하나가 근거 4칸을 다 먹었다.
 
 def test_report_cells_pairs_each_named_report_with_its_own_year():
@@ -1770,7 +1770,7 @@ def test_report_cells_pairs_each_named_report_with_its_own_year():
 
 
 def test_a_single_named_report_is_not_decomposed():
-    """제동 ① — 셀이 하나면 종전 경로다. 실측 발화는 dev+회귀 88문항 중 Q-105 하나다."""
+    """제동 ①, 셀이 하나면 종전 경로다. 실측 발화는 dev+회귀 88문항 중 Q-105 하나다."""
     assert len(pipeline._report_cells(PERIODIC_Q)) < 2
     assert pipeline._report_cells("SK텔레콤 2025년 반기보고서의 자본총계는?") == [
         {"doc_subtype": "half", "base_year": "2025"}]
@@ -1805,7 +1805,7 @@ def _run_sections(monkeypatch, question, hits):
 
 
 def test_each_named_report_gets_its_own_search(monkeypatch):
-    """세 축의 곱이 아니라 세 셀이다 — `annual+2025` 는 아무 것도 안 가리킨다."""
+    """세 축의 곱이 아니라 세 셀이다. `annual+2025` 는 아무 것도 안 가리킨다."""
     captured = _capture_sections(monkeypatch, Q105,
                                  paths=("IV. 이사의 경영진단 및 분석의견",),
                                  hits=_cell_hits())
@@ -1815,7 +1815,7 @@ def test_each_named_report_gets_its_own_search(monkeypatch):
 
 
 def test_covering_every_named_report_stops_the_ladder(monkeypatch):
-    """제동 — 부른 보고서를 다 담았으면 넓히지 않는다. 넓히면 오염된다."""
+    """제동: 부른 보고서를 다 담았으면 넓히지 않는다. 넓히면 오염된다."""
     captured = _capture_sections(monkeypatch, Q105,
                                  paths=("IV. 이사의 경영진단 및 분석의견",),
                                  hits=_cell_hits())
@@ -1823,7 +1823,7 @@ def test_covering_every_named_report_stops_the_ladder(monkeypatch):
 
 
 def test_the_spare_evidence_slot_goes_to_a_tied_cell(monkeypatch):
-    """실측 Q-105 — 1·3분기 스텁의 글자가 같아 BM25 가 완전 동점이다 (72.711).
+    """실측 Q-105, 1·3분기 스텁의 글자가 같아 BM25 가 완전 동점이다 (72.711).
 
     `base_month` 는 인덱스 필터 축이 아니라 점수로는 영원히 못 가른다. 남은 칸을
     돌려 **둘 다 담고** 어느 쪽이 3분기인지는 생성이 블록 머리의 접수번호로 가린다.
@@ -1836,7 +1836,7 @@ def test_the_spare_evidence_slot_goes_to_a_tied_cell(monkeypatch):
 
 
 def test_the_trace_records_the_filters_actually_searched(monkeypatch):
-    """`parse_hops` 가 이 줄을 되읽어 Phase H 귀속에 쓴다 — 잰 것을 적어야 한다."""
+    """`parse_hops` 가 이 줄을 되읽어 Phase H 귀속에 쓴다. 잰 것을 적어야 한다."""
     _, trace = _run_sections(monkeypatch, Q105, _cell_hits())
     joined = " | ".join(trace)
     assert "filters=base_year=2025,doc_subtype=half" in joined
@@ -1851,7 +1851,7 @@ def test_q076_reaches_both_the_original_and_the_corrected_report():
     """제80기(사업연도 2023) 원공시와 정정본. 폴백이 살아 있으면 둘 다 안 나온다."""
     evidence, _ = pipeline._gather_evidence(route(Q076), Q076, Budget())
     assert "20240307000911" in evidence          # 원공시 (전기 3,512)
-    assert "20240312000909" in evidence          # 정정본 (전기 7,362 — 골든)
+    assert "20240312000909" in evidence          # 정정본 (전기 7,362, 골든)
     assert "7,362" in evidence
 
 

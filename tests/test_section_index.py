@@ -1,4 +1,4 @@
-"""정기공시 섹션 인덱스 — 2차 분할 · 메타 축 · 빌드 스크립트.
+"""정기공시 섹션 인덱스, 2차 분할 · 메타 축 · 빌드 스크립트.
 
 **모든 빌드는 `tmp_path` 로 격리한다.** 과거에 테스트가 실제 인덱스를 덮어쓴 사고가 있었다.
 `scripts/build_section_index.py` 는 `--out-dir`/`--source-dir` 없이 부르지 않는다.
@@ -43,7 +43,7 @@ def corpus(tmp_path):
         _section("d1#002", "periodic_1", "삼성전자",
                  "V. 회계감사인의 감사의견 등 > 2. 내부통제에 관한 사항",
                  "해당사항 없음", stub=True),
-        # 목차 오타 — 마침표가 아니라 쉼표 (HMM 20240514001580 실물)
+        # 목차 오타, 마침표가 아니라 쉼표 (HMM 20240514001580 실물)
         _section("d2#000", "periodic_2", "HMM",
                  "III. 재무에 관한 사항 > 3. 연결재무제표 주석 > 12, 관계기업투자 (연결)",
                  "12, 관계기업투자 (연결)\n\n관계기업 지분 평가액 9,876 백만원",
@@ -95,7 +95,7 @@ def test_split_never_cuts_inside_a_table():
 
 
 def test_split_repeats_the_table_header_on_every_piece():
-    """헤더를 안 얹으면 두 번째 조각부터 열 의미가 사라진다 — 숫자만 남은 표는 근거가 아니다."""
+    """헤더를 안 얹으면 두 번째 조각부터 열 의미가 사라진다. 숫자만 남은 표는 근거가 아니다."""
     parts = split_section(TABLE, 300)
     assert len(parts) > 1
     assert all(p.startswith("| 부문 | 매출액 | 비중 |") for p in parts)
@@ -121,7 +121,7 @@ def test_section_parts_are_deterministic_and_numbered():
 # --- 메타 축 -------------------------------------------------------------------
 
 def test_stubs_are_indexed_by_default(corpus, tmp_path):
-    """스텁 자체가 답인 문항이 있다 — '기재 생략' 임을 짚는 것이 정답이다 (Q-053·Q-059).
+    """스텁 자체가 답인 문항이 있다. '기재 생략' 임을 짚는 것이 정답이다 (Q-053·Q-059).
 
     색인에서 빼면 도구가 그 섹션을 열 수조차 없다. 배제는 `list_sections` 가 한다 (§7.7 ④).
     """
@@ -144,7 +144,7 @@ def test_path_prefix_narrows_candidates(corpus, tmp_path):
 
 
 def test_path_prefix_ignores_punctuation(corpus, tmp_path):
-    """제출인 오타가 목차에 그대로 들어온다 — '12, 관계기업투자' vs '12. 관계기업투자'."""
+    """제출인 오타가 목차에 그대로 들어온다. '12, 관계기업투자' vs '12. 관계기업투자'."""
     index = _build(corpus, tmp_path / "out")
     hits = index.search("관계기업", top_k=5, prefix={
         "path": "III. 재무에 관한 사항 > 3. 연결재무제표 주석 > 12. 관계기업투자 (연결)"})

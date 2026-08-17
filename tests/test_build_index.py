@@ -14,7 +14,7 @@ def _build(out_dir, limit=20):
 
 
 def test_build_index_writes_artifacts(tmp_path):
-    """실제 artifacts/ 를 덮지 않는다 — 덮으면 API 가 20건만 서빙하게 된다."""
+    """실제 artifacts/ 를 덮지 않는다. 덮으면 API 가 20건만 서빙하게 된다."""
     _build(tmp_path)
     assert (tmp_path / "exchange_records.jsonl").exists()
     assert (tmp_path / "exchange_bm25.json").exists()

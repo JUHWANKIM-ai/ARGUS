@@ -1,12 +1,12 @@
-"""`A29a` — 결정적 집계를 근거에 한 줄로 싣는다.
+"""`A29a`, 결정적 집계를 근거에 한 줄로 싣는다.
 
-🔴 아래 일곱 값은 R0(2026-08-16)이 `artifacts/*_records.jsonl` 의 `amount` 로 **직접
-검산한 것**이다. 하나라도 어긋나면 구현이 틀렸거나 코퍼스가 움직인 것이다 — 둘 다
+아래 일곱 값은 R0(2026-08-16)이 `artifacts/*_records.jsonl` 의 `amount` 로 **직접
+검산한 것**이다. 하나라도 어긋나면 구현이 틀렸거나 코퍼스가 움직인 것이다. 둘 다
 그냥 지나가면 안 되는 사건이라 여기서 멈춘다.
 
-🔴 일곱 건 다 **필터가 붙는다.** 필터를 안 걸면 `Q-115` 는 5,230,496,802,000(3배) ·
+일곱 건 다 **필터가 붙는다.** 필터를 안 걸면 `Q-115` 는 5,230,496,802,000(3배) ·
 `Q-107` 은 7,264,374,092,359 가 나온다. 틀린 집계를 확신 있게 박아 주는 것은 지금보다
-나쁘다 — 모델은 그 줄을 의심하지 않는다.
+나쁘다. 모델은 그 줄을 의심하지 않는다.
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def _recs(*rcepts):
     return [tools._record_of("exchange_" + r) for r in rcepts]
 
 
-# (문항, 질문, 근거 접수번호, 골든) — 근거는 A28/A33 이 실제로 실은 것이다.
+# (문항, 질문, 근거 접수번호, 골든), 근거는 A28/A33 이 실제로 실은 것이다.
 CASES = [
     ("Q-018", "HD현대중공업이 2023년 7월에 공시한 FPU 1기 공급계약은 정정공시로 "
               "계약금액이 얼마나 증가했는가?",
@@ -60,7 +60,7 @@ def test_the_line_carries_the_golden_value(qid, question, rcepts, expected):
     assert f"{expected:,}" in line, f"{qid}: {line!r}"
 
 
-#: 🔴 **`Q-107` 은 겨냥에서 뺐다 — 기각도 결과다.**
+#: **`Q-107` 은 겨냥에서 뺐다. 기각도 결과다.**
 #:
 #: R0 검산은 *"한수원 상대 3건만 더하면 골든"* 이었고 그것은 지금도 맞다. 그런데 살아
 #: 있는 경로가 보는 것은 골든 3건이 아니라 **근거 전량**이고, 거기에는 같은 발주처의
@@ -68,7 +68,7 @@ def test_the_line_carries_the_golden_value(qid, question, rcepts, expected):
 #: (골든 6,890,924,666,293). 저장 답변 전수 검사(LLM 0회 · 0원)가 이것을 잡았다.
 #:
 #: 질문이 좁히는 축은 **사업**(체코 두코바니)인데 우리에겐 그 축이 없다. 자유문 제목
-#: 매칭을 넣는 안은 세우지 않았다 — 못박히지 않은 집계를 확신 있게 박아 주는 것이
+#: 매칭을 넣는 안은 세우지 않았다. 못박히지 않은 집계를 확신 있게 박아 주는 것이
 #: 지금보다 나쁘다는 것이 이 모듈의 계약이다. **못박을 수 없으면 침묵한다.**
 Q107 = ("체코 두코바니 5·6호기 원자력발전소 사업과 관련해 한국수력원자력을 "
         "계약상대로 하여 공시된 단일판매·공급계약의 계약금액 합계는 얼마인가?",
@@ -76,28 +76,28 @@ Q107 = ("체코 두코바니 5·6호기 원자력발전소 사업과 관련해 �
 
 
 def test_a_counterparty_filter_alone_is_not_a_pin():
-    """🔴 허브는 계약을 여럿 가진다. 계약상대만으로는 집합이 안 정해진다."""
+    """허브는 계약을 여럿 가진다. 계약상대만으로는 집합이 안 정해진다."""
     question, rcepts = Q107
     assert aggregate.line(_recs(*rcepts), question, router.route(question)) == ""
     assert aggregate._total(_recs(*rcepts), question, router.route(question)) is None
 
 
 def test_the_filter_is_named_in_the_line():
-    """🔴 무엇을 걸러 더한 값인지 밝히지 않으면 모델이 전량 합으로 읽는다."""
+    """무엇을 걸러 더한 값인지 밝히지 않으면 모델이 전량 합으로 읽는다."""
     _, question, rcepts, _ = CASES[4]                    # Q-115
     line = aggregate.line(_recs(*rcepts), question, router.route(question))
     assert "2025년 공시분" in line
 
 
 def test_the_unfiltered_sum_is_never_emitted():
-    """🔴 필터가 빠지면 나오는 값. 이 수가 줄에 있으면 필터가 안 걸린 것이다."""
+    """필터가 빠지면 나오는 값. 이 수가 줄에 있으면 필터가 안 걸린 것이다."""
     _, question, rcepts, _ = CASES[4]
     assert f"{5_230_496_802_000:,}" not in aggregate.line(
         _recs(*rcepts), question, router.route(question))
 
 
 def test_a_decrease_is_reported_as_a_magnitude():
-    """🔴 `Q-061`(지금 정답)의 345,173,200,000 을 **−345,173,200,000** 으로 갈아
+    """`Q-061`(지금 정답)의 345,173,200,000 을 **−345,173,200,000** 으로 갈아
     끼울 뻔했다. 질문이 *"얼마나 감소했는가"* 이므로 답은 크기이지 부호가 아니다."""
     recs = _recs("20241223800052", "20230703800173")
     total = aggregate._total(recs, "계약금액이 얼마나 감소했는가?", None)
@@ -122,7 +122,7 @@ def test_a_sum_of_one_record_is_not_a_sum():
 
 
 def test_chain_members_are_not_double_counted_in_a_sum():
-    """🔴 같은 체인의 원공시와 정정본을 함께 더하면 조용히 두 배가 된다.
+    """같은 체인의 원공시와 정정본을 함께 더하면 조용히 두 배가 된다.
 
     묶고 나면 2건이므로 *"두 건"* 으로 못박아야 발화한다 (아래 침묵 테스트 참조).
     """
@@ -133,7 +133,7 @@ def test_chain_members_are_not_double_counted_in_a_sum():
 
 
 def test_a_sum_is_silent_when_the_target_set_is_not_pinned():
-    """🔴 실측이 요구한 게이트다. 근거 전량을 더했더니 `Q-109` 에서 모델의 오기
+    """실측이 요구한 게이트다. 근거 전량을 더했더니 `Q-109` 에서 모델의 오기
     2,807,598,070,800 을 **4,349,583,514,756** 으로 갈아 끼웠다 (골든 …599,069,800).
     질문은 *"2023년 12월 11일 두 개 상장사"* 인데 근거에 다른 계약이 섞여 있었다.
 
@@ -149,7 +149,7 @@ def test_a_stated_count_that_does_not_match_keeps_us_silent():
 
 
 def test_a_place_name_is_not_read_as_a_count():
-    """🔴 첫 판의 `[두세네다섯여섯]` 은 문자 클래스라 *"체코 두코바니"* 의 `두` 가
+    """첫 판의 `[두세네다섯여섯]` 은 문자 클래스라 *"체코 두코바니"* 의 `두` 가
     걸려 `Q-107` 이 '2건' 으로 읽혔다 (실측)."""
     assert aggregate._stated_count("체코 두코바니 5·6호기 계약금액 합계는?") is None
     assert aggregate._stated_count("계약 해지 3건의 합계") == 3
@@ -162,7 +162,7 @@ def test_the_quotient_stays_silent_when_the_question_has_no_unit_count():
 
 
 def test_the_operation_is_read_before_the_sum():
-    """🔴 `얼마나 증가` 가 `합계` 로 새면 `Q-018` 이 두 금액의 합을 받는다."""
+    """`얼마나 증가` 가 `합계` 로 새면 `Q-018` 이 두 금액의 합을 받는다."""
     assert aggregate._op("정정공시로 계약금액이 얼마나 증가했는가?") == "차"
     assert aggregate._op("두 공시의 계약금액 합계는 얼마인가?") == "합"
     assert aggregate._op("1척당 평균 투자금액은 얼마인가?") == "몫"
@@ -172,7 +172,7 @@ def test_the_operation_is_read_before_the_sum():
 @pytest.mark.parametrize("qid,question,rcepts,expected", CASES,
                          ids=[c[0] for c in CASES])
 def test_line_and_total_never_diverge(qid, question, rcepts, expected):
-    """🔴 규칙이 두 곳에 있으면 갈린다 — 이 저장소가 열 번 겪은 실패 양식이다.
+    """규칙이 두 곳에 있으면 갈린다. 이 저장소가 열 번 겪은 실패 양식이다.
     `line()` 이 싣는 값과 `substitute()` 가 쓰는 값은 반드시 같아야 한다."""
     recs, route = _recs(*rcepts), router.route(question)
     total = aggregate._total(recs, question, route)
@@ -184,7 +184,7 @@ def test_line_and_total_never_diverge(qid, question, rcepts, expected):
 
 
 def test_substitute_replaces_the_single_wrong_total():
-    """`Q-109` 실측 — 모델이 2,807,598,070,800 이라 썼다 (골든 …599,069,800)."""
+    """`Q-109` 실측, 모델이 2,807,598,070,800 이라 썼다 (골든 …599,069,800)."""
     _, question, rcepts, expected = CASES[2]
     recs, route = _recs(*rcepts), router.route(question)
     answer = ("현대건설의 계약금액: 1,715,754,987,100원\n"
@@ -197,10 +197,10 @@ def test_substitute_replaces_the_single_wrong_total():
 
 
 def test_substitution_never_rewrites_our_own_footnote():
-    """🔴 **각주는 검사기가 무엇을 봤는가의 기록이다.** 뒤에서 갈아 끼우면 창작이 된다.
+    """**각주는 검사기가 무엇을 봤는가의 기록이다.** 뒤에서 갈아 끼우면 창작이 된다.
 
     실측(2026-08-16): 치환이 `answer.replace()` 를 통째로 걸어서 각주가
-    *"답변 526,570,000,000원 vs 재계산 …"* 이라 말했다 — 검사기는 그 수를 본 적이 없다.
+    *"답변 526,570,000,000원 vs 재계산 …"* 이라 말했다. 검사기는 그 수를 본 적이 없다.
     """
     _, question, rcepts, expected = CASES[2]
     recs, route = _recs(*rcepts), router.route(question)
@@ -210,7 +210,7 @@ def test_substitution_never_rewrites_our_own_footnote():
               "missing_corp: 비교 질의인데 근거에 한국수력원자력 이(가) 없다)")
     fixed, why = aggregate.substitute(answer, recs, question, route)
     assert why and f"{expected:,}" in fixed
-    # 🔴 치환한 값을 말하던 항목은 사라지고, 무관한 항목은 남는다.
+    # 치환한 값을 말하던 항목은 사라지고, 무관한 항목은 남는다.
     assert "amount: 답변" not in fixed, "고친 결함이 미해결로 남았다"
     assert "missing_corp" in fixed, "무관한 결함까지 지웠다"
     assert "vs 재계산" not in fixed.split("missing_corp")[0]
@@ -235,7 +235,7 @@ def test_substitute_is_silent_when_the_answer_is_already_right():
 
 
 def test_substitute_is_silent_when_two_candidates_compete():
-    """🔴 어느 것이 합계인지 모르는 채로 고르면 멀쩡한 수를 망가뜨린다."""
+    """어느 것이 합계인지 모르는 채로 고르면 멀쩡한 수를 망가뜨린다."""
     _, question, rcepts, _ = CASES[2]
     recs, route = _recs(*rcepts), router.route(question)
     answer = "합계는 2,807,598,070,800원 또는 2,807,500,000,000원입니다."
@@ -251,7 +251,7 @@ def test_substitute_never_touches_a_number_of_another_magnitude():
 
 
 def test_the_gate_stays_narrow_across_the_whole_evalset():
-    """🔴 겨냥은 7건이다. 발화가 넓어지면 근거가 안 바뀌던 문항까지 흔들린다."""
+    """겨냥은 7건이다. 발화가 넓어지면 근거가 안 바뀌던 문항까지 흔들린다."""
     fired = []
     for name in ("questions.jsonl", "valuechain.jsonl", "regression.jsonl",
                  "safety.jsonl"):

@@ -20,12 +20,12 @@ def _chains_once(doc_group: str) -> dict[str, list[str]]:
 def build_chains(doc_group: str = "exchange") -> dict[str, list[str]]:
     """이 파일 안에서만 쓰는 `corrections.build_chains` 의 그룹별 1회 빌드 래퍼.
 
-    🔴 **단언은 한 글자도 바뀌지 않는다.** 이 파일은 같은 그룹의 체인을 18번 다시
-    지었고(exchange 만 열둘), 한 번 짓는 데 코퍼스 전량(`filter_docs`)을 훑는다 —
+    **단언은 한 글자도 바뀌지 않는다.** 이 파일은 같은 그룹의 체인을 18번 다시
+    지었고(exchange 만 열둘), 한 번 짓는 데 코퍼스 전량(`filter_docs`)을 훑는다.
     전량 24.9초 중 **3.9초**가 그 재계산이었다. 결과는 세 그룹 다 결정적이다
     (`build_chains` 는 인자 하나만 보고 디스크 산출물을 읽는 순수 함수).
 
-    🔴 **깊은 사본을 돌려준다.** 원본을 그대로 주면 한 테스트가 체인 dict 를 고쳤을 때
+    **깊은 사본을 돌려준다.** 원본을 그대로 주면 한 테스트가 체인 dict 를 고쳤을 때
     뒤따르는 테스트가 오염된 값을 보고 순서 의존이 생긴다. 지금은 고치는 테스트가
     없지만, 이 래퍼가 그 취약점을 만들지 않게 사본으로 끊는다.
     """
@@ -59,12 +59,12 @@ def test_attach_related_sets_is_latest():
 
 
 def test_parse_submit_clue_reads_exchange_label():
-    """거래소 서식 — 라벨 칸과 값 칸이 나뉜다."""
+    """거래소 서식, 라벨 칸과 값 칸이 나뉜다."""
     assert parse_submit_clue("2. 정정관련 공시서류제출일", "2023-03-28") == "20230328"
 
 
 def test_parse_submit_clue_reads_major_label_in_one_paragraph():
-    """주요사항·지분 서식 — 라벨과 값이 한 <P> 단락 안에 같이 있다.
+    """주요사항·지분 서식, 라벨과 값이 한 <P> 단락 안에 같이 있다.
 
     EDA 는 값이 <TU> 셀에 있다고 봤지만 실제로는 표 밖 단락이다.
     """
@@ -83,7 +83,7 @@ def test_parse_submit_clue_ignores_unrelated_dates():
     assert parse_submit_clue("정정일자", "2024-04-26") is None
 
 
-# --- 그룹별 연결률 — major/holding 은 사실상 0 이었다 ------------------------
+# --- 그룹별 연결률, major/holding 은 사실상 0 이었다 ------------------------
 
 
 def test_major_corrections_now_link():
@@ -104,10 +104,10 @@ def test_exchange_link_rate_does_not_regress():
     386 -> 385 로 1건 준 것은 회귀가 아니라 **오연결 제거**다. 한화에어로스페이스
     `[기재정정]단일판매ㆍ공급계약체결`(20231018800203)이 `※관련공시` 단서를 타고
     `투자판단관련주요경영사항`(20230620800002)에 붙어 있었다. 서식이 달라 정정
-    대상일 수 없다 — 둘의 관계는 정정이 아니라 REFERS_TO 다.
+    대상일 수 없다. 둘의 관계는 정정이 아니라 REFERS_TO 다.
 
     385 -> 381 도 회귀가 아니다. `_drop_cycles` 가 상호 참조로 생긴 순환 2쌍을 끊었다.
-    빠진 4건은 **연결이 없어진 문서가 아니라 두 번 세어졌던 간선**이다 — 사슬 하나가
+    빠진 4건은 **연결이 없어진 문서가 아니라 두 번 세어졌던 간선**이다. 사슬 하나가
     뿌리 둘로 갈려 `(A->B)` 와 `(B->A)` 를 동시에 세고 있었고, 그 대가로 그 사슬에
     `is_latest` 가 **한 건도 없었다**(`test_every_chain_group_has_exactly_one_latest`).
     """
@@ -191,7 +191,7 @@ def test_chain_members_see_each_other_from_any_position():
     assert set(out["R"]["related"]) == {"C1", "C2"}
 
 
-# --- 상호 참조 순환 — 최신본이 **한 건도 없는** 체인이 실재했다 ----------------
+# --- 상호 참조 순환, 최신본이 **한 건도 없는** 체인이 실재했다 ----------------
 
 
 def test_drop_cycles_removes_a_mutual_pair_entirely():
@@ -208,7 +208,7 @@ def test_drop_cycles_removes_a_mutual_pair_entirely():
 
 
 def test_drop_cycles_keeps_edges_that_hang_off_a_cycle():
-    """순환 밖 간선은 살아야 한다 — 현대로템 20240712800050·053 이 그 자리다."""
+    """순환 밖 간선은 살아야 한다. 현대로템 20240712800050·053 이 그 자리다."""
     parent = {"A": "B", "B": "A", "C": "A", "D": "C"}
     _drop_cycles(parent)
     assert parent == {"C": "A", "D": "C"}
@@ -221,7 +221,7 @@ def test_drop_cycles_leaves_an_acyclic_forest_untouched():
 
 
 def test_every_chain_group_has_exactly_one_latest():
-    """🔴 실측으로 깨져 있던 불변이다. exchange 2쌍(4건)이 최신본 0건이었다.
+    """실측으로 깨져 있던 불변이다. exchange 2쌍(4건)이 최신본 0건이었다.
 
     `superseded` 가 두 사슬의 합집합이 되어 A·B 가 둘 다 False 로 떨어졌고, 그 두 건은
     `query_events(is_latest=True)` 와 BM25 `is_latest` 필터에서 통째로 사라졌다
@@ -255,7 +255,7 @@ def test_mutual_same_day_corrections_are_not_linked():
 
 
 def test_chain_fragmentation_is_repaired():
-    """현대로템 — 순환 때문에 4본 사슬이 2본으로 덮여 있었다.
+    """현대로템: 순환 때문에 4본 사슬이 2본으로 덮여 있었다.
 
     `member_chain` 이 dict 순회 순서에 딸려 덮이므로 재빌드마다 달라질 수 있었다.
     """
@@ -293,7 +293,7 @@ def test_termination_links_to_the_original_contract():
 
 
 def test_termination_link_carries_the_target_chain():
-    """원계약이 이미 대체본인 경우가 실재한다 — 한 건만 주면 정정 전 금액을 답한다."""
+    """원계약이 이미 대체본인 경우가 실재한다. 한 건만 주면 정정 전 금액을 답한다."""
     records = _exchange_records()
     if not records:
         import pytest
@@ -308,7 +308,7 @@ def test_termination_links_are_forward_only_and_additive():
     """`related`·`is_latest` 를 건드리지 않는다. 역방향은 `tools._followup_index` 몫이다.
 
     양방향으로 넣으면 `get_history(원계약)` 의 `latest` 가 해지 공시로 옮겨 가고
-    `followups` 에서 같은 건이 빠진다 — 지금 도는 경로의 동작이 바뀐다.
+    `followups` 에서 같은 건이 빠진다. 지금 도는 경로의 동작이 바뀐다.
     """
     records = _exchange_records()
     if not records:
@@ -341,7 +341,7 @@ def test_non_termination_documents_get_an_empty_terminates():
 
 
 def test_termination_link_requires_the_form_to_agree():
-    """서식이 안 맞으면 붙이지 않는다 — 조회공시 요구가 원계약으로 둔갑한다."""
+    """서식이 안 맞으면 붙이지 않는다. 조회공시 요구가 원계약으로 둔갑한다."""
     records = [
         {"rcept_no": "T", "corp_name": "가나", "rcept_dt": "20240301",
          "doc_subtype": "단일판매공급계약해지", "related": [],

@@ -36,7 +36,7 @@ def test_stopwords_cover_common_forms():
 # --- F-3 질의 재구성 ----------------------------------------------------------
 
 def test_core_terms_drops_measured_common_words_and_numbers():
-    """DF 0.30 이상 어휘와 숫자는 문서를 가르지 못한다 — 필터를 풀 때 노이즈만 된다."""
+    """DF 0.30 이상 어휘와 숫자는 문서를 가르지 못한다. 필터를 풀 때 노이즈만 된다."""
     core = core_terms(extract_terms(
         "HD현대일렉트릭이 2023년 1월에 체결한 변압기 공급계약의 계약금액은 얼마인가?"))
     assert "변압기" in core and "현대일렉트릭" in core
@@ -45,7 +45,7 @@ def test_core_terms_drops_measured_common_words_and_numbers():
 
 
 def test_core_terms_keeps_discriminative_stem():
-    """'해지된' 은 어미만 떨어내고 '해지' 로 살린다 — 1,469건 중 20건뿐인 변별 어휘다."""
+    """'해지된' 은 어미만 떨어내고 '해지' 로 살린다. 1,469건 중 20건뿐인 변별 어휘다."""
     core = core_terms(extract_terms("2023년에 계약이 해지된 사례가 존재하는가?"))
     assert "해지" in core
 
@@ -75,7 +75,7 @@ def test_plan_hops_broadens_monotonically():
 
 
 def test_plan_hops_narrows_query_as_filter_widens():
-    """필터를 넓히는 hop 에서는 질의를 핵심어로 좁힌다 — 안 그러면 무관 문서가 올라온다."""
+    """필터를 넓히는 hop 에서는 질의를 핵심어로 좁힌다. 안 그러면 무관 문서가 올라온다."""
     plans = plan_hops("HD현대일렉트릭이 2023년 1월에 체결한 변압기 공급계약의 계약금액은?",
                       {"ym": "202301"})
     assert "2023" in plans[0].query
@@ -107,7 +107,7 @@ def test_time_points_falls_back_to_years_when_months_are_absent():
 
 
 def test_time_points_stays_empty_for_a_single_point():
-    """축이 하나면 분해하지 않는다 — 걸면 지금 맞히는 단일 시점 질의가 깨진다."""
+    """축이 하나면 분해하지 않는다. 걸면 지금 맞히는 단일 시점 질의가 깨진다."""
     assert time_points("2023년 1월에 체결한 계약", [2023]) == []
     assert time_points("2023년에 체결한 계약", [2023]) == []
     assert time_points("계약금액은?", []) == []
@@ -130,7 +130,7 @@ def test_plan_hops_splits_only_the_first_hop():
 
 
 def test_plan_hops_without_split_is_byte_identical():
-    """단일 시점 질의는 종전 계획 그대로여야 한다 — 회귀 방지의 전제다."""
+    """단일 시점 질의는 종전 계획 그대로여야 한다. 회귀 방지의 전제다."""
     question = "HD현대일렉트릭이 2023년 1월에 체결한 변압기 공급계약의 계약금액은?"
     assert plan_hops(question, {"ym": "202301"}) == plan_hops(
         question, {"ym": "202301"}, periods=[{"ym": "202301"}])
@@ -184,7 +184,7 @@ def test_section_hop_zero_carries_every_path_candidate():
 
 
 def test_gisu_without_a_report_type_means_the_annual_report():
-    """기수는 사업연도 단위 표현이다. 실측 — 종류 표기 없는 기수 문항의 골든 5/5 가 사업보고서."""
+    """기수는 사업연도 단위 표현이다. 실측, 종류 표기 없는 기수 문항의 골든 5/5 가 사업보고서."""
     assert report_hints("제57기 연결 매출액은?")["doc_subtype"] == "annual"
     assert report_hints("제50기 분기보고서의 매출액은?")["doc_subtype"] == "quarter"
     assert "doc_subtype" not in report_hints("2025년 매출액은?")

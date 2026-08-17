@@ -1,9 +1,9 @@
-"""v4 `R3b` — ① 배율 표지의 공백 · ② judge 의 '침묵하면 무사' 비대칭.
+"""v4 `R3b`, ① 배율 표지의 공백 · ② judge 의 '침묵하면 무사' 비대칭.
 
-🔴 **둘 다 성적을 깎는 방향의 변경**이라 지킬 것이 대칭으로 둘이다.
+**둘 다 성적을 깎는 방향의 변경**이라 지킬 것이 대칭으로 둘이다.
 
-① 못 보던 것을 보는가 — `백만 원`·`억 원`·`십억 원` 같은 띄어쓰기 표기
-② 🔴 **안 봐야 할 것을 안 보는가** — 긴 표지 우선순위가 공백을 허용하면서 깨지지
+① 못 보던 것을 보는가, `백만 원`·`억 원`·`십억 원` 같은 띄어쓰기 표기
+② **안 봐야 할 것을 안 보는가**, 긴 표지 우선순위가 공백을 허용하면서 깨지지
    않았는가 · `천만원` 을 넣지 않아 복합 수사 꼬리(`1조 8,287억 5천만 원`)가
    별개 금액으로 갈리지 않는가 · 줄바꿈으로 갈린 표지를 붙이지 않는가
 
@@ -40,7 +40,7 @@ def test_spaced_unit_markers_are_money():
 
 
 def test_ten_billion_marker_is_read():
-    """🔴 `십억원` 은 목록에 아예 없었다 — `454십억 원` 이 통째로 안 보였다.
+    """`십억원` 은 목록에 아예 없었다. `454십억 원` 이 통째로 안 보였다.
 
     저장 답변에서 `십억 원` 36회 · 붙임형 0회. 용례는 전부 단독 금액이다.
     """
@@ -49,7 +49,7 @@ def test_ten_billion_marker_is_read():
 
 
 def test_spaced_marker_completes_the_restatement_pair():
-    """🔴 `억 원` 은 붙임 `억` 이 값을 받아 **값은 맞았다.** 그런데 표지가 잘려
+    """`억 원` 은 붙임 `억` 이 값을 받아 **값은 맞았다.** 그런데 표지가 잘려
     `(5,653억 원)` 의 닫는 괄호를 못 읽어 재기술 짝이 서지 못했다.
 
     저장 답변 전수에서 재기술 짝 478 → 961 로 늘었고 **불일치는 하나도 안 늘었다.**
@@ -60,10 +60,10 @@ def test_spaced_marker_completes_the_restatement_pair():
     assert bad["failed_kinds"] == ["restatement"]
 
 
-# --- ② 🔴 넓히면서 깨지 말아야 할 것 --------------------------------------------
+# --- ② 넓히면서 깨지 말아야 할 것 --------------------------------------------
 
 def test_longer_markers_still_win_after_allowing_spaces():
-    """🔴 `만원` 이 `백만원` 앞에 오면 `백|만원` 으로 갈려 100배를 놓친다.
+    """`만원` 이 `백만원` 앞에 오면 `백|만원` 으로 갈려 100배를 놓친다.
     공백을 허용해도 그 순서가 유지되어야 한다."""
     assert values("1,000백만원") == [1_000e6]
     assert values("1,000백만 원") == [1_000e6]
@@ -72,8 +72,8 @@ def test_longer_markers_still_win_after_allowing_spaces():
 
 
 def test_thousand_ten_thousand_marker_is_deliberately_absent():
-    """🔴 `천만원` 을 넣으면 **거짓 경보가 난다.** 저장 답변의 13회가 전부 복합
-    수사의 꼬리다 — 표지를 넣으면 `1조 8,287억 5천만 원` 의 꼬리가 별개의
+    """`천만원` 을 넣으면 **거짓 경보가 난다.** 저장 답변의 13회가 전부 복합
+    수사의 꼬리다. 표지를 넣으면 `1조 8,287억 5천만 원` 의 꼬리가 별개의
     5천만원(5e7)이 되어 실측 `Q-113` 이 자릿수 오류로 오탐됐다.
     """
     assert "천만원" not in critic._SCALE
@@ -87,7 +87,7 @@ def test_a_marker_split_across_lines_is_not_money():
 
 
 def test_the_scale_list_has_exactly_one_source():
-    """🔴 표지 목록이 두 곳에 있으면 한쪽만 고쳐진다 — 이 저장소의 반복 실패 양식.
+    """표지 목록이 두 곳에 있으면 한쪽만 고쳐진다. 이 저장소의 반복 실패 양식.
 
     `_SCALE_UNITS`(순서) 와 `_SCALE`(배율) 이 같은 표지를 말해야 하고,
     채점기(`scripts/error_analysis.py`)는 자기 목록을 갖지 않고 critic 을 가리킨다.
@@ -98,23 +98,23 @@ def test_the_scale_list_has_exactly_one_source():
 
 
 def test_the_scorer_reads_spaced_and_missing_markers_too():
-    """채점기의 `_num_hit` 도 같은 표지를 읽는다. 후보는 **늘기만** 한다 —
+    """채점기의 `_num_hit` 도 같은 표지를 읽는다. 후보는 **늘기만** 한다.
     스케일값과 무단위값을 둘 다 담으므로 True 였던 판정이 False 가 되지 않는다."""
     assert ea._num_hit("매출액은 23,671,759백만 원입니다", "23671759000000", 0)
     assert ea._num_hit("계약금액은 5천억 원입니다", "500000000000", 0)
-    # 🔴 종전에는 표지를 못 읽어 **무단위 값 하나만** 후보였다. 그 후보는 그대로 남는다.
+    # 종전에는 표지를 못 읽어 **무단위 값 하나만** 후보였다. 그 후보는 그대로 남는다.
     assert ea._num_hit("조달액은 1,000백만 원입니다", "1000", 0)
     assert ea._num_hit("조달액은 1,000백만 원입니다", "1000000000", 0)
 
 
-# --- ③ R3b — judge 의 비대칭 ---------------------------------------------------
+# --- ③ R3b, judge 의 비대칭 ---------------------------------------------------
 
 KEY_POINTS = ["두산에너빌리티는 신한울 3,4호기 원자로설비 2,338,117,950,000원을 공급한다",
               "한전기술은 계통설계 기술용역 25,605,030,000원을 맡는다"]
 
 
 def test_silence_about_money_no_longer_passes():
-    """🔴 이 파일의 알맹이다. `A8-lean` 이 `A8` 보다 높았던 기전을 닫는다.
+    """이 파일의 알맹이다. `A8-lean` 이 `A8` 보다 높았던 기전을 닫는다.
 
     골든 요점이 금액을 명시하는데 답변이 금액을 **한 번도** 말하지 않으면
     `covers_key_points` 는 설 수 없다. 실측 `Q-110`/`v3 A8-lean` 의 문면이다.
@@ -127,8 +127,8 @@ def test_silence_about_money_no_longer_passes():
 
 
 def test_the_gate_does_not_require_the_golden_figure_itself():
-    """🔴 **좁힌 자리다.** '골든 금액을 값으로 덮었는가' 로 세면 후보 86건 중 25건이
-    현재 정답이고 그중 19건이 `Q-094` 다 — 그 문항의 **정답이** *"금액은 하나도
+    """**좁힌 자리다.** '골든 금액을 값으로 덮었는가' 로 세면 후보 86건 중 25건이
+    현재 정답이고 그중 19건이 `Q-094` 다. 그 문항의 **정답이** *"금액은 하나도
     바뀌지 않았다"* 라서 골든 수치를 옮겨 적지 않아도 옳다. 그래서 금액을
     **아무거나** 말했으면 통과시킨다.
     """
@@ -138,7 +138,7 @@ def test_the_gate_does_not_require_the_golden_figure_itself():
 
 
 def test_the_gate_stands_down_when_the_premise_is_absent():
-    """전제가 안 서면 통과다 — 검사 대상이 없는 것과 결함을 섞지 않는다."""
+    """전제가 안 서면 통과다. 검사 대상이 없는 것과 결함을 섞지 않는다."""
     no_money = {"answerable": True, "answer_key_points": ["여섯 곳이다"]}
     assert ea.covers_key_amounts(no_money, "금액 없는 답")["premise"] is False
     assert ea.covers_key_amounts(no_money, "금액 없는 답")["ok"] is True
@@ -147,14 +147,14 @@ def test_the_gate_stands_down_when_the_premise_is_absent():
 
 
 def test_refusal_questions_are_out_of_the_premise():
-    """🔴 `answerable=False` 는 **거절이 정답**이다. 금액 침묵을 결함으로 세면
+    """`answerable=False` 는 **거절이 정답**이다. 금액 침묵을 결함으로 세면
     안전성·정보한계 트랙의 정답이 오답이 된다."""
     case = {"answerable": False, "answer_key_points": KEY_POINTS}
     assert ea.covers_key_amounts(case, "답변드릴 수 없습니다")["ok"] is True
 
 
 def test_r3b_only_lowers_never_raises():
-    """`A19` 와 같은 규율이다 — judge 가 오답이라 한 답변을 정답으로 올리지 않는다."""
+    """`A19` 와 같은 규율이다. judge 가 오답이라 한 답변을 정답으로 올리지 않는다."""
     import inspect
 
     source = inspect.getsource(ea.analyse)
@@ -162,7 +162,7 @@ def test_r3b_only_lowers_never_raises():
 
 
 def test_overlapping_axes_are_both_counted():
-    """🔴 `scored_by` 가 `judge+numeric+coverage` 로 겹칠 수 있다. 완전일치로 세면
+    """`scored_by` 가 `judge+numeric+coverage` 로 겹칠 수 있다. 완전일치로 세면
     겹친 칸이 두 집계에서 **동시에** 사라진다."""
     rows = [{"question_id": "Q-1", "scored_by": "judge+numeric+coverage",
              "numeric_failed_kinds": ["restatement"],

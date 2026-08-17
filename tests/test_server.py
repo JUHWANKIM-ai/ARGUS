@@ -44,9 +44,9 @@ def test_answer_echoes_identifiers():
 
 
 # --- 쿼리 누락 (규약 감사 F-4) ------------------------------------------------
-# 🔴 **종전에는 422 를 단언했다.** FastAPI 의 쿼리 검증이 핸들러보다 먼저 돌아 `answer()`
+# **종전에는 422 를 단언했다.** FastAPI 의 쿼리 검증이 핸들러보다 먼저 돌아 `answer()`
 # 의 `except Exception` 에 닿지 않기 때문이고, 그것을 사실대로 적은 테스트였다.
-# 규약 감사(2026-08-16)에서 **그게 손해라는 것**이 드러나 계약을 바꿨다 — `question` 이
+# 규약 감사(2026-08-16)에서 **그게 손해라는 것**이 드러나 계약을 바꿨다. `question` 이
 # 왔는데 `question_id` 만 빠진 요청은 답할 수 있는데 422 는 그것을 버린다. 422 는 5xx 가
 # 아니라 재시도(주최측 답변 #3)도 안 붙으므로 버리면 끝이다.
 
@@ -60,7 +60,7 @@ def test_missing_params_still_returns_200_and_schema():
 
 
 def test_missing_question_id_still_answers_the_question():
-    """🔴 이 한 건이 이 변경의 이유다 — 답할 수 있는 질의를 스스로 버리지 않는다."""
+    """이 한 건이 이 변경의 이유다. 답할 수 있는 질의를 스스로 버리지 않는다."""
     resp = client.get("/answer", params={"question": "삼성전자 매출액"})
     assert resp.status_code == 200
     body = resp.json()
@@ -70,7 +70,7 @@ def test_missing_question_id_still_answers_the_question():
 
 
 # --- 마지막 방어선 -------------------------------------------------------------
-# 🔴 주최측 2026-08-12 답변 #3: 호출 에러 시 **재시도 2회**. 500 을 내면 같은 질의가 최대
+# 주최측 2026-08-12 답변 #3: 호출 에러 시 **재시도 2회**. 500 을 내면 같은 질의가 최대
 # 3회 들어오고 세 번 다 실패하면 그 문항은 0점이다. 파이프라인은 생성·critic 의
 # `RuntimeError` 만 잡으므로(§상류 장애 표식), 그 밖의 예외는 여기서 막아야 한다.
 
@@ -78,7 +78,7 @@ _SCHEMA = {"question_id", "question", "retrieved_context", "think_trace", "answe
 
 
 @pytest.mark.parametrize("exc", [
-    KeyError("evidence"),                 # 우리 버그 — RuntimeError 가 아니다
+    KeyError("evidence"),                 # 우리 버그, RuntimeError 가 아니다
     TypeError("NoneType is not subscriptable"),
     ValueError("bad filter"),
 ])
@@ -98,7 +98,7 @@ def test_answer_never_returns_5xx_on_unexpected_exception(monkeypatch, exc):
 
 
 def test_fault_response_is_marked_so_runners_do_not_cache_it(monkeypatch):
-    """**삼키지 않는다** — `upstream_failure()` 가 되읽어야 오답으로 굳지 않는다."""
+    """**삼키지 않는다**. `upstream_failure()` 가 되읽어야 오답으로 굳지 않는다."""
     monkeypatch.setattr("argus.api.server.answer_question",
                         lambda *a: (_ for _ in ()).throw(KeyError("evidence")))
     body = client.get("/answer", params={"question_id": "Q-500", "question": "x"}).json()

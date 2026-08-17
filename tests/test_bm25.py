@@ -42,7 +42,7 @@ def test_search_is_unchanged_when_no_dense_sidecar_is_attached():
     """A2 배선이 **기본 경로를 건드리지 않았다**는 회귀 가드.
 
     `search()` 안에 융합 분기가 생겼다. dense 가 없거나 arm 이 꺼져 있으면 결과가
-    종전과 같아야 한다 — 여기가 흔들리면 A0~A6 곡선의 3,708원이 통째로 무효가 된다.
+    종전과 같아야 한다. 여기가 흔들리면 A0~A6 곡선의 3,708원이 통째로 무효가 된다.
     """
     index = Bm25Index.build(DOCS)
     assert index.dense is None                       # build() 는 사이드카를 안 붙인다

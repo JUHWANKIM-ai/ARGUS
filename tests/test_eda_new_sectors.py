@@ -1,8 +1,8 @@
-"""Phase A 부분 재실행 — 신규 6섹터 25개사 프로파일. 정본 `docs/pipeline/01-eda.md`.
+"""Phase A 부분 재실행, 신규 6섹터 25개사 프로파일. 정본 `docs/pipeline/01-eda.md`.
 
 `artifacts/` 는 gitignore 대상이라 이 산출물은 git 에 없다. `ensure_profile` fixture 가
 `exchange_records.jsonl` 등 원본 records 로 값싸게 재생성하거나, 그것마저 없으면
-사유를 밝히고 skip 한다 — `tests/test_counterparty.py::ensure_profile` 과 같은 패턴.
+사유를 밝히고 skip 한다. `tests/test_counterparty.py::ensure_profile` 과 같은 패턴.
 """
 import json
 from pathlib import Path

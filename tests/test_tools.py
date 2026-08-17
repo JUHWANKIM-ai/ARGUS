@@ -14,7 +14,7 @@ _GRAPH_PATH = _ROOT / "artifacts/counterparty_graph.json"
 
 @pytest.fixture(autouse=True)
 def ensure_counterparty_graph():
-    """산출물이 없으면 값싸게 재생성한다 — tests/test_counterparty.py::ensure_graph 와 같은 패턴.
+    """산출물이 없으면 값싸게 재생성한다. tests/test_counterparty.py::ensure_graph 와 같은 패턴.
 
     `artifacts/` 는 gitignore 대상이라 신규 클론·격리 워크트리에서는 파일이 없을 수 있다.
     """
@@ -43,7 +43,7 @@ def test_specs_cover_eight_retrieval_tools():
 
 
 def test_specs_expose_seven_calc_tools():
-    """policy §4 — 계산은 Tool 이 한다. 노출되지 않은 함수는 LLM 이 대신 계산한다."""
+    """policy §4, 계산은 Tool 이 한다. 노출되지 않은 함수는 LLM 이 대신 계산한다."""
     names = {s["function"]["name"] for s in TOOL_SPECS}
     assert CALC_TOOLS == {
         "calc_pct_change", "calc_share", "calc_total", "calc_compare",
@@ -109,7 +109,7 @@ def test_unknown_tool_returns_error():
 
 
 def test_search_chunks_accepts_period_filter():
-    """기간 필터가 랭킹을 좌우한다 — corp_name 만으로는 골든이 15/26 이었다."""
+    """기간 필터가 랭킹을 좌우한다. corp_name 만으로는 골든이 15/26 이었다."""
     out = execute("search_chunks", {"query": "변압기", "corp_name": "HD현대일렉트릭",
                                     "ym": "202301", "top_k": 5})
     assert "error" not in out
@@ -145,7 +145,7 @@ def test_get_history_orders_the_chain_by_filing_date_not_amount():
 
 
 def test_get_history_spans_document_groups():
-    """정정 체인은 문서군을 가리지 않는다 — 고려아연 유상증자 철회는 `major` 체인이다."""
+    """정정 체인은 문서군을 가리지 않는다. 고려아연 유상증자 철회는 `major` 체인이다."""
     out = execute("get_history", {"rcept_no": "20241030000098"})
     assert "error" not in out
     assert "20241113000148" in [c["rcept_no"] for c in out["chain"]]
@@ -178,7 +178,7 @@ def test_get_history_reports_an_unknown_receipt():
 
 
 def test_chain_probe_flags_a_superseded_document_and_its_links():
-    """씨앗 판정은 도구 호출이 아니다 — 레코드 한 건만 본다 (스텝을 쓰지 않는다)."""
+    """씨앗 판정은 도구 호출이 아니다. 레코드 한 건만 본다 (스텝을 쓰지 않는다)."""
     probe = chain_probe(f"exchange_{FORD}")
     assert probe["is_latest"] is False
     assert FORD_CORRECTION in probe["links"]
@@ -204,7 +204,7 @@ def test_get_history_spec_exposes_followups():
     assert "include_followups" in props
 
 
-# --- query_by_counterparty (Task 4) — 발주처 단위 fan-in/fan-out 완전 열거 -------
+# --- query_by_counterparty (Task 4), 발주처 단위 fan-in/fan-out 완전 열거 -------
 # BM25 자유텍스트로는 "이 허브에 몇 개사가 걸렸는가"를 물을 수단이 없다(Q-110·Q-114·
 # Q-117 이 구조적으로 불가). partners 를 통째로 돌려주는 것이 이 도구의 존재 이유다.
 
@@ -238,7 +238,7 @@ def test_query_by_counterparty_reports_unknown_orderer():
 
 #: W3(`normalize.exchange_body_rows()`, 기재정정 표 제외) 이전에 `counterparty` 로
 #: 올라오던 안내문 원문 (삼성바이오로직스 20230328801361). 정정 표 칸에만 있던 값이라
-#: 지금 코퍼스에는 없다 — `artifacts/counterparty_graph.json` 의 `excluded_boilerplate`
+#: 지금 코퍼스에는 없다. `artifacts/counterparty_graph.json` 의 `excluded_boilerplate`
 #: 가 27종 → **0종**이 됐다 (tests/test_counterparty.py 의 `BOILERPLATE_BEFORE_W3`).
 _BOILERPLATE_RAW_BEFORE_W3 = (
     "- 계약상대는 경영상 비밀 유지사유로 2023년 6월 30일 이전 공개될 예정 이며, "
@@ -249,11 +249,11 @@ _BOILERPLATE_RAW_BEFORE_W3 = (
 def test_query_by_counterparty_distinguishes_boilerplate_from_vague(monkeypatch):
     """"비밀유지" 안내문은 비실명과 다른 사유(회사명이 아니라 안내문)로 거절돼야 한다.
 
-    🔴 **이 분기는 현행 코퍼스에서 도달 불가다.** `excluded_boilerplate` 가 비어서
+    **이 분기는 현행 코퍼스에서 도달 불가다.** `excluded_boilerplate` 가 비어서
     (W3 이 안내문을 상류에서 지웠다) 실물 그래프로는 사유 분기를 태울 수 없고, 같은
     문자열을 넣으면 일반 사유("2회 이상 등장하는 발주처가 아닙니다")로 떨어진다.
 
-    도달 불가라고 테스트를 지우면 **분기가 죽은 채로 썩는다** — 상류가 다시 더러워졌을
+    도달 불가라고 테스트를 지우면 **분기가 죽은 채로 썩는다**. 상류가 다시 더러워졌을
     때(정정 표 복귀·새 서식) 사유가 뭉개진 것을 아무도 모른다. 그래서 ① 지금 실물
     그래프가 비어 있다는 사실과 ② 비면 일반 사유로 떨어진다는 현재 동작, ③ 안내문이
     기록돼 있을 때는 별도 사유가 나온다는 계약을, 셋 다 고정한다.
@@ -264,7 +264,7 @@ def test_query_by_counterparty_distinguishes_boilerplate_from_vague(monkeypatch)
     # ① 상류가 깨끗해졌다 (필터가 약해진 것이 아니다).
     assert graph["excluded_boilerplate"] == []
 
-    # ② 기록이 없으면 일반 사유로 떨어진다 — 비실명 사유와는 여전히 다르다.
+    # ② 기록이 없으면 일반 사유로 떨어진다. 비실명 사유와는 여전히 다르다.
     out = execute("query_by_counterparty", {"name": _BOILERPLATE_RAW_BEFORE_W3})
     assert out.get("error")
     assert "비실명" not in out["error"]

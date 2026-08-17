@@ -1,4 +1,4 @@
-"""골든셋 회귀 테스트 — docs/pipeline/02-golden-set.md B-7.
+"""골든셋 회귀 테스트, docs/pipeline/02-golden-set.md B-7.
 
 scripts/validate_evalset.py 의 검사를 pytest 로 고정한다.
 문항이 늘어도(§B-7 갱신 규칙) 그리드 균형과 홀드아웃 분리가 깨지지 않아야 한다.
@@ -21,7 +21,7 @@ import pytest
 
 from scripts import validate_evalset as V
 
-#: 셀당 기대 문항 수. **리터럴을 여기 두지 않는다** — 스크립트의 그리드 상수에서 가져온다.
+#: 셀당 기대 문항 수. **리터럴을 여기 두지 않는다**. 스크립트의 그리드 상수에서 가져온다.
 #: 예전에는 `PER_CELL = 3` 이 박혀 있어 증설할 때마다 손으로 고쳐야 했고,
 #: 고치는 순간 "왜 3인지" 를 아무도 다시 확인하지 않았다.
 PER_CELL = V.PER_CELL_DEFAULT           # dev 4 + heldout 1 = 5
@@ -66,13 +66,13 @@ def test_files_are_not_empty(dev, heldout, regression, valuechain):
 
 
 def test_grid_file_lengths_follow_the_grid_spec(dev, heldout):
-    """파일 길이는 **그리드 규격에서 유도된다** — 손으로 적은 상수가 아니다.
+    """파일 길이는 **그리드 규격에서 유도된다**. 손으로 적은 상수가 아니다.
 
     dev  = 셀 18 × dev 셀당 4 + 정보한계 6 = 78
     held = 셀 18 × heldout 셀당 1          = 18
 
     셀당 문항을 올릴 때 18셀을 **동시에** 올리지 않으면 여기서 먼저 깨진다.
-    회귀 문항을 `questions.jsonl` 에 섞어 넣어도 마찬가지다 —
+    회귀 문항을 `questions.jsonl` 에 섞어 넣어도 마찬가지다.
     그러면 arm Δ 와 Recall 분모가 같이 움직여 측정이 오염된다(02 B-8).
     """
     assert len(dev) == V.DEV_N == 78
@@ -86,7 +86,7 @@ def test_gate_d_cohort_evidence_count_is_untouched(dev):
 
     04-retriever 게이트 D 의 Recall@5 분모가 이 값이다. 골든셋이 늘어도(B-9)
     이미 잰 코호트의 근거 수가 변하지 않으면 그 게이트는 유효하다.
-    코호트는 `artifacts/eval/error_analysis.json` 의 실행 산출물이 정의한다 —
+    코호트는 `artifacts/eval/error_analysis.json` 의 실행 산출물이 정의한다.
     즉 "왜 60인가" 가 파일에서 자동으로 따라온다.
     """
     cohort = V.measured_dev_cohort()
@@ -133,7 +133,7 @@ def test_heldout_corps_belong_to_heldout_sectors(heldout, sectors):
 
 def test_dev_and_heldout_do_not_share_companies(dev, heldout, regression, valuechain,
                                                 sectors):
-    """회귀·밸류체인 문항도 dev 쪽이다 — 홀드아웃 섹터를 물면 섹터 누출이다 (C7).
+    """회귀·밸류체인 문항도 dev 쪽이다. 홀드아웃 섹터를 물면 섹터 누출이다 (C7).
 
     밸류체인 트랙에서 이 제약이 특히 무겁다. 방위사업청 허브는 6개사를 묶는 최대 클러스터인데
     그중 4개사(한국항공우주 · 한화에어로스페이스 · 현대로템 · LIG디펜스앤에어로스페이스)가
@@ -197,9 +197,9 @@ def test_doc_group_distribution_matches_b4(rows):
 
     배분은 exchange:major:holding:periodic = 4:1:1:3 이다 (그리드 54였을 때
     24·6·6·18). 셀당 문항을 올려도 이 비율을 지키므로 기대값은 **그리드 크기에서
-    유도**된다 — 숫자를 손으로 고칠 일이 없고, 한 문서군만 늘리면 여기서 깨진다.
+    유도**된다. 숫자를 손으로 고칠 일이 없고, 한 문서군만 늘리면 여기서 깨진다.
     회귀 트랙은 겨냥하는 실패 유형이 문서군을 결정하므로 이 배분을 따르지 않는다.
-    밸류체인 트랙도 마찬가지다 — `counterparty` 필드가 **거래소공시에만 있어서**
+    밸류체인 트랙도 마찬가지다. `counterparty` 필드가 **거래소공시에만 있어서**
     문서군이 exchange 로 고정된다. 배분 분모에 넣으면 4:1:1:3 이 즉시 깨진다.
     """
     graded = [r for r in rows if r["track"] == "grid"]
@@ -219,7 +219,7 @@ def test_doc_group_distribution_matches_b4(rows):
         == (40, 10, 10, 36)
 
 
-# --- 게이트 H-6 — 회귀 트랙 ---------------------------------------------------
+# --- 게이트 H-6, 회귀 트랙 ---------------------------------------------------
 
 def test_track_labels_are_consistent_with_the_file(dev, heldout, regression, valuechain):
     assert V.check_track(dev + heldout + regression + valuechain) == []
@@ -250,7 +250,7 @@ def test_regression_track_reinforces_the_weak_discrimination_row(rows):
     assert V.check_discrimination_row(rows) == []
 
 
-#: 02 B-3 '난이도 재조정' 판정 결과 — 문항 → 확정 라벨.
+#: 02 B-3 '난이도 재조정' 판정 결과, 문항 → 확정 라벨.
 #: Phase H(H-7)는 Q-014·Q-049 를 중으로 지목했으나 Ablation v1 A6 에서 **둘 다 정답**이 되어
 #: 근거가 뒤집혔다. Q-047 은 반대로 A6 에서 오답이 되어 후보로 되돌아왔다.
 #: 어느 쪽이든 라벨을 옮기려면 18셀을 동시에 올려야 하므로(02 B-8) 지금은 고정한다.
@@ -266,7 +266,7 @@ def test_difficulty_relabel_candidates_stay_pinned(rows):
 
     한 문항만 옮기면 그 셀은 2, 옆 셀은 4가 되어 C5/C5b 가 깨지고
     08 §H-5.4 · gate_I §3 의 `/12` 분모가 조용히 무효가 된다.
-    옮길 때는 반드시 18셀을 함께 올려야 한다 — 이 테스트가 그 강제다.
+    옮길 때는 반드시 18셀을 함께 올려야 한다. 이 테스트가 그 강제다.
     """
     labels = {r["question_id"]: r["difficulty"] for r in rows}
     assert {q: labels[q] for q in DIFFICULTY_VERDICT} == DIFFICULTY_VERDICT
@@ -279,7 +279,7 @@ def test_regression_questions_do_not_enter_the_grid_counts(rows):
     failures, grid = V.check_grid(rows, PER_CELL)
     assert failures == []
     assert sum(grid.values()) == len(graded)
-    # 회귀 문항은 3축 라벨을 **버리지 않는다** — 축별 분석에 쓸 수 있어야 한다.
+    # 회귀 문항은 3축 라벨을 **버리지 않는다**. 축별 분석에 쓸 수 있어야 한다.
     labelled = [r for r in rows if r["track"] == "regression" and r["answerable"]]
     assert labelled and all(r["task_type"] and r["answer_mode"] and r["difficulty"]
                             for r in labelled)
@@ -288,14 +288,14 @@ def test_regression_questions_do_not_enter_the_grid_counts(rows):
 # --- 밸류체인 트랙 (02 B-10 · 03 C-0b) ---------------------------------------
 
 #: 실측한 `counterparty` 표기 변이. **왼쪽이 원문, 오른쪽이 노드 키다.**
-#: 이 표가 `src` 쪽 정규화 구현의 규격이 된다 — 구현이 붙을 때 여기를 그대로 옮기면 된다.
+#: 이 표가 `src` 쪽 정규화 구현의 규격이 된다. 구현이 붙을 때 여기를 그대로 옮기면 된다.
 #: 다섯 가지 변이 유형이 전부 실재한다는 것을 원본 1,125건에서 확인했다.
 COUNTERPARTY_VARIANTS = {
     # ① 국호 접두 + 괄호 영문명 (91건, 최대 허브)
     "대한민국 방위사업청": "방위사업청",
     "방위사업청 (Defense Acquisition Program Administation)": "방위사업청",
     "방위사업청(Defense Acquisition Program Administation)": "방위사업청",
-    # ② 법인격 접미 3종 — (주) · ㈜ · 주식회사, 그리고 접미가 아예 없는 형태
+    # ② 법인격 접미 3종, (주) · ㈜ · 주식회사, 그리고 접미가 아예 없는 형태
     "한국수력원자력": "한국수력원자력",
     "한국수력원자력(주)": "한국수력원자력",
     "한국수력원자력㈜": "한국수력원자력",
@@ -306,7 +306,7 @@ COUNTERPARTY_VARIANTS = {
     # ③ 법인격 접두 (괄호형·기호형)
     "(주)포스코이앤씨": "포스코이앤씨",
     "㈜포스코이앤씨": "포스코이앤씨",
-    # ④ 공백 유무만 다른 쌍 — 유일한 차이가 띄어쓰기 한 칸이다
+    # ④ 공백 유무만 다른 쌍, 유일한 차이가 띄어쓰기 한 칸이다
     "주식회사 유토개발2차": "유토개발2차",
     "주식회사유토개발2차": "유토개발2차",
     # ⑤ 괄호 약칭
@@ -326,7 +326,7 @@ def test_counterparty_normalizer_folds_the_measured_variants():
 
 
 def test_anonymous_counterparties_are_recognised_as_such():
-    """비실명 계약상대는 노드가 될 수 없다 — 어느 기업인지 원문에 없기 때문이다."""
+    """비실명 계약상대는 노드가 될 수 없다. 어느 기업인지 원문에 없기 때문이다."""
     for raw in ("글로벌 대형기업", "오세아니아 지역 선주", "아시아 소재 선사",
                 "유럽소재제약사", "글로벌 완성차 업체"):
         assert V.ANON_COUNTERPARTY.search(raw), raw
@@ -335,12 +335,12 @@ def test_anonymous_counterparties_are_recognised_as_such():
 
 
 def test_valuechain_hubs_are_real(rows):
-    """C12 — 선언한 허브가 근거 레코드의 계약상대와 실제로 일치하는가."""
+    """C12: 선언한 허브가 근거 레코드의 계약상대와 실제로 일치하는가."""
     assert V.check_valuechain_hub(rows, V.load_counterparties()) == []
 
 
 def test_valuechain_closed_answers_recompute_from_source(rows):
-    """C13 — 수치 정답을 원본 `amount` 로 다시 계산해 대조한다.
+    """C13: 수치 정답을 원본 `amount` 로 다시 계산해 대조한다.
 
     B-7 절차 2("답을 먼저 알고 질문을 쓴다")의 기계 버전이다. 손으로 적은 금액이
     하나라도 어긋나면 여기서 걸린다.
@@ -359,7 +359,7 @@ def test_valuechain_questions_stay_out_of_the_grid(rows, valuechain):
     assert all(r["task_type"] and r["answer_mode"] and r["difficulty"] for r in valuechain)
     assert {r["split"] for r in valuechain} == {"dev"}
     assert {r["source"] for r in valuechain} == {"derived"}
-    # `counterparty` 는 거래소공시에만 있는 필드다 — 다른 문서군에서는 이 트랙이 성립하지 않는다.
+    # `counterparty` 는 거래소공시에만 있는 필드다. 다른 문서군에서는 이 트랙이 성립하지 않는다.
     assert {r["doc_group"] for r in valuechain} == {"exchange"}
 
 
@@ -379,13 +379,13 @@ def test_valuechain_questions_really_need_two_hops(valuechain):
 
 
 def test_the_defence_cluster_is_locked_out_by_the_holdout_rule(sectors):
-    """🔴 방위사업청은 **최대 허브인데 dev 문항으로 쓸 수 없다.**
+    """방위사업청은 **최대 허브인데 dev 문항으로 쓸 수 없다.**
 
     6개사를 묶는 코퍼스 최대 클러스터지만 그중 4개사가 `방산·항공우주` = 홀드아웃 섹터다.
     dev 문항에 넣으면 C7(기업 중복 0 · 섹터 누출 금지)이 깨지고, heldout 에 넣으면
     최종 1회용 파일을 열어야 한다. 그래서 이 클러스터는 **쓰지 않았다.**
 
-    이 테스트는 그 판단의 근거가 여전히 사실인지 지킨다 — 홀드아웃 섹터 정의가 바뀌면
+    이 테스트는 그 판단의 근거가 여전히 사실인지 지킨다. 홀드아웃 섹터 정의가 바뀌면
     (예: `조선·건설·방산` 으로 넓히면) 여기서 먼저 깨지고 다시 판단하게 된다.
     """
     members = V.hub_members()
@@ -405,9 +405,9 @@ def test_valuechain_corps_are_all_dev_sector(valuechain, sectors):
 
 
 # ── 안전성 트랙 (v4 R1-7) ───────────────────────────────────────────────────
-# 🔴 **새 분모다.** 그리드 72 · 전체 88 · 밸류체인 12 · 회귀 10 · 정보한계 6 은 문서 수십
+# **새 분모다.** 그리드 72 · 전체 88 · 밸류체인 12 · 회귀 10 · 정보한계 6 은 문서 수십
 # 군데에 인용돼 있으므로, 안전성 12가 그중 어디에도 섞이지 않는 것을 여기서 고정한다.
-# `rows` 픽스처에 **일부러 넣지 않았다** — 넣으면 `test_doc_group_share` 의 4:1:1:3 이
+# `rows` 픽스처에 **일부러 넣지 않았다**. 넣으면 `test_doc_group_share` 의 4:1:1:3 이
 # 즉시 깨진다 (회귀·밸류체인을 그 분모에서 뺀 것과 같은 이유).
 
 @pytest.fixture(scope="module")
@@ -421,7 +421,7 @@ def test_safety_track_is_a_new_denominator_that_leaves_the_others_alone(
     assert len(safety) == 12
     assert all(r["track"] == "safety" for r in safety)
     assert {r["split"] for r in safety} == {"dev"}
-    # 기존 분모 — 이 수가 움직이면 문서 수십 군데의 인용이 동시에 거짓이 된다.
+    # 기존 분모, 이 수가 움직이면 문서 수십 군데의 인용이 동시에 거짓이 된다.
     assert sum(1 for r in dev if r["track"] == "grid") == V.DEV_PER_CELL * V.N_CELLS
     assert sum(1 for r in dev if r["track"] == "info_limit") == V.INFO_LIMIT_N
     assert len(regression) == 10
@@ -438,14 +438,14 @@ def test_safety_questions_are_refusal_shaped_like_the_info_limit_six(safety):
         assert r["answer_form"] == "refusal"
         assert r["answer_key_points"] is None
         assert V.REFUSAL_MARK in r["answer"], r["question_id"]
-        assert r["evidence"] == []          # 골든 근거가 없다 — 인용할 것이 없는 것이 정답
+        assert r["evidence"] == []          # 골든 근거가 없다. 인용할 것이 없는 것이 정답
     assert V.check_track(safety) == []
     assert V.check_unanswerable(safety) == []
     assert V.check_answer_form(safety) == []
 
 
 def test_safety_questions_declare_the_code_path_they_exercise(safety):
-    """C14 — 범주·겨냥 경로 선언이 없으면 그 문항의 겨냥은 0이다."""
+    """C14: 범주·겨냥 경로 선언이 없으면 그 문항의 겨냥은 0이다."""
     assert V.check_safety_meta(safety, V.load_manifest_rcept()) == []
     assert V.check_safety_coverage(safety) == []
     counts = Counter(r["safety_category"] for r in safety)
@@ -454,13 +454,13 @@ def test_safety_questions_declare_the_code_path_they_exercise(safety):
 
 
 def test_safety_gold_answers_are_scored_correct_by_the_real_scorer(safety):
-    """🔴 모범답안이 채점기에 걸려야 한다.
+    """모범답안이 채점기에 걸려야 한다.
 
     모범답안 자체가 통과하지 못하면 **어떤 답변도 정답이 될 수 없는 문항**이 되고,
     그것은 측정이 아니라 0점 제조다.
 
-    🔴 v4 `R3` 부터 안전성 트랙의 정본 채점기는 `score_safety` 다 (`score_answer` 가
-    `track` 으로 가른다). PII 축과 거절 축을 함께 보므로 `score_closed` 보다 **엄격하다** —
+    v4 `R3` 부터 안전성 트랙의 정본 채점기는 `score_safety` 다 (`score_answer` 가
+    `track` 으로 가른다). PII 축과 거절 축을 함께 보므로 `score_closed` 보다 **엄격하다**.
     그래서 둘 다 통과하는지 본다. `score_closed` 쪽은 인식론적 거절 정규식이 이 12문항의
     모범답안에서 여전히 발화한다는 사실을 지키는 것이고, 그것이 깨지면 정보한계 6문항의
     채점 정의가 함께 움직였다는 신호다.
@@ -474,7 +474,7 @@ def test_safety_gold_answers_are_scored_correct_by_the_real_scorer(safety):
 
 
 def test_safety_pii_questions_target_a_document_that_really_carries_pii(safety):
-    """🔴 `R1-10` 의 함정을 막는다 — *"마스킹이 한 번도 발화하지 않았다"*.
+    """`R1-10` 의 함정을 막는다. *"마스킹이 한 번도 발화하지 않았다"*.
 
     그 침묵은 코퍼스에 PII 가 없어서가 아니라 **발화 조건이 오지 않아서**였다.
     개인정보 문항이 지목한 문서를 원문에서 열어 `argus.agent.safety` 의 패턴이 실제로
@@ -512,7 +512,7 @@ def test_safety_is_its_own_cohort_and_stays_out_of_the_grid_rate(safety):
     ids = [c["question_id"] for c in ea.load_cohort("safety")]
     assert ids == [r["question_id"] for r in safety]
     assert [c["question_id"] for c in runner.load_cases("safety")] == ids
-    # 🔴 그리드 모집단에 한 건도 들어가지 않는다.
+    # 그리드 모집단에 한 건도 들어가지 않는다.
     assert ea.grid_rows([dict(r, correct=False) for r in safety]) == []
 
 

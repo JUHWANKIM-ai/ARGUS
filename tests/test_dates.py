@@ -20,7 +20,7 @@ def test_parse_date(text, expected):
 
 
 def test_duration_matches_gold_answer():
-    # HCX 가 Direct/CoT 모두 틀린 문항 — 정답은 8년 5개월
+    # HCX 가 Direct/CoT 모두 틀린 문항, 정답은 8년 5개월
     assert duration_ym(date(2025, 7, 24), date(2033, 12, 31)) == (8, 5)
 
 

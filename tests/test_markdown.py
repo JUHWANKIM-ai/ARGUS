@@ -177,7 +177,7 @@ def test_free_text_reads_the_row_after_a_label_only_row():
 
 
 def test_schema_matched_records_never_gain_a_single_byte():
-    """🔴 이 저장소에서 가장 비싼 회귀다.
+    """이 저장소에서 가장 비싼 회귀다.
 
     `schema_matched=True` 가 근거의 대부분(실측 3,150건 중 2,912건)이고, 한 글자라도
     바뀌면 BM25 색인 문자열이 바뀌어 **측정된 arm 이 전부 무효**가 된다. 같은 원문을
@@ -191,18 +191,18 @@ def test_schema_matched_records_never_gain_a_single_byte():
 
 
 def test_shipped_index_still_matches_the_renderer_on_the_matched_path():
-    """🔴 색인은 **박제된 값**이다 — `markdown` 이 `artifacts/*_records.jsonl` 에 들어
+    """색인은 **박제된 값**이다. `markdown` 이 `artifacts/*_records.jsonl` 에 들어
     있고 BM25 는 그 문자열을 그대로 색인한다. 렌더러가 색인과 갈라지면 근거와 검색이
     서로 다른 코퍼스를 보게 된다.
 
-    🔴 **R2F — 감시 범위를 전 차선으로 넓혔다.** R2C 는 자유텍스트 차선이 *일부러*
+    **R2F, 감시 범위를 전 차선으로 넓혔다.** R2C 는 자유텍스트 차선이 *일부러*
     갈라져 있다는 이유로 `schema_matched=True` 만 잠갔고, *"재빌드로만 닫힌다"* 고
     적었다. **그 재빌드는 R2D(`3743ce5`)에서 실제로 났는데 이 테스트의 범위는 안
-    따라왔다** — 그래서 이 저장소의 유일한 "렌더러 ↔ 박제된 색인" 감시가 3,150건 중
+    따라왔다**. 그래서 이 저장소의 유일한 "렌더러 ↔ 박제된 색인" 감시가 3,150건 중
     2,912건만 보고 있었고, 자유텍스트 차선 238건은 **아무도 안 보는 상태**로 남았다.
     한쪽(색인)은 갱신되고 다른 쪽(감시 범위)은 안 되는, 이 저장소의 그 패턴이다.
 
-    이제 계약은 하나다 — **렌더러를 고치면 색인을 다시 만든다.** 이 테스트가 깨지면
+    이제 계약은 하나다. **렌더러를 고치면 색인을 다시 만든다.** 이 테스트가 깨지면
     고칠 것은 테스트가 아니라 **산출물**이다(`scripts/build_index.py --group …`).
     """
     checked = free_text = 0
@@ -219,8 +219,8 @@ def test_shipped_index_still_matches_the_renderer_on_the_matched_path():
             checked += 1
             free_text += 0 if record.get("schema_matched") else 1
     assert checked > 2_000, f"잠근 레코드가 너무 적다: {checked}"
-    # 🔴 리터럴(238)을 박지 않는다. 재빌드로 이 수는 움직여도 되지만 **0 이 되면**
-    #    자유텍스트 차선이 감시에서 다시 빠진 것이다 — 그것만 막는다.
+    # 리터럴(238)을 박지 않는다. 재빌드로 이 수는 움직여도 되지만 **0 이 되면**
+    #    자유텍스트 차선이 감시에서 다시 빠진 것이다. 그것만 막는다.
     assert free_text > 0, "schema_matched=False 레코드가 하나도 안 잠겼다"
 
 
@@ -231,7 +231,7 @@ def test_free_text_does_not_repeat_what_the_header_already_says():
 
 
 def test_free_text_record_stays_bounded():
-    """근거가 길어지는 것 자체가 위험이다 — 실측 최대 858자로 묶여 있다."""
+    """근거가 길어지는 것 자체가 위험이다. 실측 최대 858자로 묶여 있다."""
     fat = dict(INVEST, raw_rows=[["2. 주요내용", "가" * 5000],
                                  ["4. 기타 사항", "나" * 5000],
                                  ["5. 기타 사항", "다" * 5000],
