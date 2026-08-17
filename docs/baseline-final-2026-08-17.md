@@ -122,7 +122,7 @@ ablation._current = A42          서버는 arm 을 안 받는다 — 이것이 �
 |---|---|---|---|---|---|
 | BM25 (현행) | `A42` | **10/12** | 0.917 | 1~10초 | — |
 | dense 검색 | `A2F` | 7/12 | **0.167** | — | **기각** |
-| 추론 모델 | HCX-007 | 5/12 | — | 9~32초 | **기각** |
+| 추론 모델 | HCX-007 | **6/12** | | 15~68초 | **기각** |
 
 **dense** — 인용률 0.917 → 0.167 이 정답률보다 큰 신호다. 근거 자체가 안 잡혔다는 뜻이다.
 🔴 판정 범위: 임베딩이 `exchange`·`holding` 둘만 있고 `periodic`·`major` 는 없다.
@@ -144,7 +144,13 @@ API 층·비용 계층·처분 열 갈래를 함께 손봐야 한다.
 옮기는 것**이고(집계·검증·처분이 전부 LLM 0회), 007 의 강점은 이미 코드가 채운 자리다.
 실측이 *"모델이 더 생각하면 우리 코드가 잡을 형태를 잃는다"* 를 보여 줬다.
 
-정본: `artifacts/ablation/v6/dense_vc` · `artifacts/audit/hcx007_valuechain.jsonl`.
+정본: `artifacts/ablation/v6/dense_vc` · `artifacts/audit/hcx007_valuechain.jsonl` ·
+`artifacts/audit/hcx007_effort.json`.
+
+🔴 **2026-08-18 재측정.** 첫 판은 `maxCompletionTokens` 를 1024 로 잡아 thinking 이
+예산을 먹는 결함이 있었다. 예산을 없애고 `thinking.effort` 를 셋으로 갈라 다시 쟀다.
+`none` 6/12 · `low` 5/12 · `medium` 6/12 로 **추론량과 무관하게 6/12 근처**다.
+기각은 유지되고 근거가 튼튼해졌다. 전문은 [`hcx007-as-judge.md`](hcx007-as-judge.md) §10.
 
 ## 6. 자리표시자 대장 — 우리 몫은 전부 닫혔다
 

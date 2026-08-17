@@ -29,7 +29,10 @@ sys.path.insert(0, BASE + r"\src")
 from argus import clova, config                            # noqa: E402
 
 EFFORTS = ("none", "low", "medium")
-CAP = 8192
+#: No completion cap. Thinking draws from the same budget.
+INTERVAL = 8.0
+RETRIES = 4
+BACKOFF = 15.0
 OUT = "artifacts/audit/hcx007_effort.json"
 
 _orig_post = clova._post
@@ -42,9 +45,20 @@ def make_post(effort: str):
     def _post(url, headers, body, timeout=60):
         body = dict(body)
         body.pop("maxTokens", None)
-        body["maxCompletionTokens"] = CAP
         body["thinking"] = {"effort": effort}
-        status, payload, latency = _orig_post(url, headers, body, max(timeout, 280))
+        time.sleep(INTERVAL)
+        payload = None
+        for attempt in range(RETRIES):
+            if attempt:
+                time.sleep(BACKOFF * attempt)
+            try:
+                status, payload, latency = _orig_post(url, headers, body,
+                                                      max(timeout, 300))
+                break
+            except Exception:                               # noqa: BLE001
+                payload = None
+        if payload is None:
+            raise RuntimeError("007 호출이 재시도 후에도 실패했다")
         usage = ((payload or {}).get("result") or {}).get("usage") or {}
         bucket = STAT.setdefault(effort, {"calls": 0, "prompt": 0, "completion": 0,
                                           "thinking": 0, "truncated": 0})
@@ -137,7 +151,7 @@ for effort in EFFORTS:
 io.open(OUT, "w", encoding="utf-8").write(json.dumps(
     {"생성": "scripts/probe007_effort.py",
      "성격": "진단 전용. 제출 구성은 A42 이고 이 실험은 그것을 바꾸지 않는다",
-     "maxCompletionTokens": CAP,
+     "예산": "maxCompletionTokens 를 지정하지 않았다",
      "첫 실험의 결함": "1024 로 잡아 thinking 이 예산을 먹고 답이 잘렸을 수 있다",
      "결과": results}, ensure_ascii=False, indent=2) + "\n")
 print("\n저장:", OUT)

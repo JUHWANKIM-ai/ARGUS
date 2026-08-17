@@ -30,12 +30,16 @@ from argus import config                                  # noqa: E402
 from argus.agent.prompts import build_critic_messages     # noqa: E402
 
 REPEATS = 3
+#: Seconds between calls, and retry budget per call.
+INTERVAL = 8.0
+RETRIES = 4
+BACKOFF = 15.0
 OUT = "artifacts/audit/judge_variance.json"
 
 #: Questions chosen because the current judge already fails on them. Four of the
 #: seven closed-judge disagreements returned an empty reason, and four sit on the
 #: safety track where a legitimate refusal was read as unsupported.
-TARGETS = ("S-001", "S-007", "S-011", "Q-111", "Q-001", "Q-018")
+TARGETS = ("S-001", "Q-111", "Q-001", "Q-018")
 
 _JSON = re.compile(r"\{[^{}]*\}", re.DOTALL)
 
@@ -59,10 +63,10 @@ def call(model: str, messages: list[dict]) -> tuple[dict | None, int, int, float
     body: dict = {"messages": messages, "temperature": 0.0, "topP": 0.8}
     # HCX-007 rejects maxTokens and accepts maxCompletionTokens instead.
     if model == "HCX-007":
-        # Thinking tokens draw from this same budget. At 512 the reasoning trace
-        # consumed all of it and finishReason came back as length with no visible
-        # content, so every parse failed.
-        body["maxCompletionTokens"] = 4096
+        # No completion cap. Thinking tokens draw from the same budget, so any
+        # cap risks the reasoning trace exhausting it and returning
+        # finishReason=length with no visible content.
+        pass
     else:
         body["maxTokens"] = 512
     req = urllib.request.Request(
@@ -70,12 +74,24 @@ def call(model: str, messages: list[dict]) -> tuple[dict | None, int, int, float
         headers={"Authorization": f"Bearer {cfg.clova_api_key}",
                  "Content-Type": "application/json"},
         method="POST")
+    # HCX-007 answers in 8 to 30 seconds, and issuing those calls back to back
+    # gets them rejected. Spacing and retry are required for the run to finish.
     started = time.time()
-    try:
-        with urllib.request.urlopen(req, timeout=300) as resp:
-            payload = json.load(resp)
-    except urllib.error.HTTPError as exc:
-        return {"error": exc.read().decode("utf-8")[:160]}, 0, 0, time.time() - started
+    payload = None
+    last = ""
+    for attempt in range(RETRIES):
+        if attempt:
+            time.sleep(BACKOFF * attempt)
+        try:
+            with urllib.request.urlopen(req, timeout=300) as resp:
+                payload = json.load(resp)
+            break
+        except urllib.error.HTTPError as exc:
+            last = "HTTP %s %s" % (exc.code, exc.read().decode("utf-8")[:110])
+        except Exception as exc:                            # noqa: BLE001
+            last = type(exc).__name__
+    if payload is None:
+        return {"error": last}, 0, 0, time.time() - started
     elapsed = time.time() - started
     result = payload.get("result") or {}
     usage = result.get("usage") or {}
@@ -115,6 +131,7 @@ for qid in TARGETS:
     for model in ("HCX-005", "HCX-007"):
         keys, reasons = [], []
         for _ in range(REPEATS):
+            time.sleep(INTERVAL if model == "HCX-007" else 0.5)
             parsed, pt, ct, el = call(model, messages)
             keys.append(verdict_key(parsed))
             reasons.append((parsed or {}).get("reason", "") if parsed else "")
@@ -125,7 +142,8 @@ for qid in TARGETS:
         empty = sum(1 for r in reasons if not str(r).strip())
         rows.append({"question_id": qid, "model": model, "판정": keys,
                      "일관": stable, "사유 빈 회차": empty,
-                     "사유": [str(r)[:110] for r in reasons]})
+                     "사유": [str(r)[:110] for r in reasons],
+                     "오류": [k for k in keys if k == "PARSE_FAIL"]})
         print("%-7s %-8s %s  사유공백 %d/%d  %s"
               % (qid, model, "일관" if stable else "갈림", empty, REPEATS,
                  " / ".join(keys)))
