@@ -2839,6 +2839,22 @@ def _verdict(question: str, answer: str, evidence: str, records: list[dict], r,
             "kinds": kinds, "reasons": reasons}
 
 
+def _keeps_regenerated(before: list[str], after: list[str]) -> bool:
+    """Whether the regenerated answer replaces the original.
+
+    A clean result is always adopted, which is the prior behaviour. Beyond
+    that, adoption requires the failing kinds to be a strict subset: a set that
+    merely changed is not an improvement, and adopting it would trade one
+    defect for another while spending a call to do it.
+    See docs/design-rationale.md#regeneration-adoption
+    """
+    if not after:
+        return True
+    if not ablation.enabled("regenerate_partial"):
+        return False
+    return set(after) < set(before)
+
+
 def _regenerate_once(question: str, answer: str, evidence: str, records: list[dict],
                      r, arm, trace: list[str], budget: Budget | None,
                      verdict: dict) -> tuple[str, dict]:
@@ -2898,7 +2914,8 @@ def _regenerate_once(question: str, answer: str, evidence: str, records: list[di
         return answer, verdict
 
     again = _verdict(question, candidate, evidence, records, r, arm)
-    kept = "regenerated" if not again["kinds"] else "original"
+    kept = "regenerated" if _keeps_regenerated(verdict["kinds"], again["kinds"]) \
+        else "original"
     trace.append(f'verify regen=1 reasons={"; ".join(verdict["reasons"])} '
                  f'kinds_after={",".join(again["kinds"]) or "-"} kept={kept}')
     return (candidate, again) if kept == "regenerated" else (answer, verdict)

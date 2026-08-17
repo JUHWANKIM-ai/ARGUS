@@ -272,6 +272,15 @@ class Arm:
     #: to one partner and the breadth that carried the answer is lost.
     #: See docs/design-rationale.md#partner-quota
     counterparty_relevance: bool = False
+    #: True keeps a regenerated answer whose failing kinds are a strict subset
+    #: of the original's, instead of requiring it to be clean. No extra LLM
+    #: call: the regeneration already ran and its verdict is already computed.
+    #:
+    #: The one-shot rule discards a strictly better answer. A recorded run
+    #: regenerated an answer whose calculation defect was gone and kept the
+    #: original because a provenance defect remained.
+    #: See docs/design-rationale.md#regeneration-adoption
+    regenerate_partial: bool = False
     #: True recomputes the parenthesised unit conversion in the answer. No LLM
     #: call. Body figures are copied from the evidence and are correct, while
     #: the parenthesised value is divided by the model and is not. One of the
