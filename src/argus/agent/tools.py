@@ -412,10 +412,11 @@ def _section_index() -> SectionBm25Index | None:
 
 @lru_cache(maxsize=1)
 def section_paths() -> tuple[str, ...]:
-    """전 기업 공통 목차 경로. `path_hints` 가 후보를 고르는 모집단이다.
+    """Table-of-contents paths common to every company: the population the
+    path hints choose from.
 
-    깊이 2단 이하 + 200개 문서 이상 등장으로 자른다. 실측 64개이고, 여기에
-    '12. 차입금 (연결)' 같은 기업별 주석 제목은 들어오지 않는다.
+    Cut to two levels deep and paths appearing in at least 200 documents, which
+    keeps company-specific note headings out.
     """
     index = _section_index()
     if index is None:
@@ -430,7 +431,8 @@ def section_paths() -> tuple[str, ...]:
 
 
 def _section_body(record: dict) -> str:
-    """블롭에서 섹션 본문을 읽고 조각 하나를 잘라 낸다. `split_section` 이 결정적이다."""
+    """Read a section body from the blob and cut out one chunk. The split is
+    deterministic."""
     offset, length = record.get("text_offset", -1), record.get("text_bytes", 0)
     if offset < 0 or length <= 0:
         return ""
@@ -445,7 +447,8 @@ def _section_body(record: dict) -> str:
 
 
 def _section_markdown(record: dict) -> str:
-    """근거 블록. 근거 표기 형식은 §7.5 — 보고서(기준연월) · 접수번호 · 섹션 경로."""
+    """Evidence block. The citation format is the one the convention requires:
+    report and period, receipt number, section path."""
     rcept_no = str(record["doc_id"]).split("_")[-1]
     label = {"annual": "사업보고서", "half": "반기보고서",
              "quarter": "분기보고서"}.get(record.get("doc_subtype", ""), "정기보고서")
@@ -466,20 +469,23 @@ def resolve_company_tool(name: str) -> dict:
             "sector": row["sector"], "market": row["market"]}
 
 
-#: `query_events` 가 돌려주는 이벤트 수. LLM 이 읽을 목록이라 20 이 상한이었다.
+#: Events returned by the event query. The cap reflects a list meant to be
+#: read by the model.
 EVENTS_PAGE = 20
 
 
 def query_events(corp_name: str | None = None, doc_subtype: str | None = None,
                  year: int | None = None, min_amount: float | None = None,
                  is_latest: bool = True, limit: int = EVENTS_PAGE) -> dict:
-    """정형 이벤트 조회. `count` 는 **필터를 통과한 전량**이고 `events` 는 그중 `limit` 건이다.
+    """Structured event lookup. The count is everything passing the filters
+    while the events are the first `limit` of them.
 
-    `limit` 은 **`TOOL_SPECS` 에 노출하지 않는다** — 검색 계획이 쓰는 축이 아니라
-    `pipeline._enumerate_events` 가 **그룹핑을 위해** 모집단 전체를 받아야 해서 있는
-    것이다(계약상대별 그룹 크기와 각 그룹의 최신본은 20건만 봐서는 못 정한다 — 실측
-    `Q-117` 은 한전기술 최신본 27건이고 골든 3건이 21번째 이후에 있다). `search_chunks`
-    의 `doc_id` 축과 같은 성격이고, 기본값이면 종전과 글자 하나 안 바뀐다.
+    `limit` is deliberately not exposed in the tool specifications. It is not
+    an axis the retrieval plan uses; it exists so the enumeration hop can take
+    the whole population for grouping, since group sizes and per-group latest
+    records cannot be determined from a truncated list. At its default nothing
+    changes.
+    See docs/design-rationale.md#enumeration-hop
     """
     rows = _records()
     if corp_name:
@@ -509,7 +515,7 @@ def list_filings(corp_name: str, doc_group: str = "periodic",
 
 
 def _sections_of(index: SectionBm25Index, doc_id: str) -> list[dict]:
-    """한 문서의 조각 레코드. `part == 0` 만 남겨 섹션 단위로 되돌린다."""
+    """Chunk records of one document, reduced back to section granularity."""
     table = index.tables["doc_id"]
     code = table.index(doc_id) if doc_id in table else -1
     if code < 0:
@@ -520,7 +526,8 @@ def _sections_of(index: SectionBm25Index, doc_id: str) -> list[dict]:
 
 
 def list_sections(doc_id: str, include_stubs: bool = False) -> dict:
-    """§7.7 ④ — 목차 `path` + 글자수. 기본은 100자 미만 스텁을 뺀다."""
+    """List section paths with their character counts. Stubs below 100
+    characters are excluded by default."""
     index = _section_index()
     if index is None:
         return {"error": "섹션 인덱스가 없습니다. "
@@ -538,10 +545,11 @@ def list_sections(doc_id: str, include_stubs: bool = False) -> dict:
 
 
 def read_section(doc_id: str, path: str, part: int | None = None) -> dict:
-    """§7.7 ⑤ — 섹션 원문(표=마크다운).
+    """Read a section verbatim, with tables as markdown.
 
-    상위 목차로 부르면 하위 섹션을 순서대로 이어 붙인다. 목차 오타(`12, 관계기업투자`)
-    때문에 경로 비교는 구두점을 무시한다 — 완전일치로는 HMM 20240514001580 을 못 연다.
+    Called with a parent path, the child sections are concatenated in order.
+    Path comparison ignores punctuation, because typos in the table of contents
+    mean an exact match fails to open some documents.
     """
     index = _section_index()
     if index is None:
@@ -570,14 +578,17 @@ def _search_sections(query: str, corp_name: str | None = None, top_k: int = 5,
                      path: str | None = None, rcept_dt: str | None = None,
                      include_stubs: bool = True,
                      doc_id: str | None = None) -> dict:
-    """정기공시 섹션 검색. exchange 와 **인덱스가 다르다**.
+    """Section retrieval for periodic filings, against a different index from
+    the exchange one.
 
-    축이 셋 다르다 — 기간은 접수일이 아니라 `base_year`(사업연도), 보고서 종류가
-    `doc_subtype`, 그리고 목차 `path` 접두. 실측 근거는 04-retriever D-5.
+    Three axes differ: the period is the fiscal year rather than the receipt
+    date, the report subtype replaces the form, and the table-of-contents path
+    acts as a prefix filter.
 
-    `doc_id` 는 **문서 하나로 못박는 완전일치 필터**다 (`SECTION_FIELDS` 축). 검색 계획은
-    이 인자를 쓰지 않는다 — `ablation.ORACLE` 이 골든 문서 안에서만 조각을 고르기 위한
-    것이고, 기본값 `None` 이면 종전 후보 집합이 글자 하나 안 바뀐다.
+    `doc_id` is an exact-match filter pinning a single document. The retrieval
+    plan does not use it; it exists so the oracle path can choose chunks within
+    a golden document, and at its default the candidate set is unchanged.
+    See docs/design-rationale.md#oracle-arm
     """
     index = _section_index()
     if index is None:
@@ -619,18 +630,19 @@ def search_chunks(query: str, corp_name: str | None = None, top_k: int = 5,
                   doc_subtype: str | None = None, path: str | None = None,
                   rcept_dt: str | None = None, include_stubs: bool = True,
                   doc_id: str | None = None) -> dict:
-    """§7.7 ⑥ 하이브리드 검색 폴백. **인덱스 두 개를 인자로 가른다.**
+    """Hybrid retrieval entry point, choosing between the two indexes by its
+    arguments.
 
-    기간 조건이 랭킹을 좌우한다 — 실측에서 corp_name 만으로는 골든이 15/26 이지만
-    rcept_dt prefix 를 함께 걸면 1위가 된다. 도구 스펙에도 노출해야 한다.
+    The period condition dominates ranking: a company filter alone leaves the
+    golden record outside the top results, while adding a receipt-date prefix
+    puts it first. It is therefore exposed in the tool specification.
 
-    정기공시 축(`base_year`·`doc_subtype`·`path`·`doc_id`)이 하나라도 오거나
-    `group="periodic"` 이면 섹션 인덱스로 간다. 두 인덱스를 합치지 않은 이유는 실측이다 —
-    합치면 exchange 골든 회수가 27 -> 26, top3 25 -> 24 로 떨어진다 (04-retriever D-5).
+    Any periodic axis, or an explicit periodic group, routes to the section
+    index. The two indexes are kept separate by measurement: merging them
+    lowers exchange golden recovery.
 
-    `doc_id` 는 **섹션 인덱스 축에만 있다** (`periodic_<접수번호>`). `TOOL_SPECS` 에는
-    노출하지 않는다 — 검색 계획이 쓰는 축이 아니라 `ablation.ORACLE` 이 골든 문서를
-    못박기 위한 축이다.
+    `doc_id` exists on the section axis only and is not exposed in the tool
+    specification, for the same reason as above.
     """
     if group == "periodic" or base_year or doc_subtype or path or doc_id:
         return _search_sections(query, corp_name=corp_name, top_k=top_k,
@@ -666,29 +678,32 @@ def _chain_entry(record: dict, kind: str, is_latest: bool) -> dict:
 
 
 def get_history(rcept_no: str, include_followups: bool = True) -> dict:
-    """정정 체인 + 후속 공시 추적. 유일하게 is_latest 를 무시한다.
+    """Trace a revision chain and its follow-up filings. The one tool that
+    ignores the latest flag.
 
-    `chain` 은 같은 사안의 정정 이력을 **접수일 오름차순**으로 돌려준다. 그래서
-    `is_latest` 는 **체인의 마지막 자리인가**로만 정해진다 — 금액 크기로 정하면 안 된다.
-    실측으로 값이 줄어드는 체인이 있다 (한화오션 잠수함 1,102,000,000,000 ->
-    443,500,000,000 -> ... -> 899,400,000,000). '가장 큰 값 = 최신' 규칙을 썼다면
-    전부 틀렸을 것이다.
+    The chain returns the revision history of one matter in ascending filing
+    order, which is what defines the latest position. It must not be defined by
+    amount: chains whose amount decreases exist, and a largest-value rule would
+    get every one of them wrong.
 
-    `followups` 는 정정이 아니라 **뒤에 온 다른 사안**이다 (해지·철회). `related` 로는
-    안 잡히고 `※ 관련공시` 역방향으로만 잡힌다 — 실측 해지 20건 중 related 0건,
-    관련공시 11건. 정정본과 섞으면 '정정된 유효 계약' 과 '해지된 계약' 이 구분되지
-    않으므로 `kind` 로 갈라 둔다.
+    Follow-ups are later matters rather than revisions, such as terminations.
+    They are not reachable through the revision field and appear only in the
+    reverse direction of the related-filings cell. Merged with revisions, a
+    terminated contract would be indistinguishable from a revised live one, so
+    they carry a separate kind.
 
-    `terminated` 는 그 **반대 방향**이다 — 이 공시가 해지한 **원계약**(+그 정정 체인).
-    `followups` 가 역방향뿐이라 해지에서 출발하면 빈다는 것이 회귀 `Q-066` 의 기전이고,
-    이 칸이 그 방향을 채운다. **`followups` 와 절대 합치지 않는다**: 시간 방향이
-    반대라 합치면 원계약이 '후속 공시' 로 찍히고, 그러면 모델이 원계약 금액 자리에
-    해지 금액을 답한다 (Q-066 의 v2 A8 오답이 정확히 그 값이다).
-    두 칸 다 `include_followups`(= `followup_hop` arm) 로 함께 가린다 — 출처가 같은
-    `※ 관련공시` 셀이라 `L4` 의 정의가 갈라지면 안 된다.
+    The terminated entries run the opposite way: the original contract this
+    filing terminated, together with its revision chain. They fill the
+    direction the reverse index cannot reach. They are never merged with
+    follow-ups, because the time direction is reversed and merging makes the
+    model answer with the termination amount where the original amount belongs.
 
-    `markdown` 을 함께 실어 돌려준다. 체인을 찾아 놓고 근거 블록을 다시 조회해야 하면
-    스텝이 두 배가 된다.
+    Both are gated by the same flag, since both come from the same source cell
+    and the definition of the corresponding leave-one-out must not split.
+
+    The markdown is returned alongside. Looking up the evidence block again
+    after finding the chain would double the steps.
+    See docs/design-rationale.md#chain-note-labels
     """
     origin = _by_rcept().get(rcept_no)
     if not origin:
@@ -719,16 +734,15 @@ def get_history(rcept_no: str, include_followups: bool = True) -> dict:
                                           bool(record.get("is_latest", True))))
         followups.sort(key=lambda e: (e["rcept_dt"], e["rcept_no"]))
 
-    # 🔴 순방향 — 이 공시가 **해지한** 원계약(+그 원계약의 정정 체인). v3 R2 ④.
-    # `followups` 와 **kind 를 갈라 둔다**: 저쪽은 '뒤에 온 다른 사안' 이고 이쪽은
-    # '앞에 있던 원계약' 이라 시간 방향이 반대다. 섞으면 `_chain_note` 가 원계약을
-    # '후속 공시' 로 찍어 모델이 해지금액을 원계약 금액으로 답한다 — Q-066 의 v2 오답이
-    # 정확히 그 값이다(원계약 351,882,914,000 대신 해지금액 362,307,038,000).
+    # Forward direction: the original contract this filing terminated, with
+    # its revision chain. Kept under a separate kind from the follow-ups,
+    # because the time direction is reversed and merging them makes the
+    # evidence label an original contract as a later filing.
     #
-    # 🔴 **`include_followups` 로 함께 가린다.** `terminates` 도 출처가 `※ 관련공시`
-    # 셀이므로(`corrections._termination_links` 가 `_reference_cells` 를 읽는다) 같은
-    # `REFERS_TO` 엣지 가족이다. 따로 열어 두면 `L4`(= `followup_hop=False`)가
-    # "관련공시 기여를 다 뺀 구성" 이 아니게 되어 이미 낸 −1.4%p 의 정의가 바뀐다.
+    # Gated by the same flag as the follow-ups: both come from the same source
+    # cell, so leaving one open would change what the corresponding
+    # leave-one-out measures.
+    # See docs/design-rationale.md#followup-edge-split
     terminated = []
     if include_followups:
         known = {e["rcept_no"] for e in chain} | {e["rcept_no"] for e in followups}
@@ -747,10 +761,8 @@ def get_history(rcept_no: str, include_followups: bool = True) -> dict:
 
 @lru_cache(maxsize=1)
 def _counterparty_graph() -> dict | None:
-    """발주처 2-hop 그래프 (`scripts/build_counterparty_graph.py` 산출물).
-
-    없으면 None — 도구는 error 를 돌려주고 파이프라인은 산다 (`_section_index()` 와
-    같은 패턴).
+    """The counterparty graph, or None. The tool then returns an error and the
+    pipeline stays up, the same pattern as the section index.
     """
     path = settings().artifacts_root / COUNTERPARTY_GRAPH_NAME
     if not path.exists():
