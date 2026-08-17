@@ -64,6 +64,9 @@ CALL_LOG = CallLog()
 # Both reads and writes are disabled while bypassing. Storing a bypassed
 # response would let the next sample hit it and reintroduce the problem.
 
+#: Nesting depth of active `no_cache` blocks. Zero means the cache is live.
+_no_cache_depth = 0
+
 
 def cache_bypassed() -> bool:
     """Whether the current call should bypass the request cache."""
