@@ -369,25 +369,24 @@ def _sufficiency(r, picked: list[dict], required,
     return not reasons, reasons
 
 
-# --- A7 ② 질문이 못박은 시점 --------------------------------------------------
-# 체인 hop 이 붙은 뒤 파이프라인이 **항상 최신값으로 수렴**한다 (실측 Q-022). 프롬프트
-# 규칙만으로는 안 뒤집혔다 — 근거 블록이 원공시를 `대체됨` 한 낱말로만 표시하니 모델이
-# 그걸 '쓰면 안 되는 값' 으로 읽는다. 그래서 **질문의 연월을 블록에 되비춘다.**
-#
-# 🔴 반대 방향이 진짜 위험이다. Q-005("2023년 6월에 공시한 … 정정공시에서 얼마로
-# 바뀌었는가")·Q-006·Q-061 은 **같은 문장에 날짜가 있는데 정답이 최신값**이다. 날짜만
-# 보고 표식을 달면 지금 맞히는 문항이 뒤집힌다. 그래서 표식은 질문이 정정 이후 값이나
-# 이력 서술을 요구하지 **않을 때만** 붙인다 — 그 경우 시점은 값의 기준점이 맞다.
-#
-# 실측 (dev 78 + 회귀 10 = 88문항, LLM 0회): 표식이 붙는 문항은 Q-022 하나다.
+# --- Point in time pinned by the question -----------------------------------
+# Once the chain hop is in place the pipeline converges on the latest value
+# every time, and prompt rules alone did not reverse it, so the question's
+# year-month is reflected back into the evidence block. The marker is applied
+# only when the question does not ask for a post-revision value or a history,
+# because questions carrying a date whose answer is the latest value are the
+# larger population.
+# See docs/design-rationale.md#as-of-marking
 
-#: 질문이 체인의 **결과·경과**를 요구하는가. 걸리면 시점 표식을 붙이지 않는다.
+#: Whether the question asks for the outcome or course of a chain. When it
+#: matches, no as-of marker is attached.
 _ASK_CHAIN_OUTCOME = re.compile(r"정정|해지|철회|변경계약|최종|최신|반영\s*후|"
                                 r"바뀌|변해|변화|추이|이력|시간순|차례")
 
 
 def _as_of_ym(question: str) -> str:
-    """질문이 못박은 연월. 정정 이후 값·이력을 요구하는 질의에는 빈 문자열."""
+    """Year-month pinned by the question, or "" when it asks for a
+    post-revision value or a history."""
     if _ASK_CHAIN_OUTCOME.search(question or ""):
         return ""
     match = _YM.search(question or "")
@@ -395,34 +394,37 @@ def _as_of_ym(question: str) -> str:
 
 
 def _as_of_note(entry: dict, as_of: str) -> str:
-    """이 체인 항목이 질문이 지목한 시점의 공시인가. 아니면 빈 문자열."""
+    """Marker when this chain entry is the filing at the pinned point in time,
+    else ""."""
     if not as_of or str(entry.get("rcept_dt", "")).replace("-", "")[:6] != as_of:
         return ""
     return f" · 질문이 지목한 {as_of[:4]}-{as_of[4:]} 시점의 공시"
 
 
 def _chain_note(entry: dict, index: int, total: int, as_of: str = "") -> str:
-    """근거 블록 안에 체인 위치를 박아 둔다.
+    """Stamp the chain position inside the evidence block itself.
 
-    별도 요약 블록으로 빼지 않는다 — 요약 블록에 접수번호를 나열하면 원문을 안 실어도
-    '골든 근거가 실렸다' 로 세어져 자기 성적표가 부풀어 오른다.
+    Not split out as a separate summary block: listing receipt numbers there
+    would count as golden evidence delivered without the source text being
+    present, inflating the run's own scorecard.
 
-    1번 자리에 **`원공시`** 를 덧붙인다. `대체됨` 한 낱말만 붙어 있으면 모델은 그 블록을
-    '쓰면 안 되는 값' 으로 읽는다 — 실측 Q-022 가 그랬다. '최초 공시 당시' 를 묻는 질의
-    (Q-069)와 시점을 못박은 질의(Q-022)에서는 그 블록이 **정답의 출처**다.
-
-    **`대체됨`·`최신본` 은 그대로 둔다.** `critic._STALE_NOTE` / `_LATEST_NOTE` 가 이 두
-    낱말로 블록의 체인 위치를 읽는다 — 갈아치우면 `stale_value` 전제가 통째로 무너진다.
+    The wording of the superseded and latest markers is load bearing.
+    `critic._STALE_NOTE` and `_LATEST_NOTE` read the chain position out of
+    those two words, so replacing them removes the premise of `stale_value`.
+    See docs/design-rationale.md#chain-note-labels
     """
     if entry.get("kind") == "followup":
-        # 후속 공시는 정정이 아니다. 체인 번호를 붙이면 '정정 n번째' 로 읽힌다.
+        # A follow-up filing is not a revision. Numbering it would read as the
+        # nth revision.
         return "- 정정체인: 후속 공시 (※관련공시로 이어짐)"
     if entry.get("kind") == "terminated":
-        # 🔴 방향이 반대다 — 이건 **앞에 있던 원계약**이지 뒤에 온 공시가 아니다.
-        # 라벨을 `followup` 과 같이 쓰면 모델이 원계약 금액 자리에 해지 금액을 답한다
-        # (Q-066 의 v2 A8 오답 362,307,038,000 vs 골든 351,882,914,000).
-        # `대체됨`·`최신본` 을 **쓰지 않는다** — `critic._STALE_NOTE`/`_LATEST_NOTE` 가
-        # 그 두 낱말로 체인 위치를 읽으므로 해지 관계가 정정 관계로 오독된다.
+        # The direction here is reversed: this is the prior contract, not a
+        # later filing. Sharing the `followup` label makes the model answer
+        # with the termination amount where the original amount belongs. The
+        # superseded and latest markers are deliberately not used, since
+        # `critic._STALE_NOTE` and `_LATEST_NOTE` would read a termination
+        # relation as a revision relation.
+        # See docs/design-rationale.md#chain-note-labels
         return "- 정정체인: 해지 대상 원계약 (이 계약을 해지한 공시가 ※관련공시로 지목)"
     mark = _as_of_note(entry, as_of)
     if entry.get("is_latest"):
@@ -432,7 +434,8 @@ def _chain_note(entry: dict, index: int, total: int, as_of: str = "") -> str:
 
 
 def _annotate(markdown: str, note: str) -> str:
-    """`## ` 헤더 바로 밑에 한 줄 끼운다. 블록 경계(`^## `)를 건드리지 않는다."""
+    """Insert one line directly below the `## ` header, leaving the block
+    boundary intact."""
     if not markdown:
         return markdown
     head, sep, rest = markdown.partition("\n")
@@ -441,89 +444,53 @@ def _annotate(markdown: str, note: str) -> str:
     return f"{head}\n{note}\n{rest}"
 
 
-#: 질문이 **해지가 가리키는 원계약**을 묻고 있는가. 제동 ②' 의 어휘 축.
-#: 이 목록만으로는 아무것도 안 열린다 — `terminates` 를 가진 문서(코퍼스 전체 **11건**)가
-#: 상위 후보에 있어야 비로소 걸린다. 그래서 넉넉히 적어도 과잉 발화가 안 생긴다.
+#: Whether the question asks for the original contract a termination points
+#: at. This vocabulary alone opens nothing: a document carrying `terminates`
+#: (11 in the whole corpus) must also be among the top candidates, so the list
+#: can be generous without causing over-firing.
 _TERMINATION_ORIGIN_HINT = ("원래", "원계약", "원공시", "최초", "가리키는")
 
-#: 🔴 **A33 — 정정본에서 원공시로 되돌아가야 하는 질의.** v5 오답 `Q-113`.
-#:
-#: `_TERMINATION_ORIGIN_HINT`(해지 → 원계약)와 **축이 같고 대상이 다르다** — 저쪽은
-#: 해지 공시에서 원계약으로, 이쪽은 정정본에서 원공시로 간다. 낱말을 공유하지 않고
-#: 따로 두는 이유는 v3 R2 ④ 가 실측으로 좁힌 그 예외를 **넓히지 않기** 위해서다.
-#: 저쪽 목록의 `최초`·`원래` 는 단독 낱말이라 이쪽에 쓰면 발화가 넓어진다.
-#:
-#: 🔴 **원공시를 명시적으로 지목하는 표현만 넣는다.** `얼마나 늘었`·`어떻게 바뀌` 같은
-#: 변동 서술을 넣으면 발화가 4 → 7 로 늘고(R0 실측), 늘어난 셋(`Q-018`·`Q-023`·`Q-081`)
-#: 은 근거를 이미 다 가진 문항이라 **얻는 것 없이 희석만 는다.**
-#:
-#: R0(2026-08-16) 실측 — 평가셋 112문항에서 발화 4 · 그중 씨앗이 실제로 열리는 것 3:
-#:     `Q-113` 씨앗 5개(겨냥) · `Q-061` 1개 · `Q-069` 1개 · `Q-094` **0개**(근거 불변)
+#: Whether the question requires walking from a revision back to the original
+#: filing. Same axis as `_TERMINATION_ORIGIN_HINT` with a different target, and
+#: kept as a separate list so the narrow exception measured for that one is not
+#: widened here. Only phrasings that name the original filing explicitly
+#: belong; adding change-of-value phrasings widens firing without recovering
+#: any evidence.
+#: See docs/design-rationale.md#reverse-seeding
 _REVISION_ORIGIN_HINT = ("최초 공시", "최초공시", "원공시", "원 공시", "당초",
                          "정정 전", "정정전")
 
 
-#: 🔴 **A33 전용 씨앗 창.** `CHAIN_SEED_WINDOW`(2)를 **이 플래그 뒤에서만** 넓힌다.
-#:
-#: 첫 측정(2026-08-16)이 씨앗 조건만 고쳐서는 `Q-113` 이 안 열린다는 것을 보여 줬다 —
-#: 상위 후보 둘이 **전부 삼성중공업**이라 삼성E&A 의 정정본(`20250924800260`)이
-#: **6번째**에 있어 탐침조차 안 됐다. 두 기업을 비교하는 질의에서 전역 창 2 는
-#: 구조적으로 두 번째 기업에 닿지 못한다.
-#:
-#: 🔴 **`CHAIN_SEED_WINDOW` 자체는 안 건드린다.** 그 상수는 제동 ① 이고 모든 질의에
-#: 걸린다. 여기서 넓히는 것은 `_asks_original` 이 참인 **4문항뿐**이다 (R0 실측).
+#: Seed window used only behind `_asks_original`. A global window of 2 cannot
+#: structurally reach the second company in a two-company comparison, so it is
+#: widened here alone; `CHAIN_SEED_WINDOW` itself applies to every question and
+#: is left untouched.
+#: See docs/design-rationale.md#reverse-seeding
 REVERSE_SEED_WINDOW = 6
 
 
 def _asks_original(question: str) -> bool:
-    """질문이 **정정 전 값**을 요구하는가. LLM 0회 · 검색 0회."""
+    """Whether the question asks for the pre-revision value. No LLM call and no
+    retrieval."""
     return any(h in (question or "") for h in _REVISION_ORIGIN_HINT)
 
 
 def _chain_seeds(picked: list[dict], question: str = "") -> list[dict]:
-    """체인을 밟을 씨앗. 제동 ①② — 상위 후보 안의 **대체본**, 그리고 조건부로 **해지 공시**.
+    """Seeds for walking a chain: superseded documents within the rank window,
+    plus termination filings under a condition.
 
-    `tools.chain_probe` 는 도구 호출이 아니라 레코드 조회라 스텝을 쓰지 않는다.
-    이게 없으면 링크가 없는 문서에도 `get_history` 를 걸어 스텝만 태운다.
+    `tools.chain_probe` is a record lookup rather than a tool call, so it costs
+    no step. Without it, `get_history` would be issued against documents that
+    carry no link at all and spend steps for nothing.
 
-    ## 🔴 v3 R2 ④ — 제동 ② 에 **좁은 예외 하나**를 낸다
-
-    제동 ② 는 *"씨앗은 대체본(`is_latest=False`)만"* 이고 실측으로 정해졌다 — 최신본을
-    씨앗으로 받으면 `Q-008`·`Q-031`·`Q-033`·`Q-034`(전부 현재 정답)에 근거가 붙는다.
-    **해지 공시는 전건 `is_latest=True`** 라 이 제동에 걸리고, 그래서 회귀 `Q-066` 은
-    해지에서 출발하는데 런타임 대체 경로가 **없었다**(W4 진단).
-
-    `corrections.attach_related` 독스트링이 확장 전에 밟으라고 못박은 절차(7문항 근거
-    조립 diff · LLM 0회 · `1d008f0`)를 **먼저 밟았다.** 세 안을 갈라 쟀다
-    (분모: dev 78 + 회귀 10 + 밸류체인 12 = 100문항 · 골든 179):
-
-    | 안 | 골든 | 근거 바뀐 문항 | 보호 4문항 중 바뀜 | 잃은 골든 |
-    |---|---|---|---|---|
-    | ⓐ `terminates` 보유면 무조건 | 160→**161** | 6 | **4** | 0 |
-    | ⓒ ⓐ + 질문이 원계약을 물을 때만 | 160→**161** | **2** | **1** | 0 |
-    | ⓑ `_followup_index` 키까지 (= 계획서 `A9`) | 160→**161** | 7 | **4** | 0 |
-
-    🔴 **셋의 골든이 같다.** `A9` 의 일반형(ⓑ)이 `terminates` 하나보다 더 회수하는 것이
-    **0건**이다 — `_followup_index` 씨앗이 늘리는 것은 `Q-035` 의 근거 18자뿐이다.
-    그러면서 근거를 바꾸는 문항은 가장 많다. **얻는 것 없이 희석만 늘린다.**
-
-    ⓐ 와 ⓒ 도 골든이 같은데 **바꾸는 범위가 3배 다르다.** ⓐ 는 `Q-031`(해지 금액을
-    묻는다)에 원계약 3건 +1,127자, `Q-034`(해지 금액 합계를 묻는다)에 +1,186자를 얹는다.
-    `corrections.attach_related` 가 경고한 사고(*"원계약 금액을 근거에 명시하면 오답을
-    굳힌다"*)의 **거울상**이다 — 이번엔 해지 금액을 묻는 문항에 원계약 금액이 붙는다.
-    `ORACLE` 이 이미 실측한 것도 같은 방향이다 — 🔴 **R2E 재측정 후 그 증거가 더 세졌다**:
-    오라클과 `A8` 의 정오가 갈린 **7문항 전수**에서 골든 회수가 같고 오라클 근거만 더
-    작았다(고친 2건 · 깨뜨린 5건). 즉 움직인 것은 회수량이 아니라 **희석의 양**이다.
-    (R1 시점 서술은 *"고친 4건 중 3건이 근거 희석 제거"* 였다 — 세대가 다른 값이다.)
-
-    **그래서 ⓒ 를 채택한다.** 예외를 여는 조건이 둘이다 — 문서 쪽으로 `terminates` 가
-    있을 것(코퍼스 전체 11건), 질문 쪽으로 **원계약을 묻고 있을 것**. 남는 변화는
-    `Q-066`(1/2 → 2/2, 겨냥)과 `Q-033`(1/1 유지, +324자)뿐이고, `Q-033` 은 질문 자체가
-    *"원래 계약기간"* 을 요구하므로 붙는 블록이 그 질문에 응답하는 문서다.
-
-    ⓐ·ⓑ 를 기각한 것이 이 라운드의 결과다 — **기각도 결과다.** `L4` 가 실측한
-    *"`REFERS_TO` 1,267엣지의 발화 기회가 100문항에서 1건"* 은 그대로 남고, 그 원인인
-    씨앗 조건도 그대로 남는다. **그 막음에 값이 있다**는 것이 이번 측정의 뜻이다.
+    Termination filings are all `is_latest=True` and therefore excluded by the
+    superseded-only rule, which left questions starting from a termination with
+    no runtime path. The exception is opened only when the document carries
+    `terminates` and the question asks for the original contract. Opening it on
+    the document condition alone was measured and rejected: it recovers the
+    same golden records while attaching original-contract amounts to questions
+    that ask for termination amounts.
+    See docs/design-rationale.md#termination-seed-exception
     """
     asks_origin = any(h in (question or "") for h in _TERMINATION_ORIGIN_HINT)
     # 🔴 A33 — 정정본에서 원공시로. 플래그가 꺼져 있으면 `wants_prior` 가 항상 False 라
