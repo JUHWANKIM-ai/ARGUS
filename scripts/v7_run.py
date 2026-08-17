@@ -7,6 +7,7 @@ See docs/design-rationale.md#fresh-generation-measurement
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import time
@@ -20,10 +21,31 @@ from scripts import error_analysis as ea                      # noqa: E402
 
 COHORTS = ("full", "safety", "valuechain")
 ROOT = Path("artifacts/ablation/v7")
+#: The payload V7-5's index rebuild replaces. Hashed into every report so a
+#: later comparison can tell whether two arms were measured against the
+#: same index.
+#: See docs/design-rationale.md#v7-index-rebuild
+INDEX_FILE = Path("artifacts/exchange_bm25.json")
 
 
 def out_dir(arm_name: str, cohort: str, round_no: int) -> Path:
     return ROOT / ("%s_%s_r%d" % (arm_name, cohort, round_no)) / arm_name
+
+
+def index_fingerprint() -> str:
+    """Short digest of the exchange BM25 index in place at run time.
+
+    Empty when the index file is absent, rather than raising: a fresh
+    checkout without artifacts/ built yet must still be able to run.
+
+    Only the V7-5 arm rebuilds this index, so a differing fingerprint
+    between two report.json files is what marks their runs as not
+    comparable in one table.
+    See docs/design-rationale.md#v7-index-rebuild
+    """
+    if not INDEX_FILE.exists():
+        return ""
+    return hashlib.sha256(INDEX_FILE.read_bytes()).hexdigest()[:12]
 
 
 def run_arm(arm_name: str, round_no: int,
@@ -51,6 +73,7 @@ def run_arm(arm_name: str, round_no: int,
         report = ea.build_report(cases, rows, cohort=cohort)
         report["arm"] = arm_name
         report["round"] = round_no
+        report["index_fingerprint"] = index_fingerprint()
         (base / "report.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
         overall = report["crosstab"]["overall"]

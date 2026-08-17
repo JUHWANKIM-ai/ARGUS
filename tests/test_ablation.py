@@ -2584,9 +2584,10 @@ def test_w1_arms_call_the_counterparty_hop_with_the_old_arguments():
 # --- A10, V7-1: the two arms allowed to move the temperature control -------
 # 09-ablation §I-3 이 "온도 0.0" 을 고정으로 못박았고 v3 까지 그 값은 파이프라인에
 # **하드코딩**돼 있었다. `Arm` 으로 옮기는 조작의 위험은 하나다. **기본값이 0.0 이
-# 아니면 v1~v4 측정이 전부 무효가 된다.** A10 은 전 문항에 건 자기일관성이고, V7-1
-# 은 논문이 그은 범위(고정 답변 집합과 파서)로 좁힌 자기일관성이다. 같은 축을 재는
-# 둘뿐이므로 통제를 함께 깬다. 아래 첫 검사가 그것만 본다.
+# 아니면 v1~v4 측정이 전부 무효가 된다.** A10 applies self-consistency to every
+# question, while V7-1 narrows it to the scope the paper states (a fixed
+# answer set and a parser). These are the only two arms that move this
+# control, so the first check below covers both.
 
 def test_temperature_moved_to_the_arm_but_the_default_is_still_zero():
     assert "temperature" in FLAGS and "sc_k" in FLAGS
@@ -2626,6 +2627,33 @@ def test_v7_5_pairs_the_relevance_allocation_with_the_region_field():
     assert ablation.ARMS["V7-5"].counterparty_relevance is True
     assert "V7-5" in ablation.SIDE_ARMS
     assert "V7-5" not in ablation.LADDER and "V7-5" not in ablation.LOO_REMOVED
+
+
+def test_v7_2_adopts_regeneration_on_a_strict_subset_of_failure_kinds():
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["V7-2"], f) != getattr(ablation.A42, f)]
+    assert diff == ["regenerate_partial"], diff
+    assert ablation.ARMS["V7-2"].regenerate_partial is True
+    assert "V7-2" in ablation.SIDE_ARMS
+    assert "V7-2" not in ablation.LADDER and "V7-2" not in ablation.LOO_REMOVED
+
+
+def test_v7_3_turns_on_only_the_comparison_line():
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["V7-3"], f) != getattr(ablation.A42, f)]
+    assert diff == ["compare_line"], diff
+    assert ablation.ARMS["V7-3"].compare_line is True
+    assert "V7-3" in ablation.SIDE_ARMS
+    assert "V7-3" not in ablation.LADDER and "V7-3" not in ablation.LOO_REMOVED
+
+
+def test_v7_4_turns_on_only_the_unit_line():
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["V7-4"], f) != getattr(ablation.A42, f)]
+    assert diff == ["unit_line"], diff
+    assert ablation.ARMS["V7-4"].unit_line is True
+    assert "V7-4" in ablation.SIDE_ARMS
+    assert "V7-4" not in ablation.LADDER and "V7-4" not in ablation.LOO_REMOVED
 
 
 def test_self_consistency_at_temperature_zero_is_rejected():

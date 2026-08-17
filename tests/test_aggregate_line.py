@@ -169,6 +169,26 @@ def test_the_operation_is_read_before_the_sum():
     assert aggregate._op("어떤 계약을 체결했는가?") == ""
 
 
+def test_a_mixed_sum_and_comparison_hint_routes_to_comparison_and_stays_silent():
+    """`_OPS` tests comparison before sum and difference deliberately, so a
+    question carrying both a comparison hint and a sum hint routes to
+    comparison. With `compare_line` off (the default), that means no line
+    and no computed total at all, not even the sum the question also names
+    in words.
+
+    Zero of the 112 evaluation questions carry this combination, but the
+    deployed server takes arbitrary questions. This pins the current
+    behaviour so the narrowing cannot drift further unnoticed. The ordering
+    itself is deliberate and is not changed here.
+    """
+    question = "두 계약의 합계는 B사 단독보다 얼마나 큰가"
+    assert aggregate._op(question) == "비교"
+    _, _, rcepts, _ = CASES[2]                      # any real two-record fixture
+    recs = _recs(*rcepts)
+    assert aggregate.line(recs, question, None) == ""
+    assert aggregate._total(recs, question, None) is None
+
+
 @pytest.mark.parametrize("qid,question,rcepts,expected", CASES,
                          ids=[c[0] for c in CASES])
 def test_line_and_total_never_diverge(qid, question, rcepts, expected):
