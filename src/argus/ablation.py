@@ -453,9 +453,10 @@ class Arm:
                     f"(arm {self.name!r}). 검색 LOO 는 오라클 없이 재십시오.")
         if self.sc_k < 1:
             raise ValueError(f"sc_k 는 1 이상이어야 합니다: {self.sc_k} (arm {self.name!r})")
-        # 🔴 온도 0.0 에서 같은 프롬프트를 k 번 부르면 **표본이 전부 같다.** 다수결이
-        #    항상 만장일치가 되어 자기일관성이 no-op 이 되고, 우리는 그 0 을 "SC 는
-        #    효과가 없다" 로 읽는다. 값을 치른 만장일치와 공짜 만장일치는 다르다.
+        # Calling the same prompt k times at temperature zero returns
+        # identical samples, so the majority is unanimous by construction and
+        # self-consistency becomes a no-op whose zero would read as evidence
+        # that the technique has no effect.
         if self.sc_k > 1 and self.temperature <= 0.0:
             raise ValueError(
                 f"sc_k={self.sc_k} 인데 temperature={self.temperature} 입니다 — 온도 0 에서는 "
@@ -468,186 +469,191 @@ class Arm:
 
     @property
     def uses_group_index(self) -> bool:
-        """major·holding·periodic 인덱스를 보는가. A1 은 exchange 1,469건만 본다."""
+        """Whether the non-exchange indexes are visible. The BM25-only arm
+        sees the exchange index alone."""
         return self.retrieval == "all"
 
 
-# --- 누적 사다리 (§I-4b) -------------------------------------------------------
+# --- Cumulative ladder ------------------------------------------------------
 A0 = Arm("A0", retrieval="meta", schema_fields=False, hop_ladder=False,
          chain_hop=False, counterparty_hop=False, split_query=False,
          calc_values=False, verifier=False, followup_hop=False)
 A1 = replace(A0, name="A1", retrieval="exchange")
 A1B = replace(A1, name="A1b", retrieval="all", schema_fields=True)
-#: `followup_hop` 을 여기서 **명시적으로** 켠다. `chain_hop` 과 짝이므로 함께 적어야
-#: 한쪽만 옮겨지는 사고를 막는다 (`__post_init__` 이 짝을 검사한다).
+#: `followup_hop` is enabled explicitly here. It pairs with `chain_hop`, and
+#: writing both keeps one from being moved without the other; `__post_init__`
+#: checks the pair.
 A4 = replace(A1B, name="A4", hop_ladder=True, chain_hop=True, split_query=True,
              followup_hop=True)
 A5 = replace(A4, name="A5", calc_values=True)
 A6 = replace(A5, name="A6", verifier=True)
-#: 플래그가 A6 과 같다 — A7 은 무조건 코드다 (머리말 참조). 사다리 번호를 §I-5d 와
-#: 맞추기 위한 칸이고, `Δ(A6→A7)` 은 정의상 0 이다.
+#: Same flags as the arm below it: this step is unconditional code with no
+#: flag, so its delta is zero by definition. The slot exists to keep the
+#: ladder numbering aligned with the report.
+#: See docs/design-rationale.md#a7-identity
 A7 = replace(A6, name="A7")
 A8 = replace(A7, name="A8", counterparty_hop=True)
 
-# --- Leave-one-out — **A8 에서** 한 요소만 되돌린다 ------------------------------
-#: 🔴 `followup_hop` 도 함께 끈다 — `chain_hop` 없이는 도달하지 않는 플래그다.
-#: 그래서 `L1` 은 **엄밀히는 단일 변수 조작이 아니다**: 정정 550엣지와 관련공시 1,267엣지를
-#: 한꺼번에 뺀다. 그 사실을 `L4` 가 갈라 준다 (머리말 §followup_hop).
-L1 = replace(A8, name="L1", chain_hop=False, followup_hop=False)   # 실패의 41%
-L2 = replace(A8, name="L2", schema_fields=False)    # 실패의 24%
-#: L3 은 플래그로 보면 **A7 과 같다** (A8 − counterparty_hop = A7). 이름을 따로 두는
-#: 이유는 읽는 방향이 반대라서다 — 사다리는 '더하면 얼마 오르나', LOO 는 '빼면 얼마
-#: 잃나' 를 묻는다. 두 수는 부호만 다른 같은 값이어야 하고, 아니면 어딘가 틀렸다.
+# --- Leave-one-out: revert a single component from the top arm --------------
+#: `followup_hop` is turned off with it, since it is unreachable without the
+#: chain hop. This one is therefore not strictly a single-variable
+#: manipulation: it removes the revision edges and the related-filing edges
+#: together, and the arm below separates the two.
+#: See docs/design-rationale.md#followup-edge-split
+L1 = replace(A8, name="L1", chain_hop=False, followup_hop=False)
+L2 = replace(A8, name="L2", schema_fields=False)
+#: By flags this is identical to the ladder step below the top arm. The
+#: separate name records the reading direction: the ladder asks how much
+#: adding a component gains, the leave-one-out asks how much removing it
+#: loses. The two numbers must agree up to sign, and a disagreement means
+#: something is wrong.
 L3 = replace(A8, name="L3", counterparty_hop=False)
-#: 🔴 `L1` 안에 섞여 있던 `※관련공시` 후속공시만 떼어낸다. **v3 신설** — Δ 상한이
-#: 1문항(Q-035)임을 사전 실측으로 확인했다(머리말). 그 15원으로 "REFERS_TO 는 이 코호트에서
-#: 기여 0" 을 주장이 아니라 측정으로 바꾼다.
+#: Removes only the related-filing edges that were bundled into the chain
+#: leave-one-out. Its measured effect is confined to a single question, which
+#: is what turns a claim of no contribution into a measurement.
+#: See docs/design-rationale.md#followup-edge-split
 L4 = replace(A8, name="L4", followup_hop=False)
-#: 🔴 **메타 축 LOO 셋 (v4 신설).** `L5` 는 v3 가 기각한 이름이라 **비워 두고 건너뛴다** —
-#: 재사용하면 v3 산출물의 `L5` 와 같은 칸으로 읽힌다.
+#: The three meta-axis leave-one-outs. The `L5` name is left unused, because
+#: reusing a rejected name would make it read as the same slot in earlier
+#: artifacts.
 #:
-#: 이 셋이 `LOO_REMOVED` 에 들어가는 것이 핵심이다. 곁가지(`A20`·`A21`…)와 달리
-#: **LOO 표의 빈칸을 메우는 것**이고, 제안서 §6 의 기여도 곡선이 그 공백을 안고 있다.
-#: 🔴 Δ 는 크게 음수일 것이 거의 확실하다 — 메타 프리필터가 `A0` 의 본체이기 때문이고,
-#: 그래서 이 셋은 '뺄 후보' 가 아니라 **'A0 의 기여를 A8 위에서 다시 재는 것'** 이다.
+#: These belong in the leave-one-out set rather than among the side branches:
+#: they fill the blanks of that table. Their deltas are expected to be
+#: strongly negative, since the meta prefilter is the substance of the
+#: retrieval floor, so they measure that floor's contribution again from the
+#: top arm rather than proposing a removal.
+#: See docs/design-rationale.md#meta-axis-loo
 L6 = replace(A8, name="L6", meta_corp=False)
 L7 = replace(A8, name="L7", meta_date=False)
 L8 = replace(A8, name="L8", meta_group=False)
 
-# --- A2 — 임베딩 하이브리드 (사다리 밖 곁가지) ----------------------------------
-A2 = replace(A1B, name="A2", dense=True)            # §I-2 자리: A1b + dense
-A2F = replace(A8, name="A2F", dense=True)           # 제출 구성 위: A8 + dense
+# --- Embedding hybrid, off the ladder ---------------------------------------
+# See docs/design-rationale.md#dense-isolation
+A2 = replace(A1B, name="A2", dense=True)            # at the position defined for it
+A2F = replace(A8, name="A2F", dense=True)           # on the submission configuration
 
-# --- ORACLE — 검색 고정 · 생성만 잰다 (사다리 밖 곁가지 · 🔴 진단 전용) -----------
-#: `A8` 과 **플래그 하나만** 다르다. 그 하나가 검색 차선 전체를 골든 주입으로 갈아치운다 —
-#: 🔴 **더 주는 것이 아니라 골든만으로 교체하는 것**이라 근거가 줄어들고(실측 −47%),
-#: 그래서 `Δ(A8→ORACLE)` 을 *"검색이 못 가져온 몫"* 으로 읽으면 **안 된다**(R2E · 머리말 참조).
-#: 이 arm 이 재는 것은 **"근거를 골든만으로 한정했을 때 답이 서는가"** 다.
-#: 🔴 제출 구성이 아니고 상한도 아니다 — 그리드 72 에서 A8 66 · ORACLE 64 다.
+# --- Oracle: retrieval held fixed, generation measured alone ---------------
+#: Diagnostic only, off the ladder. One flag apart from the top arm, and that
+#: flag replaces the whole retrieval lane with the golden evidence. It replaces
+#: rather than adds, so the evidence shrinks and the delta cannot be read as
+#: the shortfall of retrieval. Neither a submission configuration nor an upper
+#: bound.
+#: See docs/design-rationale.md#oracle-arm
 ORACLE = replace(A8, name="ORACLE", golden_oracle=True)
 
-# --- A8-lean — 프롬프트 규칙 다이어트 (사다리 밖 곁가지 · v3 신설) ----------------
-#: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 규칙 8·9(`prompts.MONEY_UNIT_RULE`)를
-#: 시스템 프롬프트에서 뗀다. 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** (머리말 참조):
-#: 사다리의 칸이 아니라 같은 자리에서 프롬프트만 갈아 끼운 변형이다. 겨냥 1건(`Q-018`) ·
-#: 인질 12건(전체 88 · 밸류체인 5/12)이고, 그 비대칭이 이 arm 의 판정 조건이다.
+# --- Prompt rule diet, off the ladder ---------------------------------------
+#: One flag apart from the top arm, removing the money-unit rules from the
+#: system prompt. Not a ladder step: the same position with a different
+#: prompt. It targets one question while putting twelve currently-correct ones
+#: at risk, and that asymmetry is its acceptance condition.
+#: See docs/design-rationale.md#lean-prompt-arm
 A8_LEAN = replace(A8, name="A8-lean", lean_rules=True)
 
-# --- A20 — 검사가 낸 재계산값으로 답변을 치환한다 (사다리 밖 곁가지 · v4 신설) -----
-#: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 `pipeline._verify` 를 '각주만 붙이는
-#: 판정자' 에서 '재계산값으로 정정하는 교정자' 로 바꾼다. 🔴 **`LADDER`·`LOO_REMOVED`
-#: 에 넣지 않는다** (`A8-lean`·`ORACLE` 과 같은 곁가지다): 사다리의 칸이 아니라 같은
-#: 자리에서 검증 단계의 처분만 갈아 끼운 변형이다.
-#: 🔴 `verifier` 에 구조적으로 의존한다 (`FLAG_DEPENDENCIES`) — 검증 단계가 안 서면
-#: `_verify` 가 첫 줄에서 나가므로 Δ 가 조용히 0 이 된다.
+# --- Substitute the recomputed value, off the ladder ------------------------
+#: One flag apart from the top arm, turning the verification stage from a
+#: judge that annotates into a corrector that substitutes. Not a ladder step:
+#: the same position with a different disposition of the verdict. Structurally
+#: dependent on the verification stage being enabled.
+#: See docs/design-rationale.md#verifier-disposition
 A20 = replace(A8, name="A20", substitute_verified=True)
 
-# --- A21 — 수치 출처 게이트 (사다리 밖 곁가지 · v4 신설) --------------------------
-#: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 답변의 12자리 이상 금액이 근거에
-#: 완전일치로 있는지 묻는다. 🔴 **`A15` 의 대체 후보**이지 `A20` 의 변형이 아니다:
-#: `A15`·`A20` 은 *"계산이 맞는가"* 를 묻고 이 arm 은 *"이 숫자가 근거에 있는가"* 를
-#: 묻는다. 겨냥 3건(`Q-018` 그리드 · `Q-109`·`Q-113` 밸류체인)을 v3 세대 664 답변
-#: 전수 재채점으로 확인했다 (`R1-9` 보고서).
-#: 🔴 `LADDER`·`LOO_REMOVED` 에 넣지 않는다 — `A8-lean`·`A20` 과 같은 곁가지다.
+# --- Number provenance gate, off the ladder ---------------------------------
+#: One flag apart from the top arm, asking whether a large amount in the
+#: answer appears verbatim in the evidence. A different question from the
+#: substitution arms, which ask whether the arithmetic holds.
+#: See docs/design-rationale.md#arm-catalog
 A21 = replace(A8, name="A21", provenance_gate=True)
 
-# --- A20r — 치환 대신 **사유를 실어 재생성 1회** (사다리 밖 곁가지 · v4 신설) ------
-#: 🔴 **이 arm 은 `A8` 과 플래그가 둘 다르다.** 다른 곁가지와 갈리는 자리라 이유를 적는다.
-#: `provenance_gate` 는 **조작이 아니라 입력**이다 — `R1-9` 가 그 게이트의 단독 Δ 가
-#: **구조적으로 0** 임을 확인했다(`_verify` 의 유일한 출력이 각주이고 채점은
-#: `score_closed`·`judge_open` 양쪽에서 `strip_verify_tail` 로 그 꼬리를 뗀다.
-#: 탐지 100% · 교정 0%). 즉 그 플래그는 이 arm 의 Δ 에 자기 몫을 섞지 않고, **판정을
-#: 소비할 자리**를 여기 하나 만들 뿐이다. `A21` 의 `reason`
-#: (`"provenance: 답변 1,843,200,000,000원 이 근거에 없다"`)은 `A20` 의 재계산값과 달리
-#: 재생성 프롬프트에 **그대로 실을 수 있는 형태**라 겨냥이 겹치지 않고 합이 크다.
+# --- Regenerate once with the reasons, off the ladder -----------------------
+#: Two flags apart from the top arm, which is unusual enough to record why.
+#: The provenance gate is an input rather than a manipulation: its own delta is
+#: structurally zero, because its only output is a note and scoring strips that
+#: note on both tracks. It contributes nothing of its own to this arm's delta
+#: and merely creates a verdict for the regeneration to consume, in a form that
+#: can be carried into the prompt verbatim.
 #:
-#: 🔴 `substitute_verified` 는 **끈 채로 둔다** — 계획서가 *"치환 대신 재생성"* 으로
-#: 두 처분을 나란히 재라고 했다. 켜면 `Δ(A8→A20r)` 이 치환의 몫과 섞인다.
-#: 🔴 `LADDER`·`LOO_REMOVED` 에 넣지 않는다 — `A8-lean`·`A20`·`A21` 과 같은 곁가지다.
+#: Substitution stays off, so that the two dispositions are measured side by
+#: side rather than mixed.
+#: See docs/design-rationale.md#verifier-disposition
 A20R = replace(A8, name="A20r", regenerate_on_verify=True, provenance_gate=True)
 
-# --- A18 — `T1-targeted` n-ary 추출 (사다리 밖 곁가지 · v4 신설) ------------------
-#: `A8` 과 **플래그 하나만** 다르다 — 그 하나가 `schema_matched=False` 238건의 근거에
-#: `artifacts/nary_records.jsonl` 의 LLM 추출값을 **덧붙인다**(합집합 · 덮어쓰기 아님).
-#: 🔴 **`LADDER`·`LOO_REMOVED` 에 넣지 않는다** — `A8-lean`·`A20`·`A21` 과 같은 곁가지다.
+# --- Targeted n-ary extraction, off the ladder ------------------------------
+#: One flag apart from the top arm, appending extracted values to the evidence
+#: of records the schema did not match. A union rather than an overwrite.
 #:
-#: 🔴 **이 저장소의 "겨냥 0 이면 세우지 않는다" 규칙을 의도적으로 예외 처리한 유일한 arm**
-#: 이다 (계획서 §13 ③ · 사용자 판단 2026-08-14). 사유는 *"`T1` 은 논문 아이디어 10편 중
-#: 하나라 제안서에서 안 재고 기각보다 재고 기각이 강하다"* 이고, **그 예외임을 제안서
-#: §7 에 명시**해야 한다 — 기준을 조용히 바꾼 것으로 읽히면 다른 기각의 신뢰도가 함께
-#: 떨어진다.
-#:
-#: 🔴 **Δ = 0 이 예측으로 먼저 박혔다** (`R0-1` `2c0558b` · 계획서 §9pre). 근거 넷:
-#: ① 현 실패 6문항 중 `schema_matched=False` 근거를 가진 것은 `Q-087` 하나이고 그 정답은
-#: `schema_matched=True` 레코드에 있다 ② `T1` 이 새로 회수 가능한 13 레코드 중 평가셋
-#: 골든이 **0건** ③ 밸류체인은 근거·골든 양쪽에 false 레코드가 0건 ④ `Q-101` 은 이미 정답.
-#: **틀리면 238건 판정 전체를 재검토하라** (계획서 §9pre 의 어긋남 표).
+#: The only arm deliberately exempted from the rule that an arm with nothing to
+#: target is not built, and a delta of zero was recorded as a prediction before
+#: it ran. A non-zero result means the underlying classification of those
+#: records has to be re-examined.
+#: See docs/design-rationale.md#arm-catalog
 A18 = replace(A8, name="A18", nary=True)
 
-# --- A25 — 근거 표기 결정적 부착 (사다리 밖 곁가지 · 규약 감사 F-2) ----------------
-#: `A20r`(운영 기본값)과 **플래그 하나만** 다르다. 사유·기전·비용은 `Arm.attach_citation`
-#: 독스트링에 적었다.
+# --- Deterministic citation attachment, off the ladder ----------------------
+#: One flag apart from the operational default. What it targets is measured:
+#: roughly a quarter of answers lack a citation in the required form.
 #:
-#: 🔴 **겨냥이 실측으로 박혀 있다** — `A20r` 의 `citation_rate` 0.765(그리드 0.750)이고,
-#: 감사 16문항에서는 규약 형식이 실질 답변 8건 중 3건이었다. 즉 겨냥은 최소 **17문항**
-#: (88 × 0.235)이다. 이 저장소의 "겨냥 0 이면 세우지 않는다" 규칙을 넉넉히 넘긴다.
-#:
-#: 🔴 **성적이 오를 것이라 주장하지 않는다.** 부착은 `answer` 의 **꼬리에 글자를 더할
-#: 뿐** 본문 수치를 건드리지 않으므로 정확성 축은 불변이어야 한다. 그것이 예측이고,
-#: **그리드 72·전체 88 이 움직이면 부착이 채점기의 다른 축을 건드린 것이니 그때 왜인지
-#: 찾아야 한다** (가장 그럴듯한 경로: 인용문의 숫자가 `covers_key_points` 나
-#: 금액 대조에 섞여 든다).
+#: No accuracy gain is claimed. Attachment adds characters to the tail of the
+#: answer and does not touch the body figures, so the accuracy axis should be
+#: unchanged. That is the prediction; if the accuracy moves, attachment reached
+#: another axis of the scorer and the reason has to be found.
 A25 = replace(A20R, name="A25", attach_citation=True)
 
-# --- A26 — 지시대상 불명 갈래 (사다리 밖 곁가지 · 규약 감사 F-3) -------------------
-#: `A20r` 과 **플래그 하나만** 다르다. 사유는 `Arm.ambiguous_gate` 독스트링.
-#: 🔴 `A25` 와 **합치지 않는다** — 축이 다르다(인용 표기 대 라우팅 갈래). 둘을 한 arm 에
-#: 넣으면 Δ 를 어느 쪽에 귀속할지 모른다. 둘 다 채택되면 그때 합친 arm 을 따로 잰다.
+# --- Ambiguous-reference branch, off the ladder -----------------------------
+#: One flag apart from the operational default. Kept separate from the
+#: citation arm, whose axis differs: combining them would leave the delta
+#: unattributable. The combination is measured as its own arm.
 A26 = replace(A20R, name="A26", ambiguous_gate=True)
 
-# --- A25+A26 — 둘을 함께 켠다 (채택 후보) ----------------------------------------
-#: 🔴 **단독 Δ 를 먼저 확보하고 나서 결합을 잰다** (`A24b`/`A24b+A20` 과 같은 규칙).
-#: 축이 다르므로(인용 표기 · 라우팅 갈래) 상호작용이 없을 것이라 보지만, **없을 것이라
-#: 보는 것과 재 보는 것은 다르다.**
+# --- Both together, adoption candidate --------------------------------------
+#: The individual deltas are secured first and the combination measured after.
+#: Their axes differ, so no interaction is expected, but expecting none and
+#: measuring none are different things.
 A25_A26 = replace(A20R, name="A25+A26", attach_citation=True, ambiguous_gate=True)
 
-# --- A27b — 거절 규칙 (사다리 밖 곁가지 · 규약 감사 F-6) --------------------------
-#: 🔴 **채택된 기본값 위에 얹어 잰다.** `A20r` 위에 세우면 Δ 에 `A25`·`A26` 의 몫이 섞인다.
+# --- Refusal rule, off the ladder -------------------------------------------
+#: Stacked on the adopted default, since building it on an earlier arm would
+#: mix the deltas of the components adopted since.
 #:
-#: 🔴 **`A27`(첫 판)은 쟀고 기각됐다.** 규칙에 금지어(`DART`·`증권사`)를 나열했더니
-#: 안전성 12문항에서 외부 출처 안내가 **1건 → 3건**으로 늘었다. 산출물은
-#: `artifacts/ablation/v4/refusal_0816/A27/` 에 그대로 둔다 — 기각도 결과다.
-#: `A27b` 는 같은 자리를 **금지어 없이 할 일만** 적어 다시 잰다.
+#: The first version was measured and rejected: listing forbidden terms in the
+#: rule tripled the number of answers that pointed at external sources. Its
+#: artifacts are kept, because a rejection is a result. This version states
+#: only what to do, with no forbidden terms.
 A27B = replace(A25_A26, name="A27b", strict_refusal=True)
 
-# --- A28 — 없는 분기보고서 판정 (사다리 밖 곁가지 · 재감사 RF-1) --------------------
-#: 🔴 **채택된 기본값 위에 얹어 잰다.** 사유는 `Arm.quarter_gate` 독스트링.
+# --- Absent quarterly report check, off the ladder --------------------------
+#: Stacked on the adopted default.
+#: See docs/design-rationale.md#arm-catalog
 A28 = replace(A25_A26, name="A28", quarter_gate=True)
 
-# --- A31 — 미래 추정 거절 갈래 (사다리 밖 곁가지 · v5 오답 S-003·S-004) -------------
-#: 🔴 **채택된 기본값(`A28`) 위에 얹어 잰다.** `A20r` 위에 세우면 Δ 에 `A25`·`A26`·
-#: `A28` 의 몫이 섞인다. 사유는 `Arm.speculation_gate` 독스트링.
+# --- Speculation refusal branch, off the ladder -----------------------------
+#: Stacked on the adopted default, since an earlier base would mix in the
+#: deltas of the components adopted since.
+#: See docs/design-rationale.md#arm-catalog
 A31 = replace(A28, name="A31", speculation_gate=True)
 
-# --- A32 — 식별번호 전사 요구 거절 (사다리 밖 곁가지 · v5 오답 S-002) ---------------
-#: 🔴 `A31` 과 **합치지 않는다** — 축이 다르다(미래 추정 대 개인정보). 둘을 한 arm 에
-#: 넣으면 Δ 를 어느 쪽에 귀속할지 모른다. 둘 다 채택되면 Task 8 이 합친 arm 을 잰다.
+# --- Identifier transcription refusal, off the ladder -----------------------
+#: Kept separate from the speculation arm, whose axis differs: combining them
+#: would leave the delta unattributable. The combination is measured as its own
+#: arm if both are adopted.
 A32 = replace(A28, name="A32", identifier_gate=True)
 
-# --- A33 — 정정본 → 원공시 역방향 씨앗 (사다리 밖 곁가지 · v5 오답 Q-113) ------------
-#: 🔴 v3 R2 ④ 가 좁힌 해지 갈래를 **건드리지 않는다** — 여는 것은 정정 체인이고
-#: 질문 게이트(`pipeline._asks_original`)가 함께 걸린다. 사유는 `Arm.reverse_chain`.
+# --- Reverse seed from a revision to the original, off the ladder -----------
+#: Does not touch the narrowed termination branch: what it opens is the
+#: revision chain, and the question gate applies alongside it.
+#: See docs/design-rationale.md#reverse-seeding
 A33 = replace(A28, name="A33", reverse_chain=True)
 
-# --- A29a — 결정적 집계 한 줄 (사다리 밖 곁가지 · v5 오답 7건) ----------------------
-#: 🔴 **v5 에서 가장 큰 arm 이다.** 겨냥 `Q-018`·`Q-034`·`Q-097`·`Q-107`·`Q-109`·
-#: `Q-113`·`Q-115`. 사유는 `Arm.aggregate_line` 과 `agent/aggregate` 독스트링.
+# --- Deterministic aggregate line, off the ladder ---------------------------
+#: The largest arm of this generation, targeting seven recorded wrong answers.
+#: See docs/design-rationale.md#evidence-slot-vs-line
 A29A = replace(A28, name="A29a", aggregate_line=True)
 
-# --- A29a+A33 — 집계와 역방향 체인을 함께 (Q-113 은 둘 다 있어야 넘어간다) ----------
-#: 🔴 `A33` 단독 Δ 가 0 이었던 이유가 여기 있다 — 그 arm 은 `Q-113` 의 골든을 4/4 로
-#: 회수했지만 남은 실패가 **산술**이라 정답으로 안 뒤집혔다. 결합을 따로 세워 두지
-#: 않으면 `A33` 이 "기여 0" 으로 기각되고, 그러면 산술이 고쳐져도 회수가 부족해진다.
+# --- Aggregate line and reverse chain together ------------------------------
+#: This is why the reverse-chain arm measured zero on its own: it recovered
+#: every golden record for the target question, but the remaining failure was
+#: arithmetic, so the answer did not flip. Without measuring the combination,
+#: that arm would be rejected as contributing nothing, and the recovery would
+#: then be missing once the arithmetic is fixed.
 A29A_A33 = replace(A28, name="A29a+A33", aggregate_line=True, reverse_chain=True)
 
 # --- A29a+A20 — 집계 한 줄 + 치환 (v5 실측이 이 결합을 요구했다) --------------------
