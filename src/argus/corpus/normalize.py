@@ -1,13 +1,8 @@
-"""공시 표 -> 정규화 레코드 (CONVENTION §7.3 스키마).
+"""Filing tables to normalised records, following the schema in the convention.
 
-문서군마다 표의 **생김새가 다르다**. 하나의 스키마로 뭉개면 값이 통째로 빈다.
-
-    exchange  거래소 KIND 서식.  `라벨 | 값` 2단. row[-1] 이 값이다.
-    major     주요사항보고서 28종. 서식마다 필드가 다르다(권면총액·전환가액·자금용도…).
-    holding   대량보유상황보고서 1종. 요약정보가 **머리행 + 직전/이번 2행**의 격자다.
-
-Phase H 실측: major 0/4 · holding 1/4. 원인은 생성이 아니라 추출 누락이었다 —
-근거 마크다운에 권면총액·전환가액·보유비율이 한 줄도 없었다. 원문 XML 에는 있다.
+Tables look different per document group, and flattening them into one schema
+empties whole fields. The extraction paths are therefore split by group.
+See docs/design-rationale.md#table-row-shapes
 """
 from __future__ import annotations
 
@@ -22,14 +17,16 @@ _NUM = re.compile(r"-?[\d,]+(?:\.\d+)?")
 _TITLE_DATE = re.compile(r"^\(\d{4}[.\-]\d{2}[.\-]\d{2}\)\s*")
 _WS_ALL = re.compile(r"\s+")
 
-# 계약 서식 전용 라벨에 의존하는 doc_subtype.
+# Subtypes whose extraction depends on labels specific to the contract form.
 CONTRACT_SUBTYPES = {"단일판매공급계약체결", "단일판매공급계약해지"}
-# 라벨 확장으로 금액을 회수하는 서식. 신규시설투자는 `투자금액(원)` 이 전건에 있고,
-# 투자판단은 금액이 자유서술문 안에 있다.
+# Subtypes whose amount is recovered by widening the label set. One carries an
+# explicit investment amount cell throughout; the other keeps the amount inside
+# free text.
 INVESTMENT_SUBTYPES = {"신규시설투자등", "투자판단관련주요경영사항"}
 
-# --- 자유서술 금액 (투자판단 서식) -------------------------------------------
-# 이 서식에는 금액 칸이 없고 `"2. 투자 금액: 5.9조원"` 처럼 문장 안에 들어 있다.
+# --- Free-text amounts ------------------------------------------------------
+# This form has no amount cell; the amount sits inside a sentence.
+# See docs/design-rationale.md#freetext-amounts
 _MAGNITUDE = {"조": 10**12, "억": 10**8, "천만": 10**7, "백만": 10**6, "만": 10**4}
 _FREE_AMOUNT = re.compile(
     r"(계약|공급|수주|투자|취득|처분|양수|양도|거래|매매|발행|조달|출자|인수)?\s*"
@@ -39,29 +36,28 @@ _FREE_AMOUNT = re.compile(
     r"(조|억|천만|백만|만)?\s*"
     r"(원|달러|USD|\$)?"
 )
-# `$58억` 처럼 통화기호가 숫자 **앞**에 붙는 표기도 외화다. 뒤만 보면 놓친다.
+# A currency symbol before the figure marks a foreign amount too. Looking only
+# after the figure misses those.
 _FOREIGN_BEFORE = re.compile(r"(?i)(?:\$|USD|US\s*\$|달러|유로|EUR|엔|위안)\s*$")
 _FOREIGN_AFTER = {"달러", "USD", "$"}
-# 100만원 미만은 금액 표기가 아니라 수량·건수일 확률이 높다.
+# Below a million, a figure is more likely a quantity or a count than an
+# amount.
 _MIN_AMOUNT = 10**6
 
-# `1조 1,500억원` 처럼 큰 단위와 작은 단위를 **이어 쓴** 표기. 앞 단위에서 끊으면
-# 1조가 되고 1,500억이 통째로 사라진다 — 이마트 20241114800538 의 매매대금이
-# 1조 1,500억원인데 정규화 필드가 1,000,000,000,000 이었다.
+# A compound figure writing a large unit and a smaller one in sequence.
+# Stopping at the first unit drops the remainder entirely.
 _AMOUNT_TAIL = re.compile(r"\s*(\d[\d,]*(?:\.\d+)?)\s*(억|천만|백만|만)")
 _WON_TAIL = re.compile(r"\s*원")
 
 
 def _compound_tail(cell: str, pos: int, magnitude: str) -> float:
-    """`1조 1,500억원` 의 꼬리(`1,500억`)를 원 단위로 환산해 돌려준다. 없으면 0.
+    """Convert the trailing part of a compound figure to base units, else 0.
 
-    두 조건을 **둘 다** 만족할 때만 붙인다.
-
-        ① 단위가 내림차순이다 (조 -> 억 -> 천만 -> 백만 -> 만)
-        ② 마지막 조각이 `원` 으로 끝난다
-
-    ②가 없으면 `5,000억 100만주` 의 `100만` 을 금액으로 더한다 — 그건 주식수이고,
-    값이 비는 것보다 나쁘다.
+    It is appended only when both conditions hold: the units descend, and the
+    final piece ends in the currency word. Without the second, a share count
+    following an amount would be added as money, which is worse than an empty
+    field.
+    See docs/design-rationale.md#freetext-amounts
     """
     extra, scale, cursor = 0.0, _MAGNITUDE[magnitude], pos
     while (part := _AMOUNT_TAIL.match(cell, cursor)) is not None:
@@ -79,13 +75,15 @@ def _compound_tail(cell: str, pos: int, magnitude: str) -> float:
 
 
 def free_text_amount(cells: list[str]) -> tuple[int, str] | None:
-    """자유서술문에서 **원화** 금액을 뽑는다. `(금액, 금액종류)` 또는 None.
+    """Extract a domestic-currency amount from free text, as (amount, kind), or
+    None.
 
-    셀을 **뒤에서부터** 본다. 정정 표가 `[항목, 정정전, 정정후]` 순서라
-    앞에서부터 읽으면 고쳐지기 전의 옛 금액을 집는다.
+    Cells are read from the end, because a revision table runs (item, before,
+    after) and reading forward picks the pre-revision figure.
 
-    외화는 버린다. `$58억` 을 58억원으로 읽으면 금액이 통째로 틀리는데,
-    이건 값이 비는 것보다 나쁘다.
+    Foreign amounts are discarded: reading one as domestic makes the figure
+    wholly wrong, which is worse than an empty field.
+    See docs/design-rationale.md#freetext-amounts
     """
     for cell in reversed(cells):
         for match in _FREE_AMOUNT.finditer(cell):
@@ -121,7 +119,7 @@ def _to_number(text: str) -> float | None:
 
 
 def _clean(value: str | None) -> str | None:
-    """DART 표는 빈 값을 '-' 로 채운다. None 으로 정규화한다."""
+    """Source tables fill an empty value with a dash. Normalise it to None."""
     if value is None:
         return None
     stripped = value.strip()
@@ -129,22 +127,19 @@ def _clean(value: str | None) -> str | None:
 
 
 def _labels(row: list[str]) -> str:
-    """값 셀(마지막)을 뺀 라벨 부분. 공백은 지운다.
+    """The label portion of a row, excluding the final value cell, with
+    whitespace removed.
 
-    계획서 원안은 행 전체를 이어 붙여 키워드를 찾았는데, 그러면 서술형 값이
-    라벨로 오인된다. 대표 사례가 정정공시의 '3. 정정사유 | 변경계약으로 인한
-    계약금액 및 계약기간 정정' 행이다. 여기에 '계약금액' 이 들어 있어서 진짜
-    금액 행보다 먼저 걸리고, 숫자 대신 문장이 잡혀 222건이 통째로 비었다.
-    라벨 칸만 보면 이 오염이 사라진다.
-
-    공백을 지우는 이유는 서식마다 '매출액대비(%)' 와 '매출액 대비(%)' 가
-    섞이기 때문이다.
+    Searching the whole row for a keyword mistakes a prose value for a label,
+    which emptied a large number of records. Whitespace is removed because
+    forms differ in how they space the same label.
+    See docs/design-rationale.md#table-row-shapes
     """
     return _WS_ALL.sub("", " ".join(row[:-1]))
 
 
 def _rows_matching(rows: list[list[str]], *keywords: str):
-    """라벨에 키워드가 모두 들어간 행들을 순서대로 준다."""
+    """Rows whose label contains every keyword, in order."""
     for row in rows:
         if len(row) < 2:
             continue  # 값 칸이 없는 서술 행
@@ -153,7 +148,8 @@ def _rows_matching(rows: list[list[str]], *keywords: str):
 
 
 def _find(rows: list[list[str]], *keywords: str) -> str | None:
-    """라벨이 맞는 행의 값 셀을 돌려준다. 값이 비었으면 다음 후보를 계속 본다."""
+    """Value cell of a matching row, continuing to the next candidate when the
+    value is empty."""
     for row in _rows_matching(rows, *keywords):
         value = _clean(row[-1])
         if value is not None:
@@ -162,7 +158,7 @@ def _find(rows: list[list[str]], *keywords: str) -> str | None:
 
 
 def _find_number(rows: list[list[str]], *keywords: str) -> float | None:
-    """값이 숫자로 읽히는 첫 행을 찾는다. 숫자가 아니면 건너뛴다."""
+    """First row whose value parses as a number, skipping the rest."""
     for row in _rows_matching(rows, *keywords):
         number = _to_number(_clean(row[-1]) or "")
         if number is not None:
@@ -171,7 +167,7 @@ def _find_number(rows: list[list[str]], *keywords: str) -> float | None:
 
 
 def _find_date(rows: list[list[str]], *keywords: str):
-    """값이 날짜로 읽히는 첫 행을 찾는다."""
+    """First row whose value parses as a date."""
     for row in _rows_matching(rows, *keywords):
         parsed = parse_date(_clean(row[-1]) or "")
         if parsed is not None:
@@ -183,14 +179,12 @@ _PURE_NUMBER = re.compile(r"^-?\d[\d,]*(?:\.\d+)?$")
 
 
 def _find_loose(rows: list[list[str]], *keywords: str) -> str | None:
-    """값 칸이 **마지막이 아닌** 행을 위한 폴백. 행 전체로 매칭하고 순수 숫자 칸을 준다.
+    """Fallback for rows whose value cell is not the last one. Matches on the
+    whole row and returns the purely numeric cell.
 
-    실측 사례 — 유상증자 서식의 발행가액은 하위머리(rowspan)가 붙으면 이렇게 된다.
-
-        ['6. 신주 발행가액', '예정발행가', '보통주식 (원)', '169,200', '확정예정일', '2025년 05월 22일']
-
-    `row[-1]` 은 확정예정일이다. 발행가액 자리에서 날짜를 집으면 값이 통째로 틀린다.
-    라벨 칸(row[:-1])만 보는 `_find` 로도 안 잡히므로 행 전체를 본다.
+    A row split by a sub-heading can end in a date rather than the figure, and
+    taking the last cell there makes the value wholly wrong.
+    See docs/design-rationale.md#table-row-shapes
     """
     normalized = [_WS_ALL.sub("", k) for k in keywords]
     for row in rows:
@@ -208,14 +202,13 @@ _LABEL_TAIL = re.compile(r"(?:[(（][^)）]*[)）]|[:：])+$")
 
 
 def _find_beside(rows: list[list[str]], keyword: str) -> str | None:
-    """`라벨 | 값 | 라벨 | 값` 4칸 행에서 라벨 **바로 옆** 칸을 읽는다.
+    """Read the cell immediately after a label in a row that alternates labels
+    and values.
 
-    지분공시 요약정보의 첫 행이 그렇다.
-
-        ['발행회사명', '두산에너빌리티(주)', '발행회사와의 관계', '최대주주']
-
-    `row[-1]` 을 값으로 쓰면 발행회사명이 '최대주주' 가 된다 — 실측으로 1,069건이
-    그렇게 나갔다. 라벨 꼬리의 단위 표기(`(주)`)와 콜론은 떼고 정확히 맞춘다.
+    Taking the last cell in such a row assigns the wrong value to the first
+    label. Unit suffixes and colons are stripped from the label before matching
+    exactly.
+    See docs/design-rationale.md#table-row-shapes
     """
     key = _LABEL_TAIL.sub("", _WS_ALL.sub("", keyword))
     for row in rows:
@@ -229,11 +222,13 @@ def _find_beside(rows: list[list[str]], keyword: str) -> str | None:
 
 def _find_after(rows: list[list[str]], anchor: tuple[str, ...],
                 keywords: tuple[str, ...], span: int = 3) -> str | None:
-    """anchor 행 **바로 다음** 몇 행에서 값을 찾는다 (rowspan 으로 갈라진 형제 행).
+    """Find a value in the few rows immediately after an anchor row, for
+    siblings split off by a row span.
 
-    `['3. 처분예정금액(원)', '보통주식', '287,545,592,500']` 다음 행은
-    `['기타주식', '-']` 이다. 형제 행에는 머리 라벨이 없으므로 `_find` 로는 못 찾고,
-    라벨 없이 '기타주식' 만 찾으면 문서 어디서든 걸려 엉뚱한 값을 집는다.
+    A sibling row carries no heading label, so the label path cannot reach it,
+    and searching for the sibling label alone would match anywhere in the
+    document.
+    See docs/design-rationale.md#table-row-shapes
     """
     normalized_anchor = [_WS_ALL.sub("", k) for k in anchor]
     normalized = [_WS_ALL.sub("", k) for k in keywords]
@@ -254,9 +249,10 @@ def _doc_path(doc: dict) -> Path:
     return xml[0]
 
 
-#: 필드 값 한 개의 상한. 서술형 칸(전환가액 조정방법 등)이 통째로 실리면 근거가 폭주한다.
+#: Cap on a single field value. A prose cell carried whole would blow up the
+#: evidence.
 FIELD_MAX_CHARS = 90
-#: 한 레코드가 마크다운으로 내보내는 필드 수 상한.
+#: Cap on fields one record emits as markdown.
 FIELD_MAX_COUNT = 12
 
 
@@ -267,9 +263,10 @@ def _shorten(value: str | None) -> str | None:
 
 
 def _collect(rows: list[list[str]], spec, limit: int = FIELD_MAX_COUNT) -> dict[str, str]:
-    """`(표시라벨, 키워드들)` 목록대로 값을 모은다. 없는 필드는 **넣지 않는다**.
+    """Collect values per (display label, keywords). Absent fields are omitted.
 
-    빈 필드를 `-` 로 채우면 마크다운만 길어지고 LLM 은 값이 있다고 착각한다.
+    Filling an absent field with a dash only lengthens the markdown and makes
+    the model read it as a value that exists.
     """
     fields: dict[str, str] = {}
     for label, keywords in spec:
@@ -282,7 +279,8 @@ def _collect(rows: list[list[str]], spec, limit: int = FIELD_MAX_COUNT) -> dict[
 
 
 def _base_record(doc: dict, rows: list[list[str]]) -> dict:
-    """문서군과 무관하게 같은 키를 갖는 레코드 뼈대. 소비자(API·평가)가 키를 가정한다."""
+    """Record skeleton with the same keys regardless of document group, since
+    consumers assume those keys."""
     return {
         "doc_id": doc["doc_id"],
         "rcept_no": doc["rcept_no"],
