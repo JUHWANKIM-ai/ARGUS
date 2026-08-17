@@ -364,8 +364,9 @@ class Arm:
     def __post_init__(self) -> None:
         if self.retrieval not in RETRIEVAL_MODES:
             raise ValueError(f"retrieval 은 {RETRIEVAL_MODES} 중 하나여야 합니다: {self.retrieval}")
-        # 🔴 `tools._group_records` 가 둘 중 하나만 고른다 — 함께 켜면 뒤의 것이
-        #    조용히 무시되고 그 arm 의 Δ 가 다른 조작의 것이 된다.
+        # `tools._group_records` picks one of the two, so enabling both makes
+        # the second silently ignored and attributes that arm's delta to a
+        # different manipulation.
         if self.nary and self.correction_fields:
             raise ValueError("nary 와 correction_fields 는 함께 켤 수 없습니다 "
                              "(_group_records 가 하나만 고른다 — Δ 가 조용히 0)")
