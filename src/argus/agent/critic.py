@@ -406,7 +406,7 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
                            "expected": expected, "tolerance": tol, "detail": detail,
                            "targets": _targets(expected, claims)})
 
-    # ① 계약기간 — LLM 이 가장 자주 틀리는 영역
+    # Contract duration, the field the model gets wrong most often.
     start, end = fields.get("period_start"), fields.get("period_end")
     if start and end:
         expected_text = compute.period_text(str(start), str(end))
@@ -422,30 +422,31 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
                     "kind": "period", "claimed": f"{y}년 {mo}개월",
                     "claimed_value": y * 12 + mo, "expected": expected_text,
                     "expected_value": parts[0] * 12 + parts[1], "tolerance": 0,
-                    # 기대값이 `"8년 5개월"` 이라 수치 치환의 대상이 아니다 (A20 제외).
+                    # The expected value is a phrase, not a number, so it is
+                    # not a substitution target.
                     "detail": f"{start} ~ {end}", "targets": []})
 
-    # ② 금액 — 자릿수 실수를 잡는다. 단, 답변이 **이 레코드의 금액을 말했을 때만**
-    #    (`_says_amount`). 근거 한 건에는 조달금액 밑에 시설자금·타법인증권취득자금이
-    #    같이 실려 있어서, 레이블을 안 보면 하위 항목을 말한 정답이 오답이 된다.
+    # Amount, checked for magnitude mistakes, but only when the answer states
+    # this record's amount. One record carries sub-items under its headline
+    # amount, so without reading the label a correct answer about a sub-item
+    # is turned into a failure.
     amount = _pick(fields, "amount")
     if amount is not None:
         if _says_amount(text, fields.get("amount_type")):
             _compare("amount", amount, _money_claims(text), "근거 레코드 amount",
                      scale_guard=True)
         else:
-            # 🔴 I-2. **게이트가 닫힌 것을 `skipped` 만으로 적으면 침묵과 구별되지 않는다.**
-            # "답변이 그 수치를 말하지 않았다"(정상)와 "레이블이 안 맞아 검사를 껐다"
-            # (판단을 포기했다)는 서로 다른 사건이다. 뒤엣것은 세어야 한다 — 실측
-            # v3/A8 에서 amount 를 가진 레코드 149건 중 **64건**이 이 자리에서 꺼진다.
+            # Recording a closed gate as merely skipped makes it
+            # indistinguishable from silence. An answer that never stated the
+            # figure and a check disabled because the label did not match are
+            # different events, and the second has to be counted.
             skipped.append("amount")
             gated.append("amount")
 
-    # ②b 단위당 값 — **답변이 스스로 한 나눗셈**을 다시 한다.
-    #    실측 Q-097: 투자금액 2,492,215,574,520원 / 12척 = 207,684,631,210원인데
-    #    답변은 `207,838,797,710원` 을 냈다. 총액은 정확히 옮겼으므로 `amount` 는
-    #    통과하고, 정작 질문이 물은 값만 틀린다 — 종전 검증에 이 축이 아예 없었다.
-    #    분자는 이 레코드의 amount 이므로 `_says_amount` 게이트를 같이 통과해야 한다.
+    # Per-unit value: redo the division the answer performed itself. An answer
+    # can transcribe the total correctly, so the amount check passes, and still
+    # get the per-unit figure the question actually asked for wrong. The
+    # numerator is this record's amount, so the same label gate applies.
     if amount is not None and _says_amount(text, fields.get("amount_type")):
         unit = _PER_UNIT_KW.search(text)
         if unit:
@@ -457,10 +458,11 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
                 _compare("per_unit", amount / counts[0], _money_claims(text),
                          f"{compute.fmt_num(amount)} / {counts[0]}{unit.group(1)}")
             else:
-                # 나눌 수를 못 박지 못했다. 틀렸다고 볼 재료가 없으므로 통과시킨다.
+                # The divisor is not pinned down, so there is nothing to
+                # call wrong and the check passes.
                 skipped.append("per_unit")
 
-    # ③ 비중 — 계약금액 / 최근매출액 으로 다시 계산한다
+    # Ratio, recomputed as the amount over the revenue.
     part = _pick(fields, "share_part", "part", "amount")
     whole = _revenue(fields)
     ratio = _pick(fields, "ratio")
@@ -471,19 +473,20 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
     elif ratio is not None:
         _compare("share", ratio, _percent_claims(text), "근거 레코드 ratio")
 
-    # ④ 증감률
+    # Percentage change.
     before, after = _pick(fields, "before"), _pick(fields, "after")
     if before is not None and after is not None and before != 0:
         _compare("pct_change", compute.pct_change(before, after), _percent_claims(text),
                  f"({fmt(after)} - {fmt(before)}) / {fmt(before)} × 100")
 
-    # ⑤ CAGR
+    # Compound annual growth rate.
     begin, cagr_end, years = _pick(fields, "begin"), _pick(fields, "end"), _pick(fields, "years")
     if begin is not None and cagr_end is not None and years and begin > 0 and cagr_end >= 0:
         _compare("cagr", compute.cagr(begin, cagr_end, years), _percent_claims(text),
                  f"(({fmt(cagr_end)} / {fmt(begin)})^(1/{fmt(years)}) - 1) × 100")
 
-    # ⑥ 합계·평균 — 같은 values 를 공유하므로 답변이 그 말을 했을 때만 검사한다
+    # Total and mean share the same values, so each is checked only when the
+    # answer says it computed that one.
     values = fields.get("values")
     if isinstance(values, list) and values and all(isinstance(v, (int, float)) for v in values):
         if _TOTAL_KW.search(text):
@@ -508,25 +511,28 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
         "hard_kinds": hard,
         "failure_stage": FAILURE_STAGE if mismatches else None,
         "reason": "; ".join(_mismatch_reason(m) for m in mismatches),
-        # 🔴 A20 — 재계산값을 **구조화된 필드로** 함께 낸다. 종전에는 `_show(expected)` 로
-        # `reason` 문장에만 박혀 있어서 치환에 쓸 수가 없었다 (탐지 100% · 교정 0%).
-        # `reason` 의 형식은 한 글자도 바꾸지 않는다 — `scripts/error_analysis.py` 와
-        # 게이트 문서가 그것을 읽는다.
+        # Recomputed values are emitted as a structured field as well.
+        # Previously they existed only inside the reason sentence, where
+        # substitution could not use them. The format of `reason` is left
+        # unchanged, because the analysis scripts and the gate documents read
+        # it.
         "recomputed": _recomputed(mismatches),
     }
 
 
 def _recomputed(mismatches: Sequence[dict]) -> dict[str, float]:
-    """**치환에 쓸 수 있는** 재계산값만 검사 종류별로 모은다. 조건이 둘이다.
+    """Collect only the recomputed values usable for substitution, keyed by
+    check kind, under two conditions.
 
-    ① 기대값이 수치다 — `period` 의 기대값은 `"8년 5개월"` 이라 갈아 끼울 수가 없다.
-    ② 답변에서 **바꿀 자리**(`targets`)를 못 박았다 — `restatement` 는 원값과 괄호
-       환산값 중 **어느 쪽이 틀린지 검사가 모른다.** 실측 Q-018 은 괄호가 옳고 원값이
-       13자리에서 한 자리 틀렸지만, 그 판정은 이 검사의 재료 밖이다 (계획서도 Q-018 을
-       `A15` 로 돌렸다 — *"재계산이 중간값이라 A20 로는 안 됨"*).
+    The expected value has to be numeric: a duration is a phrase and cannot be
+    swapped in. And the check has to have pinned down where in the answer to
+    substitute: a restatement mismatch does not know which of the two
+    notations, the exact figure or the parenthesised conversion, is the wrong
+    one.
 
-    같은 종류에 값이 갈리면 그 종류를 뺀다. `aggregate_calculation` 이 레코드 사이에서
-    같은 판정을 한 번 더 하고, 이유도 같다 — 어느 쪽으로 치환해도 근거가 없다.
+    A kind whose values diverge is dropped, the same judgment the aggregation
+    across records makes and for the same reason: neither direction of
+    substitution is supported.
     """
     values: dict[str, set[float]] = {}
     for mismatch in mismatches:
@@ -549,25 +555,22 @@ def _mismatch_reason(mismatch: dict) -> str:
 
 
 def aggregate_calculation(reports: Sequence[dict]) -> dict:
-    """레코드별 판정을 하나로 묶는다. LLM 0회. **관용은 지키고 단위 오류만 뺀다.**
+    """Combine the per-record verdicts into one. No LLM call.
 
-    호출부(`pipeline._verify` · `scripts/error_analysis.verify_answer_calc`)가 손으로
-    쓰던 세 줄을 여기로 모은다. 종전 규칙은 이랬다.
+    The callers used to write this rule out by hand in three lines; it lives
+    here so the two of them cannot drift apart.
 
-        explained = any(rep["ok"] and rep["checked"] for rep in reports)
-        calc_failed = bool(checked) and not explained
+    The tolerance is preserved: one explained record is enough. Amounts within
+    a revision chain legitimately differ between the original and the revision,
+    so requiring every record to match would break correct answers.
 
-    **`explained` 의 관용은 그대로 둔다.** 정정 체인은 원공시와 정정본의 금액이 다른
-    것이 정상이라(227,500 vs 114,800) 전건 일치를 요구하면 정당한 통과가 깨진다
-    (`tests/test_error_analysis.py::test_calc_passes_when_any_golden_record_explains_the_answer`).
+    One thing changes. A magnitude error survives even when another record
+    explains the answer. The chain tolerance exists for the same value at
+    different points in time, and a magnitude error is not a timing problem.
+    See docs/design-rationale.md#magnitude-errors
 
-    바뀌는 것은 하나다. **자릿수 오류(`hard_kinds`)는 다른 레코드가 설명해도 살아남는다.**
-    실측 Q-065 가 정확히 그 구멍으로 나갔다 — Dukovany 금액을 10배로 틀렸는데 같은
-    답변의 신한울 금액이 정확해서 `explained=True` 가 되고 판정이 통과했다. 체인 관용은
-    '같은 값의 다른 시점' 을 위한 것이고, 자릿수 오류는 시점 문제가 아니다.
-
-    🔴 **A20 — `recomputed` 를 함께 낸다.** 검사 종류를 키로 하는 재계산값이고,
-    **유일하지 않으면 `None`** 이다 (`unique_recomputed`).
+    The recomputed values are emitted alongside, keyed by check kind, and are
+    None where they are not unique.
     """
     rows = list(reports or ())
     checked = sorted({k for rep in rows for k in rep.get("checked") or ()})
@@ -580,7 +583,8 @@ def aggregate_calculation(reports: Sequence[dict]) -> dict:
         "llm_calls": 0,
         "n_records": len(rows),
         "checked": checked,
-        # I-2 — 게이트가 검사를 끈 레코드 수. **0 이 아니면 그만큼 못 본 것이다.**
+        # Records whose check the label gate disabled. Anything above zero is
+        # that many records not looked at.
         "n_gated": sum(1 for rep in rows if rep.get("gated")),
         "explained": explained,
         "hard_kinds": hard,
@@ -592,16 +596,17 @@ def aggregate_calculation(reports: Sequence[dict]) -> dict:
 
 
 def unique_recomputed(reports: Sequence[dict]) -> dict[str, float] | None:
-    """레코드들이 낸 재계산값이 **유일한가.** 갈리면 `None` — 치환하지 않는다.
+    """Whether the recomputed values across records are unique. Divergent
+    values return None and nothing is substituted.
 
-    🔴 값이 갈리면 치환하지 않는다. `explained` 관용과 같은 이유다 — 정정 체인은
-    원공시와 정정본 금액이 다른 것이 정상이고(227,500 vs 114,800), 어느 쪽으로
-    치환해도 정당한 통과가 깨진다
-    (`tests/test_error_analysis.py::test_calc_passes_when_any_golden_record_explains_the_answer`).
+    Same reason as the tolerance above: amounts within a revision chain
+    legitimately differ, and substituting either one would break a correct
+    answer.
 
-    🔴 `aggregate_calculation` 과 `pipeline._verify` 가 **같은 함수를 쓴다.** 유일성
-    규칙이 두 곳에 있으면 갈린다 — 이 저장소가 열 번 겪은 실패 양식이다. 파이프라인은
-    레코드 판정에 답변 산술 판정(`verify_answer_arithmetic`)을 더한 합집합으로 부른다.
+    The aggregation helper and the pipeline both call this one function.
+    Keeping the uniqueness rule in two places is a failure this repository has
+    had many times. The pipeline calls it over the union of the record
+    verdicts and the answer-arithmetic verdict.
     """
     values: dict[str, set[float]] = {}
     for rep in reports or ():
@@ -612,7 +617,8 @@ def unique_recomputed(reports: Sequence[dict]) -> dict[str, float] | None:
 
 
 def _show(expected) -> str:
-    """trace 에 실릴 기대값. 부동소수 17자리를 그대로 흘리지 않는다."""
+    """Expected value as written into the trace, without leaking full float
+    precision."""
     if isinstance(expected, (int, float)) and not isinstance(expected, bool):
         return compute.fmt_num(round(float(expected), 1))
     return str(expected)
