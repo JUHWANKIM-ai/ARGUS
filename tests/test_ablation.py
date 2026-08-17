@@ -2660,6 +2660,53 @@ def test_the_answer_call_uses_the_arm_temperature(monkeypatch):
         assert all(temp == want_temp for _, temp in answers), (arm, seen)
 
 
+def test_v7_1_call_site_gates_on_whether_the_first_sample_states_a_figure(monkeypatch):
+    """Wiring check for the V7-1 scope gate at the call site
+    (`if arm.sc_k > 1 and _sc_applies(answer):`). If the `_sc_applies`
+    conjunct is ever dropped, a narrative first answer would draw the extra
+    samples too, which silently reverts V7-1 to A10's previously-rejected
+    all-questions shape while the flag still reads as scoped.
+    """
+    seen = []
+
+    class _R:
+        prompt_tokens = completion_tokens = 1
+        latency_s = 0.0
+        finish = "stop"
+        tool_calls = None
+        tag = "answer"
+
+        def __init__(self, text):
+            self.text = text
+
+    def _run(first_answer):
+        seen.clear()
+
+        def _chat(messages, max_tokens=512, temperature=0.0, tag="", **kw):
+            seen.append(tag)
+            return _R(first_answer)
+
+        monkeypatch.setattr(pipeline, "chat", _chat)
+        monkeypatch.setattr(pipeline, "_gather_evidence",
+                            lambda r, q, b, *a: ("## 접수번호 20250101000001\n- 계약금액: 1원", []))
+        monkeypatch.setattr(pipeline, "_verify", lambda *a, **kw: a[1])
+        # The critic is not this test's axis: assume a citation is present.
+        monkeypatch.setattr(pipeline, "quick_check", lambda answer: {"has_citation": True})
+        with ablation.use("V7-1"):
+            pipeline.answer_question("Q-001", "삼성전자의 2025년 계약금액은 얼마인가?")
+        return [t for t in seen if t.startswith("answer")]
+
+    # (a) No figure in the first sample: the gate stays closed and only the
+    # first sample is generated.
+    narrative_calls = _run("서술만 있는 답변입니다.")
+    assert len(narrative_calls) == 1, narrative_calls
+
+    # (b) An amount in the first sample: the gate opens and all sc_k=3
+    # samples are drawn.
+    figure_calls = _run("계약금액은 1,102,000,000,000원입니다.")
+    assert len(figure_calls) == 3, figure_calls
+
+
 def test_self_consistency_picks_the_majority_and_falls_back_to_the_first_sample():
     """다수결의 두 갈래를 다 본다. 다수가 있으면 그것, 동수면 **먼저 나온 것**."""
     from argus.agent.budget import Budget as _B
