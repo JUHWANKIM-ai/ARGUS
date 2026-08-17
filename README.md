@@ -417,6 +417,7 @@ deploy/         배포 절차와 systemd 유닛
 | [`docs/baseline-final-2026-08-17.md`](docs/baseline-final-2026-08-17.md) | 제출 구성 정본. 성적, 구성, 검증 기록 |
 | [`docs/compliance-audit-v5-A38-2026-08-17.md`](docs/compliance-audit-v5-A38-2026-08-17.md) | 규약 준수 감사 |
 | [`docs/open-issues.md`](docs/open-issues.md) | 오픈 이슈. 문항 단위 근거와 미해결 사유 |
+| [`docs/hcx007-as-judge.md`](docs/hcx007-as-judge.md) | HCX-007 을 평가 모델로 쓰는 안의 검토 |
 | [`docs/CONVENTION.md`](docs/CONVENTION.md) | 과제 규약 정리 |
 | [`docs/pipeline/`](docs/pipeline/) | 단계별 설계와 측정 |
 | [`deploy/README.md`](deploy/README.md) | 배포 절차 |
