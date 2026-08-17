@@ -5,7 +5,7 @@ from scripts.v7_run import out_dir
 
 
 def test_out_dir_separates_arm_cohort_and_round():
-    """회차가 경로에 들어가야 3회가 서로를 덮지 않는다."""
+    """The round number must be part of the path so that three runs do not overwrite each other."""
     first = out_dir("A42", "full", 1)
     second = out_dir("A42", "full", 2)
     assert first != second

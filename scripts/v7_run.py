@@ -1,13 +1,9 @@
 # scripts/v7_run.py
-"""Run one arm of the v7 generation for one round.
+"""Run one arm of the v7 generation for one round, writing one report.json per cohort.
 
 Usage: python scripts/v7_run.py <arm> <round> [cohort ...]
 
-Every round generates afresh. Rescoring stored answers cannot see a pipeline
-change, and the question this generation asks is how much the answer moves
-between runs, which only a fresh generation shows. The request cache stays on,
-so a prompt that is byte-identical to one already sent replays for free and only
-the questions a manipulation actually touches are paid for.
+See docs/design-rationale.md#fresh-generation-measurement
 """
 from __future__ import annotations
 
