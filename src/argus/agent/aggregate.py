@@ -641,12 +641,17 @@ def line(records, question: str, route) -> str:
             return ""
         first, second = pair
         gap = _amount(first) - _amount(second)
-        bigger = first if gap > 0 else second
+        if gap == 0:
+            # A zero gap names no side. See docs/design-rationale.md#comparison-line
+            verdict = "두 금액은 같다"
+        else:
+            bigger = first if gap > 0 else second
+            verdict = f"{bigger.get('corp_name', '')} 쪽이 더 크다"
         return (f"- [결정적 집계] 두 금액 비교{scope}: "
                 f"{first.get('corp_name', '')} {_amount(first):,}원 · "
                 f"{second.get('corp_name', '')} {_amount(second):,}원 · "
                 f"차이 **{abs(gap):,}원** · "
-                f"{bigger.get('corp_name', '')} 쪽이 더 크다 {_DIRECTIVE}")
+                f"{verdict} {_DIRECTIVE}")
 
     if op == "합":
         rows = _sum_rows(picked, question, note)
