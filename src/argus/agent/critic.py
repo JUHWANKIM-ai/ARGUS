@@ -218,8 +218,13 @@ def _percent_claims(answer: str) -> list[tuple[float, float, str]]:
 #: raised magnitude false alarms on correct answers, and magnitude findings are
 #: deliberately outside the per-record tolerance so nothing absorbs them.
 #: Compound notation is therefore matched first and joined into one value.
+#:
+#: The third place is optional and carries the same reason. A figure written to
+#: the ten-thousand place left its last group outside the compound match, so the
+#: pair of notations the restatement check compares was one part short and the
+#: check never ran on the notation the prompt asks for.
 _COMPOUND_MONEY_RE = re.compile(
-    r"(-?\d[\d,]*)\s*조\s*(\d[\d,]*)\s*억\s*원?")
+    r"(-?\d[\d,]*)\s*조\s*(\d[\d,]*)\s*억(?:\s*(\d[\d,]*)\s*만)?\s*원?")
 
 
 def _money_spans(answer: str) -> list[tuple[int, int, float, float, str]]:
@@ -236,7 +241,16 @@ def _money_spans(answer: str) -> list[tuple[int, int, float, float, str]]:
         if jo is None or eok is None:
             continue
         value = jo * 1e12 + eok * 1e8
-        out.append((m.start(), m.end(), value, _half_ulp(m.group(2), 1e8), m.group(0)))
+        tolerance = _half_ulp(m.group(2), 1e8)
+        # The tolerance follows the smallest place the figure states, so a
+        # figure written to a finer place is held to a tighter tolerance.
+        if m.group(3) is not None:
+            man = _to_float(m.group(3))
+            if man is None:
+                continue
+            value += man * 1e4
+            tolerance = _half_ulp(m.group(3), 1e4)
+        out.append((m.start(), m.end(), value, tolerance, m.group(0)))
         seen.append(m.span())
     for m in _MONEY_RE.finditer(answer or ""):
         # Do not count the parts of a compound figure a second time.
@@ -661,8 +675,15 @@ _EQ_TERM = re.compile(rf"({_EQ_OP})\s*({_EQ_NUM})")
 _UNIT_AT = re.compile(rf"\s*({_SCALE_ALT})")
 
 #: Boundaries of a restatement pair. Bold markup can appear between the two
-#: notations.
-_RESTATE_OPEN = re.compile(r"^[\s*_]*\($")
+#: notations, and so can a connective that announces the bracket as a
+#: restatement. Requiring the figure to sit immediately after the bracket
+#: missed every pair written the way the answers actually write them, which is
+#: with a connective. The list is closed: a bracket opening with anything else
+#: may hold a different quantity, such as a part of the figure or a comparison,
+#: and reading those as restatements would report mismatches on correct
+#: answers.
+#: See docs/design-rationale.md#answer-internal-consistency
+_RESTATE_OPEN = re.compile(r"^[\s*_]*\(\s*(?:즉[,]?|약|=|바꿔\s*말하면|환산\s*시)?\s*$")
 _RESTATE_CLOSE = re.compile(r"^[\s*_]*\)")
 
 #: Kinds of internal-consistency check. Attributed to the tool stage for the

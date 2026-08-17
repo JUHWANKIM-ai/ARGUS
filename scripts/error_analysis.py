@@ -823,7 +823,19 @@ UNREACHABLE_GOLDEN: dict[str, tuple[str, ...]] = {
 #: `Q-110` 은 `answer_key_points` 를 전부 충족하는데 덤으로 붙인 괄호 환산이 10배
 #: 틀렸다(`590,947,351,842원 (591억원)`, 실제 5,909억원). 상세는
 #: `tests/test_calc_checks.py` 의 같은 이름 상수 주석.
-JUDGED_CORRECT_ARITHMETIC_WRONG: frozenset[str] = frozenset({"Q-034", "Q-110"})
+#:
+#: **v6 에서 `Q-047` 이 늘었다 (2026-08-17).** 위 규칙대로 읽으면 이제 검사가 아니라
+#: 채점을 볼 차례다. 이 문항은 `boolean` 채점이라 judge 를 거치지 않는데도 같은 형이다.
+#: 답변이 `97,146,675백만 원 (9조 7,146억 6,750만 원)` 이라고 써서 괄호 환산이 10배
+#: 틀렸고(실제 97조), 삼성 쪽도 같은 크기로 틀렸다. **두 오류가 비교 방향에서 상쇄돼
+#: 골든과 일치했다.** 즉 이 정답은 답이 옳아서가 아니라 오류가 겹쳐서 나온 것이다.
+#: 배포 서버는 같은 근거·같은 질문에서 한쪽만 상쇄돼 `크다` 로 뒤집혔다 (v6 server_full).
+#: 종전에 안 잡힌 까닭은 검사가 `(즉, …)` 처럼 접속어가 낀 괄호와 `조·억·만` 세 자리
+#: 복합 표기를 못 읽었기 때문이고, 그 둘을 고치자 저장 답변 7,553건에서 불일치가
+#: 89 → 152 로 늘었다. 늘어난 63건은 전수 확인 결과 **전부 진성**이다.
+#: See docs/design-rationale.md#answer-internal-consistency
+JUDGED_CORRECT_ARITHMETIC_WRONG: frozenset[str] = frozenset(
+    {"Q-034", "Q-047", "Q-110"})
 
 
 def _reach_stems(text: str) -> set[str]:

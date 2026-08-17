@@ -150,6 +150,40 @@ def test_two_unrelated_amounts_are_not_a_restatement_pair():
     assert out["ok"] is True and "restatement" in out["skipped"]
 
 
+# --- v6, 실제 답변이 쓰는 표기를 읽는다 ---------------------------------------
+# 이 둘을 못 읽어서 현 세대 전체 88 의 거짓 경보가 **0 으로 보였다**. 검사가 눈을 감고
+# 있었을 뿐이다 (`ea.JUDGED_CORRECT_ARITHMETIC_WRONG` 의 `Q-047` 주석).
+
+def test_restatement_reads_a_connective_inside_the_bracket():
+    """실측 Q-047. 답변은 `(즉, …)` 로 환산을 연다. 종전 정규식은 값이 여는 괄호에
+    바로 붙어야 짝으로 봤다."""
+    out = critic.verify_answer_arithmetic(
+        "매출액은 **33,360,59억 원**(즉, 33,336,059백만 원)입니다.")
+    assert out["ok"] is False and out["failed_kinds"] == ["restatement"]
+
+
+def test_restatement_reads_a_three_place_compound_notation():
+    """실측 Q-047. `9조 7,146억 6,750만 원` 은 만 자리까지 쓴다. 종전 복합 표기는
+    조·억 두 자리까지만 한 값으로 묶어 마지막 칸이 짝 밖으로 떨어졌다."""
+    assert critic._money_spans("9조 7,146억 6,750만 원")[0][2] == 9_714_667_500_000
+    out = critic.verify_answer_arithmetic(
+        "매출액은 **97,146,675백만 원**(즉, 9조 7,146억 6,750만 원)입니다.")
+    assert out["ok"] is False and out["failed_kinds"] == ["restatement"]
+
+
+def test_a_three_place_compound_that_agrees_is_not_a_mismatch():
+    """묶는 것이 목적이지 발화가 목적이 아니다. 맞는 환산은 그대로 통과한다."""
+    assert critic.verify_answer_arithmetic(
+        "매출액은 97,146,675백만 원(즉, 97조 1,466억 7,500만 원)입니다.")["ok"] is True
+
+
+def test_a_bracket_that_names_a_part_is_not_a_restatement():
+    """접속어 목록은 닫혀 있다. 괄호가 환산이 아니라 다른 수를 담으면 짝이 아니다."""
+    out = critic.verify_answer_arithmetic(
+        "계약금액은 1,102,000,000,000원(이 중 선급금 350,000,000,000원)입니다.")
+    assert out["ok"] is True and "restatement" in out["skipped"]
+
+
 @pytest.mark.parametrize("answer", ["", None])
 def test_arithmetic_survives_an_empty_answer(answer):
     out = critic.verify_answer_arithmetic(answer)
@@ -184,19 +218,26 @@ ARITHMETIC_SNAPSHOTS = {
                   "artifacts/ablation/v2/A8/report.json", {"Q-018", "Q-044"}),
     "v2/vc(12)": ("artifacts/ablation/v2/vc/A8/responses",
                   "artifacts/ablation/v2/vc/A8/report.json", {"Q-109", "Q-115"}),
+    # v6, `Q-047` 이 추가됐다. 답변은 바뀌지 않았고 검사가 `(즉, …)` 괄호와
+    #    `조·억·만` 복합 표기를 읽게 되면서 발화한 것이다. 그 답변의 괄호 환산은
+    #    실제로 10배 틀렸다 (`ea.JUDGED_CORRECT_ARITHMETIC_WRONG` 주석).
     "v3/A8(88)": ("artifacts/ablation/v3/A8/responses",
-                  "artifacts/ablation/v3/A8/report.json", {"Q-018", "Q-044"}),
+                  "artifacts/ablation/v3/A8/report.json",
+                  {"Q-018", "Q-044", "Q-047"}),
     # R2E 신설, `L1`·`L2`·`L3` 이 현 세대에 처음 측정됐다. 전수 집계를 이 표에
     #    넣지 않으면 "현 세대 전 arm" 이라는 말이 세 arm 을 빠뜨린 채로 굳는다.
     #    `L1` 만 `Q-018` 이 빠진다. 정정체인 hop 을 끄면 그 답변이 아예 달라진다.
     "v3/L1(88)": ("artifacts/ablation/v3/L1/responses",
-                  "artifacts/ablation/v3/L1/report.json", {"Q-044"}),
+                  "artifacts/ablation/v3/L1/report.json", {"Q-044", "Q-047"}),
     "v3/L2(88)": ("artifacts/ablation/v3/L2/responses",
-                  "artifacts/ablation/v3/L2/report.json", {"Q-018", "Q-044"}),
+                  "artifacts/ablation/v3/L2/report.json",
+                  {"Q-018", "Q-044", "Q-047"}),
     "v3/L3(88)": ("artifacts/ablation/v3/L3/responses",
-                  "artifacts/ablation/v3/L3/report.json", {"Q-018", "Q-044"}),
+                  "artifacts/ablation/v3/L3/report.json",
+                  {"Q-018", "Q-044", "Q-047"}),
     "v3/L4(88)": ("artifacts/ablation/v3/L4/responses",
-                  "artifacts/ablation/v3/L4/report.json", {"Q-018", "Q-044"}),
+                  "artifacts/ablation/v3/L4/report.json",
+                  {"Q-018", "Q-044", "Q-047"}),
     "v3/ORACLE(88)": ("artifacts/ablation/v3/ORACLE/responses",
                       "artifacts/ablation/v3/ORACLE/report.json", set()),
     # R2G 신설, `A8-lean`(규칙 8·9 를 뺀 arm). 발화 집합이 `A8` 과 **같다**
@@ -206,7 +247,7 @@ ARITHMETIC_SNAPSHOTS = {
     #    셋 + 뺄셈). 발화 집합만 보면 그 변화가 안 보인다.
     "v3/A8-lean(88)": ("artifacts/ablation/v3/A8-lean/responses",
                        "artifacts/ablation/v3/A8-lean/report.json",
-                       {"Q-018", "Q-044"}),
+                       {"Q-018", "Q-044", "Q-047"}),
     # 밸류체인은 발화가 **줄었다** (3 → 1). 개선이 아니다. `Q-110`·`Q-115` 의 새
     #    답변이 금액·계산식을 **아예 쓰지 않아** `checked` 가 빈 목록이 됐다. 오답
     #    `Q-115` 는 여전히 오답인데 이제 검사가 볼 것이 없다. 부풀림 1 → 0 도 같은
@@ -327,12 +368,20 @@ def test_arithmetic_firing_on_the_stored_responses(snapshot):
 
 
 def test_the_current_generation_has_no_false_alarm_at_all():
-    """현 세대(v3 전체 88 × 6 arm = 528 답변)에는 예외조차 없다.
+    """현 세대(v3 전체 88 × 6 arm = 528 답변)의 예외는 **명시된 것뿐**이다.
 
-    옛 세대의 예외 하나(Q-034)가 면죄부로 굳지 않게, 현 세대는 따로 0 을 박는다.
+    옛 세대의 예외 하나(Q-034)가 면죄부로 굳지 않게, 현 세대는 따로 박는다.
     R2E 에서 `L1`·`L2`·`L3` 가 측정되면서 264 → 528 답변으로 늘었다. 밸류체인 12 는
     여기 없다. 그쪽에는 `Q-110` 이라는 실재하는 예외가 있고, 그 예외는
     `JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG` 이 명시로 들고 있다.
+
+    **v6 에서 이 단언이 0 에서 명시 목록으로 바뀌었다 (2026-08-17).** 종전에는 현
+    세대 전체 88 에 예외가 하나도 없었는데, 그것은 검사가 `(즉, …)` 접속어가 낀
+    괄호와 `조·억·만` 세 자리 복합 표기를 못 읽어서였다. 읽게 되자 `Q-047` 이 나왔고
+    그 답변의 괄호 환산은 실제로 10배 틀렸다. 예외를 상수에 적고 여기서 빼는 것이
+    이 저장소가 `Q-034`·`Q-110` 에 쓴 방식과 같다. **묵인이 아니라 명시다.**
+    빠질 수 있는 문항을 상수에 넣는 순간 목록이 늘고, 목록이 늘면 검사가 아니라
+    채점을 본다는 규칙이 그대로 걸린다.
     """
     # arm 목록을 두 번째로 손으로 적지 않는다 (R2F). 종전에는 여섯 이름이 여기
     #    리터럴로 또 있었고, R2E 가 `L1`·`L2`·`L3` 를 `ARITHMETIC_SNAPSHOTS` 에 넣을 때
@@ -347,6 +396,8 @@ def test_the_current_generation_has_no_false_alarm_at_all():
         responses, rows = loaded
         for qid, resp in sorted(responses.items()):
             if rows.get(qid, {}).get("correct"):
+                if qid in JUDGED_CORRECT_BUT_ARITHMETIC_IS_WRONG:
+                    continue
                 out = critic.verify_answer_arithmetic(resp.get("answer") or "")
                 assert out["ok"], f"{snapshot} {qid} 정답 문항 거짓 경보: {out['reason']}"
                 checked += 1
