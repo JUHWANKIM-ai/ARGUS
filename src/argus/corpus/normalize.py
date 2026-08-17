@@ -310,19 +310,20 @@ def _base_record(doc: dict, rows: list[list[str]]) -> dict:
     }
 
 
-#: KIND 서식 본문의 첫 항목(`1. 제목` · `1. 판매ㆍ공급계약 구분`). 정정 표가 여기서 끝난다.
-#: major·holding 의 `_is_body_start`(귀중·회 사 명)를 그대로 쓰면 안 된다 — exchange
-#: 서식에는 그 표지가 **한 건도 없어서** 구간 끝이 문서 끝이 되고 본문이 통째로 날아간다.
+#: First item of an exchange form body, where the revision table ends. The
+#: body-start marker used for the other groups must not be reused: it appears
+#: in no exchange form, so the range would run to the end of the document and
+#: the body would be lost entirely.
 _KIND_ITEM1 = re.compile(r"^\s*1\s*[.．]\s*\S")
 
 
 def exchange_correction_span(rows: list[list[str]]) -> tuple[int, int] | None:
-    """exchange 기재정정 표의 `(머리행, 끝)`. 없으면 None.
+    """Span of the revision table in an exchange filing, or None.
 
-    실측(exchange 1,469건): 정정본 631건 전건에 `정정전`·`정정후` 머리행이 있고
-    원공시 838건에는 **한 건도 없다**(오검출 0). 머리행 뒤에서 `1.` 로 시작하는
-    본문 첫 행도 631/631 에서 찾힌다. 머리행 **뒤**부터 찾는 게 중요하다 —
-    정정 메타의 `1. 정정관련 공시서류` 가 머리행 앞에 있다.
+    Every revision carries the before/after header row and no original filing
+    does, so detection is exact. The body start is searched after that header,
+    because a revision-metadata row that also begins with a numeral sits before
+    it.
     """
     for index, row in enumerate(rows):
         flat = _WS_ALL.sub("", "".join(row))
@@ -334,60 +335,58 @@ def exchange_correction_span(rows: list[list[str]]) -> tuple[int, int] | None:
 
 
 def exchange_body_rows(rows: list[list[str]]) -> list[list[str]]:
-    """정정 표를 뺀 서식 본문. **exchange 필드 추출은 반드시 여기서 해야 한다.**
+    """Form body with the revision table removed. Exchange field extraction has
+    to happen here.
 
-    정정 표의 한 행은 `[항목, 정정전, 정정후]` 이고 값 칸이 **서술 블록 통째**다.
-    행 전체로 라벨을 찾는 `_labels` 는 row[:-1] 을 라벨로 보므로, 3칸 행에서는
-    **정정 전 블록이 라벨이 된다** — 그 안의 키워드가 걸리고 값으로는 정정 후 블록의
-    첫 숫자가 잡힌다. 실측: 크래프톤 20260306801011 의 `자기자본대비` 가 정정 전
-    블록에서 걸리고 값이 정정 후 블록 첫머리 `(1) 조합명` 의 **1** 로 읽혀
-    `ratio=1.0` 이 됐다 (본문은 2.93%).
+    A revision row is (item, before, after) and its value cells are whole prose
+    blocks. Treating everything but the last cell as the label makes the
+    before block the label, so a keyword matches inside it and the value taken
+    is the first number of the after block.
 
-    금액도 같은 행에서 어긋난다. `free_text_amount` 는 칸을 뒤에서부터 봐서 정정 후를
-    먼저 읽지만, 정정 후 칸이 단위(`원`)를 빼먹으면 그 값이 기각되고 **같은 행의 정정
-    전 칸**으로 흘러내린다. 실측: NAVER 20260130800888 의 매매대금이 정정 후
-    `902,863,854,765`(원 없음) 대신 정정 전 `903,559,577,175원` 으로 굳었다.
+    Amounts go wrong on the same row in the other direction: reading cells from
+    the end reaches the after value first, but when that cell omits the
+    currency word the value is rejected and the reading falls through to the
+    before cell.
+    See docs/design-rationale.md#table-row-shapes
     """
     span = exchange_correction_span(rows)
     return rows if span is None else rows[:span[0]] + rows[span[1]:]
 
 
-# --- 자유서술 본문 (schema_matched=False 서식) ---------------------------------
-# 🔴 정형 칸이 비면 값이 **없는 게 아니라 서술문 안에** 있다. KIND 투자판단 서식에는
-# 금액 칸 자체가 없고, 계약 서식도 금액을 유보하면 `계약금액(원) | -` 이 되고 실제
-# 내용이 `9. 기타 …` 로 내려간다. 실측(현대제철 20250325800001): 정형 필드가 전부
-# 비어 근거가 108자 · 숫자 0개인데 원문 `2. 주요내용` 에 `○ 투자금액 : $58억` 이 있다.
+# --- Free-text body for forms the schema does not match ---------------------
+# An empty structured cell does not mean the value is absent; it means the
+# value is inside prose. One form has no amount cell at all, and a contract
+# form that withholds its amount pushes the real content into a later
+# free-text item.
 #
-# 세 라벨만 본다 — 이 서식이 서술문을 싣는 자리가 그 셋뿐이다. 나머지(참석 이사 수 ·
-# 관련공시 목록)는 근거를 늘리기만 한다.
+# Only three labels are read, since those are the only places this form puts
+# prose. The rest merely lengthen the evidence.
+# See docs/design-rationale.md#freetext-amounts
 _FREETEXT_LABEL = re.compile(r"^\s*\d+\s*[.．]\s*(제\s*목|주요\s*내용|기타\s*\S*)")
 
-#: 자유서술 한 칸의 상한. 필드값 상한(`FIELD_MAX_CHARS` 90)보다 **일부러 크다** —
-#: 이 칸은 요약이 아니라 본문이고, 겨냥한 금액이 칸 **끝**에 오는 실측이 있다:
-#: 20250325800001 의 `$58억` 은 240자 칸의 205번째 자리, 원화환산 `8조 5,080억원` 은
-#: 501자 칸의 113번째 자리다. 90 으로 자르면 겨냥한 값이 그대로 잘려 나간다.
+#: Cap on one free-text cell, deliberately larger than the structured field
+#: cap: this cell is body text rather than a summary, and target amounts have
+#: been measured near its end.
 #:
-#: 🔴 **v4 `R1-4` — 이 상한이 `Q-087` 의 정답을 자르는 것이 맞다. 그래도 안 올렸다.**
-#: `20241114800538` 의 `2. 주요내용` 은 623자이고 `2) 매수인 : 올림푸스제일차` 가 440번째
-#: 자리라 **500 이상**이어야 들어온다. 그런데 ① 그 레코드는 `schema_matched=True` 라
-#: 게이트(`markdown._free_text_lines`)가 먼저 닫고 ② 300→500 만으로도 238건 중 **171건**의
-#: 마크다운이 바뀐다. 겨냥 1문항에 코퍼스 절반 재작성이라 `A17` 을 취소했다 —
-#: 사유는 `markdown._free_text_lines` 독스트링에, 수는 `tests/test_evidence_truncation.py` 에 있다.
+#: Raising it further would recover one more question, and it was measured and
+#: rejected: the record in question is gated elsewhere anyway, and the increase
+#: rewrites the markdown of most affected records. That is half a corpus
+#: rewrite for one question.
+#: See docs/design-rationale.md#evidence-slot-vs-line
 FREETEXT_MAX_CHARS = 300
-#: 한 레코드가 실을 자유서술 칸 수 상한. 근거 폭주 방지.
+#: Cap on free-text cells one record carries, to keep the evidence bounded.
 FREETEXT_MAX_CELLS = 4
 
 
 def free_text_items(rows: list[list[str]]) -> list[tuple[str, str]]:
-    """자유서술 본문 `(라벨, 값)` 목록. **정정 표는 뺀다.**
+    """Free-text body as (label, value) pairs, with the revision table removed.
 
-    라벨행은 두 모양으로 온다 — 값이 같은 행에 있는 것(`['2. 주요내용', '○ …']`)과
-    라벨만 있고 다음 행이 값인 것(`['4. 기타 …']` + `['1) 본 건은 …']`). 실측
-    238건에서 앞엣것 389칸 · 뒤엣것 230칸이라 **둘 다** 받아야 한다.
+    A label row comes in two shapes: the value on the same row, or a label
+    whose value is on the next row. Both occur often enough that both have to
+    be accepted.
 
-    정정 표를 `exchange_body_rows` 로 먼저 떼는 이유는 그 함수의 주석과 같다 —
-    정정 표 행은 `[항목, 정정전, 정정후]` 라 그대로 읽으면 **대체된 옛 값**이 근거에
-    실린다.
+    The revision table is removed first for the reason given there: reading it
+    directly puts the superseded value into the evidence.
     """
     body = exchange_body_rows(rows)
     items: list[tuple[str, str]] = []
@@ -421,9 +420,9 @@ def normalize_exchange(doc: dict) -> dict:
     body = exchange_body_rows(rows)           # 정정 표는 필드 추출에서 반드시 뺀다
     title = extract_title(html)
 
-    # 해지 서식은 '2. 해지내역 | 해지금액(원)' 을 쓴다. 체결 서식의 '계약금액' 과 별개다.
-    # 신규시설투자 서식은 '2. 투자내역 | 투자금액(원)' 이다 — 라벨만 달라서 43건이
-    # 통째로 비어 있었다.
+    # The termination form and the investment form each label their amount
+    # differently from the conclusion form. The label difference alone left a
+    # group of records entirely empty.
     amount, amount_type = None, "계약금액"
     for label in ("계약금액", "해지금액", "투자금액"):
         found = _find_number(body, label)
@@ -431,7 +430,7 @@ def normalize_exchange(doc: dict) -> dict:
             amount, amount_type = found, label
             break
 
-    # 그래도 없으면 자유서술문을 본다 (투자판단 서식).
+    # Still absent, so read the free text.
     if amount is None:
         for row in body:
             free = free_text_amount(row)
@@ -439,8 +438,9 @@ def normalize_exchange(doc: dict) -> dict:
                 amount, amount_type = free
                 break
 
-    # 계약 서식은 '매출액대비(%)', 투자 서식은 '자기자본대비(%)' 다. 기준이 다르므로
-    # ratio_base 를 같이 바꿔야 한다 — 안 그러면 자기자본 비율이 매출 비율로 읽힌다.
+    # The two forms take the ratio against different bases, so the recorded
+    # base has to change with the label; otherwise one ratio is read as the
+    # other.
     ratio, ratio_base = _find_number(body, "매출액대비"), "매출액"
     if ratio is None:
         equity_ratio = _find_number(body, "자기자본대비")
@@ -448,16 +448,16 @@ def normalize_exchange(doc: dict) -> dict:
             ratio, ratio_base = equity_ratio, "자기자본"
     start = _find_date(body, "시작일")
     end = _find_date(body, "종료일")
-    # 라벨은 '확정일자' 가 아니라 '7. 계약(수주)일자' 다. 해지 서식은 '6. 해지일자'.
-    # 어느 쪽도 없으면 접수일로 폴백한다.
+    # The date label differs between the conclusion and termination forms.
+    # With neither present, fall back to the receipt date.
     event = (_find_date(body, "계약", "일자")
              or _find_date(body, "수주", "일자")
              or _find_date(body, "해지일자")
              or parse_date(doc["rcept_dt"]))
 
-    # <title> 은 서식명('단일판매ㆍ공급계약체결')뿐이라 검색어가 되지 못한다.
-    # 실제 내용은 '- 체결계약명 | 2500kVA 배전변압기 등 3,500대' 행에 있다.
-    # 이걸 제목으로 올려야 "변압기 공급계약" 같은 질의에 걸린다.
+    # The document title holds only the form name and is useless as a search
+    # term. The substance is in the contract-name row, which is promoted to the
+    # title so that a query naming the goods can match.
     subject = (_find(body, "체결계약명")
                or _find(body, "해지계약명")
                or _find(body, "계약명")
@@ -468,10 +468,10 @@ def normalize_exchange(doc: dict) -> dict:
     form_name = _TITLE_DATE.sub("", raw_title).strip() or doc["report_nm"]
     clean_title = f"{form_name} — {subject}" if subject else form_name
 
-    # 금액 칸이 있는데 값이 '-' 이고 유보사유가 붙어 있으면 발행사가 값을 비공개한
-    # 것이다(경영상 비밀유지 등). 계약 서식 60건이 여기 해당한다. 이건 파서가 못
-    # 읽은 게 아니라 원본에 값이 없는 것이라, Phase H 오류분석이 '파싱 실패' 와
-    # 섞지 않도록 따로 표시한다. schema_matched 를 True 로 올리면 안 된다.
+    # An amount cell present but dashed with a withholding note means the
+    # filer withheld the value. That is the source lacking a value rather than
+    # the parser failing to read one, so it is flagged separately and must not
+    # be recorded as a schema match.
     reserved_reason = _find(body, "유보사유")
     withheld = amount is None and reserved_reason is not None
 
@@ -480,12 +480,10 @@ def normalize_exchange(doc: dict) -> dict:
         "title": clean_title,
         "form": doc["doc_subtype"],
         "amount": int(amount) if amount is not None else None,
-        # 🔴 금액을 못 찾았으면 레이블도 없다. 종전에는 루프 초기값 `"계약금액"` 이
-        # 그대로 남아, 금액 칸이 아예 없는 투자판단 서식이 `amount=None ·
-        # amount_type="계약금액"` 이라는 **없는 사실**을 들고 있었다(20250325800001).
-        # 마크다운은 한 글자도 안 바뀐다 — `_amount_line` 이 `amount is None` 에서
-        # 먼저 빠진다. `critic._says_amount` 도 두 호출부가 `amount is not None`
-        # 안에 있어 안 바뀐다.
+        # No amount found means no label either. The loop initialiser used to
+        # survive, leaving a form with no amount cell carrying an amount label
+        # for an amount that does not exist. The markdown is unaffected, since
+        # the amount line returns early on a missing amount.
         "amount_type": amount_type if amount is not None else None,
         "ratio": ratio,
         "ratio_base": ratio_base,
@@ -496,33 +494,36 @@ def normalize_exchange(doc: dict) -> dict:
         "reserved_reason": reserved_reason,
         "schema_matched": (doc["doc_subtype"] in CONTRACT_SUBTYPES | INVESTMENT_SUBTYPES
                            and amount is not None),
-        # 값이 없는 이유를 구분한다. withheld=True 는 '원본에 값이 없음',
-        # schema_matched=False 이면서 withheld=False 가 진짜 미회수다.
+        # Distinguish why a value is absent: withheld means the source has
+        # none, while an unmatched schema without withholding is a genuine
+        # extraction miss.
         "withheld": withheld,
     })
     return record
 
 
 # =============================================================================
-# 주요사항보고서(major) — 서식 28종
+# Major filings, 28 forms.
 # =============================================================================
-# manifest 의 doc_subtype 은 major 598건 **전부 None** 이다. 서식은 report_nm 괄호
-# 안에만 있다. 서식마다 필드가 다르므로 한 벌의 스키마로 뭉개면 안 된다.
+# The manifest subtype is null for every one of them; the form appears only in
+# the parentheses of the report name. Fields differ per form, so one schema
+# cannot cover them.
 
 _FORM_TAIL = re.compile(r"\(([^()]*)\)\s*$")
 _CORRECTION_TAG = re.compile(r"^\s*\[기재정정\]\s*")
 
 
 def major_form(report_nm: str | None) -> str:
-    """`[기재정정]주요사항보고서(유상증자결정)` -> `유상증자결정`."""
+    """Extract the form name from the parentheses of a report name."""
     match = _FORM_TAIL.search(report_nm or "")
     if match:
         return match.group(1).strip()
     return _CORRECTION_TAG.sub("", report_nm or "").strip()
 
 
-#: 사채·증자 서식 공통 블록 '자금조달의 목적'. 하위 6개 항목은 rowspan 으로 갈라져
-#: 머리 라벨('4. 자금조달의 목적')이 첫 행에만 붙는다. 그래서 하위 라벨만으로 찾는다.
+#: Funding-purpose block shared by the bond and share-issue forms. Its six
+#: sub-items are split by a row span so the heading label appears only on the
+#: first row, and they are therefore found by sub-label alone.
 _FUNDING = (
     ("시설자금", ("시설자금",)),
     ("영업양수자금", ("영업양수자금",)),
@@ -543,7 +544,8 @@ _BOND = (
 )
 _TREASURY_HOLDING = (("자기주식 보유(보통주식)", ("배당가능", "보통주식")),)
 
-#: 서식 -> ((표시라벨, 라벨 키워드), ...). 값이 없는 필드는 레코드에 안 들어간다.
+#: Form to ((display label, label keywords), ...). A field with no value does
+#: not enter the record.
 MAJOR_FIELDS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     "유상증자결정": (
         ("신주의 종류와 수(보통주식)", ("신주의종류와수", "보통주식")),
@@ -594,8 +596,8 @@ MAJOR_FIELDS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         ("해지기관", ("해지기관",)),
         ("해지예정일자", ("해지예정일자",)),
     ),
-    # '1. 합병방법' 의 값은 '상법 제530조의2 내지 …' 로 시작하는 법조문 인용이라
-    # 근거만 길어지고 판단에 안 쓰인다. 같은 표의 '- 합병형태'(흡수/신설)가 실질이다.
+    # The merger-method value is a statutory citation that only lengthens the
+    # evidence; the merger-form row in the same table carries the substance.
     "회사합병결정": (
         ("합병형태", ("합병형태",)),
         ("합병목적", ("합병목적",)),
