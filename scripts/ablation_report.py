@@ -1,7 +1,7 @@
-"""Phase I — 게이트 I 6항목 보고서 생성. **LLM 0회.**
+"""Phase I, 게이트 I 6항목 보고서 생성. **LLM 0회.**
 
 `scripts/ablation.py` 가 남긴 arm 별 report.json 만 읽어 표를 만든다. 여기서 크레딧을
-쓰면 보고서를 고칠 때마다 돈이 나간다 — 집계는 공짜여야 한다.
+쓰면 보고서를 고칠 때마다 돈이 나간다. 집계는 공짜여야 한다.
 
     python scripts/ablation_report.py
 """
@@ -18,27 +18,27 @@ sys.path.insert(0, str(ROOT))
 
 from argus import ablation                                        # noqa: E402
 from scripts import error_analysis as ea                          # noqa: E402
-#: 🔴 **정밀도 규칙은 한 곳에서만 정한다** (`scripts/ablation._exact_rate`). 여기서 같은
+#: **정밀도 규칙은 한 곳에서만 정한다** (`scripts/ablation._exact_rate`). 여기서 같은
 #: 규칙을 다시 적으면 서식지가 둘이 되고, 실제로 그렇게 이 스크립트가 v1 표 전량에서
-#: 이중 반올림을 냈다 — `report.json` 의 `rate` 는 이미 소수 셋째 자리 반올림값인데
+#: 이중 반올림을 냈다. `report.json` 의 `rate` 는 이미 소수 셋째 자리 반올림값인데
 #: 그것을 서로 빼서 Δ 를 만들었다.
 from scripts.ablation import _exact_rate as exact_rate            # noqa: E402
 
 OUT = ROOT / "artifacts" / "ablation"
 
-#: 🔴 **v1 세션의 실제 결제액. 재현 불가라서 상수로 박는다.**
+#: **v1 세션의 실제 결제액. 재현 불가라서 상수로 박는다.**
 #:
 #: `spend_from_cache()` 는 `artifacts/ablation/cache/` **전부**를 더한다. 그 캐시는
-#: `--out` 으로 갈리지 않는 **공용 캐시**이고(설계 의도대로 — 같은 프롬프트를 두 번 사지
+#: `--out` 으로 갈리지 않는 **공용 캐시**이고(설계 의도대로, 같은 프롬프트를 두 번 사지
 #: 않으려면 공유돼야 한다), v1 게이트를 쓴 시점엔 309건이었으나 지금은 985건이다
 #: (v2 · vc · heldout · T7 이 함께 들어 있다). 즉 **같은 함수가 시간이 지나면 다른 수를
-#: 낸다** — 지금 재생성하면 3,708.0 → 11,524.2원, "상한 12,000원 대비 30.9%" 가
+#: 낸다**. 지금 재생성하면 3,708.0 → 11,524.2원, "상한 12,000원 대비 30.9%" 가
 #: **"96.0%"** 로 뛴다. 문서가 인용하는 값이라(`docs/total_plan.md`) 조용히 틀리면
 #: 제출물이 크레딧을 거의 다 쓴 것처럼 보인다.
 #:
 #: 그래서 v1 의 지출은 **측정 시점의 값을 상수로 고정**한다. 이 수는 그때의 캐시 상태에
-#: 의존하는 관측값이고 그 상태는 이제 존재하지 않는다 — 재계산으로 되살릴 수 없다.
-#: 🔴 **원 단위 값이 아니라 실측 usage 를 고정한다.** 원 값을 박으면 표시 반올림
+#: 의존하는 관측값이고 그 상태는 이제 존재하지 않는다. 재계산으로 되살릴 수 없다.
+#: **원 단위 값이 아니라 실측 usage 를 고정한다.** 원 값을 박으면 표시 반올림
 #: (`3,708`)만 남아 `arm_sum − 지출` 이 1원 어긋난다(4,873 → 4,872). 토큰을 고정하면
 #: 단가와 함께 원래 값(3,707.73936원)이 그대로 복원되고, 커밋된 v1 `gate_I.md` 가
 #: **숫자 하나까지 재현된다.** 출처는 그 문서의 §1 행이다.
@@ -53,7 +53,7 @@ AXES = (("difficulty", "난이도", ("하", "중", "상")),
         ("answer_mode", "답변형식", ("closed", "open")),
         ("task_type", "과제유형", ("search_extract", "multi_compare", "complex_reason")))
 
-#: Phase H 관측 — 세 난이도가 전부 1/2 였다. 이 행의 Δ 는 읽지 않는다.
+#: Phase H 관측, 세 난이도가 전부 1/2 였다. 이 행의 Δ 는 읽지 않는다.
 BLIND_CELL = "multi_compare|closed"
 
 #: 부록 D 의 논문 보고값. 우리 Δ 가 타당한 크기인지 판정하는 기준이다.
@@ -85,12 +85,12 @@ def cell(report: dict, key: str) -> dict:
 
 
 def spend_from_cache() -> dict:
-    """🔴 **공용 캐시 전체(모든 판의 합)**. v1 의 지출이 아니다.
+    """**공용 캐시 전체(모든 판의 합)**. v1 의 지출이 아니다.
 
     요청 캐시 파일 1개 = 실제로 산 요청 1건이다. 그래서 v1 세션 직후에는 이 합이 곧 v1 의
     실제 결제액이었다(309건 = 3,708.0원). 그런데 이 캐시는 `--out` 으로 갈리지 않으므로
     v2 · vc · heldout · T7 이 같은 폴더에 쌓였고, 지금 이 함수는 **985건 = 11,524.2원**을
-    돌려준다. 함수는 안 바뀌었는데 답이 바뀌었다 — 입력이 공용이라서다.
+    돌려준다. 함수는 안 바뀌었는데 답이 바뀌었다. 입력이 공용이라서다.
 
     그러므로 이 값을 **"v1 이 쓴 돈" 이나 "상한 대비 사용률" 로 읽지 않는다.**
     v1 의 지출은 `V1_PAID_WON` 에 고정돼 있다.
@@ -118,7 +118,7 @@ def delta(before, after) -> str:
 
 
 def render() -> str:
-    """게이트 I(v1) 본문. 🔴 **파일을 쓰지 않는다** — 렌더와 쓰기를 갈라 두면 산출물을
+    """게이트 I(v1) 본문. **파일을 쓰지 않는다**. 렌더와 쓰기를 갈라 두면 산출물을
     덮지 않고 결과를 검사할 수 있다 (`main()` 이 쓴다)."""
     reports = {a: load(a) for a in LADDER + LOO}
     reports = {k: v for k, v in reports.items() if v}
@@ -164,7 +164,7 @@ def render() -> str:
                f'(80% 정지선 9,600원 미도달). 캐시 전체가 '
                f'{arm_sum - V1_PAID_WON:,.0f}원을 막았다 — 요청 캐시만이 아니라 '
                "**응답 파일 캐시와 프롬프트 동일성까지 합친** 절감액이다.\n")
-    # 🔴 두 수가 왜 다른지를 표 옆에 적어 둔다. 이 스크립트는 v1 `gate_I.md` 를 재생성하는
+    # 두 수가 왜 다른지를 표 옆에 적어 둔다. 이 스크립트는 v1 `gate_I.md` 를 재생성하는
     #    유일한 수단이라 언제든 다시 돌려지고, 그때 큰 쪽이 "v1 지출" 로 읽히면
     #    "예산 96% 소진" 이라는 틀린 서술이 남는다.
     out.append(f'🔴 **아래 두 수를 섞지 않는다.** v1 실제 결제 '
@@ -196,7 +196,7 @@ def render() -> str:
         golden = sum(len(r["golden"]) for r in report["rows"])
         allhit = sum(1 for r in report["rows"] if r["golden_evidence_all"])
         cost = report["totals"]["cost_won"]
-        # 🔴 Δ 는 원 분자/분모에서 계산한다 (`exact_rate`) — `grid["rate"]` 는 이미
+        # Δ 는 원 분자/분모에서 계산한다 (`exact_rate`), `grid["rate"]` 는 이미
         #    소수 셋째 자리 반올림값이라 서로 빼면 이중 반올림이 된다.
         #    이름을 `rate` 로 두면 모듈의 `rate(report, axis, value)` 함수를 가린다.
         grid_rate = exact_rate(grid)
@@ -394,7 +394,7 @@ def render() -> str:
                        f'({pct(exact_rate(overall))}) | {grid["correct"]}/{grid["n_scored"]} '
                        f'({pct(exact_rate(grid))}) | {info["correct"]}/{info["n"]} | '
                        f'{pct(report["citation_rate"])} |')
-        # 🔴 낙폭도 원 분자/분모에서 뺀다 — 이 수가 v1 게이트의 결론이다.
+        # 낙폭도 원 분자/분모에서 뺀다. 이 수가 v1 게이트의 결론이다.
         gap = (exact_rate(held["crosstab"]["grid_overall"])
                - exact_rate(dev["crosstab"]["grid_overall"]))
         gap_all = (exact_rate(held["crosstab"]["overall"])

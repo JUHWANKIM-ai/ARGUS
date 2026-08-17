@@ -1,11 +1,11 @@
-"""closed 문항에 judge 를 **진단으로** 건다 — 규약 「근거 기반」·「추론 논리성」의 사각.
+"""closed 문항에 judge 를 **진단으로** 건다. 규약 「근거 기반」·「추론 논리성」의 사각.
 
     PYTHONIOENCODING=utf-8 python scripts/judge_closed.py \
         --arm A37 --run artifacts/ablation/v5/a37
 
-🔴 **채점을 바꾸지 않는다.** closed 는 EM 으로 판정하고 그 판정은 그대로 둔다. 여기서
+**채점을 바꾸지 않는다.** closed 는 EM 으로 판정하고 그 판정은 그대로 둔다. 여기서
 재는 것은 *"EM 이 맞다고 한 답을 judge 도 맞다고 하는가"* 뿐이다. 게이트로 만들면
-정답률이 흔들려 v1~v5 시계열이 깨진다 — **먼저 재고, 게이트는 그 수를 보고 정한다.**
+정답률이 흔들려 v1~v5 시계열이 깨진다. **먼저 재고, 게이트는 그 수를 보고 정한다.**
 
 ## 왜 필요한가
 
@@ -17,7 +17,7 @@
 `critic`·`verify` 가 돌아 완전한 사각은 아니지만, 규약 지표 여덟 중 둘이 69문항에서
 비어 있다는 사실은 그대로다. 이 스크립트가 그 칸을 채운다.
 
-🔴 **골든을 요점으로 넘긴다.** closed 의 골든은 값 하나(`answer`)라 `key_points` 가
+**골든을 요점으로 넘긴다.** closed 의 골든은 값 하나(`answer`)라 `key_points` 가
 비어 있다. 그대로 부르면 judge 가 대조할 것이 없어 판정이 무의미해진다.
 """
 from __future__ import annotations
@@ -36,7 +36,7 @@ COHORTS = ("full", "valuechain", "safety")
 
 
 def load_cases() -> dict[str, dict]:
-    """🔴 `heldout.jsonl` 은 열지 않는다."""
+    """`heldout.jsonl` 은 열지 않는다."""
     out: dict[str, dict] = {}
     for name in ("questions.jsonl", "valuechain.jsonl", "safety.jsonl",
                  "regression.jsonl"):
@@ -78,8 +78,8 @@ def main() -> int:
     print("closed·트랙전용 %d문항에 judge 를 건다 (진단 · 채점 불변)" % len(rows))
 
     def judged(question, evidence, points, answer):
-        """🔴 429(rate exceeded)에 물러섰다 다시 친다. 이미 한 호출은 `RequestCache`
-        가 받아 두므로 재개는 공짜다 — 여기서 죽으면 앞서 쓴 크레딧을 버린다."""
+        """429(rate exceeded)에 물러섰다 다시 친다. 이미 한 호출은 `RequestCache`
+        가 받아 두므로 재개는 공짜다. 여기서 죽으면 앞서 쓴 크레딧을 버린다."""
         import time
 
         for attempt in range(6):

@@ -1,14 +1,14 @@
-"""1회용 검증 2판 — 규약 §6 의 `다중 조회·비교·연산` · `복합 문서 추론` 만 겨눈다.
+"""1회용 검증 2판, 규약 §6 의 `다중 조회·비교·연산` · `복합 문서 추론` 만 겨눈다.
 
-🔴 **1판(`newset_20260816`)이 못 잰 칸이다.** 그 판은 단순조회 10 · 거절 6 에 쏠려서
+**1판(`newset_20260816`)이 못 잰 칸이다.** 그 판은 단순조회 10 · 거절 6 에 쏠려서
 규약 6유형 중 둘을 처음 보는 문항으로 재 본 적이 없다. 우리 평가셋의 유일한 실점 2건
 (`Q-107`·`Q-117`)도 정확히 `complex_reason` 칸이다.
 
     python scripts/build_newset2.py
 
-🔴 **골든은 레코드에서 결정적으로 계산한다** — 세는 것·비교하는 것·잇는 것만 묻는다.
+**골든은 레코드에서 결정적으로 계산한다**. 세는 것·비교하는 것·잇는 것만 묻는다.
 서술 평가가 필요한 문항은 만들지 않는다. 1회용이라 재현 가능한 잣대여야 한다.
-🔴 **기존 평가셋(heldout·1판 포함)이 쓴 접수번호는 제외한다.**
+**기존 평가셋(heldout·1판 포함)이 쓴 접수번호는 제외한다.**
 """
 from __future__ import annotations
 
@@ -56,8 +56,8 @@ def add(qid, task, mode, question, answer="", key_points=None, evidence=()):
                   "evidence": [{"rcept_no": r} for r in evidence]})
 
 
-# --- A. 다중 조회·비교·연산 (Closed) — 두 기업 중 어느 쪽이 큰가 -----------------
-# 🔴 규약 §6 의 "2차전지 기업 A와 B 중 2025년 설비투자 규모가 더 큰 기업은?" 형태.
+# --- A. 다중 조회·비교·연산 (Closed), 두 기업 중 어느 쪽이 큰가 -----------------
+# 규약 §6 의 "2차전지 기업 A와 B 중 2025년 설비투자 규모가 더 큰 기업은?" 형태.
 year_sum = collections.defaultdict(int)
 year_ids = collections.defaultdict(list)
 for d in docs:
@@ -65,7 +65,7 @@ for d in docs:
             and d.get("is_latest") and str(d.get("rcept_dt", "")).startswith("2025")):
         year_sum[d["corp_name"]] += d["amount"]
         year_ids[d["corp_name"]].append(d["rcept_no"])
-# 합이 뚜렷이 갈리는 짝만 쓴다 — 근소하면 반올림 서술로도 맞아 판정이 흐려진다.
+# 합이 뚜렷이 갈리는 짝만 쓴다. 근소하면 반올림 서술로도 맞아 판정이 흐려진다.
 ranked = sorted(year_sum.items(), key=lambda kv: -kv[1])
 pairs = [(ranked[i], ranked[i + 3]) for i in range(0, 6, 3)
          if i + 3 < len(ranked) and ranked[i][1] > ranked[i + 3][1] * 1.5]
@@ -75,8 +75,8 @@ for i, ((a, av), (b, bv)) in enumerate(pairs[:2], 1):
         f"더 큰 기업은 어디인가?",
         answer=a, evidence=(year_ids[a] + year_ids[b])[:8])
 
-# --- B. 다중 조회·비교·연산 (Open) — 유형별로 정리 ------------------------------
-# 🔴 규약 §6 의 "자금조달 내역을 유형별로 정리해줘" 형태. 서식이 곧 유형이다.
+# --- B. 다중 조회·비교·연산 (Open), 유형별로 정리 ------------------------------
+# 규약 §6 의 "자금조달 내역을 유형별로 정리해줘" 형태. 서식이 곧 유형이다.
 kind_of = collections.defaultdict(collections.Counter)
 for d in docs:
     if str(d.get("rcept_dt", "")).startswith("2025"):
@@ -93,8 +93,8 @@ for i, corp in enumerate(mixed[:2], 3):
                   if d["corp_name"] == corp
                   and str(d.get("rcept_dt", "")).startswith("2025")][:8])
 
-# --- C. 복합 문서 추론 (Closed) — 해지된 계약이 존재하는가 ----------------------
-# 🔴 규약 §6 의 "체결한 주요 계약 이후 해지된 계약이 존재하는가?" 형태.
+# --- C. 복합 문서 추론 (Closed), 해지된 계약이 존재하는가 ----------------------
+# 규약 §6 의 "체결한 주요 계약 이후 해지된 계약이 존재하는가?" 형태.
 term = [d for d in docs
         if d.get("doc_subtype") == "단일판매공급계약해지"
         and d["rcept_no"] not in used and d.get("amount")]
@@ -105,7 +105,7 @@ for i, d in enumerate(term[:2], 5):
         f"단일판매·공급계약 해지가 존재하는가? 있다면 해지 금액은 얼마인가?",
         answer=f"{d['amount']:,}", evidence=[d["rcept_no"]])
 
-# --- D. 복합 문서 추론 (Closed) — 몇 차례 정정됐는가 ----------------------------
+# --- D. 복합 문서 추론 (Closed), 몇 차례 정정됐는가 ----------------------------
 chains = []
 for d in docs:
     if not d.get("is_latest"):
@@ -126,7 +126,7 @@ for i, (origin, latest, depth, members) in enumerate(chains[:2], 7):
         f"'{subject(origin)}' 계약은 이후 몇 차례 정정됐는가?",
         answer=str(depth), evidence=members[:8])
 
-# --- E. 복합 문서 추론 (Open) — 정정 이력 서술 ----------------------------------
+# --- E. 복합 문서 추론 (Open), 정정 이력 서술 ----------------------------------
 for i, (origin, latest, depth, members) in enumerate(chains[2:4], 9):
     add(f"M-{i:03d}", "complex_reason", "open",
         f"{origin['corp_name']}이(가) {ymd(origin)} 공시한 "
@@ -136,7 +136,7 @@ for i, (origin, latest, depth, members) in enumerate(chains[2:4], 9):
                     f"정정 {depth}회"],
         evidence=members[:8])
 
-# --- F. 다중 조회·비교·연산 (Closed) — 같은 발주처 두 계약의 차 ------------------
+# --- F. 다중 조회·비교·연산 (Closed), 같은 발주처 두 계약의 차 ------------------
 by_hub = collections.defaultdict(list)
 for d in docs:
     if (d.get("counterparty") and d.get("amount") and d.get("is_latest")

@@ -1,4 +1,4 @@
-"""골든셋 전수 리뷰 — 문항마다 **답변·판정 근거·규약 지표 8종**을 한 파일로 모은다.
+"""골든셋 전수 리뷰, 문항마다 **답변·판정 근거·규약 지표 8종**을 한 파일로 모은다.
 
     PYTHONIOENCODING=utf-8 python scripts/build_goldenset_review.py \
         --arm A34 --run artifacts/ablation/v5/final2 \
@@ -6,13 +6,13 @@
 
 LLM 0회 · 0원. 러너가 이미 낸 `report.json`·`responses/` 를 읽어 재조립할 뿐이다.
 
-🔴 **판정 근거를 지어내지 않는다.** `scripts/error_analysis.py` 의 채점 계약을 그대로 읽는다:
+**판정 근거를 지어내지 않는다.** `scripts/error_analysis.py` 의 채점 계약을 그대로 읽는다:
 
     open   correct = judge.correct AND numeric.ok AND coverage.ok
     closed correct = score_closed(EM 계열)      · safety 트랙은 score_safety
     (`error_analysis.py:1504-1513`)
 
-🔴 **규약 지표 8종 중 우리가 직접 재는 것과 못 재는 것을 갈라 적는다.** 근사치를
+**규약 지표 8종 중 우리가 직접 재는 것과 못 재는 것을 갈라 적는다.** 근사치를
 "측정했다" 라고 쓰면 그 순간 이 파일이 거짓이 된다. `measured=False` 인 칸이 그 표시다.
 """
 from __future__ import annotations
@@ -28,7 +28,7 @@ COHORTS = ("full", "valuechain", "safety")
 
 #: 규약 §5 「답변 평가지표 8종」. 값은 (우리가 읽는 필드, 직접 측정인가, 한 줄 설명).
 #:
-#: 🔴 `추론 논리성` 은 **직접 재지 않는다.** judge 의 `grounded` 가 가장 가깝지만 그것은
+#: `추론 논리성` 은 **직접 재지 않는다.** judge 의 `grounded` 가 가장 가깝지만 그것은
 #: *"근거에 서 있는가"* 이지 *"추론이 논리적인가"* 가 아니다. 근사로 채우면 8/8 이라는
 #: 수가 거짓이 되므로 `measured=False` 로 남기고 대리 지표만 밝힌다.
 METRICS = {
@@ -57,7 +57,7 @@ TASK_LABEL = {"search_extract": "검색·정보 추출",
 
 
 def load_cases() -> dict[str, dict]:
-    """🔴 `heldout.jsonl` 은 열지 않는다 — 최종 구성 1회용이고 2회 소진됐다."""
+    """`heldout.jsonl` 은 열지 않는다. 최종 구성 1회용이고 2회 소진됐다."""
     out: dict[str, dict] = {}
     for name in ("questions.jsonl", "valuechain.jsonl", "safety.jsonl",
                  "regression.jsonl"):

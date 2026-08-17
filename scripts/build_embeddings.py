@@ -1,4 +1,4 @@
-"""A2 — dense 인덱스 빌더. 🔴 **크레딧을 쓴다. 2단계로 나뉘어 있다.**
+"""A2, dense 인덱스 빌더. **크레딧을 쓴다. 2단계로 나뉘어 있다.**
 
     python scripts/build_embeddings.py --estimate        # 0단계: API 0회, 문자수만
     python scripts/build_embeddings.py --sample 100      # 1단계: 실측 usage 로 단가 역산
@@ -13,14 +13,14 @@
 역산하고, 추정이 상한을 넘으면 **범위를 줄이거나 중단**한다. 표본으로 만든 벡터도
 저장소에 그대로 남으므로 버려지는 호출은 0이다.
 
-## 정기공시를 전량 임베딩하지 않는 이유 — 게이트 두 개가 동시에 막는다
+## 정기공시를 전량 임베딩하지 않는 이유, 게이트 두 개가 동시에 막는다
 
     상주   157,397 조각 × 1024차원 × float32 = 615MB.  게이트 500MB (현재 427MB 사용).
            float16 으로 떨궈도 308MB 라 여전히 못 들어간다.
     비용   색인 문자 150.7M 자 ≈ 7천만 토큰대. 1단계 상한 10,000원에 근접·초과한다.
 
 그래서 정기공시 dense 는 **메타 프리필터를 통과한 후보만** 담는다(`--warm`).
-융합이 어차피 프리필터 뒤에서 일어나므로 **측정에는 손실이 없다** — 프리필터가 거른
+융합이 어차피 프리필터 뒤에서 일어나므로 **측정에는 손실이 없다**. 프리필터가 거른
 조각은 전량 인덱스가 있어도 후보가 아니다. 잃는 것은 배포 일반성이다:
 새 기업·새 연도 질의는 최초 1회 지연 임베딩(호출·지연)이 붙는다.
 """
@@ -85,7 +85,7 @@ def load_snapshot() -> list[str]:
 
 
 def dev_cases() -> list[dict]:
-    """🔴 **얼려 둔 스냅샷만** 읽는다. 다른 트랙의 확장분이 섞이면 Δ 가 오염된다."""
+    """**얼려 둔 스냅샷만** 읽는다. 다른 트랙의 확장분이 섞이면 Δ 가 오염된다."""
     wanted = set(load_snapshot())
     path = ROOT / "evalset" / "questions.jsonl"
     rows = [json.loads(x) for x in path.open(encoding="utf-8") if x.strip()]
@@ -125,7 +125,7 @@ def _won(chars: float, chars_per_token: float) -> float:
 #: 실측 처리율(건/분). **분당 60호출 고정창**이 상한이라 57 로 잡는다 (창의 95%).
 #: 근거와 실측 로그는 `embed.py` 의 처리율 주석에 있다.
 THROUGHPUT_PER_MIN = 57.0
-#: 상주 게이트. 04-retriever 게이트 D 기준 — BM25 인덱스만으로 이미 427MB 를 쓴다.
+#: 상주 게이트. 04-retriever 게이트 D 기준, BM25 인덱스만으로 이미 427MB 를 쓴다.
 RSS_GATE_MB = 500.0
 RSS_USED_MB = 427.0
 
@@ -135,7 +135,7 @@ def _mb_fp16(n: int) -> float:
 
 
 def render_estimate(chars: dict, chars_per_token: float, measured: bool) -> str:
-    """비용만 보면 안 된다. **상주량과 소요시간이 먼저 막는다** — 세 게이트를 한 표에 둔다."""
+    """비용만 보면 안 된다. **상주량과 소요시간이 먼저 막는다**. 세 게이트를 한 표에 둔다."""
     tag = "실측" if measured else "가정"
     lines = [f"\n=== 임베딩 비용 산정 ({tag} {chars_per_token:.2f} 자/토큰 · "
              f"{embed.PRICE_WON_PER_1K}원/1K · {embed.EMBED_MODEL}) ===",
@@ -168,7 +168,7 @@ def render_estimate(chars: dict, chars_per_token: float, measured: bool) -> str:
 # --- 1단계 · 표본으로 chars/token 실측 -------------------------------------------
 
 def sample_texts(n: int) -> list[tuple[str, str, str]]:
-    """(문서군, id, 텍스트). **문서군마다 고르게** 뽑는다 — 정형만 재면 과소추정된다."""
+    """(문서군, id, 텍스트). **문서군마다 고르게** 뽑는다. 정형만 재면 과소추정된다."""
     out: list[tuple[str, str, str]] = []
     per = max(1, n // (len(RECORD_GROUPS) + 1))
     for group in RECORD_GROUPS:
@@ -264,7 +264,7 @@ def build_records(budget_won: float) -> dict:
 def warm_pools(budget_won: float) -> dict:
     """정기공시 후보 풀 지연 채움. dev 스냅샷을 A2F 로 관통시키면 필요한 것만 채워진다.
 
-    LLM 은 0회다 — `_gather_evidence` 만 부른다. 임베딩 호출만 나간다.
+    LLM 은 0회다. `_gather_evidence` 만 부른다. 임베딩 호출만 나간다.
     """
     embed.USAGE.limit_won = budget_won
     cases = dev_cases()
@@ -288,7 +288,7 @@ def pool_stats() -> dict:
     """dense 가 실제로 다루는 후보 풀의 크기 분포. **API 0회 · LLM 0회.**
 
     A2 의 Δ 를 해석하는 데 이 표가 결정적이다. 메타 프리필터가 후보를 1~5건까지
-    좁혀 놓으면 **재순위가 바꿀 것이 없다** — Δ 0 의 기전이 성능 문제가 아니라
+    좁혀 놓으면 **재순위가 바꿀 것이 없다**. Δ 0 의 기전이 성능 문제가 아니라
     후보 집합의 크기라는 뜻이고, 그건 기법이 아니라 코퍼스의 성질이다.
     """
     from argus.corpus.manifest import resolve_company
@@ -299,7 +299,7 @@ def pool_stats() -> dict:
                                   if n == "search_chunks" else None) or original(n, a)
     try:
         for case in dev_cases():
-            with ablation.use("A6"):            # dense off — 순수 BM25 경로의 후보다
+            with ablation.use("A6"):            # dense off, 순수 BM25 경로의 후보다
                 pipeline._gather_evidence(route(case["question"]),
                                           case["question"], Budget())
     finally:
@@ -460,10 +460,10 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.records:
         print("\n=== 2단계 · 정형 3종 전량 ===")
-        # 🔴 **누적이어야 할 것을 대입으로 덮지 않는다.** `embed.USAGE.won` 은 이
+        # **누적이어야 할 것을 대입으로 덮지 않는다.** `embed.USAGE.won` 은 이
         #    프로세스 전체의 누적값이라(`stage1()` 만 `.clear()` 한다), `--sample` 뒤
         #    `--records` 를 같은 프로세스에서 돌리면 1단계 지출까지 섞여 있다. 그래서
-        #    "이 호출이 새로 쓴 만큼"(before/after 델타)만 더한다 — 425행의 stage1
+        #    "이 호출이 새로 쓴 만큼"(before/after 델타)만 더한다. 425행의 stage1
         #    누적 패턴과 같다. 대입(`=`)이면 이전 단계·이전 프로세스의 기록이 지워진다
         #    (실측 사고: `--sample` 의 2.64원이 `--records` 의 110.82원으로 덮였다).
         before = embed.USAGE.won
@@ -488,7 +488,7 @@ def main(argv: list[str] | None = None) -> None:
         print("\n=== 산출물 · 상주량 ===")
         print(json.dumps(ledger["report"], ensure_ascii=False, indent=1))
 
-    # 🔴 누적 지출은 **덮어쓰면 안 된다.** `--report` 처럼 호출이 0인 실행이 원장을
+    # 누적 지출은 **덮어쓰면 안 된다.** `--report` 처럼 호출이 0인 실행이 원장을
     # 0 으로 밀면 "얼마 썼는지" 가 사라진다. 실제로 그 사고를 냈다 (113.5원 -> 2.6원).
     ledger["last_run_usage"] = embed.USAGE.totals()
     ledger["embedding_spend_won"] = round(

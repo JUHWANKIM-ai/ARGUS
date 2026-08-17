@@ -1,15 +1,15 @@
-"""Phase A 부분 재실행 — 신규 6섹터 25개사 프로파일 (docs/pipeline/01-eda.md).
+"""Phase A 부분 재실행, 신규 6섹터 25개사 프로파일 (docs/pipeline/01-eda.md).
 
 **배경**: 평가셋 확장으로 게임·로봇·소비재유통·자동차모빌리티·철강·통신 6섹터가
 `universe.csv` 에 새로 들어왔는데, 기존 Phase A(`eda_documents.py`/`eda_relations.py`)는
-그 문서들을 프로파일한 적이 없다. 여기서는 **새 측정 함수를 만들지 않는다** —
+그 문서들을 프로파일한 적이 없다. 여기서는 **새 측정 함수를 만들지 않는다**.
 `eda_documents.profile_document`(표 문자비 · 숫자 토큰비 등)와
 `argus.corpus.corrections.build_chains`(정정체인 연결률)를 그대로 재사용하고,
 섹터 필터만 씌운다. 새로 쓰면 기존 프로파일과 비교가 안 된다.
 
 **실측 vs 브리프 가정**: 브리프는 "6섹터 25개사"를 가정했지만 `universe.csv` 실측은
 **19개사**다(게임 3 · 로봇 2 · 소비재·유통 4 · 자동차·모빌리티 4 · 철강 3 · 통신 3).
-아래 코드는 실측(19개사)을 그대로 쓴다 — 계획 문서 숫자가 아니라 데이터가 정본이다.
+아래 코드는 실측(19개사)을 그대로 쓴다. 계획 문서 숫자가 아니라 데이터가 정본이다.
 
 LLM 호출 0회.
 
@@ -43,7 +43,7 @@ RECORD_FILES = {
     "holding": "holding_records.jsonl",
 }
 
-# 기존 실측 (docs/pipeline/01-eda.md, 2026-08-09) — 신규 섹터와 비교할 기준선.
+# 기존 실측 (docs/pipeline/01-eda.md, 2026-08-09), 신규 섹터와 비교할 기준선.
 # 이 스크립트가 새로 재는 것이 아니라 문서에 이미 적힌 값을 그대로 옮긴 것이다.
 BASELINE = {
     "schema_matched_ratio": {"exchange": 0.842, "major": 0.992, "holding": 1.0},
@@ -52,7 +52,7 @@ BASELINE = {
     "correction_chain_link_rate": {"exchange": 0.610, "major": 0.757, "holding": 0.927},
 }
 
-# 평가셋 확장 트랙(T1~T5)이 이미 찾은 정규화 결함 4건. 수정 대상이 아니라 기록 대상 —
+# 평가셋 확장 트랙(T1~T5)이 이미 찾은 정규화 결함 4건. 수정 대상이 아니라 기록 대상,
 # 값까지 그대로 남겨서 다음 파싱 트랙이 놓치지 않게 한다.
 KNOWN_DEFECTS = [
     {
@@ -87,7 +87,7 @@ def _load_records(path: Path) -> list[dict]:
 
 
 def _doc_text_profile(docs: list[dict]) -> dict:
-    """`eda_documents.profile_document` 재사용 — 표 문자비 · 숫자 토큰비."""
+    """`eda_documents.profile_document` 재사용, 표 문자비 · 숫자 토큰비."""
     items = []
     for doc in docs:
         files = _doc_files(doc)
@@ -145,7 +145,7 @@ def build_profile(out_path: Path, periodic_sample: int = 40, seed: int = 42) -> 
         g: {c for members in chains.values() for c in members}
         for g, chains in chains_by_group.items()
     }
-    # 정정체인 판단용 원본 문서(코퍼스 전체, 섹터 무관) — build_chains 와 짝을 맞춘다.
+    # 정정체인 판단용 원본 문서(코퍼스 전체, 섹터 무관), build_chains 와 짝을 맞춘다.
     all_docs_by_group = {g: filter_docs(doc_group=g) for g in ("exchange", "major", "holding")}
 
     by_sector: dict[str, dict] = {}

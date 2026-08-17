@@ -2,8 +2,8 @@
 
     PYTHONIOENCODING=utf-8 python scripts/score_reasoning.py
 
-🔴 **커버리지가 5/7 이라는 사실을 함께 낸다.** 이 점수를 *"「추론 논리성」 97%"* 로
-읽으면 안 된다 — 우리가 **보는 양식 안에서** 결함이 없다는 뜻이다. 안 보는 둘
+**커버리지가 5/7 이라는 사실을 함께 낸다.** 이 점수를 *"「추론 논리성」 97%"* 로
+읽으면 안 된다. 우리가 **보는 양식 안에서** 결함이 없다는 뜻이다. 안 보는 둘
 (전제 누락 · 비약·무관)은 이 수에 안 들어 있다.
 기준과 시험은 `docs/reasoning-metric-2026-08-16.md`.
 """
@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 
 def _args():
-    """🔴 판 경로를 인자로 받는다. 박아 두면 판이 바뀔 때마다 스크립트를 고쳐야 하고,
+    """판 경로를 인자로 받는다. 박아 두면 판이 바뀔 때마다 스크립트를 고쳐야 하고,
     그러다 **옛 판의 답변을 새 판이라고 채점하는 사고**를 이미 한 번 냈다 (2026-08-16,
     A34 답변을 A38 점수로 적을 뻔했다)."""
     import argparse
@@ -44,7 +44,7 @@ def main() -> int:
         rows.append((item["question_id"], item["track"], item["our_answer"] or "",
                      item.get("retrieved_context_chars", 0)))
 
-    #: 근거는 응답 파일에서 되찾는다 — 리뷰 JSON 은 길이만 들고 있다.
+    #: 근거는 응답 파일에서 되찾는다. 리뷰 JSON 은 길이만 들고 있다.
     def evidence_of(qid: str) -> str:
         for cohort in ("full", "valuechain", "safety"):
             path = (ROOT / f"{args.run}_{cohort}/{args.arm}/responses"

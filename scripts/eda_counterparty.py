@@ -1,4 +1,4 @@
-"""counterparty 표기 실태 — 노드 승격 전에 무엇을 정규화해야 하는지 센다.
+"""counterparty 표기 실태, 노드 승격 전에 무엇을 정규화해야 하는지 센다.
 
 정규화·비실명 판정 규칙은 `argus.corpus.counterparty` 가 정본이다(Task 2 로 이관됨).
 `scripts/validate_evalset.py::normalize_counterparty` · `ANON_COUNTERPARTY` 는 이제

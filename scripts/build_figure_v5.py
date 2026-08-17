@@ -2,12 +2,12 @@
 
     PYTHONIOENCODING=utf-8 python scripts/build_figure_v5.py
 
-🔴 **손으로 XML 을 고치지 않는다.** v4 도면은 63셀을 손으로 썼고, 그래서 성적 하나가
+**손으로 XML 을 고치지 않는다.** v4 도면은 63셀을 손으로 썼고, 그래서 성적 하나가
 바뀔 때마다 어느 칸을 고쳐야 하는지 사람이 찾아야 했다. 여기서는 **수를 한 곳에
 모아** 두고 배치를 코드가 계산한다.
 
-🔴 **도면이 코드와 어긋나면 코드가 맞다.** 이 스크립트가 그 어긋남을 줄이는 장치이지
-없애는 장치가 아니다 — 아래 `SCORE` 는 사람이 옮겨 적는 값이다.
+**도면이 코드와 어긋나면 코드가 맞다.** 이 스크립트가 그 어긋남을 줄이는 장치이지
+없애는 장치가 아니다. 아래 `SCORE` 는 사람이 옮겨 적는 값이다.
 """
 from __future__ import annotations
 
@@ -18,20 +18,20 @@ import pathlib
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs/figures/argus-algorithm-v5.drawio"
 
-#: 🔴 **성적은 여기 한 곳에만 적는다.** 정본은 `artifacts/ablation/v5/a38_*`.
+#: **성적은 여기 한 곳에만 적는다.** 정본은 `artifacts/ablation/v5/a38_*`.
 SCORE = {"arm": "A38", "그리드": "72/72", "전체": "88/88", "밸류체인": "10/12",
          "안전성": "12/12", "정보한계": "6/6", "회귀": "10/10", "인용률": "0.988",
          "합계": "110/112", "정본": "artifacts/ablation/v5/a38_*"}
 
-# 🔴 **흰 바탕 · 검은 글씨.** 인쇄와 제안서 삽입을 위해 색을 뺐다.
+# **흰 바탕 · 검은 글씨.** 인쇄와 제안서 삽입을 위해 색을 뺐다.
 #
-# 🔴 **그러면 색이 나르던 정보가 사라진다.** v4 도면의 범례는 *"색 = LLM 호출 여부"*
-# 였고 그것이 이 도면의 가장 중요한 한 줄이다 — 파이프라인의 대부분이 LLM 0회라는
+# **그러면 색이 나르던 정보가 사라진다.** v4 도면의 범례는 *"색 = LLM 호출 여부"*
+# 였고 그것이 이 도면의 가장 중요한 한 줄이다. 파이프라인의 대부분이 LLM 0회라는
 # 사실. 색을 없애는 대신 **글머리 기호**로 옮겼다. 정보를 지우지 않고 매체를 바꾼다.
 #
 #     ○  LLM 0회      ●  LLM 호출      ◇  검증 · 안전      ◆  분기 · 판정
 MONO = "fillColor=#FFFFFF;strokeColor=#000000;fontColor=#000000;"
-#: `(스타일, 글머리 기호)`. 🔴 기호를 스타일에 **묶어 둔다** — 따로 두면 호출부에서
+#: `(스타일, 글머리 기호)`. 기호를 스타일에 **묶어 둔다**. 따로 두면 호출부에서
 #: 짝이 어긋나고, 어긋난 기호는 색이 틀린 것보다 나쁘다(읽는 사람이 못 알아챈다).
 BLUE = (MONO, "○")                                      # LLM 0회
 ORANGE = (MONO, "●")                                    # LLM 호출
@@ -44,14 +44,14 @@ cells: list[str] = []
 
 
 def esc(markup: str) -> str:
-    """🔴 **drawio 의 `value=` 는 HTML 을 escape 한 채 담는다.** v4 파일이
-    `value="… &lt;b&gt;v4&lt;/b&gt; …"` 인 것이 그 형식이다. 태그째 한 번만 escape 한다 —
+    """**drawio 의 `value=` 는 HTML 을 escape 한 채 담는다.** v4 파일이
+    `value="… &lt;b&gt;v4&lt;/b&gt; …"` 인 것이 그 형식이다. 태그째 한 번만 escape 한다.
     첫 판은 escape 한 뒤 `&lt;` 를 `<` 로 되돌려 XML 을 깨뜨렸다."""
     return html.escape(markup, quote=True)
 
 
 def em(style):
-    """v5 신설·교정 강조. 🔴 `em(BLUE)` 로는 못 잇는다 — 스타일이 이제 짝이다."""
+    """v5 신설·교정 강조. `em(BLUE)` 로는 못 잇는다. 스타일이 이제 짝이다."""
     body, mark = style
     return (body + NEW, mark)
 

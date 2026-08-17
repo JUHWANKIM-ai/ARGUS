@@ -1,10 +1,10 @@
 """규약 감사 32문항을 **확정 베이스라인 `A38`** 로 다시 돌린다.
 
-🔴 `docs/compliance-audit-v5-2026-08-16.md` 는 `A34` 로 쓰였는데 제출 구성은 `A38` 이다.
+`docs/compliance-audit-v5-2026-08-16.md` 는 `A34` 로 쓰였는데 제출 구성은 `A38` 이다.
 그 셋의 차이(`fix_unit_parens` · `counterparty_exempt` · `self_consistency_fix`)가
 규약 판정을 흔들지 않는다고 **말할 수는 있어도 잰 적은 없다**. 여기서 잰다.
 
-`RequestCache` 를 붙여 돈다 — 세 플래그가 전부 LLM 0회라 프롬프트가 바이트 동일이면
+`RequestCache` 를 붙여 돈다. 세 플래그가 전부 LLM 0회라 프롬프트가 바이트 동일이면
 A34 판의 응답이 그대로 적중하고, 적중하지 않는 것이 있다면 그것 자체가 신호다.
 """
 import io

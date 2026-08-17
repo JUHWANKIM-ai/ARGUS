@@ -1,6 +1,6 @@
 """한 arm 이 틀린 문항을 질문·답변·원인과 함께 한 파일로 모은다. LLM 0회 · 0원.
 
-🔴 **원인을 지어내지 않는다.** 저장소의 실패 귀속 기계(`scripts/error_analysis.py` 의
+**원인을 지어내지 않는다.** 저장소의 실패 귀속 기계(`scripts/error_analysis.py` 의
 `attribute`·`root_cause`)가 산출물에 적어 둔 `first_failure`·`root_cause`·`failure_why`
 를 그대로 옮기고, 사람이 읽을 한 줄만 그 값에서 파생한다. 단계 이름의 뜻은
 `docs/pipeline/08-error-analysis.md` 의 정의를 옮긴 것이다.
@@ -39,7 +39,7 @@ STAGE = {
 
 
 def load_questions() -> dict[str, dict]:
-    """🔴 `heldout.jsonl` 은 열지 않는다 — 최종 구성 1회용이고 2회 소진됐다."""
+    """`heldout.jsonl` 은 열지 않는다. 최종 구성 1회용이고 2회 소진됐다."""
     out: dict[str, dict] = {}
     for name in ("questions.jsonl", "valuechain.jsonl", "safety.jsonl",
                  "regression.jsonl"):

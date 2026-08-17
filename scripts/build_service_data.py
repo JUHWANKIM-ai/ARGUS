@@ -1,4 +1,4 @@
-"""ARGUS 서비스 사이트 v2 — 공시 데이터를 화면용 JSON 으로 빌드한다.
+"""ARGUS 서비스 사이트 v2, 공시 데이터를 화면용 JSON 으로 빌드한다.
 
     PYTHONIOENCODING=utf-8 python scripts/build_service_data.py
 
@@ -7,25 +7,25 @@
 
     artifacts/*.jsonl  ──▶  이 스크립트  ──▶  site/public/data/*.json  ──▶  Next.js
 
-🔴 **이 스크립트의 규율 넷.** 주석이 아니라 코드다.
+**이 스크립트의 규율 넷.** 주석이 아니라 코드다.
 
-    ① 표준 라이브러리만 쓴다        `src/argus` 를 import 하지 않는다 — `config` 가
+    ① 표준 라이브러리만 쓴다        `src/argus` 를 import 하지 않는다. `config` 가
                                    `.env` 경로를 안다. 통로 자체를 만들지 않는다.
     ② 읽는 파일이 **명단**이다      `ALLOWED_READS` 에 없는 경로는 `read_text()` 가
-                                   거부한다. 🔴 **금지 목록이 아니라 허용 목록이다** —
+                                   거부한다. **금지 목록이 아니라 허용 목록이다**.
                                    금지 목록은 다음 세대가 파일을 늘리면 조용히 샌다.
     ③ 모르는 필드가 붙으면 죽는다   원본이 필드를 늘리면 `gate()` 가 빌드를 멈춘다.
                                    **실을지는 사람이 판단한다.**
     ④ 추정하지 않는다              값이 없으면 `null` 이다. 0 으로도 어림수로도 쓰지 않는다.
 
-🔴 **읽기 게이트를 허용 목록으로 짠 이유.** v1(`build_site.py`)은 금지 토큰 목록이었다.
+**읽기 게이트를 허용 목록으로 짠 이유.** v1(`build_site.py`)은 금지 토큰 목록이었다.
 그런데 이번 판은 **금지 대상의 이름을 소스에 적는 것 자체가 금지**다(계획서의 테스트가
-소스를 훑는다). 허용 목록은 그 제약을 풀면서 동시에 더 강하다 — **여섯 파일 밖으로는
+소스를 훑는다). 허용 목록은 그 제약을 풀면서 동시에 더 강하다. **여섯 파일 밖으로는
 어떤 경로도 열리지 않는다.** 스펙 §5b (a) 의 판단을 이렇게 구현했다.
 
-🔴 **v1 의 14자리 식별자 차단은 상속하지 않는다.** v1 은 접수번호가 평가 정답의 근거를
+**v1 의 14자리 식별자 차단은 상속하지 않는다.** v1 은 접수번호가 평가 정답의 근거를
 지목해서 막았다. 여기서 접수번호는 **DART 원문으로 가는 열쇠**이고 출처가 공시 원본이다.
-근거가 달라서 판단이 다르다 — 스펙 §5b (d) 에 기록했다.
+근거가 달라서 판단이 다르다. 스펙 §5b (d) 에 기록했다.
 """
 from __future__ import annotations
 
@@ -42,26 +42,26 @@ OUT = ROOT / "site" / "public" / "data"
 
 
 class ForbiddenRead(RuntimeError):
-    """🔴 서비스 빌드가 열어서는 안 되는 경로다. 명단에 없으면 전부 여기로 온다."""
+    """서비스 빌드가 열어서는 안 되는 경로다. 명단에 없으면 전부 여기로 온다."""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. 읽기 게이트 — 🔴 허용 목록 (규율 ②)
+# 1. 읽기 게이트, 허용 목록 (규율 ②)
 # ─────────────────────────────────────────────────────────────────────────────
 
 CORPUS = "artifacts"
 ROSTER = "data/dart-disclosures/universe.csv"
 
-#: 🔴 **이 여섯 개가 전부다.** 서비스 데이터는 공시 원본과 70개사 명부에서만 온다.
-#: 새 원천이 필요하면 여기에 적어라 — 적기 전에는 열리지 않는다.
+#: **이 여섯 개가 전부다.** 서비스 데이터는 공시 원본과 70개사 명부에서만 온다.
+#: 새 원천이 필요하면 여기에 적어라, 적기 전에는 열리지 않는다.
 ALLOWED_READS: frozenset[str] = frozenset({
     f"{CORPUS}/exchange_records.jsonl",   # 거래소공시 (계약·금액·상대·정정 표시)
     f"{CORPUS}/major_records.jsonl",      # 주요사항보고 (건수만 센다)
     f"{CORPUS}/holding_records.jsonl",    # 지분공시     (건수만 센다)
-    f"{CORPUS}/references.jsonl",         # 정정 체인 — 추적 실패 사유가 여기 있다
+    f"{CORPUS}/references.jsonl",         # 정정 체인, 추적 실패 사유가 여기 있다
     f"{CORPUS}/counterparty_graph.json",  # 거래관계 그래프
-    f"{CORPUS}/periodic_sections.jsonl",  # 정기공시 목차 — 요약재무정보의 위치
-    f"{CORPUS}/periodic_sections.txt",    # 🔴 926MB. 통째로 읽지 않는다 — offset seek 만
+    f"{CORPUS}/periodic_sections.jsonl",  # 정기공시 목차, 요약재무정보의 위치
+    f"{CORPUS}/periodic_sections.txt",    # 926MB. 통째로 읽지 않는다. offset seek 만
     ROSTER,                               # 70개사 명부 (UTF-8 BOM)
 })
 
@@ -95,7 +95,7 @@ def read_csv(rel: str) -> list[dict]:
 
 
 def open_seekable(rel: str):
-    """🔴 926MB 짜리 본문은 통째로 읽지 않는다 — 목차가 준 offset 만큼만 집는다.
+    """926MB 짜리 본문은 통째로 읽지 않는다. 목차가 준 offset 만큼만 집는다.
 
     게이트는 `read_text()` 와 같다. 여는 방식이 다를 뿐이다.
     """
@@ -103,20 +103,20 @@ def open_seekable(rel: str):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. 필드 게이트 — 🔴 모르는 필드가 붙으면 죽는다 (규율 ③)
+# 2. 필드 게이트, 모르는 필드가 붙으면 죽는다 (규율 ③)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 def gate(row: dict, allowed: frozenset[str], where: str) -> dict:
-    """🔴 모르는 필드가 붙으면 빌드가 죽는다. 블랙리스트는 다음 세대에 조용히 샌다."""
+    """모르는 필드가 붙으면 빌드가 죽는다. 블랙리스트는 다음 세대에 조용히 샌다."""
     unknown = set(row) - allowed
     if unknown:
         raise SystemExit(f"🔴 {where} 에 모르는 필드: {sorted(unknown)} — 실을지 판단하라")
     return row
 
 
-#: 원본이 들고 있는 필드 전량(2026-08-16 실측). 🔴 **원본이 늘어나면 여기가 먼저 깨진다.**
-#: 늘어난 필드를 화면에 실을지는 사람이 판단한다 — 조용히 통과시키지 않는다.
+#: 원본이 들고 있는 필드 전량(2026-08-16 실측). **원본이 늘어나면 여기가 먼저 깨진다.**
+#: 늘어난 필드를 화면에 실을지는 사람이 판단한다. 조용히 통과시키지 않는다.
 SOURCE_EXCHANGE = frozenset({
     "doc_id", "rcept_no", "rcept_dt", "corp_code", "corp_name", "sector", "doc_subtype",
     "is_correction", "amount", "amount_type", "ratio", "ratio_base", "counterparty",
@@ -136,15 +136,15 @@ SOURCE_PERIODIC = frozenset({
     "is_stub", "is_container", "text_offset", "text_bytes",
 })
 
-#: 🔴 **실어도 되는 것.** 여기 없는 것은 화면에 가지 않는다. 원문(`raw_rows`·`markdown`)과
-#: 내부 표시(`schema_matched`·`is_latest`)는 의도적으로 뺐다 — 코퍼스 재배포가 아니다.
+#: **실어도 되는 것.** 여기 없는 것은 화면에 가지 않는다. 원문(`raw_rows`·`markdown`)과
+#: 내부 표시(`schema_matched`·`is_latest`)는 의도적으로 뺐다. 코퍼스 재배포가 아니다.
 CONTRACT_FIELDS = frozenset({
     "rcept_no", "rcept_dt", "amount", "amount_type", "counterparty",
     "period_start", "period_end", "is_correction", "doc_subtype", "title",
 })
 CORRECTION_FIELDS = frozenset({
     "rcept_no", "corp_name", "slug", "date", "form_name", "resolved", "reason",
-    #: `origin` 은 `amount_before` 를 **어느 공시에서 읽었는지**다. 🔴 금액만 싣고 출처를
+    #: `origin` 은 `amount_before` 를 **어느 공시에서 읽었는지**다. 금액만 싣고 출처를
     #: 안 실으면 화면이 그 수를 검증할 방법이 없다.
     "targets", "origin", "amount_before", "amount_after", "title",
 })
@@ -153,16 +153,16 @@ COMPANY_FIELDS = frozenset({
 })
 HUB_FIELDS = frozenset({"name", "canonical", "kind", "count", "partners"})
 PAIR_FIELDS = frozenset({"a", "b", "via"})
-#: 🔴 `source_rcept_no` 를 함께 싣는다 — 수만 싣고 출처를 안 싣으면 검산할 방법이 없다.
+#: `source_rcept_no` 를 함께 싣는다. 수만 싣고 출처를 안 싣으면 검산할 방법이 없다.
 FINANCIAL_FIELDS = frozenset({"period", "basis", "revenue", "operating_income", "source_rcept_no"})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. 이름 정규화 — 계약상대 표기가 공시마다 흔들린다
+# 3. 이름 정규화, 계약상대 표기가 공시마다 흔들린다
 # ─────────────────────────────────────────────────────────────────────────────
 
-#: 🔴 **이것은 추정이 아니라 표기 정리다.** 법인격 표기와 공백만 지운다. 뜻을 바꾸지 않는다.
-#: 이걸로도 못 붙는 상대는 **세지 않고 `null` 로 남긴다**(규율 ④) — 어림수를 쓰지 않는다.
+#: **이것은 추정이 아니라 표기 정리다.** 법인격 표기와 공백만 지운다. 뜻을 바꾸지 않는다.
+#: 이걸로도 못 붙는 상대는 **세지 않고 `null` 로 남긴다**(규율 ④), 어림수를 쓰지 않는다.
 _TRIM = re.compile(r"\(주\)|㈜|주식회사|\(유\)|유한회사|\(재\)|재단법인|대한민국")
 _SQUEEZE = re.compile(r"[\s,.·]+")
 
@@ -171,7 +171,7 @@ def normalize(name: str | None) -> str:
     return _SQUEEZE.sub("", _TRIM.sub("", name or "")).strip().lower()
 
 
-#: 🔴 slug 는 `corp_code` 다. 한글 회사명을 경로에 그대로 쓰면 정적 export 가 만드는
+#: slug 는 `corp_code` 다. 한글 회사명을 경로에 그대로 쓰면 정적 export 가 만드는
 #: 디렉터리 이름이 호스트마다 다르게 인코딩된다. `corp_code` 는 DART 가 발급한 8자리
 #: 식별자라 **ASCII 이고 유일하고 회사명이 바뀌어도 안 움직인다.** 회사명은 JSON 안에 있다.
 def slug_of(corp_code: str) -> str:
@@ -193,7 +193,7 @@ def load_sources() -> dict:
     nodes = [gate(n, SOURCE_NODE, "관계망 노드") for n in graph["nodes"]]
     pairs = [gate(p, SOURCE_PAIR, "관계망 쌍") for p in graph["pairs"]]
 
-    #: 주요사항보고·지분공시는 **건수만** 센다 — 화면에 필드를 싣지 않으므로 게이트하지 않는다.
+    #: 주요사항보고·지분공시는 **건수만** 센다. 화면에 필드를 싣지 않으므로 게이트하지 않는다.
     other_dates: list[str] = []
     other_counts: Counter[str] = Counter()
     for name in ("major_records.jsonl", "holding_records.jsonl"):
@@ -208,10 +208,10 @@ def load_sources() -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. 정정 체인 — 🔴 원공시를 못 찾으면 그렇게 적는다
+# 5. 정정 체인, 원공시를 못 찾으면 그렇게 적는다
 # ─────────────────────────────────────────────────────────────────────────────
 
-#: 추적이 실패한 사유. 🔴 **감추면 목록이 실제보다 완전해 보인다**(스펙 §4.3).
+#: 추적이 실패한 사유. **감추면 목록이 실제보다 완전해 보인다**(스펙 §4.3).
 NO_REFERENCE = "no_reference"
 #: 원공시 **후보가 여럿인데** 어느 것인지 못 가린 경우. 체인은 보여 주되 금액은 비우다.
 AMBIGUOUS = "ambiguous_targets"
@@ -220,21 +220,21 @@ _TITLE_NOISE = re.compile(r"[\s\-—·,.()\[\]]+")
 
 
 def title_key(title: str | None) -> str:
-    """계약명을 비교용으로 다듬는다. 🔴 **뜻을 바꾸지 않는다** — 구두점과 공백만 지운다."""
+    """계약명을 비교용으로 다듬는다. **뜻을 바꾸지 않는다**. 구두점과 공백만 지운다."""
     return _TITLE_NOISE.sub("", title or "").lower()
 
 
 def resolve_chain(record: dict, by_rcept: dict, ref_edges: list[dict]) -> dict:
     """정정 하나가 가리키는 **원공시**를 찾는다. 못 찾으면 그렇게 적는다.
 
-    🔴 **`related` 를 쓰지 않는다.** 그 필드는 정정 체인이 아니라 *관련공시 묶음*이다 —
+    **`related` 를 쓰지 않는다.** 그 필드는 정정 체인이 아니라 *관련공시 묶음*이다.
     같은 회사의 서로 다른 사업(`P5 Project` 와 `[P4 Ph2(하동)] 그린동 변전소`)이 서로를
     가리킨다. 그것으로 금액을 비교하면 **없는 변화를 만들어 낸다**(2026-08-16 확인:
     삼성E&A 에서 883,888,500,000 → 1,770,780,000,000 이라는 가짜 diff 가 나왔다).
 
     쓰는 것은 `references.jsonl` 뿐이다. 다만 그 아티팩트는 *(날짜, 서식명)* 으로 풀기
     때문에 **같은 날 같은 서식의 공시가 여럿이면 후보가 여럿**이다. 그래서 계약명으로
-    한 번 더 가린다. 🔴 **그래도 못 가리면 금액을 비우고 후보만 보여 준다** — 규율 ④.
+    한 번 더 가린다. **그래도 못 가리면 금액을 비우고 후보만 보여 준다**. 규율 ④.
     """
     here, mine = record["rcept_dt"], record["rcept_no"]
     targets = sorted({
@@ -244,16 +244,16 @@ def resolve_chain(record: dict, by_rcept: dict, ref_edges: list[dict]) -> dict:
     })
 
     if not targets:
-        #: 🔴 추적 실패. 사유는 원본이 적어 둔 것을 쓴다 — 없으면 참조 자체가 없었다.
+        #: 추적 실패. 사유는 원본이 적어 둔 것을 쓴다. 없으면 참조 자체가 없었다.
         reasons = [e["reason"] for e in ref_edges if not e["resolved"]]
         return {"targets": [], "origin": None, "resolved": False, "amount_before": None,
                 "reason": Counter(reasons).most_common(1)[0][0] if reasons else NO_REFERENCE}
 
-    #: 🔴 **계약명이 같은 후보만 원공시로 인정한다.** 여러 번 정정됐으면 가장 가까운 앞선 것.
+    #: **계약명이 같은 후보만 원공시로 인정한다.** 여러 번 정정됐으면 가장 가까운 앞선 것.
     #: 후보가 하나뿐이어도 계약명이 다르면 **쓰지 않는다.** 2026-08-16 에 그 분기를 켜 봤더니
     #: `VLAC 2척` 을 `157,000 DWT 원유운반선 2척` 의 원공시로, `신고리5,6호기` 를
     #: `새울3,4호기` 의 원공시로 잡아 **가짜 금액 변화 넷**을 만들었다. 참을 하나 놓치는 것이
-    #: 거짓을 하나 싣는 것보다 낫다 — 체인(`targets`)은 그대로 보여 주므로 사람이 볼 수 있다.
+    #: 거짓을 하나 싣는 것보다 낫다. 체인(`targets`)은 그대로 보여 주므로 사람이 볼 수 있다.
     same_title = [t for t in targets
                   if title_key(by_rcept[t]["title"]) == title_key(record["title"])]
     if not same_title:
@@ -271,10 +271,10 @@ def resolve_chain(record: dict, by_rcept: dict, ref_edges: list[dict]) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5b. 재무 요약 — 🔴 정기공시의 「요약재무정보」 표에서 **그대로 옮긴다**
+# 5b. 재무 요약, 정기공시의 「요약재무정보」 표에서 **그대로 옮긴다**
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# 🔴 **이 절의 규율은 하나다: 못 읽으면 비운다.** 매출액을 잘못 실으면 이 사이트 전체를
+# **이 절의 규율은 하나다: 못 읽으면 비운다.** 매출액을 잘못 실으면 이 사이트 전체를
 # 못 믿게 된다. 그래서 아래 넷이 모두 갖춰졌을 때만 값을 싣는다.
 #
 #     ① 연결/별도가 **문서에 적혀 있다**          (`가. 요약연결재무정보` 류)
@@ -282,7 +282,7 @@ def resolve_chain(record: dict, by_rcept: dict, ref_edges: list[dict]) -> dict:
 #     ③ 기간 머리행이 있고 **어느 칸인지** 안다    (`| | 2026.1.1~2026.3.31 | …`)
 #     ④ 그 칸의 값이 수다
 #
-# ③ 이 가장 중요하다. 기간을 모르는 매출액은 **뜻이 없다** — 분기 매출을 연간으로 읽으면
+# ③ 이 가장 중요하다. 기간을 모르는 매출액은 **뜻이 없다**. 분기 매출을 연간으로 읽으면
 # 네 배 틀린다. 실제로 이 조건 때문에 70개사 중 20곳이 비었고, **그 20곳을 채우려고
 # 조건을 무르게 하지 않았다.**
 
@@ -292,7 +292,7 @@ UNIT_MULTIPLIER = {"원": 1, "천원": 1_000, "백만원": 1_000_000, "억원": 
 _UNIT_RE = re.compile(r"\(단위\s*[:：]\s*([가-힣]+)")
 _YEAR = re.compile(r"20\d\d")
 _NUMERIC = re.compile(r"^\(?[△▲\-]?[\d,]+\)?$")
-#: 매출을 가리키는 표기들. 🔴 앞에서 자르지 않고 **정확히 일치**할 때만 받는다 —
+#: 매출을 가리키는 표기들. 앞에서 자르지 않고 **정확히 일치**할 때만 받는다.
 #: `매출원가`·`매출채권` 이 매출로 잡히면 안 된다.
 _REVENUE_LABELS = frozenset({
     "매출액", "매출", "수익", "영업수익", "수익(매출액)", "매출액(수익)",
@@ -305,7 +305,7 @@ def _cells(line: str) -> list[str]:
 
 
 def _number(cell: str, multiplier: int) -> int | None:
-    """표 한 칸을 원 단위 정수로. 🔴 수가 아니면 `None` — 0 으로 만들지 않는다."""
+    """표 한 칸을 원 단위 정수로. 수가 아니면 `None`, 0 으로 만들지 않는다."""
     token = cell.replace(" ", "")
     if not _NUMERIC.match(token):
         return None
@@ -319,7 +319,7 @@ def _number(cell: str, multiplier: int) -> int | None:
 def _is_period_cell(cell: str) -> bool:
     """`2026.01.01~2026.03.31` 처럼 **기간**을 적은 칸인가.
 
-    🔴 `2026년 3월말` 같은 **시점**은 거른다 — 그것은 재무상태표의 기준일이지
+    `2026년 3월말` 같은 **시점**은 거른다. 그것은 재무상태표의 기준일이지
     손익계산서의 기간이 아니다. 시점을 기간으로 읽으면 엉뚱한 칸을 집는다.
     """
     token = cell.replace(" ", "")
@@ -353,7 +353,7 @@ def parse_summary(text: str) -> dict[str, dict]:
             if unit:
                 multiplier = UNIT_MULTIPLIER.get(unit.group(1))
             if "요약" in flat and "재무" in flat:
-                #: 표가 바뀌면 기간·칸도 다시 잡는다 — 앞 표의 칸을 물려쓰면 어긋난다.
+                #: 표가 바뀌면 기간·칸도 다시 잡는다. 앞 표의 칸을 물려쓰면 어긋난다.
                 if "연결" in flat:
                     basis, period, column = "연결", None, None
                 elif "별도" in flat:
@@ -389,13 +389,13 @@ def parse_summary(text: str) -> dict[str, dict]:
 
 
 def pick_summary(found: dict[str, dict], rcept_no: str) -> dict | None:
-    """🔴 연결을 먼저 본다 — 사람이 "그 회사 매출" 이라 할 때 뜻하는 것이 연결이다."""
+    """연결을 먼저 본다. 사람이 "그 회사 매출" 이라 할 때 뜻하는 것이 연결이다."""
     for basis in ("연결", "별도"):
         slot = found.get(basis)
         if not slot or not slot["period"] or not slot["revenue"] or slot["revenue"] <= 0:
             continue
         operating = slot["operating_income"]
-        #: 🔴 영업이익이 매출을 넘으면 엉뚱한 칸을 집었다는 뜻이다. 의심스러우면 비운다.
+        #: 영업이익이 매출을 넘으면 엉뚱한 칸을 집었다는 뜻이다. 의심스러우면 비운다.
         if operating is not None and abs(operating) > slot["revenue"]:
             operating = None
         return gate({
@@ -413,7 +413,7 @@ def load_financials() -> dict[str, dict]:
         if row["path"] != SUMMARY_PATH:
             continue
         current = latest.get(row["corp_code"])
-        #: 가장 최근 정기보고서 하나만 본다 — 옛 수치를 최신인 양 싣지 않는다.
+        #: 가장 최근 정기보고서 하나만 본다. 옛 수치를 최신인 양 싣지 않는다.
         if current is None or (row["rcept_dt"], row["doc_id"]) > (current["rcept_dt"],
                                                                   current["doc_id"]):
             latest[row["corp_code"]] = row
@@ -423,7 +423,7 @@ def load_financials() -> dict[str, dict]:
         for code, row in latest.items():
             handle.seek(int(row["text_offset"]))
             body = handle.read(int(row["text_bytes"])).decode("utf-8", errors="replace")
-            #: `doc_id` 는 `periodic_<접수번호>` 다 — 접두사를 떼면 DART 문서 번호가 된다.
+            #: `doc_id` 는 `periodic_<접수번호>` 다. 접두사를 떼면 DART 문서 번호가 된다.
             rcept_no = str(row["doc_id"]).rsplit("_", 1)[-1]
             summary = pick_summary(parse_summary(body), rcept_no)
             if summary:
@@ -441,7 +441,7 @@ def build(src: dict) -> dict[str, object]:
 
     # ── 회사별 계약 · 상대 집계 ───────────────────────────────────────────────
     contracts_by_code: dict[str, list[dict]] = defaultdict(list)
-    #: (회사명, 상대 정규화) → 건수. 🔴 **센 것만 싣는다.**
+    #: (회사명, 상대 정규화) → 건수. **센 것만 싣는다.**
     counted: Counter[tuple[str, str]] = Counter()
     for row in sorted(src["exchange"], key=lambda r: (r["rcept_dt"], r["rcept_no"]),
                       reverse=True):
@@ -462,14 +462,14 @@ def build(src: dict) -> dict[str, object]:
             "slug": slug_by_name[row["corp_name"]],
             "date": row["rcept_dt"],
             "form_name": row.get("form") or row["doc_subtype"],
-            #: 계약명. 🔴 정정 목록에서 *"무엇에 대한 정정인가"* 가 이것 없이는 안 보인다.
+            #: 계약명. 정정 목록에서 *"무엇에 대한 정정인가"* 가 이것 없이는 안 보인다.
             "title": row.get("title"),
             "resolved": chain["resolved"],
             "reason": chain["reason"],
             "targets": chain["targets"],
             "origin": chain["origin"],
             "amount_before": chain["amount_before"],
-            #: 🔴 정정본이 적은 금액. `amount_before` 와 같을 수도 있다(금액이 안 바뀐 정정).
+            #: 정정본이 적은 금액. `amount_before` 와 같을 수도 있다(금액이 안 바뀐 정정).
             "amount_after": row.get("amount"),
         }, CORRECTION_FIELDS, "정정 행"))
     corrections.sort(key=lambda c: (c["date"], c["rcept_no"]), reverse=True)
@@ -484,7 +484,7 @@ def build(src: dict) -> dict[str, object]:
     pairs = [gate({k: p[k] for k in sorted(PAIR_FIELDS)}, PAIR_FIELDS, "관계망 쌍")
              for p in src["pairs"]]
 
-    #: 회사 → 그 회사가 등장하는 허브들. 🔴 건수는 **셀 수 있을 때만** 싣는다.
+    #: 회사 → 그 회사가 등장하는 허브들. 건수는 **셀 수 있을 때만** 싣는다.
     partners_by_company: dict[str, list[dict]] = defaultdict(list)
     for node in src["nodes"]:
         keys = {normalize(node["canonical"]), normalize(node["display"])}
@@ -492,7 +492,7 @@ def build(src: dict) -> dict[str, object]:
             n = sum(counted.get((company, k), 0) for k in keys)
             partners_by_company[company].append({
                 "name": node["display"], "kind": node["kind"],
-                #: 🔴 이 회사의 계약 중 이 상대를 적은 것. 표기가 안 붙으면 `null` 이다 —
+                #: 이 회사의 계약 중 이 상대를 적은 것. 표기가 안 붙으면 `null` 이다.
                 #: 관계 자체는 원본이 확인했으므로 **관계를 지우지 않고 건수만 비운다.**
                 "contracts": n or None,
             })
@@ -518,11 +518,11 @@ def build(src: dict) -> dict[str, object]:
             "slug": slug, "name": name, "sector": row["sector"],
             "n_disclosures": n_disclosures, "n_corrections": len(mine),
             "contracts": contracts,
-            #: 🔴 `resolved=false` 도 담는다. 감추면 이 회사가 실제보다 깨끗해 보인다.
+            #: `resolved=false` 도 담는다. 감추면 이 회사가 실제보다 깨끗해 보인다.
             "corrections": mine,
             "partners": partners,
-            #: 🔴 정기공시의 「요약재무정보」에서 뽑히면 싣고, 안 뽑히면 `None` 이다.
-            #: 화면은 `None` 인 칸을 아예 그리지 않는다 — 빈 칸이 틀린 수보다 낫다.
+            #: 정기공시의 「요약재무정보」에서 뽑히면 싣고, 안 뽑히면 `None` 이다.
+            #: 화면은 `None` 인 칸을 아예 그리지 않는다. 빈 칸이 틀린 수보다 낫다.
             "financials": src["financials"].get(row["corp_code"]),
         }
 
@@ -541,8 +541,8 @@ def build(src: dict) -> dict[str, object]:
             "corrections": len(corrections),
             "contracts": len(src["exchange"]),
             "partners": len(hubs),
-            #: 🔴 재무 요약이 **확인된** 회사 수. 화면이 "70개사 중 몇 곳" 을 정직하게
-            #: 쓸 수 있어야 한다 — 못 뽑은 곳을 조용히 빼면 다 되는 것처럼 보인다.
+            #: 재무 요약이 **확인된** 회사 수. 화면이 "70개사 중 몇 곳" 을 정직하게
+            #: 쓸 수 있어야 한다. 못 뽑은 곳을 조용히 빼면 다 되는 것처럼 보인다.
             "financials": sum(1 for d in details.values() if d["financials"]),
         },
     }

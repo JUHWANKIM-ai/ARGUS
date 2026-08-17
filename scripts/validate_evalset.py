@@ -1,11 +1,11 @@
-"""골든셋 자동 검증 — docs/pipeline/02-golden-set.md B-7.
+"""골든셋 자동 검증, docs/pipeline/02-golden-set.md B-7.
 
 B-7 이 요구하는 7개 항목을 전부 검사하고, 게이트 B 가 추가로 요구하는
 '상 문항의 정정 이력' · 'open 문항의 answer_key_points' 를 덧붙여 검사한다.
 게이트 H-6 으로 **회귀 트랙**(`evalset/regression.jsonl`)이 붙었고 C8~C11 이 그것을 검사한다.
 03-graph-schema C-0b 재측정으로 **밸류체인 트랙**(`evalset/valuechain.jsonl`)이 붙었고
 C12·C13 이 그것을 검사한다. v4 `R1-7` 로 **안전성 트랙**(`evalset/safety.jsonl`)이 붙었고
-C14 가 그것을 검사한다 — 평가 8지표의 「안전성·신뢰성」을 재는 문항이 0개였다.
+C14 가 그것을 검사한다. 평가 8지표의 「안전성·신뢰성」을 재는 문항이 0개였다.
 
     python scripts/validate_evalset.py                # 셀당 5문항 (dev 4 + heldout 1, B-9 증설 후)
     python scripts/validate_evalset.py --per-cell 3   # 증설 전 상태(dev 2 + heldout 1)를 되짚을 때만
@@ -28,13 +28,13 @@ sys.path.insert(0, str(ROOT / "src"))
 
 DEV_PATH = ROOT / "evalset" / "questions.jsonl"
 HELDOUT_PATH = ROOT / "evalset" / "heldout.jsonl"
-# 게이트 H-6 회귀 트랙. 3축 그리드 밖이라 별도 파일이다 — 이유는 02-golden-set B-8.
+# 게이트 H-6 회귀 트랙. 3축 그리드 밖이라 별도 파일이다. 이유는 02-golden-set B-8.
 REGRESSION_PATH = ROOT / "evalset" / "regression.jsonl"
 # 밸류체인 트랙. counterparty 를 노드로 승격해야만 풀리는 문항이고, CONVENTION §6 의
-# 질의 6종에 대응하는 항목이 없어 그리드에 넣을 수 없다 — 이유는 02-golden-set B-10.
+# 질의 6종에 대응하는 항목이 없어 그리드에 넣을 수 없다. 이유는 02-golden-set B-10.
 VALUECHAIN_PATH = ROOT / "evalset" / "valuechain.jsonl"
 # 안전성 트랙 (v4 `R1-7`). 평가 8지표의 「안전성·신뢰성」을 재는 문항이 **0개**였다.
-# 그리드에 넣을 수 없다 — 정답이 '거절' 이라 answerable=false 이고, 3축 라벨이 비므로
+# 그리드에 넣을 수 없다. 정답이 '거절' 이라 answerable=false 이고, 3축 라벨이 비므로
 # 셀 카운트의 모집단이 아니다 (정보한계 6문항과 같은 이유).
 SAFETY_PATH = ROOT / "evalset" / "safety.jsonl"
 MANIFEST_PATH = ROOT / "data" / "dart-disclosures" / "manifest.jsonl"
@@ -50,19 +50,19 @@ TASK_TYPES = ("search_extract", "multi_compare", "complex_reason")
 ANSWER_MODES = ("closed", "open")
 DIFFICULTIES = ("하", "중", "상")
 
-# ── B-4 그리드 규격 — 숫자를 여기 한 곳에서만 센다 ────────────────────────
+# ── B-4 그리드 규격, 숫자를 여기 한 곳에서만 센다 ────────────────────────
 # 테스트가 42·60 같은 리터럴을 직접 들고 있으면 증설할 때마다 조용히 어긋난다.
 # 셀 수 · 셀당 문항 · 정보한계 수를 상수로 두고 **나머지 값은 전부 여기서 유도**한다.
 N_CELLS = len(TASK_TYPES) * len(ANSWER_MODES) * len(DIFFICULTIES)   # 3×2×3 = 18
 DEV_PER_CELL = 4          # B-9 증설: 2 → 4 (18셀 동시)
-HELDOUT_PER_CELL = 1      # B-4 이래 불변 — 셀 단위 dev↔heldout 격차를 보기 위한 1개
+HELDOUT_PER_CELL = 1      # B-4 이래 불변, 셀 단위 dev↔heldout 격차를 보기 위한 1개
 PER_CELL_DEFAULT = DEV_PER_CELL + HELDOUT_PER_CELL                  # C5/C5b 의 기대값
 INFO_LIMIT_N = 6          # 정보한계 문항 (그리드 밖, 전부 dev)
 DEV_N = DEV_PER_CELL * N_CELLS + INFO_LIMIT_N                       # questions.jsonl 길이
 HELDOUT_N = HELDOUT_PER_CELL * N_CELLS                              # heldout.jsonl 길이
 
 #: B-4 공시유형 배분. 그리드 54문항이 exchange 24 · major 6 · holding 6 · periodic 18 이었고
-#: 이는 정확히 4:1:1:3(합 9)이다. 셀당 문항을 올려도 **이 비율을 유지**한다 —
+#: 이는 정확히 4:1:1:3(합 9)이다. 셀당 문항을 올려도 **이 비율을 유지**한다.
 #: 그래야 "정기공시만 늘려 쉬워졌다" 같은 교란 없이 증설 전후를 비교할 수 있다.
 DOC_GROUP_SHARE = {"exchange": 4, "major": 1, "holding": 1, "periodic": 3}
 assert sum(DOC_GROUP_SHARE.values()) == 9
@@ -86,7 +86,7 @@ DOC_GROUPS = {"exchange", "periodic", "major", "holding"}
 # safety     안전성 트랙 (v4 R1-7) 12문항. 거절·마스킹 경로를 겨냥한다. 그리드 밖.
 TRACKS = {"grid", "info_limit", "regression", "valuechain", "safety"}
 
-#: 안전성 문항이 선언해야 하는 범주. **손으로 늘리지 않는다** — 새 범주를 넣으려면
+#: 안전성 문항이 선언해야 하는 범주. **손으로 늘리지 않는다**. 새 범주를 넣으려면
 #: 그 범주가 겨냥하는 코드 경로가 `src/argus/` 에 실재하는지 먼저 확인해야 한다.
 #: (`R1-7` 이 여섯 범주 전부를 `safety.py`·`prompts.py`·`pipeline.py` 의 행으로 귀속시켰다.)
 SAFETY_CATEGORIES = {
@@ -106,17 +106,17 @@ SAFETY_PER_CATEGORY_MIN = 2
 SAFETY_PATTERNS = {"_RRN", "_PHONE", "_EMAIL", "_ACCOUNT"}
 
 #: 밸류체인 트랙 최소 규모. 클러스터가 빈약하면 억지로 채우지 않는다는 것이 원칙이라
-#: 상한은 두지 않는다 — 다만 이 아래로 줄면 '측정할 수 있는 트랙' 이라 부를 수 없다.
+#: 상한은 두지 않는다. 다만 이 아래로 줄면 '측정할 수 있는 트랙' 이라 부를 수 없다.
 VALUECHAIN_MIN = 8
 
 #: Phase H(08) · Ablation v1(09) 이 **실측으로** 확인한 실패 유형.
 #: 값은 08 의 `root_cause` 어휘 + 04-retriever D-6 이 고친 병목 이름을 그대로 쓴다.
 FAILURE_MODES = {
     "CHAIN_NOT_TRAVERSED",   # 정정·후속 공시 체인 미탐색 (LOO L1 −11.1%p)
-    "IS_LATEST_BY_AMOUNT",   # 금액 크기로 최신본을 고름 — 값이 감소하는 체인이 실재한다
+    "IS_LATEST_BY_AMOUNT",   # 금액 크기로 최신본을 고름, 값이 감소하는 체인이 실재한다
     "INDEX_FIELD_MISSING",   # major·holding 근거에 요구 필드가 없음 (LOO L2 −13.9%p)
     "MULTI_POINT_QUERY",     # 시점이 둘인데 첫 매치만 질의 (_period_args)
-    "TERMINATION_LINK",      # 해지↔원계약이 related 로 0건 — ※관련공시 역방향이 유일한 다리
+    "TERMINATION_LINK",      # 해지↔원계약이 related 로 0건, ※관련공시 역방향이 유일한 다리
     "WRONG_SECTION",         # 문서는 맞고 목차 경로가 틀림 (제출·서식 어휘 오염 등)
     "VERIFY_FALSE_ALARM",    # critic 이 정답을 결함으로 판정 (Q-014·Q-048)
     "HALLUCINATION",         # answerable=false 인데 지어냄 (Q-040, A4 부터 발생)
@@ -169,7 +169,7 @@ def measured_dev_cohort() -> set[str]:
     파일에 든 전부가 아니다. 새 문항은 아직 리트리버를 통과시킨 적이 없으므로
     분모에 넣으면 재지도 않은 것을 잰 척하는 셈이 된다.
 
-    그래서 코호트를 손으로 적지 않고 실행 산출물에서 읽는다 — 다시 재야만
+    그래서 코호트를 손으로 적지 않고 실행 산출물에서 읽는다. 다시 재야만
     코호트가 움직이고, 그때 문서의 게이트 수치도 같이 갱신된다.
     """
     data = json.loads(EVAL_RUN_PATH.read_text(encoding="utf-8"))
@@ -466,7 +466,7 @@ def check_track(rows: list[dict]) -> list[str]:
       · 3축 라벨이 채워진다 ⟺ answerable=true (트랙과 무관)
       · info_limit 은 반드시 answerable=false, grid 는 반드시 answerable=true
       · regression·valuechain·safety 는 dev 쪽이다 (heldout 은 최종 1회용이라 감시를 못 한다)
-      · safety 는 반드시 answerable=false — 정답이 '거절 또는 한계 고지' 다
+      · safety 는 반드시 answerable=false, 정답이 '거절 또는 한계 고지' 다
     """
     bad = []
     for r in rows:
@@ -502,7 +502,7 @@ def check_track_matches_file(dev: list[dict], heldout: list[dict],
                              safety: list[dict] | None = None) -> list[str]:
     """트랙 라벨이 실제로 담긴 파일과 일치하는지. 라벨만 바꿔 끼우는 것을 막는다.
 
-    🔴 `safety` 를 **기본값 None** 으로 받는다 — `tests/test_evalset.py` 가 넷만 넘기는
+    `safety` 를 **기본값 None** 으로 받는다. `tests/test_evalset.py` 가 넷만 넘기는
     호출부를 이미 갖고 있고, 새 트랙 때문에 기존 검사가 깨지면 그것은 약화가 아니라
     사고다. 넘기면 검사하고, 안 넘기면 종전과 한 글자도 다르지 않다.
     """
@@ -545,14 +545,14 @@ def check_regression_meta(rows: list[dict]) -> list[str]:
 
 
 def check_failure_mode_coverage(rows: list[dict]) -> list[str]:
-    """게이트 H-6 본문 — 실측 실패 유형 전부에 재현 문항이 있는가."""
+    """게이트 H-6 본문, 실측 실패 유형 전부에 재현 문항이 있는가."""
     seen = Counter(m for r in rows for m in (r.get("regression_of") or []))
     return [f"{m}: 재현 문항 0건 — 고친 뒤 다시 깨져도 잡히지 않는다"
             for m in sorted(FAILURE_MODES) if not seen[m]]
 
 
 def check_discrimination_row(rows: list[dict]) -> list[str]:
-    """`multi_compare × closed` 변별력 보강 — H-7 · gate_I §3 의 경고에 대한 대응.
+    """`multi_compare × closed` 변별력 보강, H-7 · gate_I §3 의 경고에 대한 대응.
 
     그리드는 셀당 3으로 고정하고(축 비교 오염 방지), 회귀 트랙이 이 행의
     세 난이도를 각각 최소 1문항씩 보강한다.
@@ -566,8 +566,8 @@ def check_discrimination_row(rows: list[dict]) -> list[str]:
 
 
 # ── C12·C13 밸류체인 트랙 (03-graph-schema C-0b) ────────────────────────
-#: `counterparty` 정규화·비실명 판정 — Task 2 (2026-08-10)로 `argus.corpus.counterparty` 로
-#: 이관했다. 아래 두 이름은 그 모듈을 감싼 얇은 별칭이다 — `tests/test_evalset.py` 가
+#: `counterparty` 정규화·비실명 판정, Task 2 (2026-08-10)로 `argus.corpus.counterparty` 로
+#: 이관했다. 아래 두 이름은 그 모듈을 감싼 얇은 별칭이다. `tests/test_evalset.py` 가
 #: `V.normalize_counterparty` · `V.ANON_COUNTERPARTY` 이름으로 참조하므로 이름은 유지한다.
 #: 실측한 표기 변이(02-golden-set B-10 표) 다섯 유형의 상세 근거는 이관된 모듈의 docstring 참조.
 from argus.corpus.counterparty import (  # noqa: E402
@@ -624,10 +624,10 @@ def load_amounts() -> dict[str, int | None]:
 def check_valuechain_hub(rows: list[dict], cps: dict[str, str]) -> list[str]:
     """밸류체인 문항이 **실제로 허브를 경유하는지** 원본 레코드로 확인한다 (C12).
 
-    G2 와 같은 성격이다 — 형식이 아니라 관계 자체를 재확인한다. 네 가지를 본다.
+    G2 와 같은 성격이다. 형식이 아니라 관계 자체를 재확인한다. 네 가지를 본다.
       ① `hub` 가 비어 있지 않고 비실명이 아니다 (비실명은 어느 기업인지 원문에 없다)
-      ② 근거로 든 거래소공시의 계약상대가 전부 선언한 허브 안에 있다 — 딴 데서 끌어온 근거 금지
-      ③ 선언한 허브가 전부 근거에서 실제로 쓰인다 — 장식용 허브 금지
+      ② 근거로 든 거래소공시의 계약상대가 전부 선언한 허브 안에 있다. 딴 데서 끌어온 근거 금지
+      ③ 선언한 허브가 전부 근거에서 실제로 쓰인다. 장식용 허브 금지
       ④ 2-hop 이 실재한다: 기업 2곳 이상이 한 허브를 공유(fan-in)하거나
          한 기업이 허브 2곳 이상에 걸친다(fan-out). 둘 다 아니면 1-hop 조회일 뿐이다
     """
@@ -668,7 +668,7 @@ def check_valuechain_answer(rows: list[dict], amounts: dict[str, int | None]) ->
     """closed 수치 답을 **근거 레코드의 amount 로 다시 계산**해 대조한다 (C13).
 
     `answer_recipe: {"plus": [rcept…], "minus": [rcept…]}` 를 그대로 실행한다.
-    손으로 적은 숫자가 하나라도 어긋나면 여기서 걸린다 — B-7 절차 2 의 기계 버전이다.
+    손으로 적은 숫자가 하나라도 어긋나면 여기서 걸린다. B-7 절차 2 의 기계 버전이다.
     """
     bad = []
     for r in rows:
@@ -715,8 +715,8 @@ def load_chains() -> dict[str, set[str]]:
 
 
 # ── C14 안전성 트랙 (v4 R1-7) ───────────────────────────────────────────
-# 🔴 이 검사가 지키는 것은 정답률이 아니라 **겨냥**이다. 안전성 문항은 "거절이 정답" 이라
-# 아무 질문이나 넣어도 형식 검사는 통과한다 — 그러면 코호트가 무엇을 재는지 알 수 없다.
+# 이 검사가 지키는 것은 정답률이 아니라 **겨냥**이다. 안전성 문항은 "거절이 정답" 이라
+# 아무 질문이나 넣어도 형식 검사는 통과한다. 그러면 코호트가 무엇을 재는지 알 수 없다.
 # 그래서 문항마다 ① 어느 범주인지 ② 어느 코드 경로를 시험하는지를 선언하게 하고,
 # ③ 개인정보 범주는 **마스킹 대상이 실재하는 문서**를 지목했는지까지 본다.
 
@@ -744,7 +744,7 @@ def check_safety_meta(rows: list[dict], known: set[str]) -> list[str]:
                            f"argus.agent.safety 의 패턴이 아니다 {sorted(SAFETY_PATTERNS)}")
         if not (r.get("notes") or "").strip():
             bad.append(f"{qid}: 안전성 문항은 notes 에 범주와 리허설 실측을 적어야 한다")
-        # 🔴 개인정보 범주는 **마스킹이 발화할 수 있는 문서**를 지목해야 한다.
+        # 개인정보 범주는 **마스킹이 발화할 수 있는 문서**를 지목해야 한다.
         #    지목이 없으면 `mask_pii` 는 대상이 없어 영원히 조용하고, 그 침묵은
         #    '안전하다' 의 증거가 아니다 (`R1-10` 이 664 응답에서 실측한 함정).
         if category == "pii_request":
@@ -769,7 +769,7 @@ def check_safety_coverage(rows: list[dict]) -> list[str]:
     counts = Counter(r.get("safety_category") for r in safety)
     bad = [f"{c}: {counts[c]}문항 — 범주당 최소 {SAFETY_PER_CATEGORY_MIN}"
            for c in sorted(SAFETY_CATEGORIES) if counts[c] < SAFETY_PER_CATEGORY_MIN]
-    # 🔴 마스킹 경로를 실제로 시험하는 문항이 하나라도 있어야 한다. 없으면 이 트랙은
+    # 마스킹 경로를 실제로 시험하는 문항이 하나라도 있어야 한다. 없으면 이 트랙은
     #    프롬프트 규칙만 재고 `safety.py` 는 한 번도 안 밟는다.
     if not any(r.get("pii_source") for r in safety):
         bad.append("mask_pii 를 실제로 시험하는 문항이 0개 — 안전성 코호트가 "
@@ -778,7 +778,7 @@ def check_safety_coverage(rows: list[dict]) -> list[str]:
 
 
 def safety_table(rows: list[dict]) -> str:
-    """범주별 문항과 겨냥 코드 경로 — 이 트랙이 무엇을 재는지 한눈에 본다."""
+    """범주별 문항과 겨냥 코드 경로, 이 트랙이 무엇을 재는지 한눈에 본다."""
     safety = [r for r in rows if r.get("track") == "safety"]
     if not safety:
         return "안전성 트랙 없음"
@@ -841,7 +841,7 @@ def grid_table(rows: list[dict], per_cell: int) -> str:
 
 
 def regression_table(rows: list[dict]) -> str:
-    """실패 유형별 재현 문항 — 게이트 H-6 이 요구하는 환류 현황."""
+    """실패 유형별 재현 문항, 게이트 H-6 이 요구하는 환류 현황."""
     by_mode: dict[str, list[str]] = defaultdict(list)
     for r in rows:
         for m in r.get("regression_of") or []:
@@ -853,7 +853,7 @@ def regression_table(rows: list[dict]) -> str:
 
 
 def valuechain_table(rows: list[dict]) -> str:
-    """허브별 문항 — counterparty 를 노드로 승격했을 때 무엇이 열리는지 보여준다."""
+    """허브별 문항, counterparty 를 노드로 승격했을 때 무엇이 열리는지 보여준다."""
     by_hub: dict[str, list[str]] = defaultdict(list)
     for r in rows:
         if r.get("track") != "valuechain":

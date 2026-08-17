@@ -1,11 +1,11 @@
-"""Phase A-2 — 관계 구조 프로파일 (docs/pipeline/01-eda.md).
+"""Phase A-2, 관계 구조 프로파일 (docs/pipeline/01-eda.md).
 
 LLM 호출 0회. policy §2 의 전제("공시는 관계형 데이터라 GraphRAG 와 맞는다")가
 우리 코퍼스에서 실제로 성립하는지 숫자로 검증한다.
 
 측정 항목
   · 정정 체인 길이 분포 · 최장 체인 · 코퍼스 밖 참조 비율
-  · '※ 관련공시' 행 파싱 — 문서 간 참조 엣지 추출 가능성
+  · '※ 관련공시' 행 파싱, 문서 간 참조 엣지 추출 가능성
   · counterparty 가 universe 70개사에 속하는 비율  <- GraphRAG 채택 기준
   · 기업×분기 공시 밀도 · 정기공시 제출 주기
   · 섹터 응집도
@@ -42,7 +42,7 @@ _LEGAL = re.compile(
 )
 _NONWORD = re.compile(r"[\s\.,·ㆍ\-_'\"()\[\]/&]+")
 
-# 비실명 계약상대 — 거래소 서식이 허용하는 익명 표기
+# 비실명 계약상대, 거래소 서식이 허용하는 익명 표기
 _ANON = re.compile(
     r"(지역|소재|권역)?\s*(선주|선사|제약사|바이오|기업|업체|고객|발주처|항공사|"
     r"완성차|병원|통신사)|글로벌|국내\s*(대형|중견)|해외\s*(대형|중견)|익명|비공개|"
@@ -74,7 +74,7 @@ def build_universe_index() -> tuple[dict[str, str], dict[str, dict]]:
             key = norm_name(alias or "")
             if len(key) >= 2:
                 index.setdefault(key, corp_name)
-    # 자주 등장하는 표기 변형 — 코퍼스 실측으로 확인된 것만 넣는다
+    # 자주 등장하는 표기 변형, 코퍼스 실측으로 확인된 것만 넣는다
     extra = {
         "케이티": "케이티", "kt": "케이티",
         "엘지유플러스": "LG유플러스", "lg유플러스": "LG유플러스",
@@ -143,7 +143,7 @@ def classify_counterparty(raw: str, index: dict[str, str]) -> tuple[str, list[st
     if exact:
         return "universe_exact", exact
 
-    # 자회사·계열사 — universe 키가 이름 안에 부분문자열로 들어 있는 경우.
+    # 자회사·계열사, universe 키가 이름 안에 부분문자열로 들어 있는 경우.
     # 한글 키는 3자 이상, 라틴 키는 6자 이상이어야 우연 일치를 피한다.
     key_full = norm_name(raw)
     affiliates: list[str] = []
@@ -228,7 +228,7 @@ def main() -> None:
     by_rcept = {r["rcept_no"]: r for r in records}
 
     # ================================================================
-    # ① 기업-기업 엣지 밀도  — GraphRAG 채택 판정
+    # ① 기업-기업 엣지 밀도, GraphRAG 채택 판정
     # ================================================================
     contract_subtypes = {"단일판매공급계약체결", "단일판매공급계약해지"}
     contracts = [r for r in records if r["doc_subtype"] in contract_subtypes]
@@ -322,7 +322,7 @@ def main() -> None:
     }
 
     # ================================================================
-    # ①-b 계약 외 엣지원 — 지분공시 보고자 · 주요사항보고 거래상대방
+    # ①-b 계약 외 엣지원, 지분공시 보고자 · 주요사항보고 거래상대방
     # ================================================================
     # (1) 지분공시: manifest 의 flr_nm 이 곧 '5% 이상 보유 보고자' 다. 파싱 비용 0.
     holding = filter_docs(doc_group="holding")

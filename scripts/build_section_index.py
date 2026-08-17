@@ -6,7 +6,7 @@
 
 `artifacts/periodic_sections.jsonl` + `periodic_sections.txt` 블롭을 입력으로 받아
 `artifacts/section_index.npz` + `section_index.json` 두 파일을 만든다.
-**`scripts/build_index.py`(exchange) 와는 산출물이 겹치지 않는다** — 두 인덱스는 따로다.
+**`scripts/build_index.py`(exchange) 와는 산출물이 겹치지 않는다**. 두 인덱스는 따로다.
 
 --out-dir 을 주면 그 아래에만 쓴다. 테스트는 반드시 tmp 를 지정할 것.
 """
@@ -72,7 +72,7 @@ def main() -> None:
     parser.add_argument("--chunk-chars", type=int, default=SECTION_CHUNK_CHARS,
                         help="2차 분할 상한. 표 경계는 깨지 않는다 (0 = 분할 안 함)")
     parser.add_argument("--tokenizer", default="bigram", choices=("bigram", "word"))
-    # 스텁은 **색인에 넣는다**. 배제는 `list_sections` 가 한다 (§7.7 ④) — 스텁 자체가
+    # 스텁은 **색인에 넣는다**. 배제는 `list_sections` 가 한다 (§7.7 ④), 스텁 자체가
     # 답인 문항이 있다. Q-053 '내부통제에 관한 사항' 은 79자, Q-059 '이사의 경영진단'
     # 은 63자로 둘 다 '기재 생략' 이고, 그 사실을 짚는 것이 정답이다. 색인에서 빼면
     # 도구가 스텁을 열 수조차 없다.

@@ -1,10 +1,10 @@
-"""Phase I — Ablation 러너. arm 을 하나씩 돌리고 Δ 를 축별로 분해한다.
+"""Phase I, Ablation 러너. arm 을 하나씩 돌리고 Δ 를 축별로 분해한다.
 
     python scripts/ablation.py --dry                 # LLM 0회 리허설 (검색 차이만 본다)
     python scripts/ablation.py --arm A8              # arm 하나 실행 (크레딧 지출)
     python scripts/ablation.py --run                 # RUN_ORDER 전부 (A8 -> A0)
     python scripts/ablation.py --heldout --arm A8 \
-        --out artifacts/ablation/v2/heldout --budget 1000    # 🔴 최종 구성 1회만
+        --out artifacts/ablation/v2/heldout --budget 1000    # 최종 구성 1회만
     python scripts/ablation.py --offline --out artifacts/ablation/v2 --cohort full
                                                      # 캐시만으로 재집계 (LLM 0회)
     python scripts/ablation.py --arm A8 --cohort valuechain \
@@ -14,15 +14,15 @@
         --out artifacts/ablation/v3/vc --judge-sigma  # σ 재집계만 (LLM 0회)
     python scripts/ablation.py --arm A8 --cohort safety \
         --out artifacts/ablation/v4/safety --budget-won 1000
-                                                     # 🔴 v4 R1-7 안전성 12문항.
+                                                     # v4 R1-7 안전성 12문항.
                                                      # 거절이 정답이라 judge 호출이 없다
                                                      # (`answer_mode` 가 전부 null)
 
-🔴 **재집계에 `--out` 을 빼지 마라.** `--out` 없이 돌리면 `OUT_DIR` 이 v1 자리
-(`artifacts/ablation`)가 되고, 그 폴더는 **v2 를 자기 하위에 품고 있다** — v1 `summary.json`
+**재집계에 `--out` 을 빼지 마라.** `--out` 없이 돌리면 `OUT_DIR` 이 v1 자리
+(`artifacts/ablation`)가 되고, 그 폴더는 **v2 를 자기 하위에 품고 있다**. v1 `summary.json`
 의 지출이 v2 몫까지 흡수하고(3,144.7 → 8,211.3) v1 의 42문항 `report.json` 이 현재
 78문항 기준으로 재작성돼 **기준선의 출처 추적이 끊긴다.** 그래서 v2 가 존재하는 동안
-v1 자리 쓰기는 `assert_not_v1_root` 가 **거부**한다 (경고가 아니라 거부다 — v1 산출물은
+v1 자리 쓰기는 `assert_not_v1_root` 가 **거부**한다 (경고가 아니라 거부다. v1 산출물은
 §12·§12b 의 비교 기준선이고 gitignore 라 복구 수단이 없다).
 
 v2 (88문항 · A8 추가):
@@ -35,20 +35,20 @@ v2 (88문항 · A8 추가):
 ## 코호트와 산출 폴더를 인자로 뺀 이유
 
 v1 은 dev 42문항을 `artifacts/ablation/<arm>/` 에 남겼고 그것이 비교 기준선이다.
-v2 는 88문항을 재면서 **같은 이름을 덮지 않아야** 한다 — 덮으면 v1 과 대조할 축이 사라진다.
+v2 는 88문항을 재면서 **같은 이름을 덮지 않아야** 한다. 덮으면 v1 과 대조할 축이 사라진다.
 그래서 `--out` 이 arm 폴더의 부모를 갈고, `--cohort` 가 무엇을 재는지 고른다.
-**요청 캐시(`CACHE_DIR`)는 갈지 않는다** — 프롬프트가 같은 요청을 두 번 사지 않는 것이
+**요청 캐시(`CACHE_DIR`)는 갈지 않는다**. 프롬프트가 같은 요청을 두 번 사지 않는 것이
 `--out` 을 가르는 것보다 중요하다.
 
-🔴 크레딧 규칙을 코드로 강제한다.
+크레딧 규칙을 코드로 강제한다.
 
 1. **heldout 은 `--heldout` 없이는 열리지 않는다.** arm 루프는 dev 42문항만 본다.
    그리고 `--heldout` 은 **arm 을 하나만** 받고, **산출물이 이미 있으면 거부**한다
-   (`assert_heldout_unused` — `artifacts/` 전체를 훑으므로 **`--out` 으로 우회되지 않는다**).
+   (`assert_heldout_unused`, `artifacts/` 전체를 훑으므로 **`--out` 으로 우회되지 않는다**).
    문서에 "1회만" 을 적어 두는 것으로는 두 번째 실행을 못 막는다.
 2. **두 겹으로 캐시한다.**
-   ① 응답 파일 — arm 별 `artifacts/ablation/<arm>/responses/Q-xxx.json`.
-   ② **요청 캐시** — 요청 본문 해시로 CLOVA 응답 원문을 저장한다. 온도 0.0 이라
+   ① 응답 파일, arm 별 `artifacts/ablation/<arm>/responses/Q-xxx.json`.
+   ② **요청 캐시**, 요청 본문 해시로 CLOVA 응답 원문을 저장한다. 온도 0.0 이라
       같은 프롬프트는 같은 답이 나오는데 크레딧은 두 번 나간다. arm 8개 중 다수가
       **정기공시 18문항에서 프롬프트가 글자 하나 안 바뀌므로** 이 캐시가 없으면
       같은 값을 여덟 번 산다.
@@ -60,8 +60,8 @@ v2 는 88문항을 재면서 **같은 이름을 덮지 않아야** 한다 — �
 
 요청 캐시 덕분에 **실지출**과 **arm 의 고유 비용**이 갈린다.
 
-    spent_won   — 이번 실행에서 실제로 나간 돈 (캐시 적중 제외)
-    arm_cost_won — 그 arm 을 혼자 돌렸을 때의 비용 (캐시 적중 포함, 실측 usage 합)
+    spent_won: 이번 실행에서 실제로 나간 돈 (캐시 적중 제외)
+    arm_cost_won: 그 arm 을 혼자 돌렸을 때의 비용 (캐시 적중 포함, 실측 usage 합)
 
 성능/비용 곡선의 x축은 뒤엣것이다. 앞엣것은 상한 12,000원을 지키기 위한 회계다.
 """
@@ -87,11 +87,11 @@ from argus import ablation                                        # noqa: E402
 from scripts import error_analysis as ea                          # noqa: E402
 
 OUT_DIR = ROOT / "artifacts" / "ablation"
-#: 🔴 **`--out` 으로 갈리지 않는다.** 요청 캐시는 프롬프트 해시 -> 응답이라 실행 사이에
+#: **`--out` 으로 갈리지 않는다.** 요청 캐시는 프롬프트 해시 -> 응답이라 실행 사이에
 #: 공유돼야 값을 한다. v2 폴더에 새 캐시를 파면 v1·T7 이 이미 산 응답을 다시 산다.
 CACHE_DIR = ROOT / "artifacts" / "ablation" / "cache"
 
-#: 인덱스 스냅샷. §I-3 — "중간에 재빌드하면 비교가 깨진다." 해시를 arm 시작 전에 찍는다.
+#: 인덱스 스냅샷. §I-3, "중간에 재빌드하면 비교가 깨진다." 해시를 arm 시작 전에 찍는다.
 INDEX_FILES = (
     "artifacts/exchange_bm25.json", "artifacts/major_bm25.json",
     "artifacts/holding_bm25.json", "artifacts/section_index.json",
@@ -112,7 +112,7 @@ SOFT_STOP_WON = 9_600.0
 class RequestCache:
     """CLOVA 요청 본문 해시 -> 응답 원문. **API 키는 저장하지 않는다.**
 
-    `clova._post(url, headers, body)` 를 감싼다. 키에는 url 과 body 만 넣는다 —
+    `clova._post(url, headers, body)` 를 감싼다. 키에는 url 과 body 만 넣는다.
     headers 에는 Authorization 이 들어 있고, 그걸 디스크에 남기면 아티팩트가 비밀정보가 된다.
     """
 
@@ -120,11 +120,11 @@ class RequestCache:
         self.root = root
         self.offline = offline
         self.hits = self.misses = 0
-        #: 🔴 우회 호출 수. 미적중(`misses`)과 **따로 센다** — 우회는 캐시에 없어서 산
+        #: 우회 호출 수. 미적중(`misses`)과 **따로 센다**. 우회는 캐시에 없어서 산
         #: 것이 아니라 **있는데도 일부러 다시 산 것**이고, 그 둘을 합치면 캐시 적중률이
         #: 실제보다 나쁘게 보인다.
         self.bypassed = 0
-        #: 🔴 `no_cache()` 만 켠다. 일반 경로는 이 값을 절대 건드리지 않는다.
+        #: `no_cache()` 만 켠다. 일반 경로는 이 값을 절대 건드리지 않는다.
         self.bypass = False
         self.fresh_prompt = self.fresh_completion = 0
 
@@ -135,17 +135,17 @@ class RequestCache:
 
     @contextlib.contextmanager
     def no_cache(self):
-        """🔴 **judge 재현 편차 측정 전용.** 이 블록 안의 호출은 캐시를 읽지도 쓰지도 않는다.
+        """**judge 재현 편차 측정 전용.** 이 블록 안의 호출은 캐시를 읽지도 쓰지도 않는다.
 
         온도 0.0 이라 같은 프롬프트는 캐시가 **반드시** 적중한다. 그 적중을 그대로 두면
         judge 를 3회 돌려도 디스크에서 같은 파일을 세 번 읽을 뿐이고, "편차 0" 이라는
-        결론이 **측정이 아니라 캐시의 성질**에서 나온다 — 측정이 무의미해진다.
+        결론이 **측정이 아니라 캐시의 성질**에서 나온다. 측정이 무의미해진다.
 
-        🔴 **쓰지도 않는다.** 우회 호출의 응답을 캐시에 얹으면 다음 회차가 그 값을
+        **쓰지도 않는다.** 우회 호출의 응답을 캐시에 얹으면 다음 회차가 그 값을
         적중시키고(1회차 응답이 2·3회차를 오염시킨다), 나아가 일반 경로가 읽는 정본
         응답까지 이번 회차 값으로 갈린다. 우회는 읽기·쓰기 **양쪽 다** 꺼야 한다.
 
-        토큰(비용)은 우회 여부와 무관하게 센다 — 안 세면 예산 제동이 안 걸린다.
+        토큰(비용)은 우회 여부와 무관하게 센다. 안 세면 예산 제동이 안 걸린다.
         """
         before = self.bypass
         self.bypass = True
@@ -160,7 +160,7 @@ class RequestCache:
         original = clova._post
 
         def cached(url, headers, body, timeout=60):
-            # 🔴 우회 신호가 둘이다. `self.bypass` 는 **러너가** 켜는 것(judge 재현 편차)이고
+            # 우회 신호가 둘이다. `self.bypass` 는 **러너가** 켜는 것(judge 재현 편차)이고
             #    `clova.cache_bypassed()` 는 **파이프라인이** 켜는 것(`A10` 의 SC 표본
             #    2·3회차)이다. 온도를 올려도 프롬프트가 같으면 키가 하나라 표본이 전부
             #    같아지므로, 파이프라인 쪽에서도 이 우회를 켤 수 있어야 한다.
@@ -183,9 +183,9 @@ class RequestCache:
                         ensure_ascii=False), encoding="utf-8")
                     self.misses += 1
                 usage = (payload.get("result") or {}).get("usage") or {}
-                # 🔴 임베딩 응답은 `promptTokens` 가 아니라 `inputTokens` 를 쓴다
+                # 임베딩 응답은 `promptTokens` 가 아니라 `inputTokens` 를 쓴다
                 #    (`src/argus/embed.py`). `promptTokens` 만 세면 dense arm(A2·A2F)의
-                #    임베딩 비용이 **예산 제동과 `spent_won` 에서 통째로 빠진다** —
+                #    임베딩 비용이 **예산 제동과 `spent_won` 에서 통째로 빠진다**.
                 #    상한 판정이 실제보다 낙관적으로 나온다. v2 는 dense arm 을 안 돌려
                 #    영향 0 이지만, A2 를 다시 재는 순간 발화한다.
                 self.fresh_prompt += (usage.get("promptTokens", 0)
@@ -202,7 +202,7 @@ class RequestCache:
 
 
 def install_dry_stub() -> None:
-    """LLM 0회 리허설. 검색·성형·검증의 arm 차이만 본다 — 크레딧 0원."""
+    """LLM 0회 리허설. 검색·성형·검증의 arm 차이만 본다. 크레딧 0원."""
     from argus import clova
 
     def stub(url, headers, body, timeout=60):
@@ -220,7 +220,7 @@ def install_dry_stub() -> None:
 
 # --- 입력 ---------------------------------------------------------------------
 
-#: 🔴 A2 측정 스냅샷. 다른 트랙이 dev 를 42 -> 78 로 늘리는 중이라, v1 A6 과 비교하려면
+#: A2 측정 스냅샷. 다른 트랙이 dev 를 42 -> 78 로 늘리는 중이라, v1 A6 과 비교하려면
 #: **같은 42문항**으로 재야 한다. 안 그러면 재는 것이 arm 이 아니라 문항 구성의 변화다.
 SNAPSHOT_PATH = OUT_DIR / "A2" / "evalset_snapshot.json"
 
@@ -242,7 +242,7 @@ def load_dev(snapshot: str | Path | None = None) -> list[dict]:
 def load_cases(cohort: str = "", snapshot: str | Path | None = None) -> list[dict]:
     """이번 실행의 문항 집합. `--cohort` 가 있으면 채점기와 **같은 출처**를 쓴다.
 
-    코호트를 손으로 적지 않는 것이 요점이다 — `ea.load_cohort` 가 `measured` 를 v1
+    코호트를 손으로 적지 않는 것이 요점이다. `ea.load_cohort` 가 `measured` 를 v1
     산출물에서 읽으므로, 여기서 별도 목록을 두면 게이트 D 의 분모와 조용히 갈라진다.
     """
     if cohort:
@@ -251,17 +251,17 @@ def load_cases(cohort: str = "", snapshot: str | Path | None = None) -> list[dic
 
 
 def install_oracle_golden(targets: list[str], cases: list[dict]) -> dict | None:
-    """🔴 `ORACLE` arm 을 돌리기 전에 코호트의 `{question_id: evidence}` 를 주입한다.
+    """`ORACLE` arm 을 돌리기 전에 코호트의 `{question_id: evidence}` 를 주입한다.
 
     파이프라인은 `question_id` 만 알고 evalset 을 모른다 (`src/argus/ablation.py` 머리말).
-    주입 없이 arm 만 켜면 `OracleGoldenMissing` 이 나서 **거기서 멈춘다** — 조용히 빈
+    주입 없이 arm 만 켜면 `OracleGoldenMissing` 이 나서 **거기서 멈춘다**. 조용히 빈
     근거로 진행해 "오라클을 줘도 생성이 다 틀렸다" 가 되는 것보다 낫다.
 
-    🔴 **heldout 은 절대 주입 대상이 아니다.** 구조적으로도 여기 못 온다 (`main` 의
-    heldout 경로는 이 함수 앞에서 반환한다). 그래도 split 을 한 번 더 본다 — 되돌릴 수
+    **heldout 은 절대 주입 대상이 아니다.** 구조적으로도 여기 못 온다 (`main` 의
+    heldout 경로는 이 함수 앞에서 반환한다). 그래도 split 을 한 번 더 본다. 되돌릴 수
     없는 조작의 제동은 겹으로 거는 것이 이 저장소의 규칙이다.
 
-    🔴 **진단 전용이다.** 평가 시점에는 골든이 없으므로 이 arm 의 정답률은 제출 성적이
+    **진단 전용이다.** 평가 시점에는 골든이 없으므로 이 arm 의 정답률은 제출 성적이
     아니다 (`ablation.DIAGNOSTIC_ARMS`).
     """
     arms = [a for a in targets if a in ablation.ARMS and ablation.ARMS[a].golden_oracle]
@@ -283,7 +283,7 @@ def install_oracle_golden(targets: list[str], cases: list[dict]) -> dict | None:
 
 
 def load_heldout() -> list[dict]:
-    """🔴 heldout 18문항. **최종 구성 1회 전용.** arm 루프는 이 함수를 부르지 않는다."""
+    """heldout 18문항. **최종 구성 1회 전용.** arm 루프는 이 함수를 부르지 않는다."""
     path = ROOT / "evalset" / "heldout.jsonl"
     with path.open(encoding="utf-8") as fh:
         cases = [json.loads(line) for line in fh if line.strip()]
@@ -296,14 +296,14 @@ def load_heldout() -> list[dict]:
 #: heldout 사용 원장 파일명. **이것이 있으면 유료 실행을 거부한다** (아래 함수).
 HELDOUT_LEDGER = "heldout_run.json"
 
-#: 🔴 **이미 쓴 이력.** heldout 의 값은 "몇 번 열었는가" 에 달려 있으므로 횟수를 코드가
-#: 들고 있어야 한다 — 문서에만 적으면 다음 사람이 산출물만 보고 '아직 안 썼다' 로 읽는다.
+#: **이미 쓴 이력.** heldout 의 값은 "몇 번 열었는가" 에 달려 있으므로 횟수를 코드가
+#: 들고 있어야 한다. 문서에만 적으면 다음 사람이 산출물만 보고 '아직 안 썼다' 로 읽는다.
 HELDOUT_HISTORY = (
     {"use": 1, "date": "2026-08-09", "arm": "A6", "track": "Ablation v1",
      "correct": 15, "n_scored": 18, "rate": 0.833,
      "dev_grid": "31/36 (86.1%)", "gap_pp": -2.8,
      "artifact": "artifacts/ablation/A6_heldout_run"},
-    #: 🔴 2회째. 이 항목이 없던 동안 **코드 쪽 원장이 사실과 어긋나 있었다** — 소스만 읽는
+    #: 2회째. 이 항목이 없던 동안 **코드 쪽 원장이 사실과 어긋나 있었다**. 소스만 읽는
     #: 사람은 "heldout 은 1회 썼다" 로 읽고, 디스크 원장이 사라진 상태에서
     #: `heldout_next_use()` 가 3회째 실행을 "2회째" 로 기록했다.
     #: `gap_pp` 는 dev 72 축, `gap_pp_measured36` 는 v1(36) 과 나란히 읽는 축이다.
@@ -316,9 +316,9 @@ HELDOUT_HISTORY = (
 
 
 def heldout_ledgers() -> list[Path]:
-    """🔴 저장소 안의 **모든** heldout 원장. `--out` 과 무관하게 찾는다.
+    """저장소 안의 **모든** heldout 원장. `--out` 과 무관하게 찾는다.
 
-    처음엔 `root / HELDOUT_LEDGER` 하나만 봤다. 그것은 **`--out` 으로 우회된다** —
+    처음엔 `root / HELDOUT_LEDGER` 하나만 봤다. 그것은 **`--out` 으로 우회된다**.
     `--out artifacts/ablation/v3/heldout` 으로 돌리면 그 디렉터리에 원장이 없어 제동이
     무방비로 통과하고, `v2` 전례가 있으니 `v3` 경로는 충분히 있을 수 있다. 되돌릴 수 없는
     조작에서 "인자를 바꾸면 풀리는 제동" 은 제동이 아니다. 그래서 `artifacts/` 전체를 훑는다.
@@ -328,7 +328,7 @@ def heldout_ledgers() -> list[Path]:
 
 
 def heldout_reports() -> list[Path]:
-    """🔴 **제동의 세 번째 겹.** 원장(`heldout_run.json`)이 지워져도 `report.json` 이 남는다.
+    """**제동의 세 번째 겹.** 원장(`heldout_run.json`)이 지워져도 `report.json` 이 남는다.
 
     `run_heldout` 은 `report["split"] = "heldout"` 을 박으므로, `*_heldout_run/report.json`
     은 그 자체로 "heldout 을 열었다" 는 증거다. 원장 파일과 달리 이 파일들은 **커밋되어
@@ -351,8 +351,8 @@ def heldout_reports() -> list[Path]:
 def heldout_next_use() -> int:
     """다음 실행이 **몇 회째**인가. 코드의 이력과 디스크의 원장 중 **큰 쪽** + 1.
 
-    🔴 `len(HELDOUT_HISTORY) + 1` 로만 세면 `--out` 을 바꾼 3번째 실행도 "2회째" 로
-    기록된다 — 횟수가 틀리면 낙폭의 의미가 사라진다. 원장을 못 읽으면 **'이미 썼다' 쪽으로
+    `len(HELDOUT_HISTORY) + 1` 로만 세면 `--out` 을 바꾼 3번째 실행도 "2회째" 로
+    기록된다. 횟수가 틀리면 낙폭의 의미가 사라진다. 원장을 못 읽으면 **'이미 썼다' 쪽으로
     본다** (읽기 실패를 '안 썼다' 로 해석하면 파일 하나 깨진 것이 재측정 허가가 된다).
     """
     used = [len(HELDOUT_HISTORY)]
@@ -365,13 +365,13 @@ def heldout_next_use() -> int:
 
 
 def assert_heldout_unused(offline: bool) -> None:
-    """🔴 "최종 1회" 를 **코드가** 강제한다. 원장이 하나라도 있으면 유료 실행을 거부한다.
+    """"최종 1회" 를 **코드가** 강제한다. 원장이 하나라도 있으면 유료 실행을 거부한다.
 
-    문서에 "1회만" 을 적어 두는 것으로는 두 번째 실행을 막지 못한다 — 다음 사람이(또는
+    문서에 "1회만" 을 적어 두는 것으로는 두 번째 실행을 막지 못한다. 다음 사람이(또는
     다음 세션의 내가) 같은 명령을 다시 치면 heldout 이 조용히 개발셋이 되고, 그것은
     **되돌릴 수 없다**. 되돌릴 수 없는 조작은 프로세스가 아니라 코드로 막아야 한다.
 
-    🔴 **`root` 를 받지 않는다.** 받으면 `--out` 이 제동을 푼다 (`heldout_ledgers` 참조).
+    **`root` 를 받지 않는다.** 받으면 `--out` 이 제동을 푼다 (`heldout_ledgers` 참조).
     인자로 위치를 바꿀 수 있는 검사는 이 용도에 쓰면 안 된다.
 
     `--offline` 은 예외다. 요청 캐시 미적중이 `RuntimeError` 라 **LLM 0회가 증명되므로**,
@@ -390,7 +390,7 @@ def assert_heldout_unused(offline: bool) -> None:
                      f"arm {saved.get('arm', '?')} · "
                      f"{saved.get('correct', '?')}/{saved.get('n_scored', '?')} · "
                      f"{saved.get('generated', '?')}")
-    # 🔴 원장이 지워졌어도 채점 산출물이 증거다 (`heldout_reports` — 커밋되어 있다).
+    # 원장이 지워졌어도 채점 산출물이 증거다 (`heldout_reports`, 커밋되어 있다).
     for path in heldout_reports():
         lines.append(f'   · {path.relative_to(ROOT)} — `"split": "heldout"` '
                      "(원장 없이도 이 파일이 증거다)")
@@ -436,7 +436,7 @@ def _use_dirs(arm: str) -> None:
     ea.OUT_DIR = base
 
 
-#: 🔴 회차별 judge 산출물의 자리. **`judge/` 를 덮지 않는다** — 그 폴더는 `ea.analyse`
+#: 회차별 judge 산출물의 자리. **`judge/` 를 덮지 않는다**. 그 폴더는 `ea.analyse`
 #: 가 읽는 정본이고 형식을 깨면 다른 도구가 통째로 못 읽는다. 회차는 자기 폴더에 쌓는다.
 JUDGE_REPEAT_DIRNAME = "judge_repeat"
 
@@ -452,10 +452,10 @@ def judge_round_dirs(arm: str) -> list[Path]:
 
 def run_judge_rounds(arm: str, case: dict, response: dict, cache: RequestCache,
                      repeat: int, force: bool = False) -> list[dict]:
-    """🔴 **같은 응답에 judge 만 N 회 다시 돌린다.** 생성은 다시 하지 않는다.
+    """**같은 응답에 judge 만 N 회 다시 돌린다.** 생성은 다시 하지 않는다.
 
     응답(`response`)은 호출부가 이미 디스크에서 읽어 넘겨 주므로 이 함수는 judge 만
-    산다. 회차마다 **요청 캐시를 우회**한다(`cache.no_cache()`) — 우회하지 않으면
+    산다. 회차마다 **요청 캐시를 우회**한다(`cache.no_cache()`), 우회하지 않으면
     온도 0.0 의 같은 프롬프트가 반드시 적중해서 3회가 전부 같은 값이 되고, 그러면
     "편차 0" 이 캐시의 성질이지 judge 의 성질인지 가를 수 없다.
 
@@ -484,14 +484,14 @@ def run_judge_rounds(arm: str, case: dict, response: dict, cache: RequestCache,
 def run_arm(arm: str, cases: list[dict], cache: RequestCache,
             budget_won: float, force: bool = False, config: str | None = None,
             judge_repeat: int = 1) -> dict:
-    """한 arm 을 전수로 돌린다. **문항마다 즉시 디스크에 남긴다** — 끊겨도 잃지 않는다.
+    """한 arm 을 전수로 돌린다. **문항마다 즉시 디스크에 남긴다**. 끊겨도 잃지 않는다.
 
     `config` 는 폴더 이름과 arm 구성을 가르기 위한 것이다. heldout 실행은 결과를
     `A6_heldout_run/` 에 남기지만 구성은 **A6 그대로**여야 한다.
 
-    🔴 `judge_repeat` 는 **기본값 1 에서 종전 동작과 한 글자도 다르지 않다** (아래
+    `judge_repeat` 는 **기본값 1 에서 종전 동작과 한 글자도 다르지 않다** (아래
     `if judge_repeat > 1` 안으로만 들어간다). 2 이상이면 open 문항마다 judge 를 그
-    횟수만큼 **캐시를 우회해** 더 돌려 회차별 폴더에 남긴다 — judge 재현 편차(σ) 측정용.
+    횟수만큼 **캐시를 우회해** 더 돌려 회차별 폴더에 남긴다. judge 재현 편차(σ) 측정용.
     반복은 **문항 단위로 묶여** 돌므로, 예산 제동에 걸려 중간에 끊겨도 끝난 문항은
     회차가 전부 있고 안 끝난 문항은 회차가 전부 없다 (회차 간 비교가 깨지지 않는다).
     """
@@ -504,10 +504,10 @@ def run_arm(arm: str, cases: list[dict], cache: RequestCache,
 
     with ablation.use(config or arm):
         for case in cases:
-            # 🔴 **재생인가 측정인가를 행 단위로 남긴다.** 이 세 값이 없으면 산출물만
+            # **재생인가 측정인가를 행 단위로 남긴다.** 이 세 값이 없으면 산출물만
             #    보고 어느 문항이 이번에 결제됐는지 알 수 없고, 그러면 `spent_won 0.0` 인
             #    arm(전량 재생)이 §2 누적 곡선에서 신규 측정과 같은 격으로 선다.
-            #    `latency_s` 의 의미도 여기서만 갈린다 — 요청 캐시가 적중하면 파이프라인이
+            #    `latency_s` 의 의미도 여기서만 갈린다. 요청 캐시가 적중하면 파이프라인이
             #    ~1ms 에 끝나므로 그 문항의 지연은 **측정값이 아니라 재생 시간**이다.
             hits_before, won_before = cache.hits, cache.fresh_won
             run, cached = ea.with_retry(ea.run_case, case, force=force)
@@ -537,7 +537,7 @@ def run_arm(arm: str, cases: list[dict], cache: RequestCache,
                 "latency_s": run["latency_s"],
             }
             if repeats:
-                # 🔴 회차별 판정을 **행에도** 남긴다. 집계는 회차 폴더를 다시 읽지만,
+                # 회차별 판정을 **행에도** 남긴다. 집계는 회차 폴더를 다시 읽지만,
                 #    `run.json` 만 보는 쪽에도 "이 문항이 갈렸다" 가 보여야 한다.
                 row["judge_repeat_verdicts"] = [bool(r["correct"]) for r in repeats]
                 row["judge_repeat_agreed"] = len(
@@ -559,53 +559,53 @@ def run_arm(arm: str, cases: list[dict], cache: RequestCache,
     live = {"arm": arm, "n_run": len(rows), "stopped_at": stopped,
             "spent_won": round(cache.fresh_won - started_won, 1), "runs": rows}
     if judge_repeat > 1:
-        # 🔴 무엇을 몇 회 쟀는지가 산출물에 남아야 한다. 회차 폴더만 보고는 "3회로
+        # 무엇을 몇 회 쟀는지가 산출물에 남아야 한다. 회차 폴더만 보고는 "3회로
         #    돌렸는데 1회에서 끊긴 것" 과 "1회로 돌린 것" 이 구별되지 않는다.
         live["judge_repeat"] = judge_repeat
-        # 🔴 이 지출이 **캐시 미적중이 아니라 의도적 우회**에서 나왔다는 증거.
+        # 이 지출이 **캐시 미적중이 아니라 의도적 우회**에서 나왔다는 증거.
         live["judge_repeat_bypassed_calls"] = (getattr(cache, "bypassed", 0)
                                                - started_bypass)
     return live
 
 
 def _write_run(folder: str, live: dict) -> dict:
-    """arm 의 `run.json` 을 쓴다. 🔴 **여기가 지출 기록의 유일한 서식지다.**
+    """arm 의 `run.json` 을 쓴다. **여기가 지출 기록의 유일한 서식지다.**
 
     재집계(`--offline`, 또는 이미 다 캐시된 arm 을 `--arms` 로 다시 부르는 것)는 `spent_won`
-    이 0 이다. 그 0 을 그대로 덮으면 **최초 유료 실행의 지출 기록이 사라진다** — `_spend_meta`
+    이 0 이다. 그 0 을 그대로 덮으면 **최초 유료 실행의 지출 기록이 사라진다**. `_spend_meta`
     가 총지출을 **항상 `run.json` 합**으로 계산하므로 권위값 자체가 지워지고, `artifacts/`
     는 gitignore 라 복구 수단이 없다.
 
-    🔴 이 사고는 **이 저장소에서 세 번 서식지가 나왔다.**
-      ① `_spend_meta` — v1 재집계가 `summary.json` 의 `spent_won` 을 0.0 으로 덮었다
+    이 사고는 **이 저장소에서 세 번 서식지가 나왔다.**
+      ① `_spend_meta`, v1 재집계가 `summary.json` 의 `spent_won` 을 0.0 으로 덮었다
          (`artifacts/ablation/summary.json` 에 그 흔적이 남아 있다). `live` 가 비면
          `run.json` 합을 쓰는 것으로 고쳤다.
-      ② `run_heldout` — T9 가 673.8원을 지키는 가드를 넣었다.
-      ③ **사다리 루프** — 가드가 없었다. `--arms A0` 재집계 한 번으로 1,901.0 → 0.0,
+      ② `run_heldout`, T9 가 673.8원을 지키는 가드를 넣었다.
+      ③ **사다리 루프**, 가드가 없었다. `--arms A0` 재집계 한 번으로 1,901.0 → 0.0,
          총지출 5,066.6 → 3,165.6원이 됐다.
-      ④ 🔴 **승계 슬롯 자체** (R2E) — ①~③ 은 `spent_won` 만 지켰고
+      ④ **승계 슬롯 자체** (R2E), ①~③ 은 `spent_won` 만 지켰고
          `spent_won_previous` 는 재집계에서 **안 옮겼다.** `v3/A8` 의 370.3원이 그렇게
          사라졌다(R2D 보고서 §0 에는 `15.5 / 370.3` 인데 커밋된 산출물은 `15.5 / None`).
          아래 `carried` 가 그 구멍이다.
     그래서 **가드를 함수 하나로 합쳤다.** 서식지가 둘이면 세 번째가 생긴다.
 
-    ⚠️ 🔴 **그래도 승계 슬롯은 하나다.** 같은 arm 을 **유료로 두 번** 돌리면 두 번째가
+    **그래도 승계 슬롯은 하나다.** 같은 arm 을 **유료로 두 번** 돌리면 두 번째가
     첫 번째를 `spent_won_previous` 로 밀고, 세 번째는 첫 번째를 **잃는다.** 그래서
     재측정은 **탐침 없이 한 번에** 돌리는 것이 원장에 유리하다 (R2D §8-⑥ 이 그 거래를
     후회한다). R2E 는 `ORACLE` 을 정확히 한 번만 유료로 돌렸다.
 
-    두 번째 유료 실행도 앞의 값을 지우지 않는다 — 새 값을 권위값으로 쓰되 앞의 값을
+    두 번째 유료 실행도 앞의 값을 지우지 않는다. 새 값을 권위값으로 쓰되 앞의 값을
     `spent_won_previous` 로 남긴다. 지운 돈은 복구되지 않지만 지워진 사실은 남는다.
     """
     run_path = arm_dir(folder) / "run.json"
     previous = (json.loads(run_path.read_text(encoding="utf-8"))
                 if run_path.exists() else {})
     before = previous.get("spent_won")
-    # 🔴 **네 번째 서식지 — 재집계가 승계 슬롯을 지운다 (R2E 가 실측으로 찾았다).**
+    # **네 번째 서식지. 재집계가 승계 슬롯을 지운다 (R2E 가 실측으로 찾았다).**
     # 아래 재집계 가지는 `spent_won` 은 지켰지만 `spent_won_previous` 를 **안 옮겼다**.
     # `live` 는 새 사전이라 그 키가 없고, 그대로 쓰면 승계분이 조용히 사라진다.
     # 실제로 그렇게 사라졌다: `v3/A8` 은 R2D 보고서 §0 표에 `15.5 / 370.3` 으로 적혀
-    # 있는데 커밋된 산출물은 `15.5 / None` 이다 — 그 사이에 재집계가 한 번 돌았다.
+    # 있는데 커밋된 산출물은 `15.5 / None` 이다. 그 사이에 재집계가 한 번 돌았다.
     # 370.3원은 이제 R2D 보고서의 표에만 남아 있다.
     # 지금 위험한 것은 `v3/ORACLE`(1,530.4) · `v3/vc/ORACLE`(216.7) · `v3/L4`(7.6) 셋이고,
     # `--arm ORACLE --offline` 한 번으로 1,530.4원이 원장에서 없어질 수 있었다.
@@ -617,7 +617,7 @@ def _write_run(folder: str, live: dict) -> dict:
             live["spent_won_rescore"] = live.get("spent_won", 0.0)
             live["spent_won"] = before
             live["spent_won_source"] = "최초 유료 실행 기록 (이번은 재집계 — LLM 0회)"
-            # 🔴 `spent_won` 은 최초 유료 실행의 값인데 `runs` 행은 **이번 재집계**의
+            # `spent_won` 은 최초 유료 실행의 값인데 `runs` 행은 **이번 재집계**의
             #    기록이다 (`cached: true` 가 그 증거다). 표시가 없으면 두 값을 한 실행의
             #    것으로 읽어 "유료 실행이 전량 캐시 적중이었다" 는 모순이 생긴다.
             live["runs_describe"] = (
@@ -636,7 +636,7 @@ def _write_run(folder: str, live: dict) -> dict:
 
 def run_heldout(final_arm: str, cache: RequestCache, records: dict,
                 stop_won: float, force: bool = False) -> dict:
-    """🔴 heldout 18문항을 **최종 구성 하나로** 돌린다. arm 을 여러 개 받지 않는다.
+    """heldout 18문항을 **최종 구성 하나로** 돌린다. arm 을 여러 개 받지 않는다.
 
     폴더는 `<arm>_heldout_run/` 이고 **구성은 `<arm>` 그대로**다 (v1 이 `A6_heldout_run/`
     에 남기면서 `report["arm"] == "A6"` 으로 적어 둔 것과 같은 규약). 폴더 이름을 arm 으로
@@ -645,7 +645,7 @@ def run_heldout(final_arm: str, cache: RequestCache, records: dict,
     """
     cases = load_heldout()
     folder = f"{final_arm}_heldout_run"
-    # 🔴 지출 보존 가드는 `_write_run` 안에 있다 — 사다리 루프와 **같은 함수**를 쓴다.
+    # 지출 보존 가드는 `_write_run` 안에 있다. 사다리 루프와 **같은 함수**를 쓴다.
     live = _write_run(folder, run_arm(folder, cases, cache, stop_won, force,
                                       config=final_arm))
     report = score_arm(folder, cases, records, cohort="heldout")
@@ -665,8 +665,8 @@ def _grid_overall(report: dict | None) -> dict | None:
 def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
     """일반화 낙폭과 **몇 회째 사용인지**를 한 파일에 박는다.
 
-    🔴 비교 축을 산출물이 직접 들고 있게 한다. v1 heldout 은 **A6 시점**이고 v2 는 A8 이며,
-    dev 쪽 분모도 36 vs 72 로 다르다 — 그 세 가지를 문서에만 적어 두면 다음 사람이 낙폭
+    비교 축을 산출물이 직접 들고 있게 한다. v1 heldout 은 **A6 시점**이고 v2 는 A8 이며,
+    dev 쪽 분모도 36 vs 72 로 다르다. 그 세 가지를 문서에만 적어 두면 다음 사람이 낙폭
     두 개를 같은 축으로 읽는다. heldout 18문항은 **v1·v2 가 같은 18문항**이라, 낙폭의
     분모만은 유일하게 안 바뀐 값이다.
     """
@@ -678,7 +678,7 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
     v2_dev = _grid_overall(_load_report(root.parent, final_arm)) or {}
 
     def gap(dev: dict | None, hold: dict | None) -> float | None:
-        """낙폭(%p). 🔴 **원 분자/분모에서 계산한다** (`_exact_rate` — 정밀도 규칙 한 곳).
+        """낙폭(%p). **원 분자/분모에서 계산한다** (`_exact_rate`, 정밀도 규칙 한 곳).
 
         예전에는 `hold["rate"] - dev["rate"]` 였고 그 `rate` 는 `ea._rate()` 가 이미
         소수 셋째 자리로 반올림한 값이라 **이중 반올림**이 생겼다. 실측 피해:
@@ -687,17 +687,17 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
         여유가 1.7%p 뿐인 게이트에서 0.1%p 를 **무작위 방향으로** 흘리는 계산이었다
         (기우는 방향은 두 rate 의 반올림 방향에 달려 있어 보수적이지도 않다).
 
-        🔴 `None` 을 받는다. `measured 36` 축은 못 구할 수 있고, 그때 여기서 죽으면
-        heldout 실행이 **채점 뒤 원장 쓰기에서** 터진다 — 다시 못 돌리는 실행에서
+        `None` 을 받는다. `measured 36` 축은 못 구할 수 있고, 그때 여기서 죽으면
+        heldout 실행이 **채점 뒤 원장 쓰기에서** 터진다. 다시 못 돌리는 실행에서
         최악의 자리다 (테스트가 실제로 이 경로에서 AttributeError 를 잡았다).
         """
         exact = gap_exact(dev, hold)
         return None if exact is None else round(exact, 1)
 
     def gap_exact(dev: dict | None, hold: dict | None) -> float | None:
-        """반올림 **전** 낙폭(%p). 🔴 파생값은 이쪽에서 계산한다.
+        """반올림 **전** 낙폭(%p). 파생값은 이쪽에서 계산한다.
 
-        여유(`overfit_slack_*`)를 반올림된 낙폭에서 계산하면 그것도 이중 반올림이다 —
+        여유(`overfit_slack_*`)를 반올림된 낙폭에서 계산하면 그것도 이중 반올림이다.
         −8.3 에서 세면 0.61문항이고 −8.3333 에서 세면 **0.60문항**이다. 기록·표시는
         반올림값(`gap`), 계산은 이 값이다.
         """
@@ -710,11 +710,11 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
 
     gap_v2, gap_v1 = gap(v2_dev, held), gap(v1_dev, v1_held)
 
-    # 🔴 **세 번째 축.** v2 dev 는 분모가 72 로 늘었으므로, v1(36) 과 나란히 읽을 수 있는
-    #    dev 값은 `measured 36` 이다. 낙폭이 축마다 다르게 나오므로 셋을 다 남긴다 —
+    # **세 번째 축.** v2 dev 는 분모가 72 로 늘었으므로, v1(36) 과 나란히 읽을 수 있는
+    #    dev 값은 `measured 36` 이다. 낙폭이 축마다 다르게 나오므로 셋을 다 남긴다.
     #    하나만 적으면 그것이 "그 낙폭" 으로 굳고, 가장 유리한 축이 뽑히기 쉽다.
     #
-    #    🔴 **실패를 삼키지 않는다.** `measured_dev_cohort()` 는 gitignore 대상인
+    #    **실패를 삼키지 않는다.** `measured_dev_cohort()` 는 gitignore 대상인
     #    `artifacts/eval/error_analysis.json` 을 읽으므로, 그 파일이 없는 환경(신규 클론 ·
     #    격리 워크트리 · CI)에서는 이 축이 안 나온다. 예전 코드는 `except: dev_m36 = None`
     #    으로 조용히 넘겼는데, 그러면 `gap_pp_worst` 가 **남은 유리한 축(−1.4%p)으로 조용히
@@ -730,18 +730,18 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
     except Exception as exc:                                   # noqa: BLE001
         dev_m36, m36_error = None, f"{type(exc).__name__}: {exc}"
 
-    # 🔴 heldout 쪽 수가 v1 과 같은지 본다. 같으면 낙폭이 좁아진 몫은 **전부 dev 쪽 변화**다.
+    # heldout 쪽 수가 v1 과 같은지 본다. 같으면 낙폭이 좁아진 몫은 **전부 dev 쪽 변화**다.
     def wrong_ids(report: dict | None) -> list[str]:
         return sorted(r["question_id"] for r in (report or {}).get("rows", [])
                       if not r.get("correct"))
 
-    # 🔴 판정과 여유는 **반올림 전** 낙폭에서 계산한다 (`gap_exact`). 기록은 반올림값이다.
+    # 판정과 여유는 **반올림 전** 낙폭에서 계산한다 (`gap_exact`). 기록은 반올림값이다.
     worst_candidates = [g for g in (gap_exact(v2_dev, held), gap_exact(dev_m36, held))
                         if g is not None]
     worst_exact = min(worst_candidates) if worst_candidates else None
 
     v1_full = _load_report(v1_root, "A6_heldout_run")
-    # 🔴 재집계(`--offline`)는 **횟수를 올리지 않는다.** 이미 있는 원장의 `use` 를 이어받는다.
+    # 재집계(`--offline`)는 **횟수를 올리지 않는다.** 이미 있는 원장의 `use` 를 이어받는다.
     existing = root / HELDOUT_LEDGER
     if existing.exists():
         use = json.loads(existing.read_text(encoding="utf-8")).get("use")
@@ -762,7 +762,7 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
         "dev_grid": {"correct": v2_dev.get("correct"), "n_scored": v2_dev.get("n_scored"),
                      "rate": v2_dev.get("rate"), "source": f"{root.parent.name}/{final_arm}"},
         "gap_pp": gap_v2,
-        #: v1(36) 과 나란히 읽는 축. 🔴 **dev 쪽이 재생(replay)이라 독립 측정이 아니다** (§12).
+        #: v1(36) 과 나란히 읽는 축. **dev 쪽이 재생(replay)이라 독립 측정이 아니다** (§12).
         "dev_grid_measured36": (
             {"correct": dev_m36.get("correct"), "n_scored": dev_m36.get("n_scored"),
              "rate": dev_m36.get("rate"), "gap_pp": gap(dev_m36, held),
@@ -779,19 +779,19 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
                             "n_scored": v1_dev.get("n_scored"),
                             "rate": v1_dev.get("rate")},
                "gap_pp": gap_v1},
-        # 🔴 축이 다르다는 사실을 값 옆에 붙여 둔다 — 표만 옮겨 적히면 이 문장이 사라진다.
+        # 축이 다르다는 사실을 값 옆에 붙여 둔다. 표만 옮겨 적히면 이 문장이 사라진다.
         "axis_caveat": ("v1 낙폭은 **A6 시점 · dev 분모 36**, v2 낙폭은 **A8 · dev 분모 72** 다. "
                         "heldout 18문항만 두 판에서 동일하다. 두 낙폭의 차를 Δ 로 읽지 않는다."),
         "overfit_threshold_pp": -10.0,
-        # 🔴 판정은 **가장 나쁜 축**으로 한다. 유리한 축으로 판정하면 과적합 검사가
+        # 판정은 **가장 나쁜 축**으로 한다. 유리한 축으로 판정하면 과적합 검사가
         #    검사이기를 그만둔다. 축이 하나라도 빠지면 `worst_axis_available=False` 이고
         #    그때는 '신호 없음' 이 아니라 **판정 불가**다.
         "gap_pp_worst": None if worst_exact is None else round(worst_exact, 1),
         "worst_axis_available": dev_m36 is not None,
         "measured36_error": m36_error,
-        #: 🔴 **이 게이트는 이번이 마지막 사용이다.** heldout 을 다시 못 재므로 다음 판에는
+        #: **이 게이트는 이번이 마지막 사용이다.** heldout 을 다시 못 재므로 다음 판에는
         #: 새 heldout 값이 없고, 낙폭의 분자가 83.3% 에 **영구 고정**된다. `measured 36` 은
-        #: n=36 이라 **1문항 = 2.8%p** — dev 가 33 → 34 로 1문항만 올라도 낙폭이 −11.1%p 로
+        #: n=36 이라 **1문항 = 2.8%p**, dev 가 33 → 34 로 1문항만 올라도 낙폭이 −11.1%p 로
         #: 임계를 넘는다. 즉 다음 판에서는 "성능이 올랐다" 와 "과적합이다" 가 같은 수에서
         #: 나온다. 그래서 이 게이트는 **은퇴**시키고 회귀 10 · 밸류체인 12 로 대체한다.
         "gate_retired_after_this_run": True,
@@ -809,12 +809,12 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
         "root_cause_histogram": report.get("root_cause_histogram_grid")
                                 or report.get("root_cause_histogram"),
     }
-    # 🔴 판정·여유는 `worst_exact`(반올림 전)로 계산하고, 표시만 반올림한다.
+    # 판정·여유는 `worst_exact`(반올림 전)로 계산하고, 표시만 반올림한다.
     #    반올림된 −8.3 에서 여유를 세면 0.61문항이 되고, 옳은 값은 −8.3333 에서 나온
     #    **0.60문항**이다. 파생값의 이중 반올림도 같은 사고다.
     worst, threshold = worst_exact, ledger["overfit_threshold_pp"]
     if not ledger["worst_axis_available"] or worst is None:
-        # 🔴 유리한 축만 남았을 때 '신호 없음' 을 찍지 않는다 — 그것이 조용히 통과하는 길이다.
+        # 유리한 축만 남았을 때 '신호 없음' 을 찍지 않는다. 그것이 조용히 통과하는 길이다.
         ledger["overfit_signal"] = None
         ledger["verdict"] = (
             "🔴 판정 불가 — 가장 나쁜 축(`measured 36`)을 못 구했다: "
@@ -822,7 +822,7 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
             "말하지 않는다.")
     else:
         ledger["overfit_signal"] = bool(worst <= threshold)
-        # 🔴 여유를 %p 로만 적으면 작아 보이지 않는다. 최악축(`measured 36`)은 n=36 이라
+        # 여유를 %p 로만 적으면 작아 보이지 않는다. 최악축(`measured 36`)은 n=36 이라
         #    **1문항 = 2.8%p** 이므로, 여유를 **문항 수**로 환산해 함께 적는다.
         n_worst = (dev_m36 or {}).get("n_scored") or 36
         per_q = 100.0 / n_worst
@@ -842,16 +842,16 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
 
 
 def _spend_meta(root: Path, cache: "RequestCache", live: dict) -> dict:
-    """지출 필드. 🔴 **재집계 실행이 실행 기록을 덮지 않게 한다.**
+    """지출 필드. **재집계 실행이 실행 기록을 덮지 않게 한다.**
 
     `--arms` 없이 돌리는 재집계는 `live` 가 비고 `cache.fresh_won` 이 0 이다. 그 값을 그냥
     쓰면 `summary.json`·`summary.md` 가 **"실지출 0원"** 으로 갈리고, 진짜 기록은 arm 별
-    `run.json` 에만 남는다 — 실측하고도 0원으로 보고하는 최악의 실패다 (실제로 한 번
+    `run.json` 에만 남는다. 실측하고도 0원으로 보고하는 최악의 실패다 (실제로 한 번
     그렇게 덮였다). 그래서 `live` 가 비면 **arm 별 `run.json` 합**을 권위값으로 쓴다.
 
     `run.json` 은 arm 이 끝날 때마다 쓰이므로, 중간에 끊긴 실행도 거기까지는 남아 있다.
     """
-    # 🔴 총지출은 **하위 코호트 폴더까지** 센다 (`v2/vc/`). 얕게 세면 밸류체인 실행분이
+    # 총지출은 **하위 코호트 폴더까지** 센다 (`v2/vc/`). 얕게 세면 밸류체인 실행분이
     #    조용히 빠지고, 그러면 보고한 총액이 실제보다 작아진다.
     from_runs = spend_from_runs(root, recursive=True)
     previous = {}
@@ -859,7 +859,7 @@ def _spend_meta(root: Path, cache: "RequestCache", live: dict) -> dict:
     if path.exists():
         previous = json.loads(path.read_text(encoding="utf-8")).get("meta") or {}
     out = {
-        # 🔴 총지출은 **언제나 run.json 합**이다 — 프로세스를 몇 번 나눠 돌려도 단조롭다.
+        # 총지출은 **언제나 run.json 합**이다. 프로세스를 몇 번 나눠 돌려도 단조롭다.
         #    `cache.fresh_won` 은 이번 프로세스 몫뿐이라, arm 을 여러 번에 걸쳐 돌리면
         #    마지막 프로세스의 값이 총액으로 굳어 실제보다 작게 보고된다.
         "spent_won": from_runs["won"],
@@ -869,8 +869,8 @@ def _spend_meta(root: Path, cache: "RequestCache", live: dict) -> dict:
     }
     if live:
         out.update({"cache_hits": cache.hits, "cache_misses": cache.misses,
-                    # 🔴 **우회 호출 수.** 이 값이 없으면 `--judge-repeat` 실행의
-                    #    산출물이 자기모순으로 읽힌다 — 실측 v3 full 은
+                    # **우회 호출 수.** 이 값이 없으면 `--judge-repeat` 실행의
+                    #    산출물이 자기모순으로 읽힌다. 실측 v3 full 은
                     #    `cache_misses 0` 인데 `this_process_spent_won 1,266.0` 이다.
                     #    미적중 0 에 지출이 있는 이유는 회차 호출이 **캐시에 있는데도
                     #    일부러 다시 산 것**(`RequestCache.no_cache`)이기 때문이고,
@@ -881,8 +881,8 @@ def _spend_meta(root: Path, cache: "RequestCache", live: dict) -> dict:
                     "cache_stats_are_this_process": True,
                     "this_run": live})
     else:
-        # 재집계 실행이 실행 기록을 덮지 않게 한다 — 예전 값을 그대로 이어받는다.
-        # 🔴 다만 **이어받았다는 사실을 필드 수준에 박는다.** 예전에는 아무 표시 없이
+        # 재집계 실행이 실행 기록을 덮지 않게 한다. 예전 값을 그대로 이어받는다.
+        # 다만 **이어받았다는 사실을 필드 수준에 박는다.** 예전에는 아무 표시 없이
         #    남아서 다음 집계가 그 수를 이번 프로세스의 값으로 읽었다. 한계를 게이트 본문
         #    한 줄에만 적어 두면 `summary.json` 을 직접 읽는 쪽에는 그 한계가 안 간다.
         out.update({
@@ -892,9 +892,9 @@ def _spend_meta(root: Path, cache: "RequestCache", live: dict) -> dict:
             "fresh_prompt_tokens": previous.get("fresh_prompt_tokens", 0),
             "fresh_completion_tokens": previous.get("fresh_completion_tokens", 0),
             "cache_stats_are_this_process": False,
-            # 🔴 **한 번 정해지면 안 움직인다.** 매번 앞 파일의 `generated` 를 읽으면 그것이
+            # **한 번 정해지면 안 움직인다.** 매번 앞 파일의 `generated` 를 읽으면 그것이
             #    직전 *재집계* 시각이라 재집계마다 값이 바뀌고, 그러면 산출물이 두 번
-            #    돌려도 바이트가 달라진다(재현성이 깨진다). 게다가 뜻도 틀린다 — 이 통계가
+            #    돌려도 바이트가 달라진다(재현성이 깨진다). 게다가 뜻도 틀린다. 이 통계가
             #    나온 곳은 재집계가 아니라 **최초 실행**이다. 그래서 앞의 값을 먼저 이어받고,
             #    없을 때만 시각으로 대체한다. 진짜 출처는 `cache_stats_note` 가 적는다.
             "cache_stats_carried_from": (previous.get("cache_stats_carried_from")
@@ -906,7 +906,7 @@ def _spend_meta(root: Path, cache: "RequestCache", live: dict) -> dict:
         })
         if previous.get("cache_stats_note"):
             out["cache_stats_note"] = previous["cache_stats_note"]
-    # 🔴 **자기모순을 조용히 넘기지 않는다.** 미적중이 있었다면 신규 토큰이 0 일 수 없다.
+    # **자기모순을 조용히 넘기지 않는다.** 미적중이 있었다면 신규 토큰이 0 일 수 없다.
     #    v2 `summary.json` 이 실제로 `cache_misses 435` + `fresh_*_tokens 0` 이었고,
     #    그 수는 프로세스 로그에서 수동 복구된 값이라 자기검증이 불가능하다.
     fresh_tokens = out["fresh_prompt_tokens"] + out["fresh_completion_tokens"]
@@ -921,9 +921,9 @@ def _spend_meta(root: Path, cache: "RequestCache", live: dict) -> dict:
 
 
 def score_arm(arm: str, cases: list[dict], records: dict, cohort: str = "") -> dict:
-    """캐시된 응답만으로 집계한다. LLM 0회 — 재집계는 공짜여야 한다.
+    """캐시된 응답만으로 집계한다. LLM 0회, 재집계는 공짜여야 한다.
 
-    🔴 `cohort` 를 넘긴다. 안 넘기면 `report.json` 의 `cohort` 가 빈 문자열로 남아
+    `cohort` 를 넘긴다. 안 넘기면 `report.json` 의 `cohort` 가 빈 문자열로 남아
     **어떤 코호트로 채점된 파일인지 산출물만 보고 알 수 없다** (`summary.json` 에만 있고,
     arm 폴더만 복사되면 그 연결이 끊긴다).
     """
@@ -941,8 +941,8 @@ def score_arm(arm: str, cases: list[dict], records: dict, cohort: str = "") -> d
     return report
 
 
-# --- judge 재현 편차 (σ) — LLM 0회 집계 -----------------------------------------
-# 🔴 **왜 재는가.** 개방형 문항은 LLM judge 가 채점한다. 그런데 judge 의 재현 편차를
+# --- judge 재현 편차 (σ), LLM 0회 집계 -----------------------------------------
+# **왜 재는가.** 개방형 문항은 LLM judge 가 채점한다. 그런데 judge 의 재현 편차를
 # 한 번도 안 쟀다. 실제로 밸류체인 12문항에서 A8 의 정답이 재측정마다 6 → 5 → 6 으로
 # 움직였고, 문서들은 그것을 "재측정마다 ±1문항" 이라고 **추정으로** 적고 있다.
 # 다음 라운드 arm 들의 Δ 가 1~2문항 규모로 예상되므로, σ 를 모르면 Δ 가 채택 신호인지
@@ -978,12 +978,12 @@ def judge_sigma(arm: str, cases: list[dict], records: dict,
                 cohort: str = "") -> dict | None:
     """회차별 judge 산출물을 다시 채점해 **문항별 일치와 arm 별 σ** 를 낸다. LLM 0회.
 
-    🔴 회차 점수는 **`ea.analyse` 로 다시 낸다** — 회차 폴더를 `JUDGE_DIR` 로 갈아
+    회차 점수는 **`ea.analyse` 로 다시 낸다**. 회차 폴더를 `JUDGE_DIR` 로 갈아
     끼우고 정본과 같은 채점기를 태운다. judge 파일에서 `correct` 만 세지 않는 이유는
     그것이 코호트 정답 수가 아니기 때문이다. closed 문항의 EM·DATA_LIMIT 분모 제외 ·
     트랙 분리가 전부 채점기 안에 있고, 그 규칙을 여기 다시 적으면 두 곳이 갈린다.
 
-    회차가 하나도 없으면 `None` — `--judge-repeat` 없이 돈 arm 에는 잴 것이 없다.
+    회차가 하나도 없으면 `None`, `--judge-repeat` 없이 돈 arm 에는 잴 것이 없다.
     """
     rounds = judge_round_dirs(arm)
     if not rounds:
@@ -991,8 +991,8 @@ def judge_sigma(arm: str, cases: list[dict], records: dict,
 
     open_ids = [c["question_id"] for c in cases if c.get("answer_mode") == "open"]
     per_round, verdicts = [], {}
-    # 🔴 **먼저 정본 경로로 맞춘다.** `ea.RESPONSE_DIR` 은 모듈 전역이라 앞선 호출의
-    #    값이 남아 있다 — 응답을 엉뚱한 arm 폴더에서 읽으면 회차 점수가 통째로 틀린다.
+    # **먼저 정본 경로로 맞춘다.** `ea.RESPONSE_DIR` 은 모듈 전역이라 앞선 호출의
+    #    값이 남아 있다. 응답을 엉뚱한 arm 폴더에서 읽으면 회차 점수가 통째로 틀린다.
     _use_dirs(arm)
     try:
         for path in rounds:
@@ -1014,9 +1014,9 @@ def judge_sigma(arm: str, cases: list[dict], records: dict,
                 "rate": rate["rate"],
             })
     finally:
-        _use_dirs(arm)                     # 🔴 정본 경로를 반드시 되돌린다
+        _use_dirs(arm)                     # 정본 경로를 반드시 되돌린다
 
-    # 🔴 정본(`judge/`)의 판정도 나란히 둔다. 이것은 **다른 날 산 표본**이라 회차와
+    # 정본(`judge/`)의 판정도 나란히 둔다. 이것은 **다른 날 산 표본**이라 회차와
     #    같은 격으로 σ 에 넣지 않지만, "3회가 서로 같은데 정본과는 다르다" 를 볼 수 있다.
     baseline = {}
     for qid in open_ids:
@@ -1062,9 +1062,9 @@ def judge_sigma(arm: str, cases: list[dict], records: dict,
         "rounds": per_round,
         "correct_counts": counts,
         "mean": round(statistics.fmean(counts), 3) if counts else None,
-        # 🔴 두 σ 를 **둘 다** 낸다. 표본 3개에서 모집단 σ(ddof=0)와 표본 σ(ddof=1)는
+        # 두 σ 를 **둘 다** 낸다. 표본 3개에서 모집단 σ(ddof=0)와 표본 σ(ddof=1)는
         #    1.22 배 차이가 나고, 어느 쪽인지 안 밝히면 Δ 판정의 문턱이 그만큼 흔들린다.
-        #    본문 인용은 표본 σ(ddof=1) 쪽이다 — 논문 표와 같은 관행.
+        #    본문 인용은 표본 σ(ddof=1) 쪽이다. 논문 표와 같은 관행.
         "sigma_sample": (round(statistics.stdev(counts), 3)
                          if len(counts) > 1 else None),
         "sigma_population": (round(statistics.pstdev(counts), 3)
@@ -1098,7 +1098,7 @@ def _baseline_correct(arm: str, cases: list[dict], records: dict,
 
 
 def print_judge_sigma(result: dict) -> None:
-    """표를 콘솔에 찍는다. 🔴 **갈린 문항이 핵심 산출**이라 그것을 마지막에 둔다."""
+    """표를 콘솔에 찍는다. **갈린 문항이 핵심 산출**이라 그것을 마지막에 둔다."""
     print(f'\n=== judge 재현 편차 · {result["arm"]} · 코호트 {result["cohort"]} '
           f'· {result["n_rounds"]}회 ===')
     for row in result["rounds"]:
@@ -1126,12 +1126,12 @@ def print_judge_sigma(result: dict) -> None:
 
 
 # --- 검색 단계만 재기 (LLM 0회) --------------------------------------------------
-# 🔴 **정답률보다 검색 지표를 먼저 잰다.** 생성은 검색 결과의 함수이므로, 골든 근거 적중과
-# Recall@5 가 하나도 안 움직이면 정답률도 안 움직인다 — 그 경우 생성 호출은 크레딧을
+# **정답률보다 검색 지표를 먼저 잰다.** 생성은 검색 결과의 함수이므로, 골든 근거 적중과
+# Recall@5 가 하나도 안 움직이면 정답률도 안 움직인다. 그 경우 생성 호출은 크레딧을
 # 태워 잡음을 사는 것이다. A2 는 정확히 그 위험이 큰 arm 이라(Phase H 겨냥 실패 0건)
 # 이 모드가 먼저 돈다.
 #
-# 채점기는 `scripts/error_analysis.py` 를 그대로 재사용한다 —
+# 채점기는 `scripts/error_analysis.py` 를 그대로 재사용한다.
 # `golden_positions`(후보 안 순위) 와 `evidence_hit`(프롬프트에 실렸는가) 둘 다.
 
 RECALL_AT = 5
@@ -1305,13 +1305,13 @@ AXES = {"difficulty": ("하", "중", "상"),
         "task_type": ("search_extract", "multi_compare", "complex_reason")}
 AXIS_LABELS = {"difficulty": "난이도", "answer_mode": "답변형식", "task_type": "과제유형"}
 
-#: 🔴 v1 에서 세 난이도가 전부 1~2/2 로 진동했다. 셀이 커진 v2 에서 **다시 확인**하고,
+#: v1 에서 세 난이도가 전부 1~2/2 로 진동했다. 셀이 커진 v2 에서 **다시 확인**하고,
 #: 여전하면 이 행의 Δ 는 읽지 않는다.
 BLIND_CELL = "multi_compare|closed"
 
 
 def _exact_rate(cell: dict) -> float | None:
-    """🔴 **정밀도 규칙은 이 함수 하나다.** `correct / n_scored` 를 반올림 없이 돌려준다.
+    """**정밀도 규칙은 이 함수 하나다.** `correct / n_scored` 를 반올림 없이 돌려준다.
 
     `report.json` 의 `rate` 는 `ea._rate()` 가 소수 셋째 자리로 반올림한 값이다. 그 값을
     서로 빼면 **이중 반올림**이 생긴다. 실측 피해 셋:
@@ -1323,7 +1323,7 @@ def _exact_rate(cell: dict) -> float | None:
 
     **비율의 차·비율의 비를 계산하는 모든 지점은 이 함수를 통과한다.** 예외는 값을
     그대로 찍는 표시(`_frac`)뿐이고, 그마저도 `_pct(_exact_rate(...))` 를 쓰는 편이 낫다.
-    `scripts/ablation_report.py` 는 이 함수를 import 해서 쓴다 — 규칙을 두 번 적지 않는다.
+    `scripts/ablation_report.py` 는 이 함수를 import 해서 쓴다. 규칙을 두 번 적지 않는다.
     """
     n = cell.get("n_scored") or 0
     correct = cell.get("correct")
@@ -1333,17 +1333,17 @@ def _exact_rate(cell: dict) -> float | None:
 def summarise(reports: dict[str, dict]) -> dict:
     """arm 별 정답률·비용과 축별 분해를 한 표로 모은다.
 
-    🔴 정답률·히스토그램은 **그리드 기준**을 쓴다. 회귀 10·밸류체인 12는
+    정답률·히스토그램은 **그리드 기준**을 쓴다. 회귀 10·밸류체인 12는
     `answerable=true` 이고 3축 라벨도 채워져 있어 전체 기준으로 세면 분모에 섞여 들고,
     그러면 v1 42문항과 나란히 읽을 축이 하나도 안 남는다. 트랙별 수치는 `tracks` 에
-    **따로** 담는다 — 합치지 않는다.
+    **따로** 담는다. 합치지 않는다.
     """
     out: dict = {"arms": {}, "axes": {a: {} for a in AXES}, "cells": {}}
     for arm, report in reports.items():
         cross = report["crosstab"]
         grid = cross["grid_overall"]
         out["arms"][arm] = {
-            # 🔴 `rate` 는 반올림 없는 값이다 (`_exact_rate`). Δ 를 여기서 뺀다.
+            # `rate` 는 반올림 없는 값이다 (`_exact_rate`). Δ 를 여기서 뺀다.
             "correct": grid["correct"], "n_scored": grid["n_scored"],
             "rate": _exact_rate(grid), "rate_reported": grid["rate"],
             "n_grid": grid["n"], "data_limit": grid["data_limit"],
@@ -1357,8 +1357,8 @@ def summarise(reports: dict[str, dict]) -> dict:
             "tokens": report["totals"]["total_tokens"],
             "arm_cost_won": report["totals"]["cost_won"],
             "llm_calls": report["totals"]["llm_calls"],
-            # 🔴 **이름을 갈았다.** `latency_s_mean` 은 측정값이 아니라 **재생 시간이 섞인
-            #    값**이다 — 응답 파일에 저장된 벽시계 시간의 평균이고, 그 문항을 만들 때
+            # **이름을 갈았다.** `latency_s_mean` 은 측정값이 아니라 **재생 시간이 섞인
+            #    값**이다. 응답 파일에 저장된 벽시계 시간의 평균이고, 그 문항을 만들 때
             #    요청 캐시가 적중했다면 파이프라인이 ~1ms 에 끝나 그 수가 저장된다.
             #    실측: A0 3.73초(88 중 28건만 <0.5s) vs A5·A8 **0.02~0.03초**(88/88 적중).
             #    기울기가 **언제나 빠르게 보이는 한 방향**이라 기술제안서가 "평균 응답
@@ -1370,7 +1370,7 @@ def summarise(reports: dict[str, dict]) -> dict:
             "latency_s_note": ("응답 파일에 저장된 벽시계 시간의 평균 — 요청 캐시 적중 "
                                "문항은 ~0초로 기록되므로 **재생 시간이 섞인다.** "
                                "'평균 응답 시간' 으로 인용하지 않는다."),
-            # 🔴 `_grid` 변종을 쓴다 (Task 7 이 만들어 둔 것). 전체 기준을 쓰면
+            # `_grid` 변종을 쓴다 (Task 7 이 만들어 둔 것). 전체 기준을 쓰면
             #    같은 표 안에서 분모가 둘이 된다.
             "failures": report.get("failure_histogram_grid") or report["failure_histogram"],
             "failures_all": report["failure_histogram"],
@@ -1383,14 +1383,14 @@ def summarise(reports: dict[str, dict]) -> dict:
             "golden_evidence_hit": sum(len(r["golden_in_evidence"])
                                        for r in ea.grid_rows(report["rows"])),
             "golden_total": sum(len(r["golden"]) for r in ea.grid_rows(report["rows"])),
-            # 🔴 '도달 불가' 표시 — **회수율 분모에만** 쓴다. 정답률과 무관하다.
+            # '도달 불가' 표시, **회수율 분모에만** 쓴다. 정답률과 무관하다.
             #    원 분모(`golden_total`)를 지우지 않고 **나란히** 둔다.
             "golden_unreachable": sum(len(r.get("golden_unreachable") or [])
                                       for r in ea.grid_rows(report["rows"])),
             "golden_recall": ea.golden_recall_denominators(report["rows"]),
-            # 🔴 **기계가 읽는 자리에도 제동을 둔다** (R2F). 종전에는 `summary.json` 이
+            # **기계가 읽는 자리에도 제동을 둔다** (R2F). 종전에는 `summary.json` 이
             #    진단 arm 의 `rate` 를 다른 arm 과 **구별 불가능한 모양**으로 실어,
-            #    경고가 렌더된 `summary.md` 에만 있었다 — 다음 도구가 `arms["ORACLE"]
+            #    경고가 렌더된 `summary.md` 에만 있었다. 다음 도구가 `arms["ORACLE"]
             #    ["rate"]` 를 집어 성적으로 쓰면 아무것도 막지 않는다.
             #    `latency_s_note` 와 같은 규칙이다: 오독 위험이 있는 수에는 주석을 붙인다.
             "diagnostic": arm in ablation.DIAGNOSTIC_ARMS,
@@ -1424,7 +1424,7 @@ def _delta(a: dict | None, b: dict | None) -> float | None:
 def render_summary(summary: dict, meta: dict) -> str:
     ladder = [a for a in ablation.LADDER if a in summary["arms"]]
     loo = [a for a in ablation.LOO_REMOVED if a in summary["arms"]]
-    # 🔴 곁가지(`A8-lean`·`A2`·`A2F`)는 사다리도 LOO 도 진단도 아니다 —
+    # 곁가지(`A8-lean`·`A2`·`A2F`)는 사다리도 LOO 도 진단도 아니다.
     #    `ablation.SIDE_ARMS` 를 안 읽으면 §1·§2 두 표에 안 찍히고 산출물에서 사라진다.
     side = [a for a in ablation.SIDE_ARMS if a in summary["arms"]]
     base_name = ladder[-1] if ladder else ""
@@ -1435,8 +1435,8 @@ def render_summary(summary: dict, meta: dict) -> str:
            f'/ 상한 {meta["budget_won"]:,.0f}원 · 요청 캐시 적중 {meta["cache_hits"]}회\n',
            f'지출 출처: {meta.get("spent_won_source", "—")}\n']
 
-    # 🔴 진단 arm 은 **성적이 아니다.** 산출물만 보는 사람이 숫자를 제출 성적으로 읽는 것을
-    #    막는 유일한 수단이 이 줄이다 — 표 안에서는 다른 arm 과 똑같이 생겼다.
+    # 진단 arm 은 **성적이 아니다.** 산출물만 보는 사람이 숫자를 제출 성적으로 읽는 것을
+    #    막는 유일한 수단이 이 줄이다. 표 안에서는 다른 arm 과 똑같이 생겼다.
     diagnostic = [a for a in ablation.DIAGNOSTIC_ARMS if a in summary["arms"]]
     if diagnostic:
         out.append(f'> 🔴 **{", ".join(diagnostic)} 는 진단 전용이다.** 평가 시점에 없는 '
@@ -1446,7 +1446,7 @@ def render_summary(summary: dict, meta: dict) -> str:
                    "**골든만으로 교체**하는 것이라 근거가 줄고, 실측에서 A8 보다 낮게 "
                    "나온다. 읽는 법은 §2b 의 주석을 따른다.\n")
 
-    # 🔴 골든 근거 회수는 **코호트 전 행**으로 센다. §1 의 표는 그리드 기준이라
+    # 골든 근거 회수는 **코호트 전 행**으로 센다. §1 의 표는 그리드 기준이라
     #    밸류체인 코호트에서 분모가 0 이 되고, 그러면 그 코호트의 유일한 성공 축
     #    (골든 회수 28→34/46)이 산출물에서 통째로 사라진다.
     recalls = {a: (summary["arms"][a].get("golden_recall") or {})
@@ -1472,8 +1472,8 @@ def render_summary(summary: dict, meta: dict) -> str:
     previous = None
     for arm in ladder:
         row = summary["arms"][arm]
-        # 🔴 밸류체인 코호트는 그리드 문항이 0건이라 `rate` 가 None 이다. 여기서 죽으면
-        #    A8 의 진짜 겨냥점을 담은 실행이 **집계 단계에서 통째로 날아간다** —
+        # 밸류체인 코호트는 그리드 문항이 0건이라 `rate` 가 None 이다. 여기서 죽으면
+        #    A8 의 진짜 겨냥점을 담은 실행이 **집계 단계에서 통째로 날아간다**.
         #    응답은 디스크에 남았는데 표가 안 나오는 것이 가장 헷갈리는 실패다.
         out.append(f'| **{arm}** | {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
                    f'| {_pp(previous, row["rate"])} '
@@ -1481,9 +1481,9 @@ def render_summary(summary: dict, meta: dict) -> str:
                    f'| {row["llm_calls"]} | {row["tokens"]:,} | {row["arm_cost_won"]:,.1f} |')
         previous = row["rate"]
 
-    # 🔴 사다리 arm 없이 LOO 만 돌린 실행 (`--arm L4` 등). 계획서가 "arm 하나씩 돌려라" 라고
+    # 사다리 arm 없이 LOO 만 돌린 실행 (`--arm L4` 등). 계획서가 "arm 하나씩 돌려라" 라고
     #    지시하므로 **정상 경로**다. 위 표가 비면 실행이 통째로 안 보이므로 무엇이 돌았는지
-    #    적는다 — 1057행 주석과 같은 이유다.
+    #    적는다. 1057행 주석과 같은 이유다.
     if not ladder:
         present = sorted(summary["arms"])
         out.append(f'| — | — | — | — | — | — | — | — |')
@@ -1509,7 +1509,7 @@ def render_summary(summary: dict, meta: dict) -> str:
                        f'| {row["correct"]}/{row["n_scored"]} | {_pct(row["rate"])} '
                        f'| {_pp(base["rate"], row["rate"])} |')
 
-    # 🔴 곁가지 arm — 사다리도 LOO 도 아니지만 **성적이다** (진단 arm 과 다르다).
+    # 곁가지 arm, 사다리도 LOO 도 아니지만 **성적이다** (진단 arm 과 다르다).
     #    `A8-lean` 은 `A8` 과 플래그 하나만 다른 변형이므로 Δ 는 `A8` 대비로만 읽는다.
     if side:
         base = summary["arms"].get("A8")
@@ -1528,7 +1528,7 @@ def render_summary(summary: dict, meta: dict) -> str:
                    "같은 자리에서 한 축만 갈아 끼운 변형이라, 곡선에 끼우면 Δ(직전) 이 "
                    "**두 arm 의 차이가 아닌 것**을 가리킨다.\n")
 
-    # 🔴 진단 arm 은 사다리에도 LOO 에도 없으므로 위 두 표에 **안 찍힌다.** 자리를 안 주면
+    # 진단 arm 은 사다리에도 LOO 에도 없으므로 위 두 표에 **안 찍힌다.** 자리를 안 주면
     #    경고만 뜨고 잰 값은 산출물 어디에도 안 남아, 다음 사람이 report.json 을 직접
     #    열어야 한다. 여기 한 칸을 주되 **경고를 표 안에 같이 적는다.**
     if diagnostic:
@@ -1553,7 +1553,7 @@ def render_summary(summary: dict, meta: dict) -> str:
                    "안 늘면 남은 실패는 검색으로 살 수 없다.**\n")
 
     out.append("\n## 3. 축별 Δ 분해\n")
-    # 🔴 `ladder[0]`·`base_name` 을 무방비로 쓰면 LOO 단독 실행에서 IndexError 로 죽는다 —
+    # `ladder[0]`·`base_name` 을 무방비로 쓰면 LOO 단독 실행에서 IndexError 로 죽는다.
     #    응답과 judge 는 디스크에 다 남았는데 요약만 안 나오는, 가장 헷갈리는 실패다.
     #    실측으로 겪었다 (2026-08-12 · `--arm L4` 단독 실행).
     if not ladder:
@@ -1596,7 +1596,7 @@ def render_summary(summary: dict, meta: dict) -> str:
 
 
 # --- 게이트 I 보고서 (LLM 0회) --------------------------------------------------
-# 🔴 `scripts/ablation_report.py` 를 고치지 않는다 — 그 스크립트는 v1 `gate_I.md` 를
+# `scripts/ablation_report.py` 를 고치지 않는다. 그 스크립트는 v1 `gate_I.md` 를
 # **재생성**하는 유일한 수단이고, 출력 경로가 v1 자리에 박혀 있다. v2 는 여기 붙인다.
 
 #: 부록 D 의 논문 보고값. 우리 Δ 가 타당한 크기인지 판정하는 기준이다 (D-1 · D-2).
@@ -1615,9 +1615,9 @@ PAPER_EFFECTS = (
     ("L3", "발주처 hop 제거", "Relink w/o 명시 그래프 (Gb)", "-12.9% EM", "제거"),
 )
 
-#: 🔴 A8 의 성공 기준은 전체 정답률이 아니다. 밸류체인 12문항을 세 갈래로 가른다 —
+#: A8 의 성공 기준은 전체 정답률이 아니다. 밸류체인 12문항을 세 갈래로 가른다.
 #: ①에서 안 오르면 A8 은 실패이고, ③에서 떨어지면 Δ 가 양수여도 넣지 않는다.
-VC_FAN_IN = ("Q-110", "Q-114", "Q-117")       # 완전 열거 — A8 의 진짜 겨냥점
+VC_FAN_IN = ("Q-110", "Q-114", "Q-117")       # 완전 열거, A8 의 진짜 겨냥점
 VC_UNVERIFIABLE = ("Q-116",)                  # 완결성 확인 불가
 
 
@@ -1637,12 +1637,12 @@ def _pp(before, after) -> str:
 
 
 def _pp_of(value) -> str:
-    """이미 %p 단위인 값. `None` 을 `0.0` 으로 찍지 않는다 — 낙폭 0 과 미측정은 다르다."""
+    """이미 %p 단위인 값. `None` 을 `0.0` 으로 찍지 않는다. 낙폭 0 과 미측정은 다르다."""
     return "—" if value is None else f"{value:+.1f}%p"
 
 
 def _recall(row: dict) -> str:
-    """골든 근거 회수 — 🔴 **원 분모와 조정 분모를 나란히** 찍는다.
+    """골든 근거 회수, **원 분모와 조정 분모를 나란히** 찍는다.
 
     `ea.UNREACHABLE_GOLDEN` 이 표시한 골든이 이 arm 의 분모에 있으면 `34/46 (도달불가
     3 제외 34/43)` 처럼 **둘 다** 낸다. 조정값만 남기면 다음 사람이 그것을 원값으로
@@ -1668,13 +1668,13 @@ def spend_from_runs(root: Path, recursive: bool = False) -> dict:
     요청 캐시 파일 전체 합(`ablation_report.spend_from_cache`)을 쓰면 v1·T7 이 산 것까지
     더해져 **v2 의 지출이 부풀어 오른다.** v2 는 자기 실행분만 센다.
 
-    `recursive=True` 는 하위 코호트 폴더(`v2/vc/` 등)까지 센다 — **총지출을 말할 때는
+    `recursive=True` 는 하위 코호트 폴더(`v2/vc/` 등)까지 센다. **총지출을 말할 때는
     이쪽이다.** 기본값이 얕은 이유는 §1 의 표가 직속 arm 과 코호트 arm 을 따로 내기
     때문이고, 둘을 한 번에 세면 그 표가 이중계상된다.
 
-    🔴 **결함은 쓰기가 아니라 읽기였다** (재검토 B I1). `_write_run` 이 이전 세대를
+    **결함은 쓰기가 아니라 읽기였다** (재검토 B I1). `_write_run` 이 이전 세대를
     `spent_won_previous` 로 보존하는데 여기서 그것을 안 읽었다. arm 을 두 번 돌리면
-    첫 실행의 결제가 회계에서 사라졌다 — 실측 9파일 합 **4,627.7원**.
+    첫 실행의 결제가 회계에서 사라졌다. 실측 9파일 합 **4,627.7원**.
 
     그래서 두 축을 낸다. `won_current` 는 이번 세대만, `won_cumulative` 는 승계분까지다.
     **"실제 결제" 를 말할 때는 누계**이고, 세대별 비교를 할 때만 현세대를 쓴다.
@@ -1704,7 +1704,7 @@ def spend_from_runs(root: Path, recursive: bool = False) -> dict:
 
 
 def stale_parent_summaries(out_dir: Path) -> list[dict]:
-    """🔴 **상위 코호트 `summary.json` 이 이 실행으로 낡았는가.** LLM 0회 · 읽기만.
+    """**상위 코호트 `summary.json` 이 이 실행으로 낡았는가.** LLM 0회 · 읽기만.
 
     여덟 번째 결함의 **진짜 기전**이다. R2F 는 증상(`render_gate` 의 지출 검산이
     `if held_report:` 안에 있어 v3 에서 한 번도 안 돌았다)을 고쳤지만, 그 검산이 잡아야
@@ -1712,19 +1712,19 @@ def stale_parent_summaries(out_dir: Path) -> list[dict]:
 
         v3/vc/L3 를 `--out artifacts/ablation/v3/vc` 로 유료 실행한다
           -> v3/vc/summary.json 은 갱신된다 (그 폴더가 `--out` 이다)
-          -> 🔴 v3/summary.json 은 **손대지 않는다** — 그런데 그 파일의 `spent_won` 은
+          -> v3/summary.json 은 **손대지 않는다**. 그런데 그 파일의 `spent_won` 은
              `spend_from_runs(recursive=True)` 라서 하위 폴더를 **포함하는** 수다
           -> 부모의 총액이 51.9원 작은 채로 굳는다. 아무도 모른다.
 
     즉 갈림은 "재집계 시점에 얼어붙는 것" 이 아니라 **하위 코호트를 돌릴 때마다 부모가
     조용히 낡는 것**이고, 그것은 `--out` 을 하위 폴더로 주는 모든 실행에서 재발한다.
-    게이트를 렌더할 때까지 기다릴 이유가 없다 — 만들어지는 자리에서 센다.
+    게이트를 렌더할 때까지 기다릴 이유가 없다. 만들어지는 자리에서 센다.
 
-    🔴 **경고를 print 로만 내지 않는다.** R2F 가 `diagnostic` 을 `summary.json` 에 넣은
-    것과 같은 이유다 — 렌더된 문서에만 있는 경고는 그 파일을 직접 읽는 도구를 아무것도
+    **경고를 print 로만 내지 않는다.** R2F 가 `diagnostic` 을 `summary.json` 에 넣은
+    것과 같은 이유다. 렌더된 문서에만 있는 경고는 그 파일을 직접 읽는 도구를 아무것도
     막지 못한다. 호출부가 이 반환값을 `summary.json` 의 `stale_parents` 에 싣는다.
 
-    🔴 **v1 자리에서 멈춘다.** `artifacts/ablation/summary.json` 은 v1 의 산출물이고 그
+    **v1 자리에서 멈춘다.** `artifacts/ablation/summary.json` 은 v1 의 산출물이고 그
     `spent_won` 은 **v1 만**의 값인데, 그 폴더를 재귀로 세면 `v2`·`v3` 가 통째로 더해져
     3,144.7 → 8,211.3원이 된다(`assert_not_v1_root` ①). 즉 그 자리는 "낡은" 것이 아니라
     **애초에 재귀 합이 아닌** 파일이므로 대조 대상이 아니다. 여기서 안 멈추면 이 검사가
@@ -1777,7 +1777,7 @@ def version_dirs() -> list[Path]:
 
 
 def assert_not_v1_root(out_dir: Path, what: str) -> None:
-    """🔴 v2 가 존재하는 동안 **v1 자리에 쓰지 않는다.** 경고가 아니라 거부다.
+    """v2 가 존재하는 동안 **v1 자리에 쓰지 않는다.** 경고가 아니라 거부다.
 
     `artifacts/ablation/v2/` 는 `artifacts/ablation/` **안**에 있다. 그래서 `--out` 없이
     돌리는 재집계·`--report` 는 세 가지를 조용히 망친다:
@@ -1785,7 +1785,7 @@ def assert_not_v1_root(out_dir: Path, what: str) -> None:
       ① `_spend_meta` 가 `spend_from_runs(recursive=True)` 로 세므로 v1 `summary.json` 의
          지출이 **3,144.7 → 8,211.3원**(= v1 + v2 5,066.6)이 된다.
       ② v1 arm 의 `report.json` 이 **현재 questions.jsonl(88문항) 기준으로 재작성**된다.
-         v1 은 42문항 산출물이고 §12·§12b 의 비교 기준선이다 — `n_cases` 가 42 → 88 로
+         v1 은 42문항 산출물이고 §12·§12b 의 비교 기준선이다. `n_cases` 가 42 → 88 로
          바뀌고 `generated` 가 갱신돼 기준선의 출처 추적이 끊긴다.
       ③ `--report` 는 v2 렌더러(`render_gate`)로 **v1 `gate_I.md` 를 덮는다.**
          그 파일은 `scripts/ablation_report.py` 가 만드는 다른 문서다.
@@ -1811,15 +1811,15 @@ def assert_not_v1_root(out_dir: Path, what: str) -> None:
         "v1 `gate_I.md` 를 다시 만들려면 `python scripts/ablation_report.py` 입니다.")
 
 
-# --- v4 R3. 전 세대 재채점 — 🔴 **LLM 0회 · 얼린 세대를 읽기만 한다** ------------
+# --- v4 R3. 전 세대 재채점, **LLM 0회 · 얼린 세대를 읽기만 한다** ------------
 # 채점기를 고치면 v1·v2·v3·v4 의 비교가 전부 깨진다. 그래서 **같은 저장 응답에 새
-# 채점기를 태워** 채점기 전/후를 나란히 낸다. judge 를 다시 부르지 않는다 — 저장된
+# 채점기를 태워** 채점기 전/후를 나란히 낸다. judge 를 다시 부르지 않는다. 저장된
 # judge 판정(`judge/*.json`)을 그대로 읽고, 그 위에 결정적 검사만 얹는다.
 #
-# 🔴 **얼린 세대에 쓰지 않는다.** `v1`·`v2`·`v3` 의 `report.json` 은 물증이므로
+# **얼린 세대에 쓰지 않는다.** `v1`·`v2`·`v3` 의 `report.json` 은 물증이므로
 # 손대지 않고, 결과는 **`--out` 아래 한 파일**로만 나간다.
 
-#: 재채점에서 제외한다. heldout 응답 폴더는 **열지 않는다** — 2회 소진된 자산이다.
+#: 재채점에서 제외한다. heldout 응답 폴더는 **열지 않는다**. 2회 소진된 자산이다.
 RESCORE_SKIP_DIRS = frozenset({"A6_heldout_run", "A8_heldout_run", "heldout", "cache"})
 
 #: (판 이름, 폴더). `v1` 은 `artifacts/ablation` 자신이다.
@@ -1852,7 +1852,7 @@ def rescore_all(records: dict) -> list[dict]:
     """전 세대를 새 채점기로 다시 채점한다. **LLM 0회.**
 
     `published` 는 얼린 `report.json` 이 들고 있는 수(= 채점기 전)이고, `grid`·`overall`
-    은 지금 채점기가 낸 수(= 채점기 후)다. 🔴 **조정값만 남기지 않는다** — 두 수를
+    은 지금 채점기가 낸 수(= 채점기 후)다. **조정값만 남기지 않는다**. 두 수를
     같은 행에 싣고, 뒤집힌 문항 목록까지 붙인다.
     """
     saved = (ea.RESPONSE_DIR, ea.JUDGE_DIR)
@@ -1894,7 +1894,7 @@ def rescore_all(records: dict) -> list[dict]:
 
 
 def render_rescore(rows: list[dict]) -> str:
-    """채점기 전/후를 **나란히** 낸 표. 떨어진 칸에 🔴 를 찍는다."""
+    """채점기 전/후를 **나란히** 낸 표. 떨어진 칸에 를 찍는다."""
     out = ["# v4 `R3` — 전 세대 재채점 (채점기 전/후)", "",
            "🔴 **LLM 0회 · 크레딧 0원.** 저장 응답과 저장 judge 판정을 그대로 읽고 "
            "결정적 검사만 새로 얹었다.", "",
@@ -1922,7 +1922,7 @@ def render_rescore(rows: list[dict]) -> str:
     flipped = sorted({q for row in rows for q in row["scorer_r3"]["a19_overridden"]})
     out += ["", "## `A19` 가 뒤집은 문항 (judge 통과 → 결정적 검사가 기각)", "",
             ("· ".join(f"`{q}`" for q in flipped) if flipped else "없다"), ""]
-    # 🔴 R3b — 금액 침묵 게이트. `A19` 와 **따로** 낸다: 축이 다르면 표도 달라야 한다.
+    # R3b, 금액 침묵 게이트. `A19` 와 **따로** 낸다: 축이 다르면 표도 달라야 한다.
     silent = sorted({q for row in rows
                      for q in row["scorer_r3"].get("r3b_overridden") or ()})
     out += ["## `R3b` 가 뒤집은 문항 (골든 요점이 금액을 명시하는데 답변이 침묵)", "",
@@ -1949,7 +1949,7 @@ def _grid_rate(rows: list[dict], wanted: set[str] | None = None) -> dict:
 
 
 def resolve_budget_cap(meta: dict, cli_cap: float) -> tuple[float, str, str]:
-    """🔴 상한은 **산출물에서 읽는다.** `(상한, 출처, 경고)` 를 돌려준다.
+    """상한은 **산출물에서 읽는다.** `(상한, 출처, 경고)` 를 돌려준다.
 
     `budget_cap` 이 CLI `--budget` 에서만 오면 `--report` 를 플래그 없이 돌렸을 때 **같은
     산출물에서 다른 문장**이 나온다: `상한 20,000원 대비 25.3% (정지선 16,000)` ↔
@@ -1969,19 +1969,19 @@ def resolve_budget_cap(meta: dict, cli_cap: float) -> tuple[float, str, str]:
     return float(from_meta), "summary.json `meta.budget_won`", note
 
 
-# --- 게이트 I 보고서 — 절별 순수 함수 ------------------------------------------
-# 🔴 **한 함수가 933줄이었다** (v4 B1 이전). 중첩 헬퍼가 0개이고 `# --- N.` 주석
+# --- 게이트 I 보고서, 절별 순수 함수 ------------------------------------------
+# **한 함수가 933줄이었다** (v4 B1 이전). 중첩 헬퍼가 0개이고 `# --- N.` 주석
 #    으로만 열일곱 절이 갈려 있어서 **읽을 수도 절 단위로 테스트할 수도 없었다.**
-#    그 주석 경계를 그대로 함수 경계로 삼아 갈랐다 — 절 본문은
+#    그 주석 경계를 그대로 함수 경계로 삼아 갈랐다. 절 본문은
 #    `o.append(` -> `out.append(` 말고 **한 글자도 안 바뀌었다.**
 #
-#    🔴 합격 조건은 미학이 아니라 **바이트**다. v2·v3·v4 세 root 를 쪼개기
+#    합격 조건은 미학이 아니라 **바이트**다. v2·v3·v4 세 root 를 쪼개기
 #    전후로 렌더해 sha256 이 같은 것을 확인했고, 그 대조를
 #    `tests/test_ablation.py::test_the_gate_report_is_assembled_from_section_functions`
 #    가 절 목록·순서·순수성으로 고정한다.
 #
 #    절 사이의 상태 흐름은 AST 로 전수 조사했다. 전 열일곱 절이 읽는 것은
-#    **머리말이 만든 값뿐**이고(`_GateContext`), 예외가 딱 하나다 —
+#    **머리말이 만든 값뿐**이고(`_GateContext`), 예외가 딱 하나다.
 #    `9b` 가 `9` 의 `targeted`·`idx` 를 읽는다. 그것만 인자로 넘긴다.
 
 
@@ -1989,7 +1989,7 @@ def resolve_budget_cap(meta: dict, cli_cap: float) -> tuple[float, str, str]:
 class _GateContext:
     """`render_gate` 머리말이 한 번 계산해 절 함수들에 나눠 주는 값.
 
-    🔴 **얼려 둔다.** 절이 이 값을 고치면 뒤 절의 표가 조용히 달라지고,
+    **얼려 둔다.** 절이 이 값을 고치면 뒤 절의 표가 조용히 달라지고,
     게이트 문서는 그 사실을 드러낼 방법이 없다 (숫자만 남는다).
     """
     root: Path
@@ -2012,11 +2012,11 @@ class _GateContext:
 
 
 def _gate_arm_flags(c: _GateContext) -> list[str]:
-    """§0. arm 구성 — 켠 것이 실제로 켜졌는가. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§0. arm 구성, 켠 것이 실제로 켜졌는가. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     arms, diag, ladder, loo, side = c.arms, c.diag, c.ladder, c.loo, c.side
 
-    # --- 0. arm 구성 확인 — 무엇이 실제로 켜졌는가 ---
+    # --- 0. arm 구성 확인, 무엇이 실제로 켜졌는가 ---
     out.append("\n## 0. arm 구성 — 켠 것이 실제로 켜졌는가\n")
     out.append("Δ 를 읽기 전에 스위치를 확인한다. **끈 줄 알았는데 안 꺼진 것**이 "
              "가장 비싼 실패다 (Δ 가 0 으로 나오고 우리는 그것을 '기여 없음' 으로 읽는다).\n")
@@ -2046,7 +2046,7 @@ def _gate_arm_flags(c: _GateContext) -> list[str]:
 
 
 def _gate_cost(c: _GateContext) -> list[str]:
-    """§1. arm 별 비용 실측. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§1. arm 별 비용 실측. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     budget_cap = c.budget_cap
     budget_note = c.budget_note
@@ -2090,7 +2090,7 @@ def _gate_cost(c: _GateContext) -> list[str]:
                  f'| {t["total_tokens"]:,} | {t["cost_won"]:,.1f} '
                  f'| {"—" if fresh is None else f"{fresh:,.1f}"} |')
         arm_sum += t["cost_won"]
-    # 🔴 heldout 도 이 폴더 안에서 결제됐으므로 `spend["won"]`(재귀 합)에 이미 들어 있다.
+    # heldout 도 이 폴더 안에서 결제됐으므로 `spend["won"]`(재귀 합)에 이미 들어 있다.
     #    표에 행을 안 내면 `arm_sum` 만 빠져서 "캐시가 막은 금액" 이 그만큼 작게 찍힌다
     #    (heldout 은 캐시 적중 0 이라 막은 금액에 기여가 없어야 한다).
     held_report = _load_report(root / "heldout", f'{held["arm"]}_heldout_run') if held else None
@@ -2101,7 +2101,7 @@ def _gate_cost(c: _GateContext) -> list[str]:
                  f'| {t["judge_tokens"]:,} | {t["total_tokens"]:,} '
                  f'| {t["cost_won"]:,.1f} | {held["spent_won"] or 0:,.1f} |')
         arm_sum += t["cost_won"]
-    # `spend` 는 재귀 합이므로 밸류체인·heldout 몫이 이미 들어 있다 — 다시 더하면 이중계상이다.
+    # `spend` 는 재귀 합이므로 밸류체인·heldout 몫이 이미 들어 있다. 다시 더하면 이중계상이다.
     total_spend = spend["won"]
     out.append(f'| **합계 (캐시 없었다면)** | | | | | | **{arm_sum:,.0f}** | |')
     out.append(f'| **실제 결제 (하위 코호트 포함)** | | | | | | | **{total_spend:,.1f}** |')
@@ -2111,10 +2111,10 @@ def _gate_cost(c: _GateContext) -> list[str]:
                  f'{total_spend - (held["spent_won"] or 0):,.1f}원 + heldout '
                  f'{held["spent_won"] or 0:,.1f}원(§14). 앞엣것이 Ablation v2 측정 비용이고, '
                  "뒤엣것은 **최종 1회** 몫이라 회계가 다르다.\n")
-    # 🔴 `summary.json` 과 이 표가 맞는지 **여기서 검산한다.** 예전에는 "그 파일은
+    # `summary.json` 과 이 표가 맞는지 **여기서 검산한다.** 예전에는 "그 파일은
     #    heldout 이전 값이다" 를 문장으로 박아 뒀는데, 재집계로 그 파일이 갱신되면
     #    그 문장이 조용히 거짓이 된다. 문장을 값에서 만든다.
-    # 🔴 **R2F — 이 검산이 `if held_report:` 안에 있었다.** heldout 이 없는 세대(v3)에서는
+    # **R2F, 이 검산이 `if held_report:` 안에 있었다.** heldout 이 없는 세대(v3)에서는
     #    한 번도 발화하지 않았고, 그래서 `v3/summary.json` 의 `spent_won 553.2` 가
     #    실제 재귀 합 **605.1**(= `vc/L3` 51.9 를 뺀 값)과 갈린 채로 커밋됐다. 두 산출물이
     #    **같은 출처 라벨**("arm·코호트별 run.json 합")을 달고 다른 수를 실었다.
@@ -2164,8 +2164,8 @@ def _gate_cost(c: _GateContext) -> list[str]:
              + "\n")
     if meta.get("cache_stats_inconsistent"):
         out.append(meta["cache_stats_inconsistent"] + "\n")
-    # 🔴 부분 실행을 표에 드러낸다. `analyse` 는 응답 없는 문항을 조용히 건너뛰므로
-    #    예산 중단된 arm 은 **더 작은 분모로** 표에 실린다 — 그러면 그 arm 의 정답률이
+    # 부분 실행을 표에 드러낸다. `analyse` 는 응답 없는 문항을 조용히 건너뛰므로
+    #    예산 중단된 arm 은 **더 작은 분모로** 표에 실린다. 그러면 그 arm 의 정답률이
     #    다른 arm 과 다른 잣대가 되고, 표만 보면 그 사실이 안 보인다.
     partial = []
     for arm in ladder + loo + side + diag:
@@ -2188,7 +2188,7 @@ def _gate_cost(c: _GateContext) -> list[str]:
 
 
 def _gate_cumulative(c: _GateContext) -> list[str]:
-    """§2. 누적 곡선. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§2. 누적 곡선. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     arms, full, ladder = c.arms, c.full, c.ladder
 
@@ -2218,7 +2218,7 @@ def _gate_cumulative(c: _GateContext) -> list[str]:
 
 
 def _gate_by_axis(c: _GateContext) -> list[str]:
-    """§3. 축별 분해. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§3. 축별 분해. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     arms = c.arms
     full = c.full
@@ -2248,7 +2248,7 @@ def _gate_by_axis(c: _GateContext) -> list[str]:
                      + f' | {_pp(rates[0], rates[-1])} | '
                      + (f'{best[1]} {best[0] * 100:+.1f}%p |' if best else "— |"))
 
-    # 🔴 문서군 행 — 이번 최대 발견(A0→A1 뒤집힘)의 근거가 여기 있다. 게이트만 읽고도
+    # 문서군 행, 이번 최대 발견(A0→A1 뒤집힘)의 근거가 여기 있다. 게이트만 읽고도
     #    결론이 서야 하므로 `report.json` 에만 두지 않는다.
     groups = ("exchange", "major", "holding", "periodic")
     out.append("\n### 문서군 — **`A0→A1` 뒤집힘의 근거는 이 행이다**\n")
@@ -2304,7 +2304,7 @@ def _gate_by_axis(c: _GateContext) -> list[str]:
 
 
 def _gate_by_track(c: _GateContext) -> list[str]:
-    """§4. 트랙별. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§4. 트랙별. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     arms, ladder, loo, side = c.arms, c.ladder, c.loo, c.side
 
@@ -2329,7 +2329,7 @@ def _gate_by_track(c: _GateContext) -> list[str]:
 
 
 def _gate_loo(c: _GateContext) -> list[str]:
-    """§5. LOO. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§5. LOO. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     arms, full, loo, summary = c.arms, c.full, c.loo, c.summary
 
@@ -2366,13 +2366,13 @@ def _gate_loo(c: _GateContext) -> list[str]:
 
 
 def _gate_diagnostic_arms(c: _GateContext) -> list[str]:
-    """§5b. 진단 arm. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§5b. 진단 arm. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     arms, diag, full = c.arms, c.diag, c.full
 
-    # --- 5b. 진단 arm — 사다리에도 LOO 에도 자리가 없다 ---
-    # 🔴 성적 표와 **같은 표에 넣지 않는다.** 같은 표에 있으면 다음 사람이 그 줄을 성적으로
-    #    인용한다. 그렇다고 안 실으면 잰 값이 게이트 문서에서 사라진다 — 자리를 주되
+    # --- 5b. 진단 arm, 사다리에도 LOO 에도 자리가 없다 ---
+    # 성적 표와 **같은 표에 넣지 않는다.** 같은 표에 있으면 다음 사람이 그 줄을 성적으로
+    #    인용한다. 그렇다고 안 실으면 잰 값이 게이트 문서에서 사라진다. 자리를 주되
     #    경고를 표 안에 같이 쓴다 (`render_summary` §2b 와 같은 규칙).
     if diag and full:
         base = arms[full]
@@ -2408,11 +2408,11 @@ def _gate_diagnostic_arms(c: _GateContext) -> list[str]:
 
 
 def _gate_valuechain(c: _GateContext) -> list[str]:
-    """§6. A8 — 밸류체인 세 갈래. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§6. A8, 밸류체인 세 갈래. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     vc = c.vc
 
-    # --- 6. A8 — 밸류체인 세 갈래 ---
+    # --- 6. A8, 밸류체인 세 갈래 ---
     out.append("\n## 6. 🔴 A8 의 성공 기준은 정답률이 아니라 완결성이다\n")
     out.append("밸류체인 12문항 중 8건은 A8 없이도 근거가 닿는다 (BM25 자유텍스트). "
              "전체 정답률로만 재면 Δ 가 작게 나오고 오판한다. 세 갈래로 가른다.\n")
@@ -2473,7 +2473,7 @@ def _gate_valuechain(c: _GateContext) -> list[str]:
 
 
 def _gate_failure_stages(c: _GateContext) -> list[str]:
-    """§7. 실패 단계 · 근본 원인. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§7. 실패 단계 · 근본 원인. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     arms, full, ladder, loo, reports, side = c.arms, c.full, c.ladder, c.loo, c.reports, c.side
 
@@ -2501,7 +2501,7 @@ def _gate_failure_stages(c: _GateContext) -> list[str]:
 
 
 def _gate_flipped(c: _GateContext) -> list[str]:
-    """§8. 뒤집힌 문항. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§8. 뒤집힌 문항. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     full, ladder, loo, reports = c.full, c.ladder, c.loo, c.reports
 
@@ -2522,7 +2522,7 @@ def _gate_flipped(c: _GateContext) -> list[str]:
 
 
 def _gate_targeting(c: _GateContext) -> tuple[list[str], list, dict]:
-    """§9. 겨냥과 Δ 대조. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§9. 겨냥과 Δ 대조. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     arms, full, ladder, reports = c.arms, c.full, c.ladder, c.reports
 
@@ -2533,9 +2533,9 @@ def _gate_targeting(c: _GateContext) -> tuple[list[str], list, dict]:
              f'`{full}` 에서 **아직 틀리고 있는** 문항이므로, 사다리의 어느 arm 도 그것을 '
              "건지지 못했다. 그래서 두 칸을 따로 낸다: `실제로 건진 문항`(그 arm 이 "
              "이번에 번 것)과 `겨냥 문항의 현재 상태`(그 arm 의 **다음 판**이 해야 할 것).\n")
-    # 🔴 **배분표를 여기서 다시 적지 않는다.** 같은 13건 배분이 이 파일과 채점기에 각각
+    # **배분표를 여기서 다시 적지 않는다.** 같은 13건 배분이 이 파일과 채점기에 각각
     #    있으면 둘이 갈리고, 어느 쪽이 참인지 산출물로 판정할 수 없다. 채점기가 단일
-    #    원천이다 (`ea.TARGETED_BY_MANUAL_REVIEW` — 원문 대조 결과이고, 자동 분류기와의
+    #    원천이다 (`ea.TARGETED_BY_MANUAL_REVIEW`, 원문 대조 결과이고, 자동 분류기와의
     #    대조표를 `arm_allocation_reconciliation()` 이 낸다).
     targeted = ea.TARGETED_BY_MANUAL_REVIEW
     final_ok = {r["question_id"]: r["correct"]
@@ -2558,9 +2558,9 @@ def _gate_targeting(c: _GateContext) -> tuple[list[str], list, dict]:
         out.append(f'| {arm} ({label}) | {len(ids)} | {" ".join(ids)} '
                  f'| {_pp(arms[lower]["rate"], arms[arm]["rate"])} '
                  f'| {len(gained)}건 (겨냥 적중 {len(hit)}) | {status} |')
-    # 🔴 **자동 배분과 수동 배분을 코드가 대조한다.** 지금까지는 사람이 기억으로 이었고,
+    # **자동 배분과 수동 배분을 코드가 대조한다.** 지금까지는 사람이 기억으로 이었고,
     #    그 기억이 두 번 틀렸다("A6·A1b 공동 1위"). 자동 히스토그램은 A5 를 구조적으로 못
-    #    본다 — `verify_calculation` 이 답변 수치 중 최유리 값을 골라 비교하므로 10× 단위
+    #    본다. `verify_calculation` 이 답변 수치 중 최유리 값을 골라 비교하므로 10× 단위
     #    오류가 `mismatch=False` 로 통과하고 TOOL 버킷이 그리드에서 0건이 된다.
     rec = (reports[full] or {}).get("arm_allocation_reconciliation") if full else None
     if rec:
@@ -2584,7 +2584,7 @@ def _gate_targeting(c: _GateContext) -> tuple[list[str], list, dict]:
                      f'{" ".join(rec["critic_passed_wrong_answer"])} — 이 문항들의 arm 은 '
                      "자동 분류기가 지목할 수 없다 (그 판정 자체가 입력이다).\n")
 
-    # 🔴 우선순위 줄은 **상수에서 세어 쓴다.** 하드코딩해 두었다가 R2D 재측정에서
+    # 우선순위 줄은 **상수에서 세어 쓴다.** 하드코딩해 두었다가 R2D 재측정에서
     #    겨냥이 11 → 6 으로 줄자 낡은 순서(A4 5 → A5 4 → A1b 2 → A6 1)가 그대로 렌더됐다.
     order = " → ".join(
         f"{arm} {len(qs)}" for arm, qs, _ in
@@ -2600,11 +2600,11 @@ def _gate_targeting(c: _GateContext) -> tuple[list[str], list, dict]:
 
 
 def _gate_targeting_vs_loo(c: _GateContext, targeted: list, idx: dict) -> list[str]:
-    """§9b. 겨냥 문항을 LOO 짝과 대조. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§9b. 겨냥 문항을 LOO 짝과 대조. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     ladder, reports = c.ladder, c.reports
 
-    # --- 9b. 겨냥 문항을 LOO 짝과 대조한다 — 여기서 처방이 뒤집힌다 ---
+    # --- 9b. 겨냥 문항을 LOO 짝과 대조한다. 여기서 처방이 뒤집힌다 ---
     out.append("\n### 9b. 🔴 겨냥 문항을 **그 arm 을 끈 구성**과 대조한다\n")
     out.append("겨냥표만 보면 '그 arm 을 더 밀어라' 로 읽힌다. 그런데 **그 arm 을 끄면 맞는** "
              "문항이 있으면 처방이 정반대다 — 그 arm 이 **원인**이라는 뜻이다. "
@@ -2617,7 +2617,7 @@ def _gate_targeting_vs_loo(c: _GateContext, targeted: list, idx: dict) -> list[s
         lower = ladder[idx[arm] - 1]
         a = {r["question_id"]: r["correct"] for r in reports[lower]["rows"]}
         b = {r["question_id"]: r["correct"] for r in reports[arm]["rows"]}
-        # 겨냥 문항만이 아니라 **전 트랙**에서 본다 — 회귀 트랙에 숨어 있을 수 있다.
+        # 겨냥 문항만이 아니라 **전 트랙**에서 본다. 회귀 트랙에 숨어 있을 수 있다.
         caused = sorted(q for q in a if a[q] and not b.get(q))
         out.append(f'| {arm} ({label}) | {" ".join(ids)} | {lower} '
                  f'| {" ".join(f"**{q}**" for q in caused) or "없다"} |')
@@ -2628,7 +2628,7 @@ def _gate_targeting_vs_loo(c: _GateContext, targeted: list, idx: dict) -> list[s
 
 
 def _gate_paper_comparison(c: _GateContext) -> list[str]:
-    """§10. 논문 대조. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§10. 논문 대조. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     arms, full, ladder, loo = c.arms, c.full, c.ladder, c.loo
 
@@ -2636,9 +2636,9 @@ def _gate_paper_comparison(c: _GateContext) -> list[str]:
     out.append("\n## 10. 부록 D 대조 — 우리 Δ 가 타당한 크기인가\n")
     ours: dict[str, float | None] = {}
     prev = None
-    # 🔴 `rate` 는 **그리드 기준**이라 밸류체인 코호트에서는 `None` 이다 (그 폴더에
+    # `rate` 는 **그리드 기준**이라 밸류체인 코호트에서는 `None` 이다 (그 폴더에
     #    grid 행이 없다). 무방비로 빼면 `TypeError` 로 죽고, 그러면 그 코호트의
-    #    `gate_I.md` 를 **다시 만들 수 없다** — 실측으로 그랬고, 그래서 v3/vc 의 게이트가
+    #    `gate_I.md` 를 **다시 만들 수 없다**. 실측으로 그랬고, 그래서 v3/vc 의 게이트가
     #    R1 시점 렌더로 얼어붙어 하드코딩된 옛 값을 계속 싣고 있었다 (R2F 가 잡았다).
     #    `render_summary` 가 LOO 단독 실행에서 `IndexError` 로 죽던 것과 같은 가족이다.
     for arm in ladder:
@@ -2659,7 +2659,7 @@ def _gate_paper_comparison(c: _GateContext) -> list[str]:
 
 
 def _gate_knee(c: _GateContext) -> list[str]:
-    """§11. 꺾이는 지점. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§11. 꺾이는 지점. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     arms, ladder, reports, vc = c.arms, c.ladder, c.reports, c.vc
 
@@ -2674,7 +2674,7 @@ def _gate_knee(c: _GateContext) -> list[str]:
         ra, rb = arms[lower]["rate"], arms[upper]["rate"]
         ca, cb = arms[lower]["arm_cost_won"], arms[upper]["arm_cost_won"]
         d_rate, d_cost = (rb or 0) - (ra or 0), cb - ca
-        # 1원 미만의 비용 차는 0 으로 본다 — 반올림 잡음이 '정상' 과 '꺾이는 지점' 을 가르면 안 된다.
+        # 1원 미만의 비용 차는 0 으로 본다. 반올림 잡음이 '정상' 과 '꺾이는 지점' 을 가르면 안 된다.
         flat_cost = abs(d_cost) < 1.0
         if d_rate < 0:
             eff = "—"
@@ -2690,23 +2690,23 @@ def _gate_knee(c: _GateContext) -> list[str]:
             eff = f'{d_rate * 100 / d_cost:+.3f}'
             note = "정상" if d_cost > 0 else "**공짜 이득** — 싸지고 더 맞힌다"
         out.append(f'| {lower} → {upper} | {_pp(ra, rb)} | {d_cost:+,.0f} | {eff} | {note} |')
-    # 밸류체인 Δ 를 문자열로 박지 않는다 — 2026-08-11 에 실제로 뒤집혔다(+16.7 → +8.3%p).
+    # 밸류체인 Δ 를 문자열로 박지 않는다. 2026-08-11 에 실제로 뒤집혔다(+16.7 → +8.3%p).
     # 하드코딩이던 동안 재생성한 게이트는 §6(자동 계산, 5/12 vs 4/12)과 여기가 서로를
     # 반박하는 상태로 나왔다. 옆 문장의 비용은 산출물에서 계산돼 자동 갱신됐는데
     # 정답률만 문자열이었던 것이 원인이다.
     if vc.get("A8") and vc.get("L3"):
         r8 = ea._rate(vc["A8"]["rows"])
         r3 = ea._rate(vc["L3"]["rows"])
-        # 🔴 `_exact_rate` 를 통과시킨다 — `ea._rate()` 의 `rate` 는 셋째 자리 반올림이라
+        # `_exact_rate` 를 통과시킨다. `ea._rate()` 의 `rate` 는 셋째 자리 반올림이라
         # 그대로 빼면 이중 반올림이다 (`_exact_rate` 독스트링의 규칙).
         vc_delta = (f'**{_pp(_exact_rate(r3), _exact_rate(r8))}** 를 번다 '
                     f'(§6 — {r8["correct"]}/{r8["n_scored"]} vs L3 '
                     f'{r3["correct"]}/{r3["n_scored"]})')
     else:
         vc_delta = "이득을 본다 (§6 — 밸류체인 산출물이 없어 Δ 를 못 적는다)"
-    # 꺾이는 지점도 문자열로 박지 않는다 — 2026-08-11 에 A5 에서 A4 로 옮겨갔다.
-    # 🔴 첫 수정이 `flat[0]`(전이의 **위쪽** arm)을 써서 **같은 틀린 A5 를 계산으로
-    # 재생산**했다(재검토 B I2). 꺾이는 지점은 **마지막으로 번 arm** — 즉 Δ=0 인 첫 전이의
+    # 꺾이는 지점도 문자열로 박지 않는다. 2026-08-11 에 A5 에서 A4 로 옮겨갔다.
+    # 첫 수정이 `flat[0]`(전이의 **위쪽** arm)을 써서 **같은 틀린 A5 를 계산으로
+    # 재생산**했다(재검토 B I2). 꺾이는 지점은 **마지막으로 번 arm**, 즉 Δ=0 인 첫 전이의
     # 아래쪽이다. 그리고 "전부 한계 비용 0" 도 실측해서 쓴다. A5 는 +79원이라 거짓이었다.
     zeros = [(lo, up) for lo, up in zip(ladder, ladder[1:])
              if (arms[up]["rate"] or 0) - (arms[lo]["rate"] or 0) == 0]
@@ -2730,12 +2730,12 @@ def _gate_knee(c: _GateContext) -> list[str]:
              + f". 그럼에도 **다 넣는다**: {cost_note}"
              f"(A6·A7 은 LLM 0회, A8 은 발화 0건 → 토큰 0 증가). A8 은 밸류체인에서 "
              f"{vc_delta}.\n")
-    # 🔴 **위 블록만 고쳐서는 부족했다 (R2F).** 바로 위에서 밸류체인 정답률 Δ 를 계산으로
-    #    바꿨는데, 이 단락은 **같은 사실을 다시 문자열로** 들고 있었다 — 재생성된 v3 게이트가
+    # **위 블록만 고쳐서는 부족했다 (R2F).** 바로 위에서 밸류체인 정답률 Δ 를 계산으로
+    #    바꿨는데, 이 단락은 **같은 사실을 다시 문자열로** 들고 있었다. 재생성된 v3 게이트가
     #    §0(골든 34/46 · 계산) · §4(정답 7/12 · 계산) 과 이 단락(28/46 · 6/12 · 문자열)에서
     #    서로를 반박했다. 하드코딩 사고의 **일곱 번째 얼굴**이고 기전은 ① 과 같다:
     #    표는 계산, 본문은 문자열. 얼어붙게 둘 값은 **"옛 세대" 라고 라벨한 이력**뿐이다.
-    # 🔴 하위 `vc/` 가 없으면(= 이 폴더가 곧 밸류체인이면) 자기 보고서를 본다.
+    # 하위 `vc/` 가 없으면(= 이 폴더가 곧 밸류체인이면) 자기 보고서를 본다.
     #    한쪽만 보면 `--out …/vc` 로 렌더한 게이트에서 이 절이 "못 셌다" 로 비어 버리고,
     #    비어 있는 자리에 다음 사람이 다시 문자열을 박게 된다.
     vc_src = vc if vc else {k: v for k, v in reports.items() if k in ("A8", "L3")}
@@ -2757,8 +2757,8 @@ def _gate_knee(c: _GateContext) -> list[str]:
              "매달리고, **옛 세대(v2)에서 두 라운드 연속 뒤집혔다**(6→5→6/12 · L3 도 4→5). "
              f"정본 축은 **근거 완결성**이다(§6): {recall} 이고, {fan_in}. "
              "검색은 닿고 생성이 흔들리는 것이라 hop 의 기전은 무손상이다.\n")
-    # 🔴 그리고 이 정답률에는 부풀림이 하나 들어 있다 — 계산으로 확인해서 쓴다.
-    #    🔴 하위 `vc/` 폴더가 있으면 그것을, 없으면(= 이 폴더가 곧 밸류체인이면) 자기
+    # 그리고 이 정답률에는 부풀림이 하나 들어 있다. 계산으로 확인해서 쓴다.
+    #    하위 `vc/` 폴더가 있으면 그것을, 없으면(= 이 폴더가 곧 밸류체인이면) 자기
     #    보고서를 본다. 한쪽만 보면 `--out …/vc` 로 렌더한 게이트에서 이 경고가 사라진다.
     inflation_source = vc.get("A8") or (reports.get("A8") if not vc else None)
     if inflation_source:
@@ -2800,15 +2800,15 @@ def _gate_knee(c: _GateContext) -> list[str]:
 
 
 def _gate_measured42(c: _GateContext) -> list[str]:
-    """§12. measured 42 — v1 과 비교 가능한 유일한 축. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§12. measured 42, v1 과 비교 가능한 유일한 축. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     full, ladder, reports = c.full, c.ladder, c.reports
 
-    # --- 12. measured 42 — v1 과 비교 가능한 유일한 축 ---
-    # 🔴 제목과 셀 라벨을 `measured 42 중 그리드 36` 으로 통일한다. `measured_dev_cohort()`
+    # --- 12. measured 42, v1 과 비교 가능한 유일한 축 ---
+    # 제목과 셀 라벨을 `measured 42 중 그리드 36` 으로 통일한다. `measured_dev_cohort()`
     #    는 42개 ID 를 주지만 `_grid_rate` 가 `grid_rows` 로 한 번 더 걸러 **36** 이 된다
     #    (정보한계 6문항 제외). 예전 표는 분모 36 을 "measured 42" 로 라벨링해서, 같은
-    #    보고서 안에서 같은 코호트를 42 와 36 두 이름으로 불렀다 — 코호트/분모 혼용은 이
+    #    보고서 안에서 같은 코호트를 42 와 36 두 이름으로 불렀다. 코호트/분모 혼용은 이
     #    프로젝트가 가장 조심하는 실패 유형이고, 표 라벨은 문서로 옮겨 적힐 때 값보다
     #    먼저 떨어진다. (값은 안 바뀐다.)
     out.append("\n## 12. `measured 42 중 그리드 36` 코호트 — v1 과 비교 가능한 유일한 축\n")
@@ -2859,7 +2859,7 @@ def _gate_measured42(c: _GateContext) -> list[str]:
                  "그리드 밖이라 채점 대상은 36 이다. 이 표의 코호트 이름과 §12b·원장의 "
                  "`dev_grid_measured36` 은 **같은 것**을 가리킨다.\n")
 
-        # 🔴 12b. 뒤집힘을 두 성분으로 가른다 — 코호트 효과와 증설 효과는 다른 것이다.
+        # 12b. 뒤집힘을 두 성분으로 가른다. 코호트 효과와 증설 효과는 다른 것이다.
         out.append("\n### 12b. 🔴 `A0→A1` 뒤집힘을 두 성분으로 가른다\n")
         out.append('"문항이 42→88 로 늘자 부호가 뒤집혔다" 는 **절반만 맞다.** 그리드 72문항을 '
                  "v1 이 실제로 잰 36문항(`measured`)과 증설된 36문항으로 갈라 보면 "
@@ -2874,9 +2874,9 @@ def _gate_measured42(c: _GateContext) -> list[str]:
             out.append(f'| **v1** measured 36 | {g0["correct"]}/{g0["n_scored"]} '
                      f'| {g1["correct"]}/{g1["n_scored"]} '
                      f'| {_pp(_exact_rate(g0), _exact_rate(g1))} |')
-        # 🔴 이 분해는 `A0`·`A1` 산출물이 **이 세대 폴더 안에** 있을 때만 성립한다.
+        # 이 분해는 `A0`·`A1` 산출물이 **이 세대 폴더 안에** 있을 때만 성립한다.
         #    부분 세대(`--out artifacts/ablation/v3` 처럼 LOO·진단 arm 만 담긴 폴더)에서
-        #    무방비로 색인하면 `KeyError: 'A0'` 으로 보고서 전체가 죽는다 — 실제로 죽었다.
+        #    무방비로 색인하면 `KeyError: 'A0'` 으로 보고서 전체가 죽는다. 실제로 죽었다.
         #    다른 세대의 A0/A1 을 끌어와 채우지 않는다. 그것이야말로 이 절이 경고하는
         #    **세대 혼합**이고, 그렇게 만든 Δ 는 어느 시스템의 것도 아니다.
         if all(a in reports for a in ("A0", "A1")):
@@ -2909,7 +2909,7 @@ def _gate_measured42(c: _GateContext) -> list[str]:
 
 
 def _gate_reading_notes(c: _GateContext) -> list[str]:
-    """§13. 읽을 때 주의. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§13. 읽을 때 주의. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     arms = c.arms
 
@@ -2923,7 +2923,7 @@ def _gate_reading_notes(c: _GateContext) -> list[str]:
              "따로 세고, 지어내면 `HALLUCINATION` 으로 잡는다 (§4).\n")
     out.append("- 근본 원인 히스토그램은 **그리드 기준**이다 (`root_cause_histogram_grid`). "
              "전체 88 기준을 쓰면 회귀 트랙이 섞여 겨냥 건수가 부푼다.\n")
-    # 🔴 이 문단의 실측 수치도 문자열이었다 — 재실행으로 방향까지 뒤집혔는데(옛 문자열은
+    # 이 문단의 실측 수치도 문자열이었다. 재실행으로 방향까지 뒤집혔는데(옛 문자열은
     # "A0 3.73초 vs A5·A8 0.02~0.03초") 갱신되지 않았다. 하드코딩 사고의 네 번째 얼굴이다.
     # 이제 산출물에서 읽는다. 값이 없으면 수를 쓰지 않는다.
     lat = [(a, c.get("latency_s_mean_recorded", c.get("latency_s_mean")))
@@ -2939,9 +2939,9 @@ def _gate_reading_notes(c: _GateContext) -> list[str]:
                 + (f" … `{lat[-1][0]}` {lat[-1][1]:.2f}초" if len(lat) > 3 else "")
                 if lat else " 현 세대 산출물에 값이 없다.")
              + " 진짜 응답 시간은 캐시 없이 다시 재야 나온다 (제출 후, 배포 리허설에서).\n")
-    # 🔴 A3 의 겨냥 건수를 **손으로 적지 않는다.** 종전에는 "겨냥점 1건 (Q-094, rank 8·9)"
+    # A3 의 겨냥 건수를 **손으로 적지 않는다.** 종전에는 "겨냥점 1건 (Q-094, rank 8·9)"
     #    이 문자열로 박혀 있었고, Q-094 가 리랭커 없이 정답이 된 뒤에도 그대로 렌더됐다.
-    #    상수가 단일 원천이므로 거기서 센다 (I-6 과 같은 뿌리 — 문자열이 상수를 복제한 경우).
+    #    상수가 단일 원천이므로 거기서 센다 (I-6 과 같은 뿌리, 문자열이 상수를 복제한 경우).
     a3 = next((ids for arm, ids, _ in ea.TARGETED_BY_MANUAL_REVIEW if arm == "A3"), ())
     out.append("- **A2·A3 는 v1 에서 실측으로 제외했다** — A2 는 dense 가 top_k 에 31건을 "
              "새로 올렸는데 골든 0건, A3 는 겨냥점 1건. "
@@ -2956,11 +2956,11 @@ def _gate_reading_notes(c: _GateContext) -> list[str]:
 
 
 def _gate_heldout(c: _GateContext) -> list[str]:
-    """§14. heldout — 게이트 I 의 마지막 항목. 순수 함수 — 디스크를 안 쓰고 LLM 을 안 부른다."""
+    """§14. heldout, 게이트 I 의 마지막 항목. 순수 함수, 디스크를 안 쓰고 LLM 을 안 부른다."""
     out: list[str] = []
     arms, held = c.arms, c.held
 
-    # --- 14. heldout — 게이트 I 의 마지막 항목 ---
+    # --- 14. heldout, 게이트 I 의 마지막 항목 ---
     out.append("\n## 14. heldout 최종 측정 — 일반화 낙폭\n")
     if not held:
         out.append("🔴 **아직 열지 않았다.** `evalset/heldout.jsonl` 18문항은 최종 구성 "
@@ -2968,7 +2968,7 @@ def _gate_heldout(c: _GateContext) -> list[str]:
                  "여기서 비어 있다.\n")
     else:
         dev = held["dev_grid"]
-        # 🔴 "이번이 두 번째" 를 하드코딩하지 않는다 — 바로 앞이 `use` 를 동적으로 찍으므로
+        # "이번이 두 번째" 를 하드코딩하지 않는다. 바로 앞이 `use` 를 동적으로 찍으므로
         #    3회째가 되면 한 문단 안에서 모순이 생긴다. 이력은 `HELDOUT_HISTORY` 가 든다.
         prior = [h for h in HELDOUT_HISTORY if h["use"] < (held.get("use") or 0)]
         prior_note = " · ".join(f'{h["use"]}회 {h["arm"]} {h["correct"]}/{h["n_scored"]}'
@@ -2983,9 +2983,9 @@ def _gate_heldout(c: _GateContext) -> list[str]:
         out.append("🔴 **낙폭은 축마다 다르게 나온다.** dev 쪽 분모가 v1 36 → v2 72 로 "
                  "늘었으므로 세 축을 다 낸다 — 하나만 적으면 그것이 '그 낙폭' 으로 굳고, "
                  "가장 유리한 축이 뽑히기 쉽다. heldout 쪽 18문항만 두 판에서 동일하다.\n")
-        # 🔴 이 절의 dev 쪽 수는 **원장이 얼어붙은 시점**의 것이다. heldout 은 다시 못 재므로
+        # 이 절의 dev 쪽 수는 **원장이 얼어붙은 시점**의 것이다. heldout 은 다시 못 재므로
         # 원장을 갱신하지 않는 것이 옳지만, 그 결과 dev 수가 §2·§12 와 갈린다. 라벨이 없으면
-        # 같은 문서 안에서 모순으로 읽힌다 (재검토 B C1 — 실제로 그 상태였다).
+        # 같은 문서 안에서 모순으로 읽힌다 (재검토 B C1, 실제로 그 상태였다).
         live = arms.get(held.get("arm")) or {}
         if live.get("n_scored") and (
                 live.get("correct") != dev.get("correct")
@@ -3045,20 +3045,20 @@ def render_gate(root: Path, budget_cap: float) -> str:
     """게이트 I 5항목(heldout 제외)을 표로 낸다. **LLM 0회.**
 
     머리말이 공용 값을 한 번 계산하고, 절은 위 순수 함수들이 낸다.
-    **절의 순서가 곧 문서의 순서다** — 여기 목록이 정본이다.
+    **절의 순서가 곧 문서의 순서다**. 여기 목록이 정본이다.
     """
     reports = {a: _load_report(root, a) for a in ablation.RUN_ORDER}
     reports = {k: v for k, v in reports.items() if v}
     ladder = [a for a in ablation.LADDER if a in reports]
     loo = [a for a in ablation.LOO_REMOVED if a in reports]
-    # 🔴 진단 arm 은 사다리에도 LOO 에도 없다 (`ablation.DIAGNOSTIC_ARMS` 머리말). 그래서
-    #    이 목록을 따로 들지 않으면 **게이트 문서에 한 글자도 안 나온다** — 실제로 `ORACLE`
+    # 진단 arm 은 사다리에도 LOO 에도 없다 (`ablation.DIAGNOSTIC_ARMS` 머리말). 그래서
+    #    이 목록을 따로 들지 않으면 **게이트 문서에 한 글자도 안 나온다**. 실제로 `ORACLE`
     #    1,747원을 쓰고도 gate_I.md 어디에도 없었다. 더 나쁜 것은 §1 의 "캐시가 막은 금액"
     #    이다: 실지출(재귀 합)에는 그 돈이 들어가는데 arm 비용 합계에는 안 들어가서
     #    차액이 그만큼 작게 찍힌다. **비용 표에는 넣고, 성적 표(누적 곡선·LOO)에는 안 넣는다.**
     diag = [a for a in ablation.DIAGNOSTIC_ARMS if a in reports]
-    # 🔴 곁가지 arm(`A8-lean`·`A2`·`A2F`)은 사다리도 LOO 도 진단도 아니라서 위 세 목록에
-    #    안 잡힌다. 목록을 손으로 적지 않고 `ablation.SIDE_ARMS` 를 읽는다 — 새 곁가지가
+    # 곁가지 arm(`A8-lean`·`A2`·`A2F`)은 사다리도 LOO 도 진단도 아니라서 위 세 목록에
+    #    안 잡힌다. 목록을 손으로 적지 않고 `ablation.SIDE_ARMS` 를 읽는다. 새 곁가지가
     #    생길 때 여기에 이름을 적는 것을 잊으면 **돈을 쓰고도 이 문서에 안 나온다**
     #    (`ORACLE` 1,747원이 그렇게 없었다) 그리고 §1 의 "캐시가 막은 금액" 이 그만큼
     #    작게 찍힌다 (실지출은 `run.json` 재귀 합이라 그 돈이 들어간다).
@@ -3090,8 +3090,8 @@ def render_gate(root: Path, budget_cap: float) -> str:
              f'**{meta.get("n_cases", 0)}문항**'
              + (f' ({cohort_note})' if cohort_note else "")
              + ' · 모델 HCX-005 · 온도 0.0\n')
-    # 🔴 heldout 은 **최종 1회**라 이 문서가 두 상태를 가진다. 문구를 하드코딩하면
-    #    측정 후에도 "아직 안 쟀다" 가 찍히거나 그 반대가 된다 — 원장 파일로 가른다.
+    # heldout 은 **최종 1회**라 이 문서가 두 상태를 가진다. 문구를 하드코딩하면
+    #    측정 후에도 "아직 안 쟀다" 가 찍히거나 그 반대가 된다. 원장 파일로 가른다.
     heldout_ledger = root / "heldout" / HELDOUT_LEDGER
     held = (json.loads(heldout_ledger.read_text(encoding="utf-8"))
             if heldout_ledger.exists() else None)
@@ -3103,7 +3103,7 @@ def render_gate(root: Path, budget_cap: float) -> str:
         o.append("🔴 **heldout 낙폭은 이 문서에 없다 — Task 10 몫이다.** "
                  "여기서 `evalset/heldout.jsonl` 을 열지 않았다.\n")
 
-    # 🔴 여기부터가 절이다. **위 머리말이 만든 값만** 절에 들어간다 (AST 전수 조사).
+    # 여기부터가 절이다. **위 머리말이 만든 값만** 절에 들어간다 (AST 전수 조사).
     c = _GateContext(
         root=root, budget_cap=budget_cap, budget_source=budget_source,
         budget_note=budget_note, reports=reports, ladder=ladder,
@@ -3146,7 +3146,7 @@ def write_gate_report(root: Path, budget_cap: float) -> None:
 # --- CLI ----------------------------------------------------------------------
 
 def run_retrieval(args) -> None:
-    """🔴 크레딧 규칙: 생성 0회. 임베딩만 실측 usage 로 집계한다."""
+    """크레딧 규칙: 생성 0회. 임베딩만 실측 usage 로 집계한다."""
     from argus.embed import USAGE
 
     snapshot = args.snapshot or (SNAPSHOT_PATH if SNAPSHOT_PATH.exists() else "")
@@ -3193,7 +3193,7 @@ def run_retrieval(args) -> None:
 
 
 def run_judge_sigma(args) -> None:
-    """🔴 크레딧 규칙: LLM 0회. 회차 폴더가 있는 arm 만 집계한다."""
+    """크레딧 규칙: LLM 0회. 회차 폴더가 있는 arm 만 집계한다."""
     records = ea._load_records()
     cases = load_cases(args.cohort, args.snapshot)
     arms = ([a.strip() for a in args.arm.split(",") if a.strip()]
@@ -3212,12 +3212,12 @@ def run_judge_sigma(args) -> None:
 
 
 def _utf8_console() -> None:
-    """🔴 Windows 콘솔 기본 코드페이지(cp949)는 `—`·`✓` 를 못 찍어 **실행이 다 끝난 뒤
+    """Windows 콘솔 기본 코드페이지(cp949)는 `,`·`` 를 못 찍어 **실행이 다 끝난 뒤
     마지막 print 에서** UnicodeEncodeError 로 죽는다. 산출물은 이미 디스크에 있으니 측정
     손실은 없지만 측정이 **실패한 것처럼 보이고**, heldout 처럼 다시 못 돌리는 실행에서는
     그 착각이 위험하다.
 
-    🔴 **import 시점에 하지 않는다.** pytest 의 capture 는 sys.stdout 을 기본 인코딩으로
+    **import 시점에 하지 않는다.** pytest 의 capture 는 sys.stdout 을 기본 인코딩으로
     쓴 임시파일로 갈아 두므로, 모듈 import 만으로 이걸 utf-8 로 바꾸면 pytest 가 자기
     캡처를 되읽을 때 `UnicodeDecodeError` 로 죽는다 (실제로 그렇게 1,163건이 깨졌다).
     그래서 CLI 진입점 안에서만 부른다.
@@ -3230,7 +3230,7 @@ def _utf8_console() -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    """🔴 `argv` 를 받는다. 통합 테스트가 `main()` 을 실제로 태울 수 있어야 한다 —
+    """`argv` 를 받는다. 통합 테스트가 `main()` 을 실제로 태울 수 있어야 한다.
     "거부된 heldout 실행이 빈 폴더를 흔적으로 남기지 않는다" 는 성질은 `mkdir` 과
     `assert_heldout_unused` 의 **호출 순서**로만 참이고, 그것을 지키는 회귀 테스트가
     없으면 다음 사람이 순서를 바꿔도 스위트가 잡지 못한다.
@@ -3272,17 +3272,17 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.judge_repeat < 1:
         raise SystemExit(f"--judge-repeat 은 1 이상이어야 합니다: {args.judge_repeat}")
-    # 🔴 `--offline` 은 "요청 캐시 적중만 허용" 이고 반복 회차는 **정의상 우회**다.
-    #    두 인자를 같이 받으면 첫 우회 호출이 `RuntimeError` 로 죽는다 — 인자 단계에서 막는다.
+    # `--offline` 은 "요청 캐시 적중만 허용" 이고 반복 회차는 **정의상 우회**다.
+    #    두 인자를 같이 받으면 첫 우회 호출이 `RuntimeError` 로 죽는다. 인자 단계에서 막는다.
     if args.offline and args.judge_repeat > 1:
         raise SystemExit(
             "🔴 `--offline` 과 `--judge-repeat > 1` 은 같이 못 씁니다. 반복 회차는 "
             "요청 캐시를 **우회**해야 측정이 성립하는데(온도 0.0 이라 안 우회하면 3회가 "
             "전부 같은 파일을 읽습니다), `--offline` 은 캐시 미적중 호출을 금지합니다.\n"
             "   이미 돌려 둔 회차를 다시 집계만 하려면 `--judge-sigma` 를 쓰세요 (LLM 0회).")
-    # 🔴 heldout 은 반복 대상이 아니다. 회차마다 judge 를 새로 사는 것은 heldout 을
+    # heldout 은 반복 대상이 아니다. 회차마다 judge 를 새로 사는 것은 heldout 을
     #    한 번 더 '여는' 일이 아니지만, 되돌릴 수 없는 자산에 새 호출을 얹는 경로는
-    #    아예 열지 않는다 — 이 측정은 dev 쪽에서 끝난다.
+    #    아예 열지 않는다. 이 측정은 dev 쪽에서 끝난다.
     if args.heldout and args.judge_repeat > 1:
         raise SystemExit("🔴 `--heldout` 과 `--judge-repeat > 1` 은 같이 못 씁니다.")
 
@@ -3290,7 +3290,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.out:
         OUT_DIR = Path(args.out) if Path(args.out).is_absolute() else ROOT / args.out
 
-    # 🔴 상한과 정지선을 가른다. 브리프의 규칙은 "상한 N, 80% 에서 중단" 이므로
+    # 상한과 정지선을 가른다. 브리프의 규칙은 "상한 N, 80% 에서 중단" 이므로
     #    러너에 넘기는 값은 정지선이고, 보고에 쓰는 값은 상한이다.
     budget_cap = args.budget_won if args.budget_won else BUDGET_WON
     stop_won = round(budget_cap * 0.8, 1)
@@ -3301,7 +3301,7 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     if args.rescore:
-        # 🔴 LLM 0회. 캐시를 설치하지 않는다 — 호출 경로 자체를 안 탄다.
+        # LLM 0회. 캐시를 설치하지 않는다. 호출 경로 자체를 안 탄다.
         run_rescore(OUT_DIR)
         return
 
@@ -3310,16 +3310,16 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     if args.judge_sigma:
-        # 🔴 LLM 0회. 디스크에 이미 있는 회차 폴더만 다시 읽는다.
+        # LLM 0회. 디스크에 이미 있는 회차 폴더만 다시 읽는다.
         run_judge_sigma(args)
         return
 
-    # 🔴 heldout 제동은 **디렉터리를 만들기 전에** 건다. 뒤에 걸면 거부된 실행이 빈 폴더와
+    # heldout 제동은 **디렉터리를 만들기 전에** 건다. 뒤에 걸면 거부된 실행이 빈 폴더와
     #    `index_snapshot.json` 을 남기고, 산출물만 보는 사람에게 그것이 "돌렸다" 는 흔적이 된다.
     heldout_final = ""
     if args.heldout:
-        # 🔴 arm 을 **하나만** 받는다. 여러 개를 허용하면 heldout 이 개발셋이 되고
-        #    그것은 되돌릴 수 없다 — 인자 형태에서부터 막는다.
+        # arm 을 **하나만** 받는다. 여러 개를 허용하면 heldout 이 개발셋이 되고
+        #    그것은 되돌릴 수 없다. 인자 형태에서부터 막는다.
         finals = [a.strip() for a in args.arm.split(",") if a.strip()]
         if len(finals) != 1:
             raise SystemExit(
@@ -3335,7 +3335,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.dry:
         # 리허설 응답을 본 실행 캐시에 섞으면 가짜 답이 영원히 굳는다. 폴더부터 가른다.
         OUT_DIR = ROOT / "artifacts" / "ablation_dry"
-    # 🔴 v1 자리 쓰기 거부도 **디렉터리를 만들기 전에** 건다 (heldout 제동과 같은 이유).
+    # v1 자리 쓰기 거부도 **디렉터리를 만들기 전에** 건다 (heldout 제동과 같은 이유).
     assert_not_v1_root(OUT_DIR, "arm 산출물·summary.json")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     cache = RequestCache(CACHE_DIR, offline=args.offline)
@@ -3384,7 +3384,7 @@ def main(argv: list[str] | None = None) -> None:
     elif args.arm:
         targets = [a.strip() for a in args.arm.split(",") if a.strip()]
 
-    # 🔴 `ORACLE` 은 골든이 주입돼야 돈다. heldout 경로는 위에서 이미 반환했다.
+    # `ORACLE` 은 골든이 주입돼야 돈다. heldout 경로는 위에서 이미 반환했다.
     install_oracle_golden(targets, cases)
 
     live: dict[str, dict] = {}
@@ -3396,7 +3396,7 @@ def main(argv: list[str] | None = None) -> None:
               f"/ 정지선 {stop_won:,.0f}원 (상한 {budget_cap:,.0f})"
               + (f" · judge {args.judge_repeat}회 반복" if args.judge_repeat > 1 else "")
               + " ===")
-        # 🔴 `_write_run` 이 지출 보존 가드를 들고 있다. 직접 `write_text` 하지 않는다 —
+        # `_write_run` 이 지출 보존 가드를 들고 있다. 직접 `write_text` 하지 않는다.
         #    그것이 1,901.0원을 0.0 으로 덮은 경로다 (`_write_run` docstring ③).
         live[arm] = _write_run(arm, run_arm(arm, cases, cache, stop_won, args.force,
                                             judge_repeat=args.judge_repeat))
@@ -3408,7 +3408,7 @@ def main(argv: list[str] | None = None) -> None:
             reports[arm] = score_arm(arm, scored_cases, records,
                                      cohort=args.cohort or "dev")
 
-    # 🔴 회차별 judge 산출물이 있으면 σ 를 낸다. LLM 0회 — `score_arm` 뒤에 두는 것은
+    # 회차별 judge 산출물이 있으면 σ 를 낸다. LLM 0회, `score_arm` 뒤에 두는 것은
     #    `_use_dirs` 를 갈아 끼우는 함수 둘이 서로의 경로를 물려받지 않게 하기 위함이다.
     for arm in (targets or list(reports)):
         sigma = judge_sigma(arm, scored_cases, records, cohort=args.cohort or "dev")
@@ -3425,8 +3425,8 @@ def main(argv: list[str] | None = None) -> None:
             "price_won_per_1k": ea.PRICE_WON_PER_1K,
             "index_snapshot": snapshot}
     meta.update(_spend_meta(OUT_DIR, cache, live))
-    # 🔴 여덟 번째 결함이 **만들어지는 자리**에서 센다 (`stale_parent_summaries` 독스트링).
-    #    하위 코호트를 `--out …/vc` 로 돌리면 부모의 재귀 합이 조용히 낡는다 — v3 에서
+    # 여덟 번째 결함이 **만들어지는 자리**에서 센다 (`stale_parent_summaries` 독스트링).
+    #    하위 코호트를 `--out …/vc` 로 돌리면 부모의 재귀 합이 조용히 낡는다. v3 에서
     #    실제로 그렇게 51.9원(`vc/L3`)이 갈렸고, 게이트를 렌더할 때까지 아무도 몰랐다.
     stale = report_stale_parents(OUT_DIR)
     if stale:

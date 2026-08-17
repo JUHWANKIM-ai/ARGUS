@@ -1,4 +1,4 @@
-"""Phase A-1 — 문서 구조 프로파일 (docs/pipeline/01-eda.md).
+"""Phase A-1, 문서 구조 프로파일 (docs/pipeline/01-eda.md).
 
 LLM 호출 0회. 파싱은 src/argus/corpus/* 를 그대로 재사용한다.
 
@@ -223,9 +223,9 @@ _CP_IN_TEXT = re.compile(
     r"(계약\s*상대|계약\s*당사자|거래\s*상대|상대방|발주처|매수인|매도인|양수인|양도인|"
     r"콜옵션\s*권리자|투자\s*대상|피투자|출자\s*대상)\s*[:：]?\s*([^\n·]{2,60})"
 )
-# 라벨 없이 금액 표현만 있는지 — '규칙이 놓친 것' 과 '애초에 금액이 없는 것' 을 가른다
+# 라벨 없이 금액 표현만 있는지. '규칙이 놓친 것' 과 '애초에 금액이 없는 것' 을 가른다
 _ANY_MONEY = re.compile(r"[\d,]+(?:\.\d+)?\s*(?:조원|조|억원|억|백만원|천만원|만원|원|USD|달러)")
-# 투자판단 300건이 무엇에 관한 공시인지 — 제목 행 주제 분류
+# 투자판단 300건이 무엇에 관한 공시인지. 제목 행 주제 분류
 _TOPIC_RULES = (
     ("공급·수주계약", r"계약|수주|공급|납품|MOU|양해각서"),
     ("시설·설비투자", r"투자|증설|공장|건설|Fab|라인|착공|설비"),
@@ -277,7 +277,7 @@ def label_gap_report(docs: list[dict], records: dict[str, dict]) -> dict:
 
         joined_labels = {_norm_label(c) for row in rows for c in row[:-1]}
 
-        # (a) 라벨 기반 — 표 라벨이 이미 존재하는데 normalize 가 안 보는 경우
+        # (a) 라벨 기반, 표 라벨이 이미 존재하는데 normalize 가 안 보는 경우
         if any("투자금액" in x for x in joined_labels):
             bucket["recoverable"]["amount_by_label_투자금액"] += 1
         if any("자기자본대비" in x for x in joined_labels):
@@ -287,7 +287,7 @@ def label_gap_report(docs: list[dict], records: dict[str, dict]) -> dict:
         if any("투자구분" in x for x in joined_labels):
             bucket["recoverable"]["kind_by_label_투자구분"] += 1
 
-        # (b) 자유서술 기반 — 값이 문장 안에 있는 경우
+        # (b) 자유서술 기반, 값이 문장 안에 있는 경우
         am = _AMOUNT_IN_TEXT.search(text)
         if am:
             bucket["recoverable"]["amount_by_freetext"] += 1
