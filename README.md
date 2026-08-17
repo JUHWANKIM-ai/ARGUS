@@ -216,7 +216,7 @@ deploy/         배포 절차와 systemd 유닛
 | 1 | 소스코드 및 환경 정의 | 본 저장소, `requirements.txt` |
 | 2 | 기술 제안서 | `docs/proposal/` |
 | 3 | End-point URL 및 API 명세 | 본 문서 |
-| 4 | 전처리 산출물 | 위 스토리지 링크, `evalset/` |
+| 4 | 전처리 산출물 | [artifacts](https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=drive_link) (1.3GB) · [data](https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEOZIsJ?usp=sharing) (5.2GB) · `evalset/` |
 
 주최 측 공지를 기다리는 항목이 둘 있다. 발신 IP 대역이 공지되면 방화벽 인바운드를 해당
 대역으로 좁히고, 평가 운영 일자가 공지되면 그 기간에 맞추어 서버를 운영한다.

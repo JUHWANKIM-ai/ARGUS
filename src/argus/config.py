@@ -1,4 +1,4 @@
-"""설정 단일 출처. 비밀정보는 .env 에서만 읽는다."""
+"""Single source of configuration. Secrets are read from .env only."""
 from __future__ import annotations
 
 import os
@@ -12,6 +12,7 @@ CLOVA_PATH = f"/testapp/v3/chat-completions/{MODEL}"
 
 
 def _find_repo_root(start: Path | None = None) -> Path:
+    """Walk upwards from `start` until a directory holding pyproject.toml."""
     here = (start or Path(__file__)).resolve()
     for base in [here, *here.parents]:
         if (base / "pyproject.toml").exists():
@@ -20,6 +21,7 @@ def _find_repo_root(start: Path | None = None) -> Path:
 
 
 def _load_dotenv(root: Path) -> None:
+    """Load .env into the process environment without overriding existing keys."""
     path = root / ".env"
     if not path.exists():
         return
@@ -32,6 +34,8 @@ def _load_dotenv(root: Path) -> None:
 
 @dataclass(frozen=True)
 class Settings:
+    """Resolved paths, credentials and model endpoint."""
+
     repo_root: Path
     corpus_root: Path
     artifacts_root: Path
@@ -42,6 +46,7 @@ class Settings:
 
 @lru_cache(maxsize=1)
 def settings() -> Settings:
+    """Resolved settings for this repository checkout. Cached per process."""
     root = _find_repo_root()
     _load_dotenv(root)
     artifacts = root / "artifacts"

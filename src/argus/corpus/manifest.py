@@ -1,4 +1,4 @@
-"""manifest.jsonl / universe.csv 로딩과 LLM 없는 프리필터."""
+"""Loading of manifest.jsonl and universe.csv, plus rule-based prefiltering."""
 from __future__ import annotations
 
 import csv
@@ -18,14 +18,14 @@ def load_manifest() -> tuple[dict, ...]:
 @lru_cache(maxsize=1)
 def load_universe() -> dict[str, dict]:
     path = settings().corpus_root / "universe.csv"
-    # universe.csv 는 UTF-8 BOM 이다
+    # universe.csv is UTF-8 with BOM
     with path.open(encoding="utf-8-sig", newline="") as fh:
         return {row["corp_name"]: row for row in csv.DictReader(fh)}
 
 
 @lru_cache(maxsize=1)
 def _alias_index() -> dict[str, str]:
-    """통용명·영문명·법인명을 모두 corp_name 으로 되돌리는 색인."""
+    """Index mapping common, English and legal names back to corp_name."""
     index: dict[str, str] = {}
     for corp_name, row in load_universe().items():
         for alias in (corp_name, row.get("listed_name"), row.get("corp_eng_name")):

@@ -1,17 +1,20 @@
-"""예산 가드. 크레딧과 응답 지연을 동시에 지킨다."""
+"""Budget guard. Bounds both credit spend and response latency."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 
 class BudgetExceeded(RuntimeError):
-    """예산 초과. 호출부는 이 시점의 근거로 답변하거나 한계를 고지한다."""
+    """Raised when a budget is exhausted.
+
+    The caller answers with the evidence gathered so far or reports a limit.
+    """
 
 
 @dataclass
 class Budget:
-    max_steps: int = 8          # 주최 측 참조 아키텍처 상한
-    max_hops: int = 3           # ToG-2 반복 깊이
+    max_steps: int = 8          # organiser reference architecture ceiling
+    max_hops: int = 3           # ToG-2 iteration depth
     max_llm_calls: int = 6
     max_tokens: int = 20_000
 
@@ -49,5 +52,5 @@ class Budget:
 
 
 def should_terminate(text: str) -> bool:
-    """자연어 종료 신호. 코드 상한과 함께 쓰는 이중 장치의 한 축."""
+    """Natural-language stop signal, paired with the hard ceilings above."""
     return "terminate" in (text or "").lower()

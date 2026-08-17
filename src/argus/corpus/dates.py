@@ -1,4 +1,4 @@
-"""날짜·기간 연산. LLM 이 신뢰할 수 없는 영역이라 결정적으로 처리한다."""
+"""Date and period arithmetic, computed deterministically."""
 from __future__ import annotations
 
 import re
@@ -26,7 +26,7 @@ def parse_date(text: str) -> date | None:
 
 
 def duration_ym(start: date, end: date) -> tuple[int, int]:
-    """시작일~종료일의 만(滿) 년·개월. 일 단위 잔여는 버린다."""
+    """Whole years and months between two dates. Residual days are dropped."""
     months = (end.year - start.year) * 12 + (end.month - start.month)
     if end.day < start.day:
         months -= 1
