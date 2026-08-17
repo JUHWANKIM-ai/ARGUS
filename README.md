@@ -17,6 +17,7 @@
 7. [운영 및 배포](#7-운영-및-배포)
 8. [제출물](#8-제출물)
 9. [부록](#9-부록)
+10. [참고 문헌](#10-참고-문헌)
 
 ---
 
@@ -45,7 +46,7 @@ ARGUS는 국내 상장사 70곳의 전자공시를 대상으로 자연어 질의
 | 평가셋 정확도 | 110/112 (98.2%) |
 | 미공개 문항 정확도 | 49/54 (90.7%) |
 | 응답 시간 | 실측 최대 10.0초 |
-| 자동화 시험 | 1,409건 |
+| 자동화 시험 | 1,420건 |
 
 ---
 
@@ -197,7 +198,7 @@ ARGUS는 국내 상장사 70곳의 전자공시를 대상으로 자연어 질의
 | 환각 생성 | 수치 출처 검증으로 근거에 없는 수치를 탐지 |
 | 개인정보 노출 | 라우팅 차단과 출력 마스킹 2중 계층 |
 | 코퍼스 무결성 | 색인과 레코드를 SHA256으로 고정, 배포본과 개발본 일치 확인 |
-| 구성 변경 사고 | 자동화 시험 1,409건이 제출 구성과 기능별 동작을 고정 |
+| 구성 변경 사고 | 자동화 시험 1,420건이 제출 구성과 기능별 동작을 고정 |
 
 5xx를 반환하지 않는 것은 설계 선택이다. 규약상 타임아웃과 5xx는 최대 2회 재시도되며
 세 번 모두 실패하면 해당 문항이 0점 처리된다. 상류 장애가 발생하더라도 응답 스키마를
@@ -349,7 +350,7 @@ src/argus/
 
 evalset/        평가 문항과 정답
 scripts/        색인 빌드, 측정, 채점
-tests/          1,409개
+tests/          1,420개
 docs/           설계 문서와 측정 기록
 deploy/         배포 절차와 systemd 유닛
 ```
@@ -364,5 +365,84 @@ deploy/         배포 절차와 systemd 유닛
 | [`docs/pipeline/`](docs/pipeline/) | 단계별 설계와 측정 |
 | [`deploy/README.md`](deploy/README.md) | 배포 절차 |
 | [`docs/figures/argus-algorithm-v6.drawio`](docs/figures/argus-algorithm-v6.drawio) | 파이프라인 도면 |
+
+---
+
+## 10. 참고 문헌
+
+도면과 파이프라인 설계에 참조한 문헌 18편이다. 세 갈래로 나눈다. **논문에 있다는 것은
+채택 사유가 아니다.** 처방마다 구성 스위치를 세워 우리 코퍼스에서 재고, 그 결과로 갈랐다.
+기각도 결과이므로 함께 적는다. 측정 절차는 [`docs/pipeline/09-ablation.md`](docs/pipeline/09-ablation.md),
+스위치 정의는 [`src/argus/ablation.py`](src/argus/ablation.py)에 있다.
+
+### 10.1 최종 베이스라인이 채택한 것
+
+| 문헌 | 가져온 것 | 구현 위치 |
+|---|---|---|
+| Chain-of-Thought [2] | 답변보다 근거와 계산을 먼저 쓰게 하는 순서 | `agent/prompts.py` 트리거 문장, 응답의 `think_trace` 필드 |
+| Chain-of-Thought 부록 B [2] | 생성된 등식을 외부 계산기로 재계산하고 결과를 전파 | `agent/critic.py`의 `verify_answer_arithmetic`, `substitute_verified`·`regenerate_on_verify` |
+| ReAct [4] | 검색과 추론을 교차하는 다단계 루프 | `agent/pipeline.py`의 hop 사다리. **행동 선택은 LLM이 아니다** — `plan_section_hops`가 만든 결정적 계획을 따른다 |
+| GPT-3 [1] | 가중치를 고치지 않고 문맥만으로 과제를 수행한다는 전제 | 과제 규약상 베이스 모델 추가 학습이 불가하므로 이 전제가 접근 자체의 근거다. 다만 few-shot exemplar 기법은 쓰지 않는다 |
+| Diagnosing Evidence Utilization [15] | 골든 근거를 줘도 모델이 그것을 쓰지 않는다는 진단 | `golden_oracle` 스위치로 근거 이용률을 분리 측정. 시스템 프롬프트가 attention을 크게 먹는다는 보고에 따라 규칙 수를 최소로 유지 |
+
+### 10.2 재고 후 기각한 것
+
+스위치는 저장소에 남아 있고 최종 구성(`A42`)에서 꺼져 있다. 재현 가능하다.
+
+| 문헌 | 처방 | 우리 코퍼스 실측 | 스위치 |
+|---|---|---|---|
+| Self-Consistency [3] | k개 경로를 표집해 다수결 | 밸류체인 5/12 대 기준 6/12. 순증 0, 비용만 증가 | `sc_k=3`·`temperature=0.7` (최종은 `sc_k=1`·`0.0`) |
+| Toolformer [5] | 산술을 모델이 아니라 도구 호출에 넘긴다 | 전체 74/88 대 기준 81/88 | `function_calling` |
+| HyperGraphRAG [12] | n-ary 관계를 하이퍼엣지로 표현 | 코퍼스의 arity ≤ 2가 58.4%로 과반이라 **논문의 전제가 성립하지 않는다.** 전체 81/88·밸류체인 6/12로 기준과 동일 | `nary` |
+| G-Retriever [7] | PCST로 서브그래프를 최적화해 토큰을 줄인다 | 근거가 이미 문맥에 들어가는 분기라 절감 대상이 없다. 논문 자신이 이 분기를 적어 두었다 | 미구현 (판정 후 미착수) |
+| 밀집 검색 [9][11] | 임베딩 기반 검색을 BM25와 융합 | 밸류체인 7/12 대 최종 10/12 | `dense`. 운영 경로에서 임베딩 API를 호출하지 않는다 |
+
+### 10.3 발상만 반영한 것
+
+원 기제는 구현하지 않았다. PCST, PPR, Leiden 커뮤니티, 하이퍼엣지, GRPO, 역할극 대화는
+저장소 코드에 각각 0곳이다.
+
+| 문헌 | 남은 것 |
+|---|---|
+| Think-on-Graph 2.0 [11] | 구조 검색과 본문 검색을 번갈아 도는 루프 형태 |
+| GraphReader [10] | 긴 문서를 목차 경로로 나눠 탐색하고 확인한 사실을 메모로 들고 다니는 방식 |
+| Graph of Thoughts [6] | 여러 근거를 모아 하나로 집계하는 단계를 별도로 두는 것 |
+| GraphRAG [8] | 전역 요약과 국소 조회를 가르는 관점. 커뮤니티 요약은 코퍼스 규모상 미적용 |
+| Relink [13] | 사전 구축 그래프의 불완전성을 질의 시점에 메우는 발상 |
+| GraphRAG-R1 [14] | 얕은 검색과 과잉 탐색을 함께 억제해야 한다는 관점. 보상 학습 대신 예산 가드로 구현 |
+| CAMEL [16], AutoGen [17] | 역할 분리 발상. ARGUS는 단일 에이전트이며 검증자를 별도 역할로 두는 데까지만 반영 |
+| SWE-Lancer [18] | 판단이 생성보다 쉽다는 결과. 생성 뒤 결정적 검증을 두는 설계의 근거 |
+
+### 10.4 문헌 목록
+
+프롬프팅과 에이전트 기초
+
+1. Brown, T. B., Mann, B., Ryder, N. 외. **Language Models are Few-Shot Learners.** NeurIPS 2020. arXiv:2005.14165
+2. Wei, J., Wang, X., Schuurmans, D. 외. **Chain-of-Thought Prompting Elicits Reasoning in Large Language Models.** NeurIPS 2022. arXiv:2201.11903
+3. Wang, X., Wei, J., Schuurmans, D. 외. **Self-Consistency Improves Chain of Thought Reasoning in Language Models.** ICLR 2023. arXiv:2203.11171
+4. Yao, S., Zhao, J., Yu, D. 외. **ReAct: Synergizing Reasoning and Acting in Language Models.** ICLR 2023. arXiv:2210.03629
+5. Schick, T., Dwivedi-Yu, J., Dessì, R. 외. **Toolformer: Language Models Can Teach Themselves to Use Tools.** Meta AI Research, 2023. arXiv:2302.04761
+
+그래프 기반 검색증강생성
+
+6. Besta, M., Blach, N., Kubicek, A. 외. **Graph of Thoughts: Solving Elaborate Problems with Large Language Models.** ETH Zurich, 2024. arXiv:2308.09687
+7. He, X., Tian, Y., Sun, Y. 외. **G-Retriever: Retrieval-Augmented Generation for Textual Graph Understanding and Question Answering.** NeurIPS 2024. arXiv:2402.07630
+8. Edge, D., Trinh, H., Cheng, N. 외. **From Local to Global: A GraphRAG Approach to Query-Focused Summarization.** Microsoft Research, 2024. arXiv:2404.16130
+9. Gutiérrez, B. J., Shu, Y., Gu, Y. 외. **HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models.** NeurIPS 2024. arXiv:2405.14831
+10. Li, S., He, Y., Guo, H. 외. **GraphReader: Building Graph-based Agent to Enhance Long-Context Abilities of Large Language Models.** Alibaba Group, 2024. arXiv:2406.14550
+11. Ma, S., Xu, C., Jiang, X. 외. **Think-on-Graph 2.0: Deep and Faithful Large Language Model Reasoning with Knowledge-guided Retrieval Augmented Generation.** ICLR 2025. arXiv:2407.10805
+12. Luo, H., E, H., Chen, G. 외. **HyperGraphRAG: Retrieval-Augmented Generation via Hypergraph-Structured Knowledge Representation.** NeurIPS 2025.
+13. Huang, M., Bu, C., He, Y. 외. **Relink: Constructing Query-Driven Evidence Graph On-the-Fly for GraphRAG.** AAAI-26 (The Fortieth AAAI Conference on Artificial Intelligence).
+14. Yu, C., Zhao, K., Li, Y. 외. **GraphRAG-R1: Graph Retrieval-Augmented Generation with Process-Constrained Reinforcement Learning.** WWW '26. doi:10.1145/3774904.3792589
+
+진단과 평가
+
+15. Basak, D., Bose, D., Goswami, K., Desarkar, M. S. **Diagnosing Evidence Utilization in Multimodal Document Question Answering.** KDD '26. doi:10.1145/3770855.3817956
+
+멀티에이전트
+
+16. Li, G., Hammoud, H. A. A. K., Itani, H. 외. **CAMEL: Communicative Agents for "Mind" Exploration of Large Language Model Society.** NeurIPS 2023. arXiv:2303.17760
+17. Wu, Q., Bansal, G., Zhang, J. 외. **AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation.** Microsoft Research, 2023. arXiv:2308.08155
+18. Miserendino, S., Wang, M., Patwardhan, T., Heidecke, J. **SWE-Lancer: Can Frontier LLMs Earn $1 Million from Real-World Freelance Software Engineering?** OpenAI, ICML 2025. arXiv:2502.12115
 
 ---
