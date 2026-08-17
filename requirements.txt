@@ -1,26 +1,6 @@
-# ARGUS 런타임 의존성 — 평가 서버(Ubuntu)용
-#
-# 🔴 이 파일은 Windows/conda 의 `pip freeze` 로 만든 것이 아니다.
-#    그렇게 뜨면 Windows 전용 휠(pywin32 등)이 섞여 Ubuntu 에서 설치가 죽는다.
-#    `pyproject.toml` 의 선언에 실제 검증 버전을 고정해 손으로 적었다.
-#    검증 환경: Python 3.13.13 (Windows) · 972 tests passed
-#
-# 서버 설치:
-#   python3 -m venv .venv && . .venv/bin/activate
-#   pip install -r requirements.txt
-#   pip install -e .            # argus 패키지 자체 (src/ 레이아웃)
-#
-# 🔴 python >= 3.12 필요 (pyproject requires-python). Ubuntu 24.04 는 3.12 기본이다.
-
-# --- 직접 import 하는 것 (src/argus/) ---
-fastapi==0.141.1
 pydantic==2.13.2
 rank-bm25==0.2.2
-
-# --- CLI 로만 부르는 것 (deploy/argus.service 의 ExecStart) ---
 uvicorn==0.52.1
-
-# --- 위 넷이 끌어오는 것. 재현성을 위해 고정한다 ---
 starlette==1.4.1
 pydantic-core==2.46.2
 annotated-types==0.6.0
@@ -29,10 +9,3 @@ anyio==4.12.1
 idna==3.11
 h11==0.16.0
 click==8.2.1
-
-# 🔴 numpy 는 넣지 않는다 — scripts/build_embeddings.py 만 쓰고
-#    그 arm(A2 임베딩)은 v1 에서 측정 후 기각됐다. 서버 런타임 경로에 없다.
-#    로컬에서 그 스크립트를 돌릴 때만 별도로 설치한다.
-#
-# 🔴 pytest·httpx 는 넣지 않는다 — 개발 의존성이다.
-#    서버에서 테스트를 돌리려면 `pip install -e ".[dev]"` 를 쓴다.
