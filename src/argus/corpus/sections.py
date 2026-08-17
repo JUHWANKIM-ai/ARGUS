@@ -1,21 +1,19 @@
-"""정기공시(사업·반기·분기보고서) 목차 섹션 청킹 — CONVENTION §7.3 / 04-retriever D-2.
+"""Section chunking of periodic filings by their table of contents.
 
-DART 원문 XML(dart4.xsd)은 목차가 이미 마크업되어 있다.
+The source XML already marks the table of contents up, with a flag on each
+title that is listed and section nesting that gives the level. Chunking
+therefore follows the markup rather than inferring structure.
 
-    <SECTION-1><TITLE ATOC="Y" ATOCID="9">II. 사업의 내용</TITLE>
-      <SECTION-2><TITLE ATOC="Y" ATOCID="11">2. 주요 제품 및 서비스</TITLE> ... </SECTION-2>
+Three design decisions:
 
-`ATOC="Y"` 가 목차 등재 표시다. 따라서 청킹은 추론이 아니라 **마크업을 그대로 따라가면**
-된다. SECTION-n 중첩 깊이가 계층, TITLE 텍스트가 목차 항목이다.
-
-설계 결정 세 가지 (근거는 docs/pipeline/04-retriever.md D-2):
-
-1. 한 섹션의 `text` 는 **자기 소유 구간만** 담는다(하위 섹션 제외). 상위 목차는
-   `path` 로만 남는다. 그래야 같은 문장이 여러 청크에 중복되지 않는다.
-2. 본문은 `periodic_sections.txt` 블롭에 모으고 jsonl 에는 **바이트 오프셋만** 둔다.
-   전량 인라인은 인덱스가 700MB 를 넘어 배포 서버(2.8GiB) 에서 상주시킬 수 없다.
-3. `n_chars < 100` 스텁도 인덱스에 넣되 `is_stub` 로 표시한다. §7.7 `list_sections`
-   명세가 이걸 배제 기준으로 쓰므로 값 자체는 보존해야 판정을 재현할 수 있다.
+1. A section's text covers only its own span, excluding child sections. Parent
+   entries survive in the path alone, so no sentence appears in two chunks.
+2. Bodies go into one blob and the index holds byte offsets. Inlining
+   everything pushes the index past what the deployment server can hold
+   resident.
+3. Stub sections below the character threshold stay in the index, flagged as
+   stubs. The listing tool uses that threshold as its exclusion rule, so the
+   value has to be preserved for the decision to be reproducible.
 """
 from __future__ import annotations
 
@@ -33,10 +31,10 @@ from argus.corpus.html_doc import read_document
 INDEX_NAME = "periodic_sections.jsonl"
 BLOB_NAME = "periodic_sections.txt"
 
-# 주최 측 list_sections 명세의 '기재 생략' 스텁 배제 기준
+# Threshold below which a section counts as an omitted-content stub.
 STUB_CHARS = 100
 
-# --- 원문 태그 ---------------------------------------------------------------
+# --- Source tags ------------------------------------------------------------
 _TOC = re.compile(r"(?is)<(TITLE|COVER-TITLE)\b([^>]*)>(.*?)</\1>")
 _ATOC_Y = re.compile(r"(?i)ATOC\s*=\s*[\"']Y[\"']")
 _SEC_OPEN = re.compile(r"(?i)<SECTION-(\d)\b[^>]*>")
@@ -51,8 +49,9 @@ _COLSPAN = re.compile(r"(?i)COLSPAN\s*=\s*[\"']?(\d+)")
 _LAYOUT_TABLE = re.compile(r"(?i)BORDER\s*=\s*[\"']?0|CLASS\s*=\s*[\"']nb[\"']")
 _DOC_NAME = re.compile(r"(?is)<DOCUMENT-NAME[^>]*>(.*?)</DOCUMENT-NAME>")
 
-# 인라인 굵은 글씨(USERMARK 의 B 플래그)는 사실상 소제목이다. 줄바꿈 없이 본문과
-# 붙어 있어서, 그냥 태그를 지우면 '가. 주요 제품 매출당사는 TV...' 로 엉겨 붙는다.
+# Inline bold text acts as a sub-heading. It runs into the body with no line
+# break, so simply stripping the tag fuses the heading onto the first
+# sentence.
 _BOLD_SPAN = re.compile(r"(?is)<SPAN\b[^>]*USERMARK=\"[^\"]*\bB\b[^\"]*\"[^>]*>(.*?)</SPAN>")
 _BLOCK_TAG = re.compile(r"(?i)</?(P|BR|PGBRK|TITLE|LI|DIV|TR)\b[^>]*/?>")
 _ANY_TAG = re.compile(r"(?s)<[^>]*>")
@@ -62,20 +61,21 @@ _INTERTAG_WS = re.compile(r">\s+<")
 _SPACES = re.compile(r"[ \t 　]+")
 _BLANKS = re.compile(r"\n{3,}")
 
-# 대체 수집본(pdf+html) 의 목차 앵커
+# Table-of-contents anchors in the alternative collection format.
 _HTML_ANCHOR = re.compile(r"(?is)<A\s+name=['\"]toc\d+['\"][^>]*>(.*?)</A>")
 _ROMAN = re.compile(r"^(?:[IVXLC]+)\.\s")
 _NUM2 = re.compile(r"^(\d+)\.\s")
 _NUM3 = re.compile(r"^(\d+)-(\d+)\.\s")
 
 
-# --- 텍스트화 ---------------------------------------------------------------
+# --- Text extraction --------------------------------------------------------
 def plain_text(fragment: str) -> str:
-    """태그를 걷어내되 SPAN 분절로 끊긴 단어를 도로 붙인다.
+    """Strip tags while rejoining words split across inline spans.
 
-    원문은 색·굵기가 바뀔 때마다 SPAN 이 갈리고 그 사이에 개행이 들어간다.
-    태그를 공백으로 바꾸면 '스마트폰 은 전년 대비' 처럼 조사가 떨어져 나온다.
-    태그 사이 공백을 먼저 없앤 뒤 태그를 지우면 원래 문장으로 복원된다.
+    The source opens a new span at every change of colour or weight, with a
+    line break between them. Replacing tags with whitespace detaches particles
+    from their words; removing the whitespace between tags first and then the
+    tags restores the original sentence.
     """
     s = _COMMENT.sub("", _STYLE.sub(" ", fragment))
     s = _INTERTAG_WS.sub("><", s)
@@ -90,7 +90,8 @@ def plain_text(fragment: str) -> str:
 
 def _top_level(text: str, open_re: re.Pattern,
                close_re: re.Pattern) -> list[tuple[int, int, int, int]]:
-    """중첩을 건너뛰고 최상위 요소만 (여는태그시작, 내용시작, 내용끝, 닫는태그끝)."""
+    """Top-level elements only, skipping nesting, as (open start, content
+    start, content end, close end)."""
     events = [(m.start(), 1, m.end()) for m in open_re.finditer(text)]
     events += [(m.start(), -1, m.end()) for m in close_re.finditer(text)]
     events.sort()
@@ -110,11 +111,11 @@ def _top_level(text: str, open_re: re.Pattern,
 
 
 def _row_cells(row: str) -> list[str]:
-    """COLSPAN 을 빈 칸으로 펼친다.
+    """Expand a column span into empty cells.
 
-    펼치지 않으면 병합 셀만큼 값이 왼쪽으로 밀린다. 삼성전자 매출 표의 '총 계'
-    행이 COLSPAN=2 라서, 안 펼치면 매출액 3,336,059 가 '주요 제품' 열에 들어간다.
-    재무 수치가 통째로 어긋나므로 이 처리는 선택이 아니다.
+    Without expanding, every value shifts left by the width of the merged cell,
+    which puts a revenue figure under the product column. Financial figures
+    would be wrong across the board, so this is not optional.
     """
     cells: list[str] = []
     for tag_start, inner_start, inner_end, _ in _top_level(row, _CELL_OPEN, _CELL_CLOSE):
@@ -130,7 +131,7 @@ def _cell_text(raw: str) -> str:
 
 
 def render(fragment: str) -> str:
-    """구간 -> 마크다운. 표는 파이프 테이블로 인라인한다 (CONVENTION §7.3)."""
+    """A span rendered to markdown, with tables inlined as pipe tables."""
     parts: list[str] = []
     cursor = 0
     for tag_start, inner_start, inner_end, close_end in _top_level(
@@ -154,8 +155,9 @@ def _render_table(open_tag: str, inner: str) -> str:
     if not rows:
         return plain_text(inner)
 
-    # BORDER=0 / class=nb 는 단위 표기·주석을 얹는 레이아웃 상자다. 표가 아니라
-    # 문장으로 풀어야 '(단위 : 억원, %)' 같은 표기가 본문에 남는다 (§7.7 read_section).
+    # A borderless box is a layout device carrying a unit note rather than a
+    # table, and has to be unrolled into prose so the note survives in the
+    # body.
     nested = any(_TABLE_OPEN.search(c) for row in rows for c in row)
     if nested or _LAYOUT_TABLE.search(open_tag) or max(len(r) for r in rows) < 2:
         blocks = [render(cell) for row in rows for cell in row]
@@ -169,16 +171,19 @@ def _render_table(open_tag: str, inner: str) -> str:
 
 
 def count_tables(fragment: str) -> int:
-    """§7.3 의 n_tables. 슬라이드 예시(II-2 = 3)와 맞추려면 TABLE 요소 전수다."""
+    """Table count for the record. Matching the reference example requires
+    counting every table element."""
     return len(_TABLE_OPEN.findall(fragment))
 
 
-# --- 목차 파싱 ---------------------------------------------------------------
+# --- Table-of-contents parsing ----------------------------------------------
 def parse_toc(xml: str) -> list[dict]:
-    """`ATOC="Y"` 목차 항목 -> [{level, title, path, start, end, has_children}].
+    """Listed table-of-contents entries as level, title, path, span and a
+    has-children flag.
 
-    level 은 SECTION-n 중첩 깊이다. 한 SECTION 안에 TITLE 이 여러 개면(연결재무제표
-    주석의 주석 1~34 가 그렇다) 두 번째부터는 한 단계 아래 소제목으로 본다.
+    The level is the section nesting depth. Where one section carries several
+    titles, as the financial-statement notes do, everything after the first is
+    treated as a sub-heading one level down.
     """
     events: list[tuple[int, int, re.Match]] = []
     events += [(m.start(), 0, m) for m in _SEC_OPEN.finditer(xml)]
@@ -211,7 +216,8 @@ def parse_toc(xml: str) -> list[dict]:
 
 
 def _finish(raw: list[dict], doc_end: int) -> list[dict]:
-    """구간 끝을 채우고 path 를 세운다. 구간은 '다음 목차 항목 직전' 까지다."""
+    """Fill in span ends and build the paths. A span runs up to the entry that
+    follows it."""
     for i, node in enumerate(raw):
         node["end"] = raw[i + 1]["head"] if i + 1 < len(raw) else doc_end
         node["has_children"] = bool(i + 1 < len(raw) and raw[i + 1]["level"] > node["level"])
@@ -226,11 +232,11 @@ def _finish(raw: list[dict], doc_end: int) -> list[dict]:
 
 
 def parse_toc_html(html: str) -> list[dict]:
-    """대체 수집본(pdf+html) 의 공시뷰어 HTML.
+    """Viewer HTML from the alternative collection format.
 
-    SECTION 마크업이 없고 `<A name='tocN'>` 앵커만 있다. 레벨은 제목 표기로
-    되짚는다 — 'II.' 는 1단, '2.' 는 2단, '2-1.' 은 3단. 번호가 되감기면
-    (…'3. 연결재무제표 주석' 다음에 '1. 일반사항') 하위 목록으로 내려간 것이다.
+    It carries no section markup, only named anchors, so the level is inferred
+    from the numbering of each title. A numbering that resets means the list
+    has descended a level.
     """
     raw: list[dict] = []
     last_num = 0
@@ -254,13 +260,13 @@ def parse_toc_html(html: str) -> list[dict]:
     return _finish(raw, len(html))
 
 
-# --- 문서 -> 레코드 -----------------------------------------------------------
+# --- Documents to records ---------------------------------------------------
 def document_files(doc: dict) -> list[tuple[Path, str]]:
-    """(경로, 경로 접두어). 본문이 먼저, 감사보고서 첨부가 뒤.
+    """(path, path prefix) pairs, body first and audit attachments after.
 
-    첨부 두 개(감사보고서/연결감사보고서)는 목차 제목이 '독립된 감사인의
-    감사보고서' 로 동일해서 그냥 합치면 path 가 충돌한다. DOCUMENT-NAME 을
-    접두어로 붙여 구분한다.
+    The two audit attachments carry identical table-of-contents titles, so
+    merging them plainly would collide. The document name is prefixed to
+    separate them.
     """
     folder = settings().corpus_root / doc["file_path"]
     main = folder / f"{doc['rcept_no']}.xml"
@@ -279,7 +285,7 @@ def document_files(doc: dict) -> list[tuple[Path, str]]:
 
 
 def iter_doc_sections(doc: dict) -> Iterator[dict]:
-    """manifest 한 행 -> §7.3 청크 레코드들 (`text` 포함)."""
+    """One manifest row to its chunk records, with the text included."""
     index = 0
     for path, prefix in document_files(doc):
         body = read_document(path)
@@ -310,9 +316,10 @@ def iter_doc_sections(doc: dict) -> Iterator[dict]:
             index += 1
 
 
-# --- 인덱스 조회 ---------------------------------------------------------------
-# 반복되는 문자열은 인턴한다. path 는 11.2만 건 중 고유값이 8,636개뿐이라
-# (목차 서식이 전 기업 공통) 인턴만으로 상주 225MB -> 174MB 로 줄어든다.
+# --- Index lookup -----------------------------------------------------------
+# Repeated strings are interned. The table of contents is common across
+# companies, so the path column holds few distinct values among many rows, and
+# interning alone cuts the resident size substantially.
 _REPEATED = ("doc_id", "corp_code", "corp_name", "sector", "doc_subtype", "rcept_dt", "path")
 
 
@@ -342,7 +349,7 @@ def _by_doc() -> dict[str, tuple[dict, ...]]:
 
 
 def section_text(record: dict) -> str:
-    """본문을 지연 로딩한다. 인라인 `text` 가 있으면 그대로 쓴다."""
+    """Load the body lazily, using an inline text field when present."""
     if "text" in record:
         return record["text"]
     offset, length = record.get("text_offset"), record.get("text_bytes")
@@ -354,7 +361,8 @@ def section_text(record: dict) -> str:
 
 
 def list_sections(doc_id: str, include_stubs: bool = False) -> list[dict]:
-    """§7.7 ④ — 목차 `path` + 글자수. 기본은 100자 미만 스텁을 뺀다."""
+    """List section paths with their character counts, excluding stubs by
+    default."""
     records = _by_doc().get(doc_id, ())
     return [
         {k: r[k] for k in ("chunk_id", "path", "level", "n_chars", "n_tables", "is_stub")}
@@ -364,10 +372,11 @@ def list_sections(doc_id: str, include_stubs: bool = False) -> list[dict]:
 
 
 def read_section(doc_id: str, path: str) -> dict | None:
-    """§7.7 ⑤ — 섹션 원문(표=마크다운).
+    """Read a section verbatim, with tables as markdown.
 
-    상위 목차(예: 'II. 사업의 내용')로 부르면 하위 섹션을 순서대로 이어 붙인다.
-    목차 계층이 그대로 parent-child 구조라서 별도 인덱스가 필요 없다.
+    Called with a parent path, the child sections are concatenated in order.
+    The table-of-contents hierarchy is itself the parent-child structure, so no
+    separate index is needed.
     """
     records = _by_doc().get(doc_id, ())
     wanted = path.strip()
