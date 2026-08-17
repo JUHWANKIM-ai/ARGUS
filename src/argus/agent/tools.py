@@ -1,12 +1,14 @@
-"""도구 15종 = 검색 8종 + 계산 7종.
+"""Fifteen tools: eight for retrieval and seven for calculation.
 
-검색 7종은 CONVENTION §7.7 의 참조 명세를 따른다. `query_by_counterparty` 는 8번째
-검색 도구로, 발주처(계약상대) 2-hop 그래프(Task 3 산출물)를 노출해 밸류체인 문항의
-fan-in/fan-out 완전 열거를 가능하게 한다 — 순위를 올리는 도구가 아니라 집합의
-경계를 긋는 도구다.
-계산 7종은 policy §4 ("LLM = Reasoning, Tool = Calculation") 을 강제하기 위해
-`compute.py` 의 결정적 함수를 function calling 스펙으로 노출한 것이다.
-노출되지 않은 계산 함수는 LLM 이 대신 계산하므로 §4 위반이다.
+Seven of the retrieval tools follow the reference specification in
+`CONVENTION §7.7`. The counterparty query is the eighth, exposing the
+counterparty graph so that fan-in and fan-out questions can be enumerated
+completely. It draws the boundary of a set rather than improving a ranking.
+
+The calculation tools expose the deterministic functions of `compute.py` as
+function-calling specifications, which is how the rule that calculation belongs
+to a tool is enforced. A calculation function left unexposed is one the model
+performs itself, which breaks that rule.
 """
 from __future__ import annotations
 
@@ -19,9 +21,6 @@ from argus.config import settings
 from argus.corpus.counterparty import canonical, classify
 from argus.corpus.manifest import filter_docs, resolve_company
 from argus.corpus.sections import BLOB_NAME
-#: 🔴 `# noqa: F401` 이 붙어 있었는데 **다섯 이름이 전부 이 파일 안에서 직접 쓰인다.**
-#: 재수출이라고 오해시키는 주석이라 뗀다 (전수 확인: `tools.Bm25Index` 처럼 이 모듈을
-#: 통해 끌어 쓰는 소비자가 저장소에 0건이다).
 from argus.retrieve.bm25 import (SECTION_CHUNK_CHARS, Bm25Index,
                                  SectionBm25Index, norm_path, split_section)
 
@@ -29,12 +28,12 @@ SECTION_INDEX_STEM = "section_index"
 COUNTERPARTY_GRAPH_NAME = "counterparty_graph.json"
 
 
-#: 정형 레코드 문서군. **인덱스는 문서군마다 따로다** — 하나로 합치면 exchange 골든
-#: 근거 회수가 29 -> 28 로 떨어진다 (04-retriever D-5 실측). 얻는 것이 있어도 기존
-#: 성능을 깎으면 손해라, 라우터가 문서군을 골라 해당 인덱스만 본다.
+#: Structured record groups. Each group has its own index: merging them into
+#: one lowers exchange golden recovery, so the router selects a group and only
+#: that index is consulted.
 RECORD_GROUPS = ("exchange", "major", "holding")
 
-#: `※ 관련공시` REFERS_TO 엣지 (`scripts/build_references.py` 산출물).
+#: Reference edges built from the related-filings cell.
 REFERENCES_NAME = "references.jsonl"
 
 
@@ -49,11 +48,12 @@ def _group_records_raw(group: str) -> dict[str, dict]:
 
 
 def _group_records(group: str) -> dict[str, dict]:
-    """정형 레코드. arm `A18`(`nary`)이면 n-ary 추출값이 덧붙은 **사본**을 돌려준다.
+    """Structured records. On the appending arms, returns a copy with the extra
+    values attached.
 
-    🔴 **두 사전을 따로 캐시한다.** `lru_cache` 를 arm 과 무관하게 하나만 두면
-    먼저 부른 arm 의 사전이 나중 arm 에 그대로 재생돼 **Δ 가 조용히 0** 이 된다 —
-    이 모듈이 아니라 `ablation.py` 가 통째로 막으려는 종류의 사고다.
+    Each variant is cached separately. A single arm-independent cache would
+    replay the first arm's mapping to every later arm and report a delta of
+    zero for a manipulation that never took effect.
     """
     from argus import ablation
 
@@ -65,37 +65,35 @@ def _group_records(group: str) -> dict[str, dict]:
     return _group_records_raw(group)
 
 
-# --- A18 (`nary`) — `T1-targeted` 추출값을 근거에 덧붙인다 ------------------------
+# --- Appending extracted n-ary values to the evidence -----------------------
+# No corpus file is modified. The build script writes one new file, and the
+# merge happens at runtime on a copy. Editing the record files would change the
+# BM25 index strings and invalidate every recorded measurement irreversibly.
 #
-# 🔴 **코퍼스 파일은 안 고친다.** `scripts/build_nary.py` 가 새 파일 하나
-# (`artifacts/nary_records.jsonl`)만 쓰고, 합치는 것은 런타임에 여기서 사본 위에만
-# 일어난다. `*_records.jsonl` 을 고치면 BM25 색인 문자열이 갈려 v1~v4 측정이 전량
-# 무효가 되고, 되돌릴 수단이 없다 (`artifacts/` 는 gitignore 다).
-#
-# 🔴 **BM25 점수는 안 바뀐다.** 인덱스는 미리 빌드된 `*_bm25.json` 이고 여기서 바꾸는
-# 것은 검색 **뒤에** 프롬프트로 실리는 근거 문자열뿐이다. 그래서 `A18` 의 Δ 는
-# '검색이 달라졌다' 가 아니라 순수하게 '근거에 필드가 늘었다' 에 귀속된다.
+# BM25 scores are therefore unchanged: the index is prebuilt and what changes
+# here is only the evidence string carried into the prompt after retrieval.
+# See docs/design-rationale.md#arm-catalog
 
 NARY_NAME = "nary_records.jsonl"
 
-#: 덧붙일 항목과 **그 항목이 이미 있는지 보는 정규식**. 합집합의 정의가 이 표다 —
-#: 규칙이 뽑아 `corpus/markdown.to_markdown` 이 이미 찍은 라벨이면 그 항목을 건너뛴다.
-#: 🔴 금액 라벨은 `record["amount_type"]` 이 정하므로 고정 문자열로 못 본다
-#: (`계약금액`·`투자금액`·`취득금액`… `_amount_line` 참조). 그래서 `…금액:` 으로 본다.
+#: Items to append, each with the pattern that detects whether it is already
+#: present. This table is the definition of the union: an item the rules
+#: already emitted is skipped. The amount label is chosen per record rather
+#: than fixed, so it is matched by suffix.
 _NARY_PRESENT = {
     "amount": re.compile(r"^-\s*\S*금액\s*:", re.M),
     "counterparty": re.compile(r"^-\s*계약상대\s*:", re.M),
     "period": re.compile(r"^-\s*(기간|계약\s*시작일|계약\s*종료일)\s*:", re.M),
     "subject": re.compile(r"^-\s*대상\s*:", re.M)}
-#: 항목당 줄 상한. 한 레코드에서 관계가 여러 건 나오면 값이 여러 개인데, 근거가
-#: 길어지면 `MAX_EVIDENCE` 아래에서 **다른 문서를 밀어낸다**. 앞의 몇 개만 싣는다.
+#: Line cap per item. One record can yield several relations, and longer
+#: evidence displaces other documents under the evidence cap.
 MAX_NARY_VALUES = 3
 
 
-#: 🔴 **모델이 라벨 자리에 값을 넣는다.** 실측 추출에서 `amount_label` 로
-#: `"USD 663,688,303"`·`"US$ 34,500,000"`·`"$100"` 이 나왔고, 그대로 쓰면 근거에
-#: `- USD 663,688,303: 663,688,303원 (7억원)` 같은 **필드명이 아닌 줄**이 실린다.
-#: 숫자가 섞였거나 지나치게 긴 라벨은 필드명이 아니므로 기본 라벨로 접는다.
+#: The model puts values where a label belongs. Extraction produced amount
+#: labels that were themselves amounts, which would emit an evidence line whose
+#: field name is a figure. A label containing digits or running too long is not
+#: a field name and is folded back to the default.
 _LABEL_HAS_DIGIT = re.compile(r"\d")
 MAX_NARY_LABEL_CHARS = 12
 
@@ -108,13 +106,13 @@ def _nary_amount_line(relation: dict) -> str | None:
     if (not label or _LABEL_HAS_DIGIT.search(label)
             or len(label) > MAX_NARY_LABEL_CHARS):
         label = "계약금액"
-    #: `_amount_line` 과 **같은 서식**이다 — 규칙이 찍은 줄과 모양이 다르면
-    #: `prompts.split_trillion_eok` 와 `critic._says_amount` 가 이 줄만 못 본다.
+    # Same format as the rule-emitted amount line. A different shape would
+    # make the prompt formatting and the label gate miss this line alone.
     return f"- {label}: {amount:,}원 ({amount / 100_000_000:,.0f}억원)"
 
 
 def _nary_lines(relations: list[dict]) -> dict[str, list[str]]:
-    """관계 목록 -> 항목별 근거 줄. 중복은 **순서를 지키며** 접는다."""
+    """Relations to evidence lines per item, deduplicated in order."""
     out: dict[str, list[str]] = {}
 
     def push(key: str, line: str | None) -> None:
@@ -144,7 +142,8 @@ def _nary_lines(relations: list[dict]) -> dict[str, list[str]]:
 
 @lru_cache(maxsize=1)
 def _nary_extract() -> dict[str, dict[str, list[str]]]:
-    """`{접수번호: {항목: [근거 줄]}}`. 파일이 없으면 빈 사전 — arm 이 조용히 no-op 이다."""
+    """Mapping of receipt number to item to evidence lines. An absent file
+    yields an empty mapping, making the arm a silent no-op."""
     path = settings().artifacts_root / NARY_NAME
     if not path.exists():
         return {}
@@ -161,10 +160,13 @@ def _nary_extract() -> dict[str, dict[str, list[str]]]:
 
 
 def merge_nary(markdown: str, lines: dict[str, list[str]]) -> str:
-    """🔴 **합집합이다 — 덮어쓰지 않는다.** 규칙이 이미 찍은 항목은 건너뛴다.
+    """A union rather than an overwrite: items the rules already emitted are
+    skipped.
 
-    규칙의 산출물을 LLM 산출물로 갈아치우면 `A18` 이 재는 것이 '추가' 가 아니라
-    '교체' 가 되고, `L2`(노드 속성 LOO)의 −15.3%p 와 겨냥이 겹쳐 Δ 의 귀속이 깨진다.
+    Replacing rule output with model output would make this arm measure
+    substitution rather than addition, and its target would overlap the node
+    attribute leave-one-out, leaving the delta unattributable.
+    See docs/design-rationale.md#arm-catalog
     """
     add = [line for key, values in lines.items()
            if not _NARY_PRESENT[key].search(markdown or "")
@@ -176,8 +178,9 @@ def merge_nary(markdown: str, lines: dict[str, list[str]]) -> str:
 
 @lru_cache(maxsize=len(RECORD_GROUPS))
 def _group_records_nary(group: str) -> dict[str, dict]:
-    """`A18` 전용 사본. 🔴 **원본 사전을 변형하지 않는다** — 같은 프로세스에서 다른
-    arm 을 이어 돌리면 그 arm 의 근거까지 오염되고, 그것은 조용히 일어난다."""
+    """Copy used by the appending arm. The source mapping is never mutated:
+    running another arm in the same process would otherwise contaminate its
+    evidence, silently."""
     extract = _nary_extract()
     if not extract:
         return _group_records_raw(group)
@@ -193,58 +196,47 @@ def _group_records_nary(group: str) -> dict[str, dict]:
     return out
 
 
-# --- A30 (`correction_fields`) — 정정사유·주요내용을 근거에 덧붙인다 -----------------
+# --- Appending the revision reason and summary to the evidence --------------
+# Built on the same runtime seam as the n-ary append, and likewise modifying no
+# corpus file, so BM25 scores are unchanged.
 #
-# 🔴 **코퍼스 파일은 안 고친다.** `A18`(`nary`)이 연 이음매에 그대로 얹는다 —
-# `artifacts/*_records.jsonl` 을 고치면 BM25 색인 문자열이 갈려 v1~v4 측정이 전량
-# 무효가 되고, 되돌릴 수단이 없다 (`artifacts/` 는 gitignore).
-#
-# 🔴 **`A17` 이 아니다.** `A17` 은 `corpus/markdown._free_text_lines` 의 게이트를 열어
-# 코퍼스 3,150건 중 **1,588건(50.4%)** 의 마크다운을 다시 쓰는 조작이었고 그래서
-# 기각됐다. 여기서 바뀌는 것은 검색 **뒤에** 프롬프트로 실리는 문자열뿐이라
-# **BM25 점수가 한 바이트도 안 바뀐다.**
-#
-# 🔴 **R0(2026-08-16)이 겨눈 결함**: 정형 매칭이 정보를 지운다. `schema_matched=True`
-# 면 넉 줄 요약을 내고 `raw_rows` 를 통째로 버리고, 매칭이 **안 되면** 원문을 실어
-# 752자가 나온다. 그래서 답이 레코드에 있는데 근거에 없다:
-#
-#     20241114800538 (이마트 정정본)   "올림푸스제일차"           레코드 O · 마크다운 X (156자)
-#     20260306801011 (크래프톤 정정본)  "출자일자 확정에 따른 정정"  레코드 O · 마크다운 X (150자)
+# The defect it targets is that schema matching erases information: a matched
+# record emits a four-line summary and discards the source rows, while an
+# unmatched one carries the raw text. That leaves answers present in the record
+# and absent from the evidence.
+# See docs/design-rationale.md#arm-catalog
 
-#: 덧붙일 라벨. 🔴 **둘뿐이다.** `raw_rows` 전량 덤프는 `A17` 이 기각된 자리다.
-#: R0 실측 번짐: `3. 정정사유` 630레코드 · `2. 주요내용` 120레코드 (전체 1,469).
+#: Labels to append. Only two: dumping the source rows wholesale is the
+#: manipulation that was rejected.
 CORRECTION_FIELD_LABELS = ("3. 정정사유", "2. 주요내용")
 
-#: 🔴 **덧붙임을 이 서식에만 건다.** 첫 판은 서식을 안 가렸고 그 대가로 `Q-110`(지금
-#: 정답)을 잃었다 — 밸류체인 7/12 → 6/12. judge 세 축은 다 통과였는데 답변에서 금액
-#: 표기가 사라져 커버리지 게이트에 걸렸다. 근거가 길어지자 서술이 역할 나열로 기울었다.
+#: The append is restricted to one form. Applied to every form it cost a
+#: question that was correct: the judge passed on all three criteria, but the
+#: longer evidence pushed the answer toward listing roles and the amount
+#: dropped out.
 #:
-#: 겨냥 둘(`Q-087`·`Q-093`)은 **모두 이 서식**이고 `Q-110` 은 `단일판매공급계약체결`
-#: 이다. 그리고 성형 결손이 가장 심한 것도 이 서식이다 — 정형 템플릿이 `금액` 과
-#: `확정일` 넉 줄만 내고 본문을 통째로 버린다(실측 150~156자). `단일판매공급계약체결`
-#: 은 템플릿이 금액·상대·기간·대상을 이미 실어 버려지는 것이 대부분 상용구다.
-#:
-#: 번짐: 707레코드 → 300레코드 (`투자판단관련주요경영사항` 전건).
+#: Both target questions use this form, and it is also where the shaping loss
+#: is worst: its template emits four lines and discards the body entirely,
+#: while the contract form already carries amount, counterparty, period and
+#: subject, so what it discards is mostly boilerplate.
 CORRECTION_FIELD_FORMS = ("투자판단관련주요경영사항",)
 
-#: 값 길이 상한. 🔴 `normalize.FREETEXT_MAX_CHARS`(300)로는 부족하다 — `Q-087` 의 정답
-#: `올림푸스제일차` 가 `2. 주요내용`(623자)의 **408·440번째 자리**에 있어 300 에서
-#: 잘린다 (v4 `R1-4` 실측). 500 이상이어야 들어온다.
+#: Value length cap. The free-text cap used elsewhere is too short here: a
+#: target answer sits past the 400th character of its field and would be cut.
 CORRECTION_FIELD_CHARS = 560
 
 
 def _correction_lines(record: dict) -> list[str]:
-    """이 레코드에 덧붙일 줄. 이미 마크다운에 있는 값은 건너뛴다 (합집합).
+    """Lines to append to this record, skipping values already in the markdown.
 
-    🔴 **마지막 열을 읽는다.** 정정 표의 행은 `[라벨, 정정전, 정정후]` 세 열이고,
-    답은 **정정후**에 있다 (`Q-087` 실측: `2. 주요내용` 행의 3열짜리에서 `올림푸스
-    제일차` 가 열 2 에만 있다). 열 1 만 읽으면 정정 전 문안을 싣게 되고, 그것은
-    `stale_value` 가 잡던 바로 그 오류를 우리가 근거에 박아 주는 꼴이다.
+    The last column is read. A revision table row is (label, before, after) and
+    the answer is in the after column; reading the first would stamp the
+    pre-revision text into the evidence, which is exactly the error the
+    stale-value check exists to catch.
 
-    🔴 **라벨당 가장 긴 값을 고른다.** 같은 라벨이 여러 행에 나온다 (정정 표 안 ·
-    본문 두 자리). 첫 판은 앞 24자가 같으면 건너뛰었는데 그것이 **더 긴 쪽을 버렸다**
-    — 484자본에는 답이 408번째에 있고 623자본에는 440번째에 있는데, 짧은 쪽을 남기면
-    상한 안에 들어와도 뒤쪽 문맥이 잘린다.
+    The longest value per label wins. The same label appears in several rows,
+    and skipping on a shared prefix discarded the longer one, truncating the
+    context that carries the answer.
     """
     if (record.get("form") or "") not in CORRECTION_FIELD_FORMS:
         return []
@@ -268,9 +260,9 @@ def _correction_lines(record: dict) -> list[str]:
 
 @lru_cache(maxsize=len(RECORD_GROUPS))
 def _group_records_fields(group: str) -> dict[str, dict]:
-    """`A30` 전용 사본. 🔴 **원본 사전을 변형하지 않는다** — `_group_records_nary` 와
-    같은 이유다. 같은 프로세스에서 다른 arm 을 이어 돌리면 그 arm 의 근거까지
-    오염되고, 그것은 조용히 일어난다."""
+    """Copy used by this arm. The source mapping is never mutated, for the same
+    reason as the n-ary variant: another arm run in the same process would
+    inherit the contamination silently."""
     out: dict[str, dict] = {}
     for doc_id, record in _group_records_raw(group).items():
         lines = _correction_lines(record)
@@ -287,10 +279,11 @@ def _group_index(group: str) -> Bm25Index | None:
 
 
 def _records() -> list[dict]:
-    """`query_events`·`get_history` 의 모집단. §7.7 ② 정형 이벤트 = 거래소공시다.
+    """Population for the event tools: structured events are exchange filings.
 
-    주요사항·지분 레코드를 여기 섞으면 `query_events` 의 의미가 바뀌고 exchange 질의의
-    폴백이 오염된다. 검색 인덱스만 문서군별로 늘리고 이 모집단은 그대로 둔다.
+    Mixing the other groups in would change what an event query means and
+    contaminate the fallback for exchange questions. The retrieval indexes grow
+    per group; this population stays as it is.
     """
     return list(_group_records("exchange").values())
 
@@ -315,19 +308,18 @@ def _by_rcept_cached(nary: bool, fields: bool = False) -> dict[str, dict]:
 
 
 def _by_rcept() -> dict[str, dict]:
-    """접수번호 -> 레코드. **문서군 셋을 전부 덮는다.**
+    """Receipt number to record, across all three document groups.
 
-    `_records()` 와 다르다. `query_events` 모집단은 거래소공시로 묶어 둬야 하지만
-    (§7.7 ②), 정정 체인은 문서군을 가리지 않는다 — 실측 Q-030 의 고려아연 유상증자
-    철회는 `major` 체인이라 거래소 모집단만 보면 영원히 `레코드 없음` 이다.
+    Different from the event population. Event queries stay scoped to exchange
+    filings, but a revision chain does not respect group boundaries: a chain
+    living in another group would otherwise never resolve.
 
-    🔴 `A18` 은 여기도 갈라야 한다 — `_gather_meta`·오라클 주입·정정 체인이 전부
-    이 사전을 지나므로, 여기만 안 갈면 arm 의 근거가 경로마다 달라진다.
-
-    🔴 **`A30` 도 같다. 그 함정에 실제로 빠졌다** (2026-08-16). `correction_fields` 를
-    `_group_records` 에만 걸었더니 `Q-087` 의 근거가 **한 글자도 안 바뀌었다** —
-    그 문항의 정정본은 검색이 아니라 **체인 hop**(`get_history` → `_chain_entry`)으로
-    오고, 그 경로는 `_by_rcept()` 를 지난다. 위 문단이 경고하던 바로 그 자리다.
+    The appending arms have to branch here too. Meta gathering, oracle
+    injection and the chain hop all pass through this mapping, so branching in
+    only one place makes an arm's evidence differ by path. That trap was hit in
+    practice: an arm applied only to the group-level accessor left the evidence
+    of its target question completely unchanged, because that question's
+    revision arrives through the chain hop rather than retrieval.
     """
     from argus import ablation
 
@@ -337,15 +329,17 @@ def _by_rcept() -> dict[str, dict]:
 
 @lru_cache(maxsize=1)
 def _followup_index() -> dict[str, tuple[str, ...]]:
-    """`※ 관련공시` **역방향** 색인 — 이 문서를 뒤에서 가리킨 공시들.
+    """Reverse index of the related-filings cell: filings that point back at
+    this document.
 
-    정정 체인(`related`)이 못 잇는 관계가 하나 있다. **후속 해지**다. 실측:
-    해지 공시 20건 중 `related` 로 이어진 것은 0건인데, 원계약을 `※ 관련공시` 에
-    적어 둔 것은 11건이다 (LG에너지솔루션 20251217800800 -> 20241015800258).
-    엣지 방향이 '뒤 -> 앞' 이므로 앞 문서에서 뒤를 보려면 뒤집어야 한다.
+    The revision chain cannot express one relation: a later termination. Of the
+    recorded terminations none are linked through the revision field while
+    eleven name the original contract in the related-filings cell. That edge
+    runs from the later document to the earlier one, so reaching forward
+    requires reversing it.
 
-    `resolved` + `form_matched` 인 엣지만 쓴다. 서식명이 안 맞는 엣지는 '같은 날
-    같은 기업' 만으로 붙은 약한 연결이라(1,154/2,041) 근거로 끌어오면 잡음이다.
+    Only resolved edges whose form name matches are used. An edge matched on
+    company and date alone is a weak link and brings noise into the evidence.
     """
     path = settings().artifacts_root / REFERENCES_NAME
     if not path.exists():
@@ -364,7 +358,8 @@ def _followup_index() -> dict[str, tuple[str, ...]]:
 
 
 def _record_of(doc_id: str) -> dict | None:
-    """`exchange_20230602800079` 든 `20230602800079` 든 레코드를 찾는다."""
+    """Find a record whether given a prefixed document id or a bare receipt
+    number."""
     if not doc_id:
         return None
     key = str(doc_id).split("_")[-1].split("#")[0]
@@ -372,28 +367,24 @@ def _record_of(doc_id: str) -> dict | None:
 
 
 def chain_probe(doc_id: str) -> dict:
-    """체인을 밟기 전 예비 조회. **도구 호출이 아니라 스텝을 쓰지 않는다.**
+    """Preliminary lookup before walking a chain. Not a tool call, so it costs
+    no step: it reads one record already in memory, with no retrieval and no
+    I/O. Without it, `get_history` would be issued against documents that carry
+    no link at all.
 
-    `section_paths()` 와 같은 취급이다 — 이미 메모리에 있는 레코드 한 건을 보는 것뿐이라
-    검색도 I/O 도 일어나지 않는다. 이게 없으면 링크가 아예 없는 문서에도 `get_history`
-    를 걸어 스텝을 태우게 된다.
+    The latest flag is determined by chain position rather than by amount.
+    Deciding it by size would be wrong, because chains whose amount decreases
+    exist.
 
-    `is_latest` 는 **체인 위치**로 정해진 값이다 (`corpus/corrections.attach_related`).
-    금액 크기로 정하면 안 된다 — 값이 줄어드는 체인이 실재한다
-    (한화오션 517,856,145,079 -> 275,063,868,984).
+    Three edge kinds are returned separately alongside their union, so the
+    caller can tell which edge opened the seed condition:
 
-    🔴 **엣지 세 종류를 갈라서 함께 돌려준다** (v3 R2 ④). `links` 는 종전대로 셋의
-    합집합이고, `followups`·`terminates` 는 씨앗 조건이 **어느 엣지 때문에** 열렸는지
-    호출부가 알아야 해서 따로 싣는다 (`pipeline._chain_seeds` 제동 ②).
+        related     the revision chain, bidirectional
+        followups   the reverse direction of the related-filings cell
+        terminates  the forward direction from a termination to its contract
 
-        related     정정 체인 550엣지          양방향 (`member_chain`)
-        followups   ※관련공시 **역방향**       이 문서를 **뒤에서** 가리킨 공시들
-        terminates  해지 -> 원계약 **순방향**   `corpus/corrections._termination_links`
-
-    방향이 왜 둘 다 필요한가 — `_followup_index` 는 역방향 전용이라 **해지 공시에서
-    출발하면 빈다.** 실측: `chain_probe(해지)` links=[] · `chain_probe(원계약)`
-    links=[해지]. 회귀 `Q-066` 은 해지에서 출발하는 문항이라 역방향만으로는 런타임
-    대체 경로가 **없다** (W4 진단). `terminates` 가 그 방향을 채운다.
+    Both directions are needed because the reverse index is empty when starting
+    from a termination filing, and questions that start there exist.
     """
     record = _record_of(doc_id)
     if record is None:
@@ -413,7 +404,8 @@ def chain_probe(doc_id: str) -> dict:
 
 @lru_cache(maxsize=1)
 def _section_index() -> SectionBm25Index | None:
-    """정기공시 섹션 인덱스. 없으면 None — 도구는 error 를 돌려주고 파이프라인은 산다."""
+    """Periodic section index, or None. The tool then returns an error and the
+    pipeline stays up."""
     stem = settings().artifacts_root / SECTION_INDEX_STEM
     return SectionBm25Index.load(stem) if SectionBm25Index.exists(stem) else None
 
