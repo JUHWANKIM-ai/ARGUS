@@ -2,11 +2,7 @@
 
 Usage: python scripts/v7_report.py
 
-The rule is in code rather than in a reader's head because it has three parts
-and a hand check drops one. A run is a single draw, so the minimum across
-rounds is what a single evaluation is expected to produce; a higher mean with
-an unchanged minimum buys nothing.
-See docs/superpowers/specs/2026-08-17-ablation-v7-design.md
+See docs/design-rationale.md#v7-adoption-judge-band
 """
 from __future__ import annotations
 
@@ -33,12 +29,7 @@ def verdict(arm_rows: dict[str, list[int]], base: list[int],
             base_flips: set[str] = frozenset()) -> tuple[bool, list[str]]:
     """Whether an arm is adopted, with the reasons either way.
 
-    A gain inside the judge band is not automatically a rejection: it is
-    still adopted when the arm's flip count is strictly lower than the
-    baseline's, because a steadier set of flipping questions is itself the
-    result this generation targets. A gain of zero or less is rejected
-    regardless of flips, since the minimum is what a single evaluation is
-    expected to produce and a smaller flip count does not change that.
+    See docs/design-rationale.md#v7-adoption-judge-band
     """
     reasons: list[str] = []
     ok = True

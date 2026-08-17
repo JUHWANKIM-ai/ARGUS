@@ -5,10 +5,7 @@ Usage:
     python scripts/v7_rebuild_index.py --apply     backs up, then swaps
     python scripts/v7_rebuild_index.py --restore   restores the backup
 
-The renderer emits a field the shipped index does not carry, and the repository
-contract is that a renderer change is followed by a rebuild rather than by a
-change to the test that noticed. Every prior measurement was taken against the
-shipped strings, so the swap is reversible and the backup is written first.
+See docs/design-rationale.md#v7-index-rebuild
 """
 from __future__ import annotations
 
@@ -41,6 +38,10 @@ def report() -> None:
 
 
 def apply() -> None:
+    existing = [n for n in PAYLOAD if (backup_dir() / n).exists()]
+    if existing:
+        raise SystemExit("backup already exists (%s); run --restore first"
+                         % ", ".join(existing))
     backup_dir().mkdir(parents=True, exist_ok=True)
     for name in PAYLOAD:
         shutil.copy2(ROOT / name, backup_dir() / name)

@@ -48,6 +48,17 @@ def test_a_judge_band_gain_with_flips_unchanged_or_worse_is_rejected():
     assert any("잡음" in w for w in why)
 
 
+def test_a_gain_of_exactly_two_is_adopted_regardless_of_flips():
+    """Gain 2 is the boundary where the spec's own clause ("minimum gain of
+    2 or more") adopts unconditionally, bypassing the flip-count check
+    entirely. Flips here are equal to the baseline's, not decreased, so the
+    only way this can pass is through the gain branch, not the escape
+    hatch."""
+    ok, why = verdict({"V7-1": [105, 106, 106]}, [103, 104, 104], set(),
+                      {"V7-1": {"Q-001", "Q-002"}}, {"Q-003", "Q-004"})
+    assert ok is True
+
+
 def test_a_non_positive_gain_is_rejected_even_with_fewer_flips():
     """The flip-count escape hatch belongs to the judge-band branch only. A
     minimum that does not rise at all is rejected regardless of how many
