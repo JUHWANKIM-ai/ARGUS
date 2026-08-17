@@ -1922,56 +1922,53 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
     return body, trace
 
 
-# --- ORACLE — 골든 근거 주입 (🔴 진단 전용 · 제출 구성이 될 수 없다) --------------
-# `A0`~`A8` 은 전부 "검색 + 생성" 의 합성 성능이라 **근거를 고정한 생성 능력을 잰 적이
-# 없다.** 이 경로는 검색 차선 전체를 골든 근거로 갈아치워 그 축을 하나 만든다.
+# --- Oracle path: golden evidence injection (diagnostic only) --------------
+# Every other arm measures retrieval and generation together, so generation
+# with the evidence held fixed has never been isolated. This path replaces the
+# whole retrieval lane with the golden evidence to create that axis. It cannot
+# be a submission configuration, and at evaluation time there is no golden set,
+# so the accuracy it reports is a diagnostic value rather than a score.
 #
-# 🔴 **R2E 재측정이 R1 의 계약을 깼다 (2026-08-14).** 종전 두 줄
-# (`Δ = 검색이 아직 못 가져온 몫` · `잔여 오답 = 순수 생성 실패`)을 **그대로 인용하면 안 된다.**
-# 주입은 근거를 **더하지 않고 교체**하므로 근거가 줄어든다(전체 88 에서 −47%). 정오가 갈린
-# 7문항 전수에서 골든 회수가 `A8` 과 **동일**했고 오라클 근거만 더 작았다.
+# Injection replaces evidence rather than adding to it, so the delta against
+# the default arm mixes the retrieval shortfall with the loss of supporting
+# evidence and cannot be read as a single term.
 #
-#     이 경로가 재는 것    "근거를 골든만으로 한정했을 때 답이 서는가"
-#     Δ(A8 → ORACLE)     🔴 검색 부족분 + 보조근거 제거 손실의 합. 한 항으로 못 읽는다
-#     잔여 오답 = 생성 실패 🔴 근거가 A8 과 바이트 동일한 문항에서만 정의상 성립
-#
-# 살아 있는 판정: **골든을 전건 주입해도 정답이 안 늘면 남은 실패는 검색으로 살 수 없다.**
-# 근거는 `src/argus/ablation.py` 머리말 §ORACLE · `09-ablation.md` §I-5f ④.
-#
-# 🔴 **평가 시점에는 골든이 없다.** 이 경로로 나온 정답률은 성적이 아니라 진단값이다.
-#
-# 🔴 **형식·순서·절단 규칙을 검색 경로와 같게 맞춘다.** 다르면 Δ 에 '형식 효과' 가 섞여
-# 검색 몫과 구별되지 않는다. 그래서 정형 레코드는 `record["markdown"]` 을 `MAX_EVIDENCE`
-# 까지, 정기공시는 `tools._section_markdown` 블록을 `_join_section_evidence` 로 —
-# 둘 다 검색 경로가 쓰는 **같은 함수·같은 상한**이다.
+# Formatting, ordering and truncation follow the retrieval path exactly. Any
+# difference would put a formatting effect into the delta, indistinguishable
+# from the retrieval share.
+# See docs/design-rationale.md#oracle-arm
 
-#: 정기공시 문서 식별자 접두. 골든은 접수번호만 주므로 여기서 만든다
-#: (`filter_docs(doc_group="periodic")` 의 `doc_id` 와 같은 형태다).
+#: Document id prefix for periodic filings. The golden set supplies only a
+#: receipt number, so the id is built here in the same form
+#: `filter_docs(doc_group="periodic")` produces.
 PERIODIC_DOC_PREFIX = "periodic_"
 
-#: 골든 목차 하나에서 볼 조각 후보 수. 상한은 `MAX_SECTION_EVIDENCE` 가 다시 조인다.
-#: 넉넉히 잡는 이유는 골든 `section` 이 **대목 전체**를 가리키는 경우가 있어서다 —
-#: 실측 Q-088 의 `III. 재무에 관한 사항 > 3. 연결재무제표 주석` 은 조각 57개 · 231,624자다.
+#: Chunk candidates considered within one golden table-of-contents entry.
+#: `MAX_SECTION_EVIDENCE` binds again above this. The pool is generous because
+#: a golden `section` can name a whole top-level entry that expands to dozens
+#: of chunks.
 ORACLE_SECTION_POOL = 8
 
-#: `parse_hops` 가 되읽을 hop 번호. 검색 hop 과 겹치지 않게 발주처 hop 다음에 둔다 —
-#: 같은 번호를 쓰면 Phase H 가 두 종류의 후보를 한 레코드로 합쳐 읽는다.
+#: Hop number read back by `parse_hops`. Placed after the counterparty hop so
+#: that it does not collide with a retrieval hop; sharing a number would merge
+#: two kinds of candidate into one record.
 ORACLE_HOP = COUNTERPARTY_HOP + 1
 
 
 def _oracle_section_blocks(rcept_no: str, section: str, question: str, cap: int,
                            budget: Budget, trace: list[str]) -> list[dict]:
-    """골든이 지목한 (문서, 목차) 안에서 근거 조각을 고른다. LLM 0회.
+    """Select evidence chunks within the (document, path) the golden set names.
+    No LLM call.
 
-    🔴 **오라클의 한계가 여기 있다.** 골든 `section` 은 목차 '대목' 이라 조각 수십 개로
-    풀리는데 프롬프트 예산(`MAX_SECTION_CHARS` 12,000자)은 4조각쯤만 받는다. 그래서
-    문서 순서대로 앞에서 자르면 오라클이 아니라 '검색 없음' 이 된다 (Q-088 은 앞 4조각이
-    일반사항·회계정책이고 골든 표는 뒤에 있다). **문서와 목차는 골든으로 못박고, 그 안의
-    조각 선택만 기존 랭커에 맡긴다** — 즉 이 arm 이 완벽하게 고정하는 것은 *문서·대목*
-    이지 *문단* 이 아니다. 보고서가 이 사실을 함께 적어야 Δ 를 옳게 읽는다.
+    The document and the table-of-contents entry are pinned by the golden set
+    and only the choice of chunks inside them is left to the existing ranker,
+    so what this arm fixes perfectly is the document and the entry, not the
+    paragraph. Reports have to state that alongside the delta.
 
-    BM25 가 한 조각도 못 고르면(질의어가 하나도 안 겹치면) 문서 순서로 되돌린다 —
-    빈 근거로 내려가면 그 문항이 '생성 실패' 로 오독된다.
+    When BM25 selects no chunk at all, because no query term overlaps, the
+    order falls back to document order. Descending to empty evidence would
+    make the question read as a generation failure.
+    See docs/design-rationale.md#oracle-arm
     """
     doc_id = f"{PERIODIC_DOC_PREFIX}{rcept_no}"
     index = tools._section_index()
@@ -1980,9 +1977,10 @@ def _oracle_section_blocks(rcept_no: str, section: str, question: str, cap: int,
             if bm25_module.norm_path(r["path"]) == wanted
             or bm25_module.norm_path(r["path"]).startswith(wanted)]
     rows.sort(key=lambda r: (r["chunk_id"].split("/")[0], r["part"]))
-    # 기업 축은 인덱스 레코드에서 되찾는다. `search_chunks` 는 `corp_name` 을 안 돌려주는데,
-    # `_join_section_evidence` 가 그 축으로 라운드로빈한다 — None 으로 두면 비교 질의에서
-    # 한 기업이 근거 칸을 다 먹는다 (`_cover_order` 주석의 Q-049 사고와 같은 기전).
+    # The company axis is recovered from the index record. `search_chunks`
+    # does not return `corp_name`, but `_join_section_evidence` round-robins on
+    # it, and leaving it None lets one company consume every slot in a
+    # comparison.
     corp_of = {r["chunk_id"]: r["corp_name"] for r in rows}
 
     try:
@@ -2000,8 +1998,9 @@ def _oracle_section_blocks(rcept_no: str, section: str, question: str, cap: int,
     else:
         chunks = [c for c in (out.get("chunks") or []) if c.get("chunk_id") in corp_of]
     if not chunks:
-        # 질의어가 한 조각과도 안 겹쳤다 (BM25 는 점수 0 을 후보에서 뺀다). 문서 순서로
-        # 되돌린다 — `read_section` 과 같은 정렬이다 (조각 번호 → part).
+        # No query term overlapped any chunk, and BM25 drops zero-score
+        # candidates. Fall back to document order, the same ordering
+        # `read_section` uses.
         trace.append(f'hop={ORACLE_HOP} strat=oracle tool=search_chunks group=periodic '
                      f'doc_id={doc_id} fallback=doc_order n={len(rows)}')
         chunks = [{"chunk_id": r["chunk_id"], "score": None,
@@ -2014,21 +2013,23 @@ def _oracle_section_blocks(rcept_no: str, section: str, question: str, cap: int,
 
 def _gather_golden(question_id: str, question: str,
                    budget: Budget) -> tuple[str, list[str]]:
-    """골든 근거만으로 프롬프트 근거를 만든다. 🔴 진단 전용 (`ablation.ORACLE`).
+    """Build the prompt evidence from the golden set alone. Diagnostic only.
 
-    주입이 없으면 `ablation.oracle_golden_for` 가 **예외를 던진다** — 조용히 빈 근거로
-    내려가면 그것이 "오라클을 줘도 생성이 다 틀렸다" 로 굳는다.
+    With no injection present, `ablation.oracle_golden_for` raises rather than
+    descending silently to empty evidence, which would harden into the claim
+    that generation failed even when given the oracle.
+    See docs/design-rationale.md#oracle-arm
     """
     golden = ablation.oracle_golden_for(question_id)
     trace: list[str] = [
         f"oracle=golden n_golden={len(golden)} "
         "🔴 진단 전용 — 검색을 골든으로 대체했다 (제출 구성이 될 수 없다)"]
 
-    # 🔴 골든 근거마다 **공평 몫**을 준다. `_gather_sections` 가 (기업 × 경로) 셀에 할당량을
-    #    두는 것과 같은 이유다 — 안 두면 조각이 많은 골든 하나가 근거 칸 4개를 다 먹고
-    #    나머지 골든이 통째로 빠진다 (실측 Q-054·Q-088·Q-094 — 대목 전체를 가리키는
-    #    `연결재무제표 주석` 이 같은 문항의 `정정 신고` 를 밀어냈다). `_cover_order` 는
-    #    기업 축으로만 나누므로 **같은 기업의 골든 둘**은 그것만으로 안 갈린다.
+    # Each golden record gets a fair share, the same reason `_gather_sections`
+    # quotas its (company, path) cells. Without it a single golden entry that
+    # expands to many chunks consumes every slot and the rest drop out
+    # entirely. `_cover_order` divides on the company axis alone, so two golden
+    # records from the same company are not separated by it.
     n_sections = sum(1 for item in golden if (item or {}).get("section"))
     cap = max(1, MAX_SECTION_EVIDENCE // n_sections) if n_sections else MAX_SECTION_EVIDENCE
 
@@ -2056,9 +2057,10 @@ def _gather_golden(question_id: str, question: str,
                         "score": None, "corp": record.get("corp_name")})
 
     picked = records + sections
-    # 🔴 `parse_hops` 가 되읽는 줄. 골든 문서를 `ids=` 에 적어야 Phase H 의 실패 귀속이
-    #    이 arm 에서도 성립한다 — 안 적으면 골든이 '어떤 hop 후보에도 없다' 가 되어
-    #    전건이 RETRIEVAL 로 귀속되고, 그것이 이 측정의 결론을 통째로 뒤집는다.
+    # Line read back by `parse_hops`. The golden documents have to appear in
+    # `ids=` for failure attribution to hold on this arm; omitted, every golden
+    # record counts as absent from all hop candidates and the whole set is
+    # attributed to retrieval failure.
     corps = sorted({p["corp"] for p in picked if p.get("corp")})
     trace.append(
         f'hop={ORACLE_HOP} strat=oracle tool=golden_evidence '
@@ -2067,7 +2069,8 @@ def _gather_golden(question_id: str, question: str,
         + f'n={len(picked)} top_score=- '
         f'ids={",".join(str(p["doc_id"]) for p in picked) or "-"}')
     if missing:
-        # 골든이 코퍼스에서 안 열리는 경우. **삼키지 않는다** — 근거가 준 것보다 적다.
+        # A golden record that does not resolve in the corpus. Not swallowed:
+        # the evidence is smaller than what was supplied.
         trace.append(f'hop={ORACLE_HOP} strat=oracle skip=golden_unresolved '
                      f'ids={",".join(missing)}')
     trace.append(_log_verdict(ORACLE_HOP, bool(picked), len(picked),
@@ -2081,29 +2084,31 @@ def _gather_golden(question_id: str, question: str,
     return "\n\n".join(p for p in parts if p), trace
 
 
-# --- A10 — 자기일관성 `k=3` (🔴 온도 통제 변수를 깨는 유일한 arm) ------------------
-# 표본을 뽑고 **다수결**한다. 논문(Self-Consistency, 2023)의 전제는 *"여러 갈래로 추론해도
-# 옳은 답으로 수렴한다"* 이고, 그 전제가 **우리 코퍼스에서 성립하는가**가 이 arm 의 측정
-# 대상이다. 채택 여부와 무관하게 그 판정이 산출물이다.
+# --- Self-consistency arm ---------------------------------------------------
+# Draw several samples and take the majority. The premise of the technique is
+# that independent reasoning paths converge on the correct answer, and whether
+# that premise holds on this corpus is what the arm measures; the verdict is
+# the deliverable regardless of adoption.
 #
-# 🔴 **두 함정을 먼저 닫는다 — 둘 다 Δ 를 조용히 0 으로 만든다.**
-#   ① 요청 캐시    프롬프트도 온도도 같아 k 개 표본의 **캐시 키가 하나**다. 2회차부터
-#                 `clova.no_cache()` 로 우회하지 않으면 표본이 전부 같아진다
-#   ② 온도 0.0     `Arm.__post_init__` 이 `sc_k>1 && temperature==0` 을 예외로 막는다
+# Two traps have to be closed first, because either silently zeroes the delta:
+# the request cache, which gives identical samples one cache key, and a
+# temperature of zero, which makes the samples identical by construction.
+# See docs/design-rationale.md#self-consistency-arm
 
 
 def _sc_key(answer: str) -> str:
-    """표본을 묶는 키 — 자기일관성의 '최종 답' 에 해당하는 것.
+    """Key that groups samples, standing in for the final answer.
 
-    우리 답변에서 그것은 **금액과 비율**이다: 닫힌 문항의 채점 축이
-    `em:number_won`(원 단위 완전일치)이고, 열린 문항의 judge 도 수치 일치를 먼저 본다.
-    🔴 **정규식을 새로 쓰지 않는다** — `critic._money_spans` 와 `critic._PCT_RE` 가
-    이 저장소의 단일 원천이고, 여기 사본을 두면 한쪽만 고쳐진다(이미 다섯 번 겪은 실패).
+    In these answers that means the amounts and percentages, since closed
+    questions are scored by exact numeric match and the judge on open questions
+    checks figures first. The patterns come from `critic`, which is the single
+    source for them; a copy here would let one side be fixed alone.
 
-    🔴 **수치가 없는 답변은 다수결이 성립하지 않는다.** 그 경우 공백만 정규화한 원문을
-    키로 쓰는데, 온도 0.7 에서 서술문이 글자까지 같을 확률은 낮다 — 즉 표본이 전부
-    다른 키가 되고 **첫 표본이 선택된다.** 이것은 결함이 아니라 이 조작의 한계이고,
-    트레이스의 `keys=` 가 그 사실을 문항마다 남긴다.
+    An answer with no figures has no majority to take. The whitespace-normalised
+    text is used as the key instead, which at a non-zero temperature makes every
+    sample its own key so the first is selected. That is a limit of the
+    manipulation rather than a defect, and the trace records it per question.
+    See docs/design-rationale.md#self-consistency-arm
     """
     from argus.agent import critic
 
@@ -2115,20 +2120,24 @@ def _sc_key(answer: str) -> str:
 
 def _self_consistent(messages: list[dict], max_tokens: int, arm, first: str,
                      budget: Budget, trace: list[str]) -> str:
-    """표본 `k` 개 중 다수결로 고른 답변. 첫 표본은 이미 뽑혀 있으므로 `k-1` 번 더 부른다.
+    """Answer chosen by majority across `k` samples. The first sample already
+    exists, so `k-1` further calls are made.
 
-    🔴 **예산이 끊기거나 상류가 죽으면 그때까지의 표본으로 다수결한다.** 여기서
-    `BudgetExceeded` 를 위로 던지면 호출부가 `UNANSWERABLE` 로 빠져 **이미 받아 둔
-    정답을 버린다** — 토큰 상한 20,000 은 긴 근거 문항에서 3회차에 실제로 물린다
-    (실측: 프롬프트 6,800 토큰 문항이 3회차에서 20,400).
+    If the budget runs out or the upstream fails, the majority is taken over
+    the samples collected so far. Raising `BudgetExceeded` here would drop the
+    caller into the limitation notice and discard answers already received,
+    and the token cap does bind on questions with long evidence.
 
-    🔴 동수면 **먼저 나온 키**가 이긴다. 그래야 `k` 를 늘려도 1회차가 기준선으로 남는다.
+    On a tie the first key wins, so that raising `k` leaves the first sample as
+    the baseline.
+    See docs/design-rationale.md#self-consistency-arm
     """
     samples = [first]
     for index in range(1, arm.sc_k):
         try:
-            # 🔴 캐시 우회는 **2회차부터**다. 1회차를 캐시에 남겨야 재실행이 그만큼 싸고,
-            #    `--offline` 재집계가 최소한 그 한 벌은 되읽을 수 있다.
+            # The cache is bypassed from the second call onward. Keeping the
+            # first in the cache makes a re-run that much cheaper and lets an
+            # offline re-aggregation read back at least that one set.
             with no_cache():
                 result = chat(messages, max_tokens=max_tokens,
                               temperature=arm.temperature, tag="answer_sc")
@@ -2154,43 +2163,39 @@ def _self_consistent(messages: list[dict], max_tokens: int, arm, first: str,
     return samples[picked]
 
 
-# --- A24 — `chat(tools=…)` 왕복 (🔴 게이트 F 의 유일한 미완이었다) -----------------
-# `TOOL_SPECS` 15종은 v1 부터 등록돼 있었는데 **`tools=` 가 `chat()` 에 한 번도 전달된
-# 적이 없다** — `ablation.py` 가 그 사실을 스스로 문서화해 뒀고 게이트 F 가 `[~]` 로
-# 남아 있었다. 여기가 그 미완을 닫는 자리다.
+# --- Function-calling arm ---------------------------------------------------
+# The tool specifications were registered from the start but `tools=` had never
+# been passed to `chat()`. This closes that gap.
 #
-# 🔴 **왕복이 필수다.** 모델이 `toolCalls` 를 돌려주면 그 응답의 `content` 는 보통
-# 비어 있다. 실행 결과를 다시 넣어 한 번 더 부르지 않으면 **빈 답변이 나가고**, 우리는
-# 그 0점을 "function calling 은 효과가 없다" 로 읽는다 — 이 저장소가 최악으로 보는
-# **조용한 Δ** 의 정확히 같은 종류다.
+# The round trip is mandatory: when the model returns tool calls, the response
+# content is usually empty, and without feeding the results back for one more
+# call an empty answer would go out and its zero would read as evidence that
+# function calling has no effect.
 #
-# 🔴 **`tools` 와 `maxTokens` 는 동시 지정 불가다** (40001 · `docs/CONVENTION.md`).
-# 그래서 도구를 내미는 회차에는 길이 상한이 **없고**, 마지막 회차는 도구를 빼서 상한을
-# 되돌린다. 이것은 우리 선택이 아니라 API 제약이고, `A24` 의 Δ 에 그 몫이 섞인다.
+# `tools` and `maxTokens` cannot be specified together, so the round that
+# offers tools carries no length cap and the final round drops the tools to
+# restore it. That is an API constraint rather than a choice, and its share is
+# mixed into this arm's delta.
+# See docs/design-rationale.md#function-calling-arm
 
-#: 도구를 내미는 회차의 상한. 마지막에 **도구 없는** 회차가 하나 더 붙으므로 생성
-#: 호출은 최대 `MAX_TOOL_ROUNDS + 1` = **2회**다.
-#:
-#: 🔴 **루프를 열어 두지 않는다** — `Budget` 의 호출 상한 6 과 토큰 상한 20,000 을 답변
-#: 단계 혼자 태우면 critic·검증이 굶고, 그것이 arm 효과로 오독된다 (이 파일 머리말:
-#: 고정 횟수 단계라 질문당 비용 상한이 계산된다).
-#:
-#: 🔴 **1 로 두면 도구 연쇄(`calc_total` → `calc_share`)는 못 한다.** 그것이 이 값의
-#: 유일한 대가이고, 대신 얻는 것이 둘이다: ① 마지막 회차에 도구를 빼므로 `maxTokens`
-#: 가 돌아와 **답변 길이 상한이 `A8` 과 같아진다**(40001 제약: `tools` 와 `maxTokens`
-#: 동시 지정 불가) ② 문항당 생성 호출이 정확히 1~2회로 못 박힌다.
+#: Cap on rounds that offer tools. One further round without tools follows, so
+#: generation costs at most two calls per question. Leaving the loop open would
+#: let the answer stage consume the call and token budgets on its own, starving
+#: the critic and the verifiers, and that would read as an arm effect. The cost
+#: of a cap of one is that tools cannot be chained.
 MAX_TOOL_ROUNDS = 1
 
-#: 도구 결과 한 건을 프롬프트에 실을 때의 글자 상한. `read_section`·`search_chunks` 는
-#: 수만 자를 돌려줄 수 있어 상한이 없으면 **토큰 상한 20,000 을 한 번에 태운다** —
-#: 그러면 `BudgetExceeded` 로 `UNANSWERABLE` 이 나가고 그것이 측정으로 굳는다.
+#: Character cap for one tool result placed into the prompt. Section and chunk
+#: retrieval can return tens of thousands of characters, which without a cap
+#: exhausts the token budget in one go and emits the limitation notice, which
+#: then hardens into a measurement.
 MAX_TOOL_RESULT_CHARS = 2_000
 
 
 def _tool_arguments(call: dict) -> dict:
-    """`toolCalls[i].function.arguments` 를 사전으로. HCX-005 는 **사전**을 돌려주지만
-    (실측 `notebooks/clova_verify.ipynb`), OpenAI 호환 서버는 JSON 문자열을 준다.
-    양쪽을 다 받는다 — 형태 하나를 가정하면 도구가 조용히 안 불린다."""
+    """Return `toolCalls[i].function.arguments` as a dict. HCX-005 returns a
+    dict while OpenAI-compatible servers return a JSON string, and both are
+    accepted: assuming one shape makes tools silently never fire."""
     args = (call.get("function") or {}).get("arguments")
     if isinstance(args, str):
         try:
@@ -2200,32 +2205,30 @@ def _tool_arguments(call: dict) -> dict:
     return args if isinstance(args, dict) else {}
 
 
-# --- A24b — 🔴 도구 결과를 모델이 옮겨 적게 하지 않는다 ---------------------------
-# `A24` 는 **도구를 안 불러서** 진 것이 아니다 (37/88 이 불렀다). 진 이유 셋 중 첫째가
-# 이것이다 — `calc_total` 이 골든과 바이트까지 같은 `2,365,868` 을 돌려줬는데 답변은
-# `2,366,968` 을 썼다. **우리 도메인의 병목은 산술이 아니라 전사(轉寫)** 이고,
-# function calling 은 그 축을 건드리지 않는다.
+# --- Substituting tool results rather than letting the model transcribe -----
+# The function-calling arm did not lose because tools went uncalled: it lost
+# because the model transcribed a correct tool result incorrectly into the
+# answer. The bottleneck in this domain is transcription rather than
+# arithmetic, and function calling does not touch that axis.
 #
-# 🔴 처방은 `A20` 이 이미 실측으로 이겨 둔 것과 같다 — **값을 코드가 문자열에 박는다.**
-# 규율도 코드도 `critic` 것을 그대로 쓴다 (`critic.tool_result_reports` 머리말).
+# The remedy is the one already measured elsewhere: the value is written into
+# the string by code. Both the rule and the code come from `critic`.
+# See docs/design-rationale.md#tool-result-substitution
 
 
-#: 🔴 **도구가 실제로 계산했다고 보는 최소 인자 수.** 이 아래면 도구는 계산한 것이
-#: 아니라 **모델이 타이핑한 수를 그대로 되돌려준 것**이고, 그 값은 독립된 근거가 아니다.
-#:
-#: 🔴 **실측이 이 상수를 만들었다** (`A24b` 1차 · `Q-047`). 모델이 근거의
-#: `97,146,675백만원` 을 **도구 인자에** `97,146,765` 로 잘못 옮겨 적고
-#: `calc_mean({"values": [97146765]})` 를 불렀다. 평균의 인자가 하나이므로 도구는
-#: 그 수를 그대로 돌려줬고, 치환이 **답변의 옳은 `97,146,675` 를 그 오타로 덮었다** —
-#: 🔴 **정답이 오답이 됐다.**
-#:
-#: 즉 전사 오류는 사라지지 않고 **답변에서 도구 인자로 자리를 옮길 뿐**이다. 도구
-#: 결과가 답변보다 믿을 만한 것은 **도구가 무언가를 계산했을 때뿐**이다.
+#: Minimum operand count for a tool to be treated as having computed anything.
+#: Below it the tool returned the number the model typed rather than a result,
+#: so the value is not independent evidence. A transcription error does not
+#: disappear under function calling; it moves from the answer into the tool
+#: arguments, and substituting such a result overwrites a correct answer with
+#: the typo.
+#: See docs/design-rationale.md#tool-result-substitution
 MIN_TOOL_OPERANDS = 2
 
 
 def _tool_operands(args: dict) -> list[float]:
-    """도구 인자에 실린 수치들. 목록 인자(`values`)는 펼친다."""
+    """Numeric values carried in the tool arguments, with list arguments
+    flattened."""
     out: list[float] = []
     for value in (args or {}).values():
         for item in (value if isinstance(value, (list, tuple)) else [value]):
@@ -2236,20 +2239,20 @@ def _tool_operands(args: dict) -> list[float]:
 
 
 def _numeric_tool_results(results: list[tuple[str, dict, dict]]) -> list[tuple[str, float]]:
-    """치환에 쓸 수 있는 `(도구, 값)` 만. 문턱이 셋이다.
+    """The `(tool, value)` pairs eligible for substitution, under three
+    thresholds.
 
-    ① **계산 도구의 수치 `value`** 뿐이다. `tools._num_result` 를 쓰는 5종
-       (`calc_pct_change`·`calc_share`·`calc_total`·`calc_mean`·`calc_cagr`)만 `value`
-       가 수치다. `calc_compare` 는 `"a"`/`"b"`/`"tie"`, `calc_period` 는 `"8년 5개월"`
-       이고 검색 도구에는 `value` 키가 아예 없다.
-       🔴 **`CALC_TOOLS` 로 한 번 더 거른다** — 검색 도구가 언젠가 `value` 키를 갖게
-       되면(자유형 반환이다) 그 값이 조용히 답변에 박힌다.
-    ② 🔴 **수치 인자가 `MIN_TOOL_OPERANDS` 미만이면 계산이 아니다** (실측 `Q-047`).
-    ③ 🔴 **결과가 인자 중 하나와 같으면 계산한 값이 아니라 통과시킨 값이다.**
-       `calc_total({"values": [x, 0]})` 같은 자리다. ②만으로는 안 막힌다.
-       대가를 안다 — `calc_pct_change(100, 200) = 100%` 처럼 **정당한 계산이 우연히
-       인자와 같은** 경우도 함께 막는다. 답변을 고쳐 쓰는 조작이라 **확신할 수 없으면
-       손대지 않는 쪽**을 기본값으로 둔다.
+    1. Only the numeric `value` of a calculation tool qualifies. Comparison and
+       period tools return non-numeric values and retrieval tools have no
+       `value` key at all, and `CALC_TOOLS` filters again so that a retrieval
+       tool gaining such a key later cannot silently reach an answer.
+    2. Fewer numeric operands than `MIN_TOOL_OPERANDS` is not a computation.
+    3. A result equal to one of its operands was passed through rather than
+       computed, which the operand count alone does not catch. The cost is that
+       a legitimate computation coinciding with an operand is blocked too;
+       since this rewrites an answer, the default is to leave it alone when
+       unsure.
+    See docs/design-rationale.md#tool-result-substitution
     """
     out: list[tuple[str, float]] = []
     for name, args, payload in results or ():
