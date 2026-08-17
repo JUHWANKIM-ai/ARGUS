@@ -750,6 +750,26 @@ class Arm:
     #: 반올림해서 같은 억이 되는 근거 금액이 둘 이상이면 침묵한다 — 확신 없이 원값을
     #: 박으면 *맞는 근사*를 *틀린 정확*으로 바꾸는 꼴이다.
     expand_rounded: bool = False
+
+    #: 🔴 **우리가 아는 결과값이 답변에 없으면 결론 한 문장을 우리가 적는다** (v6).
+    #:
+    #: `substitute_aggregate` 가 못 잡는 자리다. 저쪽은 답변에 *"근거 밖 수 하나"* 가
+    #: 있을 때만 발화하는데, `H-008` 에서 모델은 **틀린 수를 쓴 게 아니라 맞는 수를
+    #: 틀리게 엮었다** — 두 수가 다 근거에 있어 발화 조건에 안 걸렸고, 정작 질문이
+    #: 물은 `646,244,000,000` 은 답에 없었다.
+    #:
+    #: 검사망이 *'근거 밖'* 축만 보고 *'질문에 답했는가'* 축을 안 봤다. 이 스위치가
+    #: 그 축을 하나 만든다.
+    state_total: bool = False
+
+    #: 🔴 **같은 날 공시가 둘일 때 날짜가 지목하는 것을 가른다** (v6 · `K-004`).
+    #:
+    #: 삼성바이오로직스가 2023-07-04 에 같은 제목으로 두 건을 공시했고 **둘 다 근거에
+    #: 실렸는데** 모델이 정정본을 골랐다. 검색이 아니라 **선택**이 틀렸다.
+    #:
+    #: 가르는 규칙은 날짜의 뜻이다 — *"N월 D일 공시한 계약"* 이 지목하는 것은 그날
+    #: 공시된 계약이지 **다른 날 계약의 정정본**이 아니다. `related` 가 그 사실을 든다.
+    date_disambiguation: bool = False
     #: 🔴 **`A26` 의 알맹이 — 가리키는 대상이 없는 지시어를 '범위 밖' 과 가른다. LLM 0회.**
     #:
     #: 규약 감사 `F-3` 이 실측했다. `AUD-15` *"그 회사의 작년 실적 좀 알려줘"* 가
@@ -1129,6 +1149,12 @@ A39 = replace(A38, name="A39", roster_line=True)
 #: 🔴 v6 채택 — 반올림 복원. 사유는 `Arm.expand_rounded`.
 A40 = replace(A39, name="A40", expand_rounded=True)
 
+#: 🔴 v6 채택 — 결과값 부재. 사유는 `Arm.state_total`.
+A41 = replace(A40, name="A41", state_total=True)
+
+#: 🔴 v6 채택 — 같은 날 공시 가르기. 사유는 `Arm.date_disambiguation`.
+A42 = replace(A41, name="A42", date_disambiguation=True)
+
 # --- v5 채택 후보 전량 (산술 + 시계열 + 검색) ---------------------------------------
 A29_ALL = replace(A28, name="A29all", aggregate_line=True, substitute_aggregate=True,
                   substitute_verified=True, reverse_chain=True, revision_series=True)
@@ -1279,7 +1305,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A8-lean", "A20", "A20r", "A25", "A26", "A25+A26", "A27b", "A28",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
-             "A34", "A35", "A36", "A37", "A38", "A39", "A40",
+             "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42",
              "A21", "A22", "A10", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1318,7 +1344,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A2, A2F, ORACLE, A8_LEAN, A20, A20R, A21, A18, A22, A10, A24,
                          A24B, A24BS, A25, A26, A25_A26, A27B, A28, A31, A32, A33,
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
-                         A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40)}
+                         A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42)}
 
 #: 🔴 **사다리도 LOO 도 진단도 아닌 곁가지.** 목록을 손으로 적지 않는다 — 러너의 요약과
 #: 게이트가 `LADDER + LOO_REMOVED + DIAGNOSTIC_ARMS` 만 훑으므로, 여기 안 잡히는 arm 은
@@ -1407,7 +1433,7 @@ FLAG_NAMES: tuple[str, ...] = tuple(
 #: *"맞는 합계 + 안 맞는 풀이"* 로 바꾼다. 근본 원인은 모델이 항을 잘못 골랐다는 것이고
 #: 치환은 그것을 덮는다. 정답률(110/112)을 택했다. 되돌리려면 식이 깨질 때 치환을
 #: 취소하면 되고 그 대가는 108/112 다.
-_current: Arm = A40
+_current: Arm = A42
 
 
 def current() -> Arm:

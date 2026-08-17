@@ -376,8 +376,8 @@ def test_default_arm_is_the_submission_configuration():
     🔴 이 값을 바꾸면 **평가 서버도 다시 배포해야 한다** — `api/server.py` 는 arm 을
     지정하지 않으므로 이것이 곧 주최측이 받는 답변의 구성이다.
     """
-    assert ablation.current() == ablation.A40
-    assert ablation.current().name == "A40"
+    assert ablation.current() == ablation.A42
+    assert ablation.current().name == "A42"
     # 🔴 v5 정확성 개선 둘. 성적은 안 움직이고 규약 「정확성」 축만 움직인다.
     assert ablation.current().fix_unit_parens is True
     assert ablation.current().counterparty_exempt is True
@@ -391,6 +391,11 @@ def test_default_arm_is_the_submission_configuration():
     # 🔴 반올림 복원 — N-011 이 잡았다. 근거에 원값이 둘 다 있는데 답변이
     #    억으로만 적었다. 값은 맞고 정밀도만 잃은 자리다.
     assert ablation.current().expand_rounded is True
+    # 🔴 결과값 부재 — H-008 이 잡았다. 치환은 "근거 밖 수" 만 보는데
+    #    모델은 맞는 수를 틀리게 엮어 그 망을 빠져나갔다.
+    assert ablation.current().state_total is True
+    # 🔴 같은 날 공시 가르기 — K-004. 둘 다 근거에 있었고 선택이 틀렸다.
+    assert ablation.current().date_disambiguation is True
     # 🔴 v5 가 켠 여덟 스위치. 하나라도 빠지면 잰 성적이 아니다.
     for flag in ("speculation_gate", "identifier_gate", "reverse_chain",
                  "aggregate_line", "substitute_aggregate", "substitute_verified",

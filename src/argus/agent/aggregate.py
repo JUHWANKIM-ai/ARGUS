@@ -766,3 +766,85 @@ def expand_rounded(answer: str, records) -> tuple[str, list[str]]:
         return f"{exact}원 ({match.group(0)})"
 
     return _BARE_EOK.sub(_sub, body) + tail, fixed
+
+
+def state_total(answer: str, records, question: str, route) -> tuple[str, str]:
+    """**우리가 아는 결과값이 답변에 없으면 결론 한 문장을 우리가 적는다.** LLM 0회.
+
+    돌려주는 것은 `(새 답변, 사유)` 이고, 적을 것이 없으면 `(원본, "")` 이다.
+
+    🔴 **`substitute` 가 못 잡는 자리다** (2026-08-17 · `H-008` 실측). 저쪽은 답변에
+    *"근거 밖 수 하나"* 가 있을 때만 발화한다. 여기서 모델은 **틀린 수를 쓴 게 아니라
+    맞는 수를 틀리게 엮었다**:
+
+        집계 줄  1,046,363,500,000 − 400,119,500,000 = 646,244,000,000원
+        답변     "400,119,500,000원이 삭제되고 … 총 1,046,363,500,000원으로 변경"
+                  ↑ 두 수 다 근거에 있다. 그래서 치환의 발화 조건에 안 걸린다.
+                  ↑ 그런데 질문이 물은 것(얼마나 바뀌었는가)은 답에 없다.
+
+    trace 가 그 경위를 남긴다 — 1차 생성은 근거 밖 수(`246,125,500,000`)를 써서
+    provenance 가 잡았고, **재생성본이 근거 안의 수만 써서 망을 통과했다.** 검사망이
+    '근거 밖' 축만 보고 '질문에 답했는가' 축을 안 봤다.
+
+    🔴 **모델의 문장을 고치지 않는다.** 그 서사는 그 자체로 틀리지 않았다(총액이
+    1,046,363,500,000 이 된 것은 사실이다). 없는 것은 **질문이 부른 값**이므로 그것만
+    한 문장으로 덧붙인다. 지우는 것보다 더하는 쪽이 잃는 것이 적다.
+
+    🔴 **`substitute` 뒤에 서야 한다.** 저쪽이 먼저 갈아 끼우면 값이 이미 실려 이 함수는
+    침묵한다 — 그것이 옳은 순서다. 치환할 수 있으면 치환이 낫다(문장이 하나 안 는다).
+    """
+    total = _total(records, question, route)
+    if total is None:
+        return answer, ""
+    body, tail = split_tail(answer or "")
+    if not body or f"{total:,}" in body:
+        return answer, ""
+    #: 🔴 **연산이 못박힌 질의에만 적는다.** `_op` 가 빈 문자열이면 `_total` 도 None 이라
+    #: 여기까지 못 오지만, 조건을 눈에 보이게 남긴다 — 뒷사람이 `_total` 을 넓힐 때
+    #: 이 함수가 함께 넓어지면 안 된다.
+    sentence = (f"\n\n따라서 질문이 물은 값은 {total:,}원이다. "
+                f"(이 값은 시스템이 위 근거의 금액 필드에서 직접 계산한 것이다.)")
+    return body + sentence + tail, f"stated {total:,}"
+
+
+def date_disambiguation(records, question: str) -> str:
+    """질문이 못박은 날짜가 **어느 공시를 지목하는가**를 한 줄로 밝힌다. LLM 0회.
+
+    발화하지 않으면 빈 문자열이다.
+
+    🔴 **실측 `K-004`** (2026-08-17). 삼성바이오로직스가 2023-07-04 에 *같은 제목*으로
+    두 건을 공시했고 **둘 다 근거에 실렸다**:
+
+        20230704800001  495,278,073,440  정정=True   원공시 2023-03-02
+        20230704800004  922,746,708,000  정정=False  원공시 없음(신규)
+
+    모델은 앞엣것을 골랐다. 검색이 아니라 **선택**이 틀렸다.
+
+    🔴 **가르는 규칙은 날짜의 뜻이다.** *"N월 D일 공시한 계약"* 이 지목하는 것은 그날
+    체결·공시된 계약이지, **다른 날 계약의 정정본**이 아니다. 정정본의 접수일은 그날이
+    맞지만 그 계약이 공시된 날은 원공시일이다. `related` 가 그 사실을 들고 있다.
+
+    🔴 **모호할 때만 발화한다.** 그날 공시가 하나뿐이면 가를 것이 없고, 신규가 둘 이상이면
+    우리도 못 가른다 — 둘 다 침묵이다. *"정정"* 을 묻는 질의에서도 침묵한다: 그때는
+    정정본이 답이다.
+    """
+    hit = _FILED_DATE.search(question or "")
+    if not hit or any(k in (question or "") for k in ("정정", "수정", "변경 전", "변경 후")):
+        return ""
+    want = "%s%02d%02d" % (hit.group(1), int(hit.group(2)), int(hit.group(3)))
+    same = [r for r in (records or []) if str(r.get("rcept_dt") or "") == want]
+    if len(same) < 2:
+        return ""
+    fresh = [r for r in same if not r.get("is_correction")]
+    amended = [r for r in same if r.get("is_correction")]
+    if len(fresh) != 1 or not amended:
+        return ""
+    pick = fresh[0]
+    amount = _amount(pick)
+    return (f"[결정적 조회] {hit.group(1)}년 {int(hit.group(2))}월 {int(hit.group(3))}일에 "
+            f"**공시된** 계약은 접수번호 {pick.get('rcept_no')} 이다"
+            + (f" (계약금액 {amount:,}원)" if amount else "")
+            + f". 같은 날 접수된 "
+            + " · ".join(str(r.get("rcept_no")) for r in amended)
+            + " 는 **다른 날 계약의 정정본**이므로 이 질문이 지목한 계약이 아니다.\n"
+            + "(이 판정은 시스템이 근거의 접수일과 정정 관계에서 직접 가른 것이다.)")

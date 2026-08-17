@@ -2634,6 +2634,17 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, extra)
             trace.append(f"aggregate line=1 chars={len(extra)}")
 
+    # 🔴 날짜가 지목하는 공시를 가른다. `K-004` 에서 같은 날 같은 제목의 공시가 둘이고
+    #    **둘 다 근거에 있었는데** 모델이 정정본을 골랐다. 검색이 아니라 선택이 틀린
+    #    자리라, 집합의 경계를 밝히는 `_roster_line` 과 같은 처방을 쓴다 — 머리에 한 줄.
+    if ablation.enabled("date_disambiguation"):
+        from argus.agent import aggregate
+
+        pick = aggregate.date_disambiguation(_evidence_records(evidence), clean)
+        if pick:
+            evidence = _prepend(evidence, pick)
+            trace.append(f"date_pick line=1 chars={len(pick)}")
+
     # 🔴 법인등록번호 — 조각이 문제였지 근거 칸이 문제가 아니었다 (2026-08-17).
     #    목차를 `AFFILIATE_PATH` 로 좁히면 검색은 맞는 보고서를 고르는데, 그 섹션이
     #    34,122자라 6조각으로 쪼개지고 BM25 가 회사명이 빽빽한 4번 조각을 고른다.
@@ -2721,6 +2732,18 @@ def answer_question(question_id: str, question: str) -> dict:
             answer, _evidence_records(evidence), clean, r)
         if swapped:
             trace.append(f"aggregate substitute={swapped}")
+
+    # 🔴 결과값 부재 — 치환이 못 잡는 자리다. `H-008` 에서 모델은 **틀린 수를 쓴 게
+    #    아니라 맞는 수를 틀리게 엮었고**, 그래서 "근거 밖 수 하나" 라는 치환의 발화
+    #    조건에 안 걸렸다. 질문이 부른 값이 답변에 아예 없으면 한 문장으로 적는다.
+    #    🔴 `substitute` **뒤**다 — 치환할 수 있으면 치환이 낫다(문장이 안 는다).
+    if ablation.enabled("state_total"):
+        from argus.agent import aggregate
+
+        answer, stated = aggregate.state_total(
+            answer, _evidence_records(evidence), clean, r)
+        if stated:
+            trace.append(f"aggregate {stated}")
 
     # 🔴 A35 — 괄호 환산을 우리가 다시 쓴다. **치환 뒤에 서야 한다** — `substitute` 가
     #    본 수치만 갈아 끼우면 모델이 제 오답에서 계산한 괄호가 남는다(`Q-115` 실측).
