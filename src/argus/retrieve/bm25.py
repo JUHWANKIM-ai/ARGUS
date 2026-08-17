@@ -1,29 +1,20 @@
-"""BM25 검색 인덱스 (+ A2 dense 하이브리드). LLM 호출 없음.
+"""BM25 retrieval indexes with an optional dense hybrid. No LLM calls.
 
-두 가지 인덱스가 있다.
+Two indexes exist.
 
-* `Bm25Index` — exchange 정형 레코드 1,469건. 전문(markdown)을 그대로 안고 있다.
-* `SectionBm25Index` — periodic 목차 섹션 88,654건. 본문을 안지 않는 CSR 역색인.
+`Bm25Index` holds exchange structured records and carries the full markdown.
+`SectionBm25Index` holds periodic report sections as a CSR inverted index and
+does not carry body text.
 
-**왜 하나로 안 합쳤는가는 실측 결과다** (docs/pipeline/04-retriever.md D-5).
-합치면 exchange 골든 적중이 무너진다. 따로 가는 근거와 수치는 그 문서에 있다.
-문서군별 인덱스 구조는 A2 에서도 그대로다 — dense 도 **문서군마다 따로** 붙는다.
+They are kept separate because merging them degrades exchange recall. Dense
+sidecars, when enabled, attach per document group in the same way.
 
-## A2 — dense 를 어디에 끼우는가
+Dense ranking is applied after the metadata prefilter, not before, so the
+dense store only has to cover candidates that survive filtering.
 
-    메타 프리필터(corp_name · rcept_dt · path)  ->  후보 집합
-                                                     ├─ BM25 순위
-                                                     └─ dense 순위      ->  RRF  ->  top_k
-
-**dense 는 프리필터 앞이 아니라 뒤다.** §I-1 의 실측(1,469 -> 1건)이 그 이유이고,
-그래서 정기공시 dense 저장소를 '전량' 이 아니라 '프리필터 통과 후보' 로 좁혀도
-**측정이 훼손되지 않는다** — 프리필터가 거른 문서는 dense 인덱스에 있어도 후보가 아니다.
-
-점수는 융합해도 **`score` 로 돌려주는 값은 BM25 원점수 그대로**다. `pipeline.MIN_TOP_SCORE`
-(잡음 바닥 10.0)와 `_sufficiency` 의 `low_score` 판정이 BM25 스케일 위에 서 있어서,
-RRF 점수(≈0.03)를 그대로 흘리면 **모든 문항이 low_score 가 되어 hop 사다리가 통째로
-바뀐다.** 그러면 재는 것이 dense 가 아니라 hop 예산이 된다. A2 가 바꾸는 것은
-**후보의 순서와 구성** 하나뿐이다.
+The score returned to callers is always the raw BM25 score. Downstream
+sufficiency checks are calibrated on the BM25 scale, so emitting fused scores
+would change hop behaviour rather than ranking.
 """
 from __future__ import annotations
 
@@ -37,8 +28,8 @@ from rank_bm25 import BM25Okapi
 
 from argus import ablation, embed
 
-# 공시 서식명에는 가운뎃점 'ㆍ'(U+318D) 가 섞여 있다 — '단일판매ㆍ공급계약체결'.
-# [가-힣] 범위 밖이라 그냥 두면 토큰이 쪼개진다. 정규화해서 흡수한다.
+# Filing form names contain the middle dot U+318D, which lies outside the
+# Hangul syllable range and would otherwise split a token.
 _MIDDOT = re.compile(r"[ㆍ·・･]")
 _TOKEN = re.compile(r"[0-9]+(?:[,.][0-9]+)*|[가-힣]+|[A-Za-z]+")
 
@@ -50,17 +41,16 @@ def _bigrams(word: str) -> list[str]:
 
 
 def tokenize_words(text: str) -> list[str]:
-    """어절 토큰만. bigram 없이."""
+    """Word tokens only, without bigrams."""
     return _TOKEN.findall(_MIDDOT.sub("", text or ""))
 
 
 def tokenize(text: str) -> list[str]:
-    """어절 토큰 + 한글 문자 bigram.
+    """Word tokens plus Hangul character bigrams.
 
-    한국어 복합명사 때문에 어절 토큰만으로는 부분 일치가 안 된다.
-    '배전변압기' 는 한 토큰이라 '변압기' 질의에 걸리지 않는다 — 실측으로 확인된 실패다.
-    형태소 분석기는 서버 메모리 2.8GiB 제약에서 부담이라 문자 bigram 을 병용한다.
-    '변압기' -> [변압, 압기] 가 '배전변압기' -> [배전, 전변, 변압, 압기] 와 겹친다.
+    Korean compound nouns form a single token, so word-level matching alone
+    misses partial queries. Character bigrams provide the overlap without the
+    memory cost of a morphological analyser.
     """
     words = tokenize_words(text)
     tokens = list(words)
@@ -70,17 +60,17 @@ def tokenize(text: str) -> list[str]:
     return tokens
 
 
-#: 인덱스가 어떤 토크나이저로 지어졌는지 저장해 두고 질의에도 같은 것을 쓴다.
-#: 섞이면 bigram 으로 지은 색인을 어절 질의로 때리게 되어 조용히 리콜이 죽는다.
+#: Tokeniser used to build the index, reapplied at query time. Mixing the
+#: two silently degrades recall.
 TOKENIZERS = {"bigram": tokenize, "word": tokenize_words}
 
 
-# --- A2 dense 사이드카 ---------------------------------------------------------
-# 인덱스 옆에 붙는 벡터 저장소. **arm 이 켜졌을 때만** 동작하고, 꺼져 있으면 파일이
-# 있어도 질의 임베딩조차 부르지 않는다 (`tests/test_ablation.py` 가 그것을 고정한다).
+# --- Dense sidecar --------------------------------------------------------
+# Vector store attached beside an index. Active only when the dense switch is
+# on; otherwise no query embedding is requested even if the file exists.
 
-#: 직전 `search()` 의 융합 기록. `pipeline` 이 `think_trace` 에 찍는다 —
-#: **"dense 가 실제로 돌았는가" 를 크레딧 0원으로 되읽는 유일한 창구**다.
+#: Fusion record from the most recent `search()`, surfaced in `think_trace`
+#: so that dense activity can be inspected without additional cost.
 LAST_FUSION: dict | None = None
 
 DENSE_DIRNAME = embed.EMBED_CACHE_DIRNAME
@@ -92,10 +82,10 @@ def dense_path(name: str):
 
 
 class DenseSide:
-    """벡터 저장소 + 후보 임베딩 지연 채움. 한 인덱스에 하나.
+    """Vector store with lazy embedding of candidates. One per index.
 
-    `text_of` 는 **BM25 가 색인한 것과 같은 문자열**을 돌려줘야 한다. 다른 문자열을
-    임베딩하면 A2 의 Δ 에 '색인 텍스트 변경' 이 섞여 단일 변수 조작이 아니게 된다.
+    `text_of` must return the same string BM25 indexed. Embedding a different
+    string would conflate two variables in any comparison.
     """
 
     def __init__(self, name: str, text_of, store: embed.VectorStore | None = None,
@@ -117,10 +107,10 @@ class DenseSide:
         self.store.save(dense_path(self.name))
 
     def rank(self, query: str, candidates: list[str], top_k: int) -> list[str]:
-        """후보 안에서 dense 상위 top_k. 저장소에 없는 후보는 그 자리에서 채운다.
+        """Top-k dense matches within the candidate set, embedding on demand.
 
-        지연 채움이 **정기공시 dense 를 성립시키는 유일한 방법**이다. 157,397 조각 전량은
-        상주 615MB(float32)·비용 7천원대라 게이트와 예산을 동시에 넘긴다.
+        Embedding every section chunk up front would exceed both the memory
+        ceiling and the credit budget.
         """
         missing = [d for d in candidates if d not in self.store]
         if missing and self.lazy:
@@ -136,13 +126,11 @@ class DenseSide:
 
 def _fuse(query: str, dense: "DenseSide | None", bm25_ranked: list[tuple[str, float]],
           n_candidates: int, candidates_of, top_k: int) -> list[tuple[str, float]]:
-    """BM25 순위와 dense 순위를 RRF 로 합친다. 돌려주는 점수는 **BM25 원점수**다.
+    """Fuse BM25 and dense rankings with RRF, returning raw BM25 scores.
 
-    dense 만 올린 문서는 BM25 점수가 0.0 이다 — 그것이 "어휘로는 안 걸렸는데 의미로는
-    걸렸다" 는 뜻이고, 이 arm 이 재려는 바로 그 사건이다.
-
-    후보 목록은 **끝까지 미룬다** (`candidates_of`). 필터 없는 섹션 검색은 후보가
-    157,397개라 목록을 만드는 것만으로 손해인데, 그 경우는 어차피 dense 를 건너뛴다.
+    A document surfaced only by dense retrieval carries a BM25 score of 0.0,
+    which marks a lexical miss with a semantic hit. Candidate enumeration is
+    deferred, since unfiltered section search skips dense entirely.
     """
     global LAST_FUSION
     LAST_FUSION = None
@@ -174,7 +162,7 @@ class Bm25Index:
         self._bm25 = BM25Okapi([tokenize(t) for t in texts])
 
     def attach_dense(self, name: str, lazy: bool = True) -> "DenseSide":
-        """이름이 곧 사이드카 파일명이다 (`artifacts/embeddings/<name>_dense.npz`)."""
+        """The index name determines the sidecar filename."""
         text_of = {d: t for d, t in zip(self.doc_ids, self.texts)}.get
         self.dense = DenseSide(name, lambda d: text_of(d) or "", lazy=lazy)
         return self.dense
@@ -188,7 +176,7 @@ class Bm25Index:
         )
 
     def candidates(self, prefix: dict | None = None, **meta_filters) -> list[int]:
-        """메타 프리필터를 통과한 문서 인덱스. **A0 의 후보 집합이 곧 이것이다.**"""
+        """Indices of documents passing the metadata prefilter."""
         prefix = prefix or {}
         out = []
         for i, meta in enumerate(self.metas):
@@ -201,15 +189,16 @@ class Bm25Index:
 
     def search(self, query: str, top_k: int = 10,
                prefix: dict | None = None, **meta_filters) -> list[tuple[str, float]]:
-        """meta_filters 는 완전일치, prefix 는 접두 일치.
+        """Exact matching for `meta_filters`, prefix matching for `prefix`.
 
-        기간 조건은 완전일치로 표현할 수 없다 — '2023년 1월' 은 rcept_dt 접두 '202301' 이다.
+        Period conditions cannot be expressed as equality, since a month maps
+        to a receipt-date prefix.
         """
         scores = self._bm25.get_scores(tokenize(query))
         keep = self.candidates(prefix, **meta_filters)
-        # BM25Okapi 는 코퍼스 절반 넘게 등장하는 어휘에 음수 IDF 를 준다.
-        # 음수 점수는 '매칭됐지만 흔한 어휘' 라는 뜻이지 미매칭이 아니다.
-        # 토큰이 하나도 겹치지 않을 때만 점수가 정확히 0 이 된다 — 그때만 거른다.
+        # BM25Okapi assigns negative IDF to terms appearing in more than half
+        # the corpus. A negative score means a common term matched, not a miss.
+        # Only an exact zero indicates no overlap.
         ranked = sorted(((self.doc_ids[i], float(scores[i])) for i in keep
                          if scores[i] != 0), key=lambda x: -x[1])
         return _fuse(query, self.dense, ranked, len(keep),
@@ -228,34 +217,31 @@ class Bm25Index:
     def load(cls, path) -> "Bm25Index":
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
         index = cls(raw["doc_ids"], raw["texts"], raw["metas"])
-        # 사이드카는 **파일이 있든 없든** 붙인다. 없으면 빈 저장소이고, A2 가 켜졌을 때만
-        # 지연 채움이 돈다 — 그래서 A2 를 안 켜면 파일 유무가 동작에 영향을 주지 않는다.
+        # The sidecar is attached whether or not its file exists. Without the
+        # file it is an empty store, and lazy fill runs only when dense is on.
         index.attach_dense(Path(path).stem.replace("_bm25", ""))
         return index
 
 
-# --- 섹션 2차 분할 -------------------------------------------------------------
-# 목차 마크업(ATOC="Y")은 제출인마다 붙이는 정도가 다르다. 실측 최장 섹션이
-# **410,023자**(`periodic_20260313001191` 연결감사보고서 주석)이고, 카카오 2023
-# 사업보고서 원공시의 `연결재무제표 주석` 은 255,691자가 한 덩어리다 — 같은 문서의
-# 정정본에서는 주석 1~43 으로 쪼개져 있다. **목차만 믿으면 20만자 근거가 나온다.**
-#
-# 따라서 길이 상한 분할은 선택이 아니다. 다만 **표 중간에서 자르면 안 된다** —
-# 정기공시 표 문자비가 0.82 라 값-라벨 매핑이 통째로 깨진다.
+# --- Secondary section splitting ------------------------------------------
+# Table-of-contents markup varies by filer, so a single declared section can
+# reach several hundred thousand characters. A length ceiling is therefore
+# mandatory. Splitting inside a table must be avoided, because periodic
+# filings are table-dense and a mid-table cut destroys label-value mapping.
 
-#: 조각 하나의 상한. 정기공시 섹션 중앙값 2,306자의 3.5배로, 중앙값 섹션은 그대로 한 조각이다.
-#: 8,000자 ≈ HCX 4~5천 토큰이라 근거 2~3건까지 물려도 20,000 토큰 예산 안에 든다.
+#: Maximum characters per chunk. Chosen so that a median section remains a
+#: single chunk and two or three chunks fit within the token budget.
 SECTION_CHUNK_CHARS = 8000
 EVIDENCE_CHUNK_CHARS = SECTION_CHUNK_CHARS
 
-#: 표 머리(헤더 + 구분선). 표를 쪼갤 때 조각마다 다시 얹는다.
+#: Table header and separator, reapplied to every chunk of a split table.
 _TABLE_HEAD = 2
 
 
 def _split_table(block: str, max_chars: int) -> list[str]:
-    """거대한 표를 행 경계에서만 자르고 조각마다 헤더를 다시 얹는다.
+    """Split a large table on row boundaries, repeating the header per chunk.
 
-    헤더를 안 얹으면 두 번째 조각부터 열 의미가 사라진다 — 숫자만 남은 표는 근거가 아니다.
+    Without the header, columns lose meaning from the second chunk onward.
     """
     lines = block.split("\n")
     if len(lines) <= _TABLE_HEAD:
@@ -277,11 +263,10 @@ def _split_table(block: str, max_chars: int) -> list[str]:
 
 
 def split_section(text: str, max_chars: int = EVIDENCE_CHUNK_CHARS) -> list[str]:
-    """섹션 본문을 표 경계를 지키며 조각낸다.
+    """Split section text while preserving table boundaries.
 
-    `render()` 가 블록을 빈 줄로 이어 붙이므로 빈 줄이 곧 안전한 경계다 — 표 하나는
-    줄바꿈 하나로만 이어져 있어 빈 줄로 자르면 절대 표 중간이 갈리지 않는다.
-    빈 줄 없이 한 블록이 상한을 넘는 경우(거대 표)만 행 단위로 다시 자른다.
+    Blocks are joined by blank lines, and a table contains none, so blank lines
+    are safe cut points. A single block exceeding the ceiling is split by row.
     """
     if not text:
         return []
@@ -311,10 +296,10 @@ def split_section(text: str, max_chars: int = EVIDENCE_CHUNK_CHARS) -> list[str]
 
 def iter_section_parts(record: dict, text: str,
                        chunk_chars: int = SECTION_CHUNK_CHARS):
-    """섹션 레코드 하나 -> (조각 레코드, 조각 본문) 스트림.
+    """Stream (chunk record, chunk text) pairs for one section record.
 
-    조각은 `chunk_id` 에 `/p{n}` 을 붙여 구분한다. 조각 본문은 블롭에 따로 저장하지
-    않는다 — `split_section` 이 결정적이라 원문을 다시 읽어 같은 자리에서 자르면 된다.
+    Chunk bodies are not stored separately. `split_section` is deterministic,
+    so re-reading the source reproduces the same boundaries.
     """
     parts = split_section(text, chunk_chars) or [""]
     for i, part in enumerate(parts):
@@ -328,47 +313,47 @@ def iter_section_parts(record: dict, text: str,
         yield out, part
 
 
-# --- 섹션 인덱스 ---------------------------------------------------------------
-# rank_bm25 는 문서마다 `dict[token] -> tf` 를 하나씩 들고 있다. 88,654 섹션 전문이면
-# 실측 2,308MB — 게이트 500MB 의 4.6배다 (04-retriever D-5 표). 같은 BM25Okapi 수식을
-# CSR(term -> 정렬된 doc/tf 배열) 로 다시 구현해 절반 이하로 떨군다.
+# --- Section index ---------------------------------------------------------
+# The reference BM25 implementation holds a term-frequency dict per document,
+# which exceeds the memory ceiling at this corpus size. The same BM25Okapi
+# formula is reimplemented over a CSR inverted index instead.
 
 BM25_K1 = 1.5
 BM25_B = 0.75
 BM25_EPSILON = 0.25          # rank_bm25 와 동일 — 음수 IDF 를 eps*평균IDF 로 바닥친다
 
-#: 색인 대상 본문 길이 상한. 전문 색인은 CSR 로도 1,168MB 라 상한이 필수다.
-#: 값은 실측으로 골랐다 (04-retriever D-5 회수/상주량 표).
+#: Indexed body length ceiling. Full-text indexing exceeds the memory budget
+#: even under CSR.
 SECTION_INDEX_CHARS = 1200
 
-#: 사전 인코딩할 메타 축. `path` 는 고유 8,593개뿐이라 코드화가 특히 잘 먹는다.
+#: Metadata axes encoded as integer codes. `path` has low cardinality and
+#: benefits most.
 SECTION_FIELDS = ("doc_id", "corp_name", "doc_subtype", "rcept_dt", "base_year", "path")
 
-#: 조각 단위 부가 컬럼. `part` 로 블롭에서 다시 잘라 낼 위치를 되찾는다.
-#: `section_chars`/`is_stub` 은 §7.7 ④ `list_sections` 를 이 인덱스만으로 돌리기 위한 것이다
-#: — 없으면 55MB jsonl 을 또 상주시켜야 하고 그것만으로 174MB 다.
+#: Per-chunk columns. `part` recovers the slice position within the blob.
+#: `section_chars` and `is_stub` let `list_sections` run from this index
+#: alone, avoiding a second resident copy of the section records.
 SECTION_COLUMNS = ("text_offset", "text_bytes", "n_chars", "n_tables",
                    "part", "n_parts", "section_chars", "is_stub", "level")
 
-#: 구두점·공백을 지우고 비교하는 축. 목차 오타가 실재한다 — HMM 20240514001580 의
-#: `"12, 관계기업투자 (연결)"` 는 마침표 자리에 쉼표가 찍혀 있어 완전일치로는 못 찾는다.
+#: Comparison axis with punctuation and whitespace removed. Table-of-contents
+#: entries contain typographic errors that defeat exact matching.
 _PUNCT_INSENSITIVE = frozenset({"path"})
 _PUNCT = re.compile(r"[^0-9A-Za-z가-힣]+")
 
 
 def norm_path(value: str) -> str:
-    """목차 경로 비교용 정규형. 구두점·공백·대소문자를 지운다."""
+    """Normal form for comparing TOC paths, ignoring punctuation and case."""
     return _PUNCT.sub("", str(value or "")).lower()
 
 
 def section_index_text(record: dict, text: str, cap: int = SECTION_INDEX_CHARS,
                        with_meta: bool = True) -> str:
-    """섹션 하나의 색인 문자열 = 기업명 + 목차 경로 + 본문 머리.
+    """Indexed string for one section: company, TOC path and body head.
 
-    목차 경로를 넣는 이유는 상위 목차 어휘('III. 재무에 관한 사항')가 본문에는 없기
-    때문이다. 본문은 머리만 쓴다 — 뒤쪽은 대부분 숫자 표라 질의어가 되지 못한다.
-    `with_meta=False` 면 본문만 색인한다 (exchange markdown 처럼 메타가 이미 본문에
-    적혀 있는 레코드를 섞어 볼 때 쓴다 — 통합 인덱스 실험).
+    The TOC path is included because upper-level heading vocabulary does not
+    appear in the body. Only the head of the body is used, since the remainder
+    is mostly numeric tables. With `with_meta=False` only the body is indexed.
     """
     head = (text or "")[:cap] if cap else (text or "")
     if not with_meta:
@@ -377,14 +362,14 @@ def section_index_text(record: dict, text: str, cap: int = SECTION_INDEX_CHARS,
 
 
 class SectionBm25Index:
-    """대규모 섹션 코퍼스용 BM25. 본문을 상주시키지 않는다.
+    """BM25 over a large section corpus without keeping bodies resident.
 
-    `Bm25Index` 와 검색 계약은 같다 — `search(query, top_k, prefix=..., **완전일치)`.
-    다른 점 둘:
+    Shares the search contract of `Bm25Index`, with two differences:
 
-    1. 반환 식별자가 `chunk_id` 다. 본문은 `record()` 가 주는 오프셋으로 블롭에서 읽는다.
-    2. `prefix` 축에 **`path`** 가 들어간다. 고유 8,593개 목차 경로가 전 기업 공통이라
-       `prefix={"path": "III. 재무에 관한 사항"}` 하나로 후보가 65% -> 해당 대목만 남는다.
+    1. Results are identified by `chunk_id`; bodies are read from the blob
+       using the offsets returned by `record()`.
+    2. `prefix` accepts a `path` axis. TOC paths are shared across companies,
+       so one prefix narrows the candidate set sharply.
     """
 
     def __init__(self, chunk_ids, fields, codes, tables, cols,
@@ -408,16 +393,16 @@ class SectionBm25Index:
         self.idf = self._calc_idf()
 
     def index_text(self, chunk_id: str) -> str:
-        """이 조각이 **BM25 에 색인된 것과 같은 문자열**. dense 는 이걸 임베딩한다.
+        """The exact string BM25 indexed for this chunk, as embedded by dense.
 
-        본문은 인덱스가 안 들고 있으므로 블롭에서 다시 읽는다. `tools._section_body`
-        를 지연 import 로 재사용한다 — 같은 오프셋 규칙을 두 번 적으면 언젠가 갈라진다.
+        Bodies are re-read from the blob, reusing the offset logic in `tools`
+        rather than duplicating it.
         """
         from argus.agent import tools
 
-        # `record()` 는 `chunk_ids.index()` 라 조각 하나에 157,397 비교다. 인덱싱에서는
-        # 수천 번 부르므로 위치표를 만든다 — **dense 를 켠 경로에서만** 만들어 A6 상주량을
-        # 건드리지 않는다 (게이트 500MB).
+        # `record()` performs a linear scan, which is costly when called per
+        # chunk. A position table is built only on the dense path so that
+        # resident memory is unchanged when dense is off.
         if getattr(self, "_chunk_pos", None) is None:
             self._chunk_pos = {c: i for i, c in enumerate(self.chunk_ids)}
         i = self._chunk_pos.get(chunk_id)
@@ -433,11 +418,11 @@ class SectionBm25Index:
     def __len__(self) -> int:
         return len(self.chunk_ids)
 
-    # --- 빌드 -----------------------------------------------------------------
+    # --- Build ----------------------------------------------------------------
     @classmethod
     def build(cls, records, texts, cap: int = SECTION_INDEX_CHARS,
               tokenizer: str = "bigram", with_meta: bool = True) -> "SectionBm25Index":
-        """`records` 는 섹션 메타, `texts` 는 같은 순서의 본문."""
+        """Build from section metadata and bodies given in the same order."""
         tokenize_fn = TOKENIZERS[tokenizer]
         chunk_ids = [r["chunk_id"] for r in records]
         tables = {f: [] for f in SECTION_FIELDS}
@@ -489,7 +474,7 @@ class SectionBm25Index:
                    np.frombuffer(doc_len, dtype=np.int32), tokenizer)
 
     def _calc_idf(self) -> np.ndarray:
-        """rank_bm25 BM25Okapi 와 동일. 음수 IDF 는 eps × 평균IDF 로 바닥친다."""
+        """BM25Okapi scoring. Negative IDF is floored at eps times mean IDF."""
         size = len(self.chunk_ids)
         if not size or self.ptr.size < 2:
             return np.zeros(0, dtype=np.float64)
@@ -498,7 +483,7 @@ class SectionBm25Index:
         floor = BM25_EPSILON * (idf.sum() / len(idf))
         return np.where(idf < 0, floor, idf)
 
-    # --- 검색 -----------------------------------------------------------------
+    # --- Search ---------------------------------------------------------------
     def _codes_where(self, field: str, test) -> np.ndarray:
         table = self.tables.get(field)
         if table is None:
@@ -549,8 +534,9 @@ class SectionBm25Index:
         mask = self._mask(prefix or {}, meta_filters)
         if mask is not None:
             scores = np.where(mask, scores, 0.0)
-        # dense 를 켜면 융합 전에 두 리스트를 top_k 보다 깊게 뽑아야 한다 —
-        # 둘 다 top_k 로 자르면 순서만 바뀌고 후보 집합은 절대 안 바뀐다.
+        # With dense enabled both lists must be drawn deeper than top_k before
+        # fusion; truncating each at top_k would permute order without
+        # changing the candidate set.
         fusing = self.dense is not None and DenseSide.enabled()
         depth = embed.fetch_depth(top_k) if fusing else top_k
         keep = np.flatnonzero(scores > 0)
@@ -565,7 +551,7 @@ class SectionBm25Index:
                                else np.arange(len(self.chunk_ids)))], top_k)
 
     def record(self, chunk_id: str) -> dict | None:
-        """검색 결과 하나의 메타 + 블롭 오프셋. 본문은 담지 않는다."""
+        """Metadata and blob offsets for one hit. Body text is not included."""
         try:
             i = self.chunk_ids.index(chunk_id)
         except ValueError:
@@ -580,9 +566,9 @@ class SectionBm25Index:
             out[key] = int(column[i])
         return out
 
-    # --- 저장 -----------------------------------------------------------------
+    # --- Persistence ------------------------------------------------------------
     def save(self, path) -> None:
-        """`<stem>.npz`(배열) + `<stem>.json`(어휘·값표) 두 파일."""
+        """Persist as `<stem>.npz` for arrays and `<stem>.json` for tables."""
         base = Path(path)
         arrays = {"ptr": self.ptr, "post_docs": self.post_docs,
                   "post_tfs": self.post_tfs, "doc_len": self.doc_len}
