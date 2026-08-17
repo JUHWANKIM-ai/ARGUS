@@ -700,24 +700,26 @@ def _equation_mismatches(text: str) -> list[dict]:
             units.add(_unit_at(text, m.start(2) + term.end(2)))
         if broken:
             continue
-        # 단위가 섞인 등식(`72,200 + … = 817,100백만원` 은 같은 단위지만
-        # `100억 + 50억 = 15,000,000,000원` 은 환산이다)은 좌·우변이 달라도 정당하다.
+        # An equation whose two sides carry different units is a conversion
+        # rather than a mismatch, and is legitimate.
         if len({u for u in units if u}) > 1:
             continue
         if abs(total - claimed) > tolerance + 1e-9:
             out.append({"kind": "equation", "claimed": " ".join(m.group(0).split()),
                         "claimed_value": claimed, "expected": total,
                         "tolerance": tolerance, "detail": "답변이 쓴 등식", "hard": True,
-                        # 🔴 A20 의 치환 자리는 **우변만**이다. `claimed` 는 공백을
-                        # 접은 등식 전문이라 답변의 부분문자열이 아니다 (실측 Q-044 는
-                        # `$$…\\text{억원}$$` 안에 있다). 좌변 항들은 답변이 근거에서
-                        # 옮겨 적은 값이고, 틀린 것은 그것들의 합이다.
+                        # Only the right-hand side is a substitution target.
+                        # The reported literal is the whole equation with
+                        # whitespace folded and is not a substring of the
+                        # answer. The left-hand terms are values copied from
+                        # the evidence; what is wrong is their sum.
                         "targets": [m.group(3)]})
     return out
 
 
 def _restatement_pairs(text: str) -> list[tuple]:
-    """`X원 (Y억원)` 꼴로 붙어 있는 금액 짝. **전제가 몇 번 섰는지**를 따로 센다."""
+    """Amount pairs written as an exact figure followed by its conversion. The
+    number of times the premise held is counted separately."""
     spans = _money_spans(text)
     return [(a, b) for a, b in zip(spans, spans[1:])
             if _RESTATE_OPEN.match(text[a[1]:b[0]])
@@ -725,7 +727,8 @@ def _restatement_pairs(text: str) -> list[tuple]:
 
 
 def _restatement_mismatches(text: str) -> list[dict]:
-    """짝지어진 두 표기가 같은 금액인가. 규칙 8·9 가 만든 짝을 되받는다."""
+    """Whether the two notations of a pair state the same amount. This answers
+    the pair the money rules create."""
     out: list[dict] = []
     for first, second in _restatement_pairs(text):
         tolerance = 2 * (first[3] + second[3])
@@ -734,24 +737,28 @@ def _restatement_mismatches(text: str) -> list[dict]:
                         "claimed": f"{first[4]} ({second[4]})",
                         "claimed_value": first[2], "expected": second[2],
                         "tolerance": tolerance, "detail": "원값과 괄호 환산값이 다르다",
-                        # 🔴 **치환 자리가 없다.** 원값과 괄호 환산값 중 어느 쪽이 틀린지
-                        # 이 검사는 모른다 — 실측 Q-018 은 괄호가 옳고 원값이 틀렸는데,
-                        # `Q-110` 은 원값이 옳고 괄호가 10배 틀렸다. 방향이 반대다.
+                        # No substitution target: this check cannot tell
+                        # which of the two notations is wrong, and the
+                        # recorded cases go in both directions.
+                        # See docs/design-rationale.md#recomputed-substitution
                         "hard": True, "targets": []})
     return out
 
 
 def verify_answer_arithmetic(answer: str) -> dict:
-    """답변의 **내적 일관성**을 재계산한다. 근거를 읽지 않는다. LLM 0회.
+    """Recompute the answer's internal consistency. Reads no evidence. No LLM
+    call.
 
-    `verify_calculation`·`verify_completeness` 와 같은 반환 규격이다. 전제가 안 서면
-    (등식도 재기술 짝도 없으면) `skipped` 다 — 검사 대상이 없는 것과 결함을 섞으면
-    Phase H 의 귀속이 오염된다.
+    Same return shape as the other deterministic checks. With no equation and
+    no restatement pair, the premise does not hold and the result is skipped:
+    conflating nothing to check with a defect would corrupt the failure-stage
+    attribution.
 
-    🔴 **`verify_calculation` 안에 넣지 않았다.** 그쪽은 근거 레코드마다 한 번 도는데
-    이 검사는 답변당 한 번이고 레코드에 의존하지 않는다. 안에 넣으면 ① 레코드가 0건인
-    문항(Q-044·Q-047)에서 아예 안 돌고, ② `aggregate_calculation` 의 `explained`
-    (레코드 하나라도 설명하면 통과)가 이 검사 때문에 뒤집혀 **체인 관용이 망가진다.**
+    Deliberately not folded into calculation verification. That one runs once
+    per evidence record while this runs once per answer and depends on no
+    record, so folding it in would stop it running on questions with zero
+    records and would invert the per-record tolerance.
+    See docs/design-rationale.md#answer-internal-consistency
     """
     text = answer or ""
     mismatches = _equation_mismatches(text) + _restatement_mismatches(text)
@@ -770,35 +777,32 @@ def verify_answer_arithmetic(answer: str) -> dict:
         "hard_kinds": failed,
         "failure_stage": FAILURE_STAGE if mismatches else None,
         "reason": "; ".join(_mismatch_reason(m) for m in mismatches),
-        # 🔴 A20 — `verify_calculation` 과 **같은 규격**이다. `equation` 만 실린다
-        # (`restatement` 는 치환 자리를 못 박는다 — `_recomputed` 참조).
+        # Same shape as calculation verification. Only the equation kind
+        # appears here, since a restatement mismatch pins down no substitution
+        # target.
         "recomputed": _recomputed(mismatches),
     }
 
 
 def substitute_recomputed(answer: str, reports: Sequence[dict],
                           recomputed: dict[str, float] | None) -> tuple[str, list[str]]:
-    """검사가 낸 재계산값으로 답변의 그 수치를 바꾼다. `(새 답변, 바꾼 자리)`. LLM 0회.
+    """Replace a figure in the answer with the value a check recomputed.
 
-    🔴 **이것이 A20 의 전부다.** 검사는 이미 정답을 정확히 재계산해 놓고 있었고
-    (실측 Q-097 의 `per_unit` 재계산값 207,684,631,210 은 골든과 **바이트까지 일치**),
-    파이프라인이 그것을 각주로만 붙이고 버렸다 — **탐지 100% · 교정 0%.**
+    Returns (new answer, places replaced). No LLM call.
 
-    🔴 **우리 착상이 아니라 CoT 논문 부록 B 의 처방이다** — *"모델이 스스로 쓴 등식마다
-    사후 계산기를 돌리고, **문자열 매칭으로 결과를 전파**한다."* 마지막 절이 이 함수다.
+    The checks were already recomputing the correct value exactly, and the
+    pipeline was attaching it as a note and discarding it.
 
-    안전장치가 셋이다.
-      ① `recomputed` 가 `None` 이면 아무것도 안 한다 (`unique_recomputed` 의 유일성 판정).
-      ② 표기가 복합이면(`4조 9,671억원`) 건드리지 않는다 — 어느 자리를 바꿀지 정해지지
-         않는다. 값이 둘 이상 실린 표기는 그것으로 가른다.
-      ③ 치환은 **숫자 경계**에서만 한다 — `1,365,868` 이 `21,365,868` 의 부분문자열로
-         걸리면 답변이 망가진다.
+    Three safeguards: nothing happens without a unique recomputed value, a
+    compound notation is left alone because there is no single place to change,
+    and replacement happens only at digit boundaries so that a figure is not
+    matched inside a longer one.
 
-    🔴 **알려진 한계 — 한 번만 돈다.** 한 답변에서 종류가 둘 이상 발화하면(실측
-    `vc/ORACLE` Q-115: `amount` + `equation`) `amount` 치환이 등식의 좌변 항을 바꿔
-    놓아 등식의 재계산 총계가 낡는다. 되풀이해서 수렴시키지 않는다 — 그러면 이 arm 이
-    재는 것이 '치환' 이 아니라 '반복 교정' 이 되고 통제 변수가 하나 더 늘어난다.
-    실측 664 답변에서 이 겹침은 1건이고 그 문항은 치환 전후 모두 오답이다.
+    A known limit is that this runs once. When two kinds fire on one answer,
+    substituting for the first can stale the recomputation of the second. It is
+    deliberately not iterated to convergence, which would make the arm measure
+    repeated correction rather than substitution.
+    See docs/design-rationale.md#recomputed-substitution
     """
     if not recomputed:
         return answer, []
@@ -822,19 +826,21 @@ def substitute_recomputed(answer: str, reports: Sequence[dict],
 
 
 def _rendered(target: str, expected: float) -> str | None:
-    """`target` 의 **표기 그대로** 값만 갈아 끼운다. 못 하면 `None` (건드리지 않는다).
+    """Replace the value inside a target while keeping its notation, or return
+    None to leave it alone.
 
-    `2,078억` → `2,077억` 처럼 답변이 쓴 배율·소수 자리를 유지한다. 재계산값을 원 단위로
-    들이밀면 답변의 문장이 깨진다.
+    The scale and decimal places the answer wrote are preserved, since forcing
+    the recomputed value in base units would break the sentence.
 
-    🔴 **배율은 `target` 자신의 표지에서 읽는다.** 불일치 레코드의 `claimed_value` 로
-    나누면 안 된다 — `targets` 에는 `claimed` 아닌 표기도 들어 있어서(실측 Q-097 은
-    `2,078억` 이 보고되고 `207,848,465,710원` 이 함께 치환 대상이 된다) 배율이 1 이
-    아니라 0.99977 로 잡히고 **재계산값이 미묘하게 어긋난 값으로 찍힌다.**
+    The scale is read from the target's own marker rather than derived from the
+    reported value, because the target list also holds notations other than the
+    reported one and dividing by that value yields a scale slightly off one,
+    which would stamp a subtly wrong figure.
+    See docs/design-rationale.md#recomputed-substitution
     """
     numbers = _BARE_RE.findall(target or "")
     if len(numbers) != 1:
-        return None                        # 복합 표기 — 어느 자리를 바꿀지 정해지지 않는다
+        return None                        # compound notation, no single place
     if _to_float(numbers[0]) is None:
         return None
     money = _MONEY_RE.fullmatch((target or "").strip())
@@ -845,55 +851,41 @@ def _rendered(target: str, expected: float) -> str | None:
     return target.replace(numbers[0], text, 1)
 
 
-# --- F1b. 도구 결과 치환 (A24b · LLM 0회) --------------------------------------
-# 🔴 **`A24` 의 기각 사유 ①을 정면으로 겨냥한다.** 그 arm 은 `calc_total` 이 골든과
-# 바이트까지 같은 `2,365,868` 을 돌려줬는데 모델이 답변에 `2,366,968` 을 썼다 (독립
-# 스모크에서는 `2,366,868` — **두 번 다 틀리고 틀린 자리가 다르다**). 도구는 계산을
-# 대신해 줄 수 있지만 **옮겨 적기를 대신해 주지는 못한다.**
+# --- Tool result substitution. No LLM call ----------------------------------
+# Aimed at the first reason function calling was rejected: a tool returned a
+# value identical to the golden answer and the model transcribed it wrongly. A
+# tool can do the calculation but cannot do the transcription.
 #
-# 🔴 **`A20` 과 같은 기전이다 — 값을 코드가 문자열에 박는다.** 그래서 원천만 다르고
-# 규율·코드는 그대로 쓴다:
-#
-#     A20   `verify_calculation`·`verify_answer_arithmetic` 의 재계산값으로 치환
-#     A24b  🔴 **도구가 돌려준 값**으로 치환
-#
-# 두 arm 이 `_targets` · `_recomputed` · `unique_recomputed` · `substitute_recomputed` ·
-# `_rendered` 를 **공유한다.** 같은 일을 두 곳에 따로 만들면 유일성 규칙이 갈리고, 그것이
-# 이 저장소가 여러 번 겪은 실패 양식이다 (`unique_recomputed` 머리말).
-#
-# 🔴 **치환 조건 셋** (하나라도 어긋나면 손대지 않는다):
-#   ① 도구 값이 답변에 **이미 실려 있으면** 아무것도 안 한다 — 모델이 제대로 옮겨 적었다.
-#   ② 같은 자릿수 후보(`_targets`)의 **값이 정확히 하나**여야 한다. 둘 이상이면 어느
-#      쪽을 말하려 한 것인지 정해지지 않는다.
-#      🔴 *literal* 이 아니라 *값* 을 센다 — 실측 Q-097 처럼 같은 값이 두 표기로 실리면
-#      (`207,848,465,710원` · `약 2,078억 원`) **둘 다 바꿔야** 답변이 스스로 모순되지
-#      않는다 (`SUBSTITUTE_LOG_TOLERANCE` 주석).
-#   ③ 같은 도구를 여러 번 불러 값이 갈리면 `unique_recomputed` 가 `None` 을 내고
-#      **아무것도 치환되지 않는다** — 정정 체인 관용과 같은 이유다.
+# Same mechanism as the recomputed substitution, with a different source, so
+# the target selection, uniqueness rule, substitution and rendering are shared
+# rather than reimplemented.
+# See docs/design-rationale.md#tool-result-verification
 
-#: 도구 결과 검사의 종류 접두. 뒤에 도구 이름이 붙는다 (`tool_result:calc_total`) —
-#: 🔴 도구별로 갈라야 `unique_recomputed` 가 *"같은 도구를 두 번 불러 값이 갈렸다"* 를
-#: 볼 수 있다. 하나로 뭉치면 서로 다른 도구의 정당한 두 값이 충돌로 읽힌다.
+#: Kind prefix for a tool-result check; the tool name is appended. Splitting by
+#: tool is what lets the uniqueness rule see one tool called twice with
+#: divergent values. Merged into one kind, two legitimate values from different
+#: tools would read as a conflict.
 TOOL_RESULT_KIND = "tool_result"
 
 
 def tool_result_reports(answer: str, results: Sequence[tuple[str, float]]) -> list[dict]:
-    """도구 호출 **하나당 판정 레코드 하나.** `verify_calculation` 과 같은 반환 규격이라
-    `unique_recomputed`·`substitute_recomputed` 를 그대로 먹인다. LLM 0회.
+    """One verdict record per tool call, in the same return shape as
+    calculation verification so the uniqueness and substitution helpers accept
+    it directly. No LLM call.
 
-    `results` 는 `(도구 이름, 수치 결과)` 의 나열이다. **무엇이 수치인가를 여기서 정하지
-    않는다** — 호출부(`pipeline._numeric_tool_results`)가 계산 도구의 `value` 만 골라
-    넘긴다. `calc_compare` 의 `value` 는 `"a"`/`"b"`/`"tie"` 문자열이고 `calc_period` 의
-    `value` 는 `"8년 5개월"` 이라 갈아 끼울 자리가 없다.
+    `results` is a sequence of (tool name, numeric result). What counts as
+    numeric is decided by the caller, which passes only the numeric values of
+    the calculation tools.
 
-    🔴 **레코드를 호출마다 따로 두는 것이 조건 ③이다.** 한 레코드에 뭉치면
-    `_recomputed` 가 갈린 종류만 조용히 빼고 나머지를 치환하는데, 도구 결과는 그
-    관용을 쓸 근거가 없다 (정정 체인처럼 '같은 값의 다른 시점' 이 아니다).
+    Keeping one record per call is a condition of the design: merged into one
+    record, the collector would silently drop only the divergent kind and
+    substitute the rest, and tool results have no basis for that tolerance.
 
-    🔴 **갈림 판정은 값 자체로 한다 — 불일치가 났는지로 하면 안 된다.** `calc_total` 을
-    두 번 불러 `2,365,868` 과 `3` 이 나왔는데 뒤엣것이 답변의 어느 수와도 자릿수가 안
-    맞으면 그 레코드는 불일치가 **없고**, `unique_recomputed` 는 갈림을 못 본다.
-    그러면 갈린 도구의 앞엣값이 그대로 답변에 박힌다. 여기서 먼저 막는다.
+    Divergence is decided on the values themselves rather than on whether a
+    mismatch was raised, because a divergent second value that matches nothing
+    in the answer raises no mismatch and would leave the first value to be
+    stamped in.
+    See docs/design-rationale.md#tool-result-verification
     """
     rows = list(results or ())
     values: dict[str, set[float]] = {}
@@ -910,20 +902,21 @@ def _tool_result_report(answer: str, name: str, value: float,
     text = answer or ""
     claims = [] if split else _bare_claims(text)
     expected = float(value)
-    # ① 이미 옮겨 적었다 — 반올림 창(`_bare_claims` 의 허용오차) 안이면 맞는 것이다.
+    # Already transcribed correctly: within the rounding window it is right.
     stated = any(abs(claimed - expected) <= tol + 1e-9 for claimed, tol, _ in claims)
     targets = [] if stated else _targets(expected, claims)
     values = {v for v in (_to_float(t) for t in targets) if v is not None}
     mismatches: list[dict] = []
-    # ② 후보의 **값**이 정확히 하나일 때만 손댄다.
+    # Touch it only when the candidates carry exactly one value.
     if targets and len(values) == 1:
         mismatches.append({
             "kind": kind, "claimed": targets[0], "claimed_value": next(iter(values)),
             "expected": expected, "tolerance": 0.0, "hard": True,
             "detail": f"{name} 이 돌려준 값", "targets": targets})
     failed = [kind] if mismatches else []
-    # 🔴 갈린 도구·수치 없는 답변은 **검사한 적이 없다** — `skipped` 다. 그것을
-    # `checked` 로 세면 게이트 F 의 `calc_checked` 가 거짓을 말한다.
+    # A divergent tool, or an answer with no figures, was never checked and is
+    # recorded as skipped. Counting it as checked would make the reported
+    # coverage false.
     return {
         "ok": not mismatches, "llm_calls": 0,
         "checked": [] if split or not claims else [kind],
@@ -935,20 +928,18 @@ def _tool_result_report(answer: str, name: str, value: float,
     }
 
 
-# --- F2. 수치 출처 게이트 (A21 · LLM 0회) --------------------------------------
-# 🔴 **`A15` 와 묻는 것이 다르다.** `verify_calculation`·`verify_answer_arithmetic` 은
-# *"계산이 맞는가"* 를 묻고 이 검사는 *"이 숫자가 근거에 있는가"* 를 묻는다. 실측
-# `Q-018` 은 근거에 없는 13자리 수(`1,843,200,000,000`)를 답에 썼고 — 근거의 값은
-# `1,842,200,000,000` 이다 — 그 한 자리는 계산이 아니라 **옮겨 적기**가 틀린 것이다.
+# --- Number provenance gate. No LLM call ------------------------------------
+# A different question from the calculation checks: they ask whether the
+# arithmetic holds, this asks whether the figure appears in the evidence. A
+# single wrong digit in a transcribed figure is not a calculation error.
 #
-# 🔴 **`verify_calculation` 안에 넣지 않았다.** `verify_answer_arithmetic` 과 같은
-# 이유다 (그 머리말 참조): 그쪽은 근거 레코드마다 한 번 도는데 이 검사는 답변당 한 번이고,
-# 안에 넣으면 `aggregate_calculation` 의 '레코드 하나라도 설명하면 통과' 관용이 뒤집힌다.
+# Kept outside calculation verification for the same reason as the internal
+# consistency check: it runs once per answer rather than once per record.
 #
-# 🔴 **`skipped` 판별이 이 검사의 절반이다.** 우리가 계산해서 낸 수(`A20` 의 재계산값
-# 포함)는 근거에 없는 것이 **정상**이다. 그것을 위반으로 세면 `A20` 과 정면으로 싸운다 —
-# `A20` 은 재계산값을 답변에 **집어넣는** arm 이고 이 게이트는 그 값을 근거에서 못 찾는다.
-# 그래서 계산으로 설명되는 수는 위반이 아니라 `skipped` 로 뺀다.
+# Deciding what to skip is half of this check. Figures the system itself
+# computed are legitimately absent from the evidence, and counting those as
+# violations would put this gate directly at odds with the substitution arms.
+# See docs/design-rationale.md#provenance-gate
 
 #: 게이트가 보는 자릿수 하한. **12자리 미만은 검사하지 않는다** — 연도(`2024`)·건수
 #: (`3건`)·비율(`7.6%`)은 근거에 없는 것이 정상이고, 그것을 세면 오탐만 는다.
