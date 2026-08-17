@@ -624,74 +624,63 @@ def _show(expected) -> str:
     return str(expected)
 
 
-# --- G. 답변의 내적 일관성 (LLM 0회) ------------------------------------------
-# `verify_calculation` 은 **근거 레코드 대조**다. 그래서 레코드가 없으면 아무것도 못 본다 —
-# 정기공시 문항은 `tools._record_of` 가 정형 레코드를 돌려주지 않는다. 실측 Q-044·Q-047 은
-# 근거 접수번호가 2건인데 **레코드가 0건**이라 계산 검증이 통째로 서지 못했다.
+# --- Internal consistency of the answer. No LLM call ------------------------
+# Calculation verification compares against the source records, so it sees
+# nothing when there are none, which is the case for periodic filings.
 #
-# 여기서 보는 축은 다르다. **답변이 스스로 쓴 두 표기가 서로 어긋나는가.** 근거를 한 줄도
-# 읽지 않으므로 레코드가 0건이어도 선다. LLM 0회다.
+# This axis is different: whether two notations the answer wrote itself
+# disagree. It reads no evidence at all, so it works with zero records.
 #
-#   equation     인라인 등식      `1,699,923 + 665,945 = 1,365,868`     (실측 Q-044)
-#   restatement  원값↔환산값 짝   `1,843,200,000,000원 (1조 8,422억원)` (실측 Q-018)
+#   equation     an inline equation
+#   restatement  an exact figure paired with its unit conversion
 #
-# 🔴 **`restatement` 는 규칙 8·9 가 만든 짝을 되받는 검사다.** W1 이 조 단위 콤마 밀림
-# (10^k)을 막으려고 원값과 조·억 환산값을 **함께 쓰게** 했고, 그 순간 두 표기가 어긋날 수
-# 있는 자리가 새로 생겼다. Q-018 이 정확히 그것이다 — `1조 8,422억원` 은 근거와 바이트까지
-# 같고 **원 단위 13자리에서 한 자리만** 틀렸다(10^0). `_compare` 는 후보 중 하나만 맞으면
-# 통과시키므로 **맞는 쪽이 틀린 쪽을 가려 준다.** 답변 안에서 둘을 직접 맞대야 보인다.
+# The restatement check answers the pair the money rules create: writing the
+# exact figure alongside its conversion prevents one failure mode and creates a
+# place where the two can disagree.
 #
-# 🔴 겨냥과 회귀 위험을 함께 적는다 (저장 응답 614건 재채점 · LLM 0회 · 지출 0원).
-#
-#   equation     현 세대 264 답변에서 등식 20개 · 불일치 3개(전부 Q-044 의 같은 등식)
-#                옛 세대까지 614 답변 52개 등식 중 불일치 12개, 그중 정답 문항은
-#                phase_h·A6 의 Q-034 뿐이다 — 그 답변의 합계는 **실제로 틀렸고**
-#                (817,100 vs 817,900) 서술형 판정기가 통과시킨 것이다
-#   restatement  614 답변에서 재기술쌍 87개 · 불일치 5개 · **정답 문항 0건**
-#
-# 허용 오차는 **표기 단위 1칸**이다(반이 아니다). 모델은 반올림도 절사도 하므로
-# `2,590,850,129,043원 (2조 5,908억원)`(=25,908.50억을 절사) 같은 정당한 표기가 반칸
-# 창에서는 거짓 경보가 됐다 — 실측 Q-065(정답)가 그 한 건이었다.
+# The tolerance is one place of the stated unit rather than half of it, because
+# the model both rounds and truncates.
+# See docs/design-rationale.md#answer-internal-consistency
 
-#: 등식은 **덧셈·뺄셈 사슬만** 본다. `×`·`÷` 가 섞이면 좌→우 계산이 연산 우선순위를
-#: 틀리게 하고, 실측 614 답변의 등식 52개에 ×·÷ 사슬은 한 건도 없다. 사슬이 끊기면
-#: 정규식이 아예 매치하지 않으므로 **조용히 안 보는 쪽**으로 실패한다.
+#: Equations are read as addition and subtraction chains only. Mixing in
+#: multiplication or division would make left-to-right evaluation get operator
+#: precedence wrong, and no such chain appears in the recorded answers. A
+#: broken chain simply fails to match, so the failure mode is silence.
 #:
-#: 🔴 **`=` 뒤의 강조 표기를 통과시킨다** (`[\s*_]*`). 종전에는 `\s*` 만 허용해서
-#: `… = **4,967,110,535,840원**` 처럼 결과를 굵게 감싼 등식이 **아예 매치하지 않았다** —
-#: 사슬이 끊긴 것과 구별되지 않고 조용히 안 보였다. 실측 Q-107(밸류체인 오답)이 그것이다:
-#: 좌변합 5,047,859,524,850 vs 우변 4,967,110,535,840 으로 **덧셈이 실제로 틀렸는데**
-#: `calc_checked` 에 `equation` 이 없었다. 같은 파일의 `_RESTATE_OPEN` 이 이미 같은 이유로
-#: 같은 문자류를 쓴다 (아래 — 재기술 짝도 `**…원**(…)` 로 굵게가 끼어든다).
-#: 저장 응답 878건 전수 대조: **신규 적중 3건**(vc/A8 Q-107 · vc/A8-lean Q-107 ·
-#: vc/ORACLE Q-115 — 전부 이미 오답) · **적중 상실 0** · **정답 문항 거짓 경보 0**.
+#: Emphasis markup after the equals sign is allowed through: an equation whose
+#: result is wrapped in bold otherwise failed to match at all, which is
+#: indistinguishable from a broken chain.
+#: See docs/design-rationale.md#answer-internal-consistency
 _EQ_NUM = r"-?\d[\d,]*(?:\.\d+)?"
 _EQ_OP = r"[+\-−]"
 _EQUATION_RE = re.compile(rf"({_EQ_NUM})((?:\s*{_EQ_OP}\s*{_EQ_NUM})+)\s*=[\s*_]*({_EQ_NUM})")
 _EQ_TERM = re.compile(rf"({_EQ_OP})\s*({_EQ_NUM})")
 
-#: 수 바로 뒤에 붙은 배율 표지. `_MONEY_RE` 와 **같은 목록**을 쓴다.
+#: Scale marker immediately following a figure, from the same marker list as
+#: the money pattern.
 _UNIT_AT = re.compile(rf"\s*({_SCALE_ALT})")
 
-#: 재기술 짝의 경계. `**276,900,000,000원**(2,769억원)` 처럼 굵게 표기가 끼어든다.
+#: Boundaries of a restatement pair. Bold markup can appear between the two
+#: notations.
 _RESTATE_OPEN = re.compile(r"^[\s*_]*\($")
 _RESTATE_CLOSE = re.compile(r"^[\s*_]*\)")
 
-#: 답변의 내적 일관성 검사 종류. `verify_calculation` 과 같은 이유로 `TOOL` 에 귀속한다 —
-#: 옮겨 적기와 덧셈은 생성이 아니라 **계산 Tool 이 대신했어야 할 일**이다.
+#: Kinds of internal-consistency check. Attributed to the tool stage for the
+#: same reason as calculation verification: transcription and addition are work
+#: a calculation tool should have done rather than generation.
 ARITHMETIC_KINDS = ("equation", "restatement")
 
 
 def _unit_at(text: str, pos: int) -> str:
-    """수 뒤의 배율 표지. **공백을 지운 정규형**으로 돌려준다 — 같은 등식이 한쪽은
-    `817,100백만원`, 다른 쪽은 `817,100백만 원` 이면 종전에는 *단위가 섞였다* 로 읽혀
-    검사가 조용히 통과했다 (`_equation_mismatches` 의 `units` 비교)."""
+    """Scale marker following a figure, returned with whitespace removed.
+    Without normalising, the same marker written two ways within one equation
+    reads as mixed units and the check passes silently."""
     match = _UNIT_AT.match(text, pos)
     return "".join(match.group(1).split()) if match else ""
 
 
 def _equation_mismatches(text: str) -> list[dict]:
-    """답변이 스스로 쓴 `a ± b ± c = d` 를 다시 계산한다."""
+    """Recompute an addition and subtraction chain the answer wrote itself."""
     out: list[dict] = []
     for m in _EQUATION_RE.finditer(text):
         total = _to_float(m.group(1))
