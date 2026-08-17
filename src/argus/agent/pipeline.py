@@ -988,10 +988,11 @@ def _enumerate_events(r, question: str, budget: Budget, trace: list[str], take,
                      reverse=True)
     order = sorted(groups, key=lambda key: (-len(groups[key]), key))
 
-    # 🔴 A29c — 담을 칸이 모자라 버려지는 **분포**를 한 줄로 남긴다. `groups` 는 이미
-    #    만들어져 있고(pool 27 · 그룹 11), 담기는 것은 `MAX_ENUM_EVIDENCE`(5)뿐이다.
-    #    상한을 올리는 안은 `A16` 이고 `R0-3`(dac2bf0)이 이미 기각했다 — 그래서 칸이
-    #    아니라 줄로 낸다.
+    # Record as one line the distribution that gets discarded for want of
+    # slots. The grouping already exists and only `MAX_ENUM_EVIDENCE` of it is
+    # carried; raising that cap was rejected, so this goes out as a line rather
+    # than as slots.
+    # See docs/design-rationale.md#partner-profile
     if extra is not None and ablation.enabled("partner_profile"):
         from argus.agent import aggregate
 
@@ -2272,10 +2273,13 @@ def _numeric_tool_results(results: list[tuple[str, dict, dict]]) -> list[tuple[s
 
 def _substitute_tool_results(answer: str, results: list[tuple[str, dict, dict]],
                              trace: list[str]) -> str:
-    """도구가 돌려준 값으로 답변의 그 수치를 갈아 끼운다. LLM 0회.
+    """Replace the corresponding figure in the answer with the tool's value.
+    No LLM call.
 
-    🔴 **발화하지 않았을 때도 trace 에 적는다.** 안 적으면 "치환이 몇 번 설 수 있었는데
-    몇 번 섰는가" 를 사후에 못 세고, 그러면 Δ 를 무엇에 귀속할지가 흐려진다.
+    The trace records the outcome even when nothing fires, so that how often
+    substitution could have applied and how often it did can be counted after
+    the fact; without that the delta cannot be attributed.
+    See docs/design-rationale.md#tool-result-substitution
     """
     pairs = _numeric_tool_results(results)
     if not pairs:
@@ -2291,10 +2295,12 @@ def _substitute_tool_results(answer: str, results: list[tuple[str, dict, dict]],
 
 def _answer_with_tools(messages: list[dict], max_tokens: int, arm, budget: Budget,
                        trace: list[str]) -> str:
-    """`A24`/`A24b` — 도구를 내밀고, 모델이 부르면 실행해 결과를 되먹여 다시 부른다.
+    """Offer tools, execute what the model calls, feed the results back and
+    call again.
 
-    🔴 `substitute_tool_results`(A24b)가 켜져 있으면 **마지막에 도구 결과로 답변의
-    수치를 치환한다.** 꺼져 있으면(`A24`) 아래 한 줄은 종전과 글자 하나 다르지 않다.
+    With result substitution enabled, the answer's figures are replaced from
+    the tool results at the end. With it disabled the line below is unchanged
+    from the prior behaviour.
     """
     results: list[tuple[str, dict, dict]] = []
     answer = _tool_round_trip(messages, max_tokens, arm, budget, trace, results)
@@ -2305,24 +2311,28 @@ def _answer_with_tools(messages: list[dict], max_tokens: int, arm, budget: Budge
 
 def _tool_round_trip(messages: list[dict], max_tokens: int, arm, budget: Budget,
                      trace: list[str], results: list[tuple[str, dict, dict]]) -> str:
-    """왕복 본체. 실행한 `(도구, 인자, 결과)` 를 `results` 에 **순서대로 쌓는다**.
+    """Round-trip body. Executed `(tool, arguments, result)` triples are
+    appended to `results` in order.
 
-    🔴 **인자도 함께 쌓는다** — `A24b` 가 *"도구가 실제로 계산했는가"* 를 인자 수로
-    판정한다 (`MIN_TOOL_OPERANDS` · 실측 `Q-047`).
+    The arguments are kept alongside the result, because whether the tool
+    actually computed anything is judged from the operand count.
 
-    🔴 **첫 호출이 죽으면 그대로 올려보낸다** — `A8` 과 같은 경로(`UNANSWERABLE` +
-    표식)로 나가야 상류 장애와 arm 효과가 섞이지 않는다. 두 번째 회차부터는 이미 받아
-    둔 본문이 있으면 그것을 지키고 멈춘다 (`_self_consistent` 와 같은 규약).
+    A failure on the first call propagates, so that it leaves through the same
+    path as the default arm and an upstream fault is not mixed into the arm
+    effect. From the second round onward, an answer already received is kept
+    and the loop stops.
     """
-    # 🔴 `A24b` 는 계산 7종만 내민다 — `A24` 실측에서 모델이 부른 47건 중 26건이
-    #    검색이었고 이미 실린 근거를 다시 읽어 희석시켰다 (`tools.CALC_SPECS` 주석).
+    # Only the calculation tools are offered here. When retrieval tools were
+    # offered too, most calls went to retrieval and re-read evidence already
+    # present, diluting it.
     offered = tools.CALC_SPECS if arm.calc_tools_only else tools.TOOL_SPECS
     convo = list(messages)
     best = ""
     for index in range(MAX_TOOL_ROUNDS + 1):
         offer = index < MAX_TOOL_ROUNDS
         if index and budget.remaining()["llm_calls"] <= 0:
-            # 🔴 **부르기 전에** 본다. 부르고 나서 세면 크레딧은 이미 나갔다.
+            # Checked before the call: counting afterwards means the credits
+            # are already spent.
             trace.append(f"fc stop=budget_calls rounds={index} kept="
                          f'{"partial" if best else "none"}')
             if best:
@@ -2348,8 +2358,8 @@ def _tool_round_trip(messages: list[dict], max_tokens: int, arm, budget: Budget,
         if not calls:
             return best
 
-        # 🔴 어시스턴트 회차를 **그대로** 되넣는다. `toolCalls` 를 빼면 뒤따르는
-        #    `role="tool"` 메시지가 붙을 자리를 잃는다.
+        # The assistant turn is fed back verbatim. Dropping `toolCalls` leaves
+        # the following `role="tool"` messages with nothing to attach to.
         convo.append({"role": "assistant", "content": result.text or "",
                       "toolCalls": calls})
         for call in calls:
@@ -2368,14 +2378,17 @@ def _tool_round_trip(messages: list[dict], max_tokens: int, arm, budget: Budget,
 
 
 def _offer_tools(arm, question: str, trace: list[str]) -> bool:
-    """이 문항에 도구를 열 것인가. **`function_calling` 이 꺼져 있으면 무조건 아니다.**
+    """Whether to offer tools for this question. Always false when function
+    calling is disabled.
 
-    🔴 `calc_queries_only`(A24b)가 켜져 있으면 **계산 질의에만** 연다 — `tools` 와
-    `maxTokens` 가 배타(40001)라 도구를 내미는 순간 길이 상한이 사라지고, `A24` 는
-    도구를 한 번도 안 부른 `Q-106` 까지 그 이유로 잃었다 (`router.needs_calculation`).
+    When restricted to calculation queries, tools are offered only for those:
+    offering them removes the length cap, which cost questions that never
+    called a tool at all.
 
-    🔴 **판정을 trace 에 남긴다.** 안 남기면 어느 문항이 열렸는지 사후에 셀 수 없다.
-    플래그가 꺼진 arm 의 trace 는 **바이트 동일**이다.
+    The decision is written to the trace, since otherwise which questions
+    opened cannot be counted afterwards. On arms where the flag is off, the
+    trace is byte-identical.
+    See docs/design-rationale.md#function-calling-arm
     """
     if not arm.function_calling:
         return False
@@ -2386,23 +2399,13 @@ def _offer_tools(arm, question: str, trace: list[str]) -> bool:
     return bool(kind)
 
 
-#: critic 의 불리언 -> 사람이 읽을 사유. 🔴 **모델의 산문을 우리 확인서에 옮겨 적지
-#: 않는다.** 2026-08-17 감사 32문항 실측에서 각주 8건 중 **6건이 망가져 있었다**:
-#:
-#:     AUD-11   (주의: 근거 검증을 통과하지 못했습니다 — 모든 투자 금액은 제공된
-#:               근거에서 확인할 수 있으며, 이를 합산한 결과도 정확합니다.)
-#:                        ↑ 머리는 "실패", 사유는 "문제 없음" — 서로 어긋난다
-#:     AUD2-06  (주의: 근거 검증을 통과하지 못했습니다 — )
-#:                        ↑ 사유가 비었다
-#:
-#: 원인은 critic 이 불리언과 산문을 **따로** 낸다는 것이다. 우리가 판정은 불리언으로
-#: 하고 설명은 산문으로 실으니, 둘이 어긋나면 우리 각주가 자기를 반박한다. 각주는
-#: **검사기가 무엇을 봤는가의 기록**이라(`aggregate._prune_notes` 와 같은 사유) 기록이
-#: 자기와 싸우면 안 읽느니만 못하다.
-#:
-#: v4·v5 의 발견을 각주에 그대로 적용한 것이다 — *"모델이 손에 쥐면 틀린다."* 값은
-#: 우리가 계산하고, 사유도 우리가 짓는다. `verdict.reason` 은 `trace` 에 그대로 남으니
-#: 진단 정보가 사라지지도 않는다.
+#: Critic booleans mapped to a human-readable reason. The model's prose is not
+#: copied into the note: the critic produces the boolean and the prose
+#: independently, so a note built from both can contradict itself. A note
+#: records what the verifier observed, and a record that argues with itself is
+#: worse than none. The diagnostic prose stays in the trace, so nothing is
+#: lost.
+#: See docs/design-rationale.md#verdict-reason
 _VERDICT_REASONS = (
     ("has_citation", False, "근거 표기가 없습니다"),
     ("supported", False, "답변의 일부 수치·사실이 근거에서 확인되지 않았습니다"),
@@ -2411,11 +2414,13 @@ _VERDICT_REASONS = (
 
 
 def _verdict_reason(verdict) -> str:
-    """`Verdict` 의 불리언에서 사유를 짓는다. **절대 비지 않는다.**
+    """Build the reason from the booleans of a `Verdict`. Never empty.
 
-    `passed` 가 거짓이면 위 셋 중 최소 하나가 걸리므로 빈 문자열이 나올 수 없다.
-    그래도 마지막 갈래를 둔 것은, 나중에 `passed` 의 정의가 바뀌어도 각주가
-    `— )` 로 끝나지 않게 하기 위해서다.
+    A failed verdict trips at least one of the cases above, so an empty string
+    cannot occur. The final branch exists anyway, so that a later change to the
+    definition of `passed` cannot leave the note ending in a dangling
+    separator.
+    See docs/design-rationale.md#verdict-reason
     """
     hits = [text for field, bad, text in _VERDICT_REASONS
             if getattr(verdict, field, None) is bad]
@@ -2434,44 +2439,49 @@ def answer_question(question_id: str, question: str) -> dict:
         if r.reason.startswith("no_such_report"):
             trace.append(f"{r.reason} — 지목한 보고서가 목록에 없다 (LLM 호출 없이 한계 고지)")
             return _respond(question_id, question, "", trace, NO_SUCH_REPORT, budget)
-        # 🔴 A31 — 기업도 기간도 범위 안이고, 없는 것은 **공시에 안 적힌 미래**다.
+        # Company and period are in range; what is absent is a future the
+        # filings do not state.
         if r.reason == "speculation":
             trace.append("미래 추정 요구 — LLM 호출 없이 한계 고지")
             return _respond(question_id, question, "", trace, SPECULATIVE, budget)
-        # 🔴 A32 — 범위 밖이 아니라 **내주지 않는** 것이다.
+        # Not out of range: withheld.
         if r.reason == "identifier":
             trace.append("식별번호 전사 요구 — LLM 호출 없이 거절")
             return _respond(question_id, question, "", trace, IDENTIFIER_WITHHELD, budget)
-        # 🔴 A26 — 범위 밖이 아니라 **무엇을 묻는지 모르는** 것이다. 역질문으로 되묻는다.
+        # Not out of range: the subject of the question is unidentified, so
+        # ask back.
         if r.reason == "ambiguous_reference":
             trace.append("지시대상 불명 — LLM 호출 없이 역질문")
             return _respond(question_id, question, "", trace, AMBIGUOUS_REFERENCE, budget)
         trace.append("범위 밖 — LLM 호출 없이 한계 고지")
         return _respond(question_id, question, "", trace, UNANSWERABLE, budget)
 
-    # 🔴 ORACLE 은 여기서 갈린다 — `_gather_evidence` 안에는 `question_id` 가 없다.
-    #    플래그가 꺼져 있으면(기본값) 아래 한 줄은 종전과 글자 하나 다르지 않다.
-    # 🔴 두 가지 밖에서 만든다 — `ORACLE` 가지에서는 안 채워지므로 `attach_citation` 이
-    #    빈 사전을 받고 근거 되읽기로 되돌아간다. 진단용 arm 하나 때문에 `NameError` 를
-    #    내면 안 된다.
+    # The oracle path branches here, because `_gather_evidence` has no
+    # question id. With the flag off, the line below is unchanged.
+    #
+    # The provenance mapping is created outside both branches: the oracle
+    # branch does not populate it, so `attach_citation` receives an empty dict
+    # and falls back to re-reading the evidence rather than raising.
     provenance: dict[str, dict] = {}
     if ablation.current().golden_oracle:
         evidence, tool_trace = _gather_golden(question_id, clean, budget)
     else:
         evidence, tool_trace = _gather_evidence(r, clean, budget, provenance)
     trace.extend(tool_trace)
-    # 근거 성형은 **검색이 끝난 뒤**다. 여기 위로 올리면 A5·L2 의 Δ 에 검색 변화가
-    # 섞여 단일 변수 조작이 아니게 된다 (`ablation.shape_evidence` 주석).
+    # Evidence shaping runs after retrieval finishes. Moving it earlier would
+    # mix a retrieval change into the shaping delta and stop it from being a
+    # single-variable manipulation.
     evidence = ablation.shape_evidence(evidence)
 
     if not evidence:
         trace.append("근거 없음 — LLM 호출 없이 한계 고지")
         return _respond(question_id, question, "", trace, UNANSWERABLE, budget)
 
-    # 🔴 A29a — 집계를 우리가 계산해 **한 줄**로 싣는다. 근거 칸을 안 먹으므로
-    #    `A16`(칸 확대)·`A17`(블록 확대)이 기각된 사유에 걸리지 않는다.
-    #    배선 자체를 플래그 뒤에 둔다 — 무조건 부르면 플래그를 끈 arm 의 근거도
-    #    바뀔 수 있고, 그것이 `A20` 에서 이미 겪은 사고다.
+    # The aggregate is computed here and carried as one line, which occupies
+    # no evidence slot and so does not fall under the reason widening the
+    # window was rejected. The wiring itself sits behind the flag: calling it
+    # unconditionally would change the evidence on arms where the flag is off.
+    # See docs/design-rationale.md#evidence-slot-vs-line
     if ablation.enabled("aggregate_line"):
         from argus.agent import aggregate
 
@@ -2480,9 +2490,11 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, extra)
             trace.append(f"aggregate line=1 chars={len(extra)}")
 
-    # 🔴 날짜가 지목하는 공시를 가른다. `K-004` 에서 같은 날 같은 제목의 공시가 둘이고
-    #    **둘 다 근거에 있었는데** 모델이 정정본을 골랐다. 검색이 아니라 선택이 틀린
-    #    자리라, 집합의 경계를 밝히는 `_roster_line` 과 같은 처방을 쓴다 — 머리에 한 줄.
+    # Separate the filing a date points at. Where two filings share a date and
+    # a title and both are in the evidence, the selection rather than the
+    # retrieval is what goes wrong, so the remedy matches `_roster_line`: one
+    # line at the head.
+    # See docs/design-rationale.md#date-disambiguation
     if ablation.enabled("date_disambiguation"):
         from argus.agent import aggregate
 
@@ -2491,15 +2503,15 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, pick)
             trace.append(f"date_pick line=1 chars={len(pick)}")
 
-    # 🔴 법인등록번호 — 조각이 문제였지 근거 칸이 문제가 아니었다 (2026-08-17).
-    #    목차를 `AFFILIATE_PATH` 로 좁히면 검색은 맞는 보고서를 고르는데, 그 섹션이
-    #    34,122자라 6조각으로 쪼개지고 BM25 가 회사명이 빽빽한 4번 조각을 고른다.
-    #    정작 찾는 행은 703자 지점(1번 조각)에 있다. 칸을 늘리는 것은 `A16`·`A17` 이
-    #    기각된 방향이라, **섹션 전문에서 행 하나만** 뽑아 머리에 둔다.
+    # Corporate registration number. The problem was chunking rather than
+    # evidence slots, so one row is extracted from the full section and placed
+    # at the head instead of widening the window.
     #
-    #    발화 조건이 좁다: 질문이 법인등록번호를 묻고, 기업이 지목됐고, 검색이 이미
-    #    가져온 문서 안에 그 행이 있어야 한다. 셋 중 하나라도 어긋나면 빈 문자열이라
-    #    근거가 종전과 글자 하나 다르지 않다.
+    # The firing condition is narrow: the question must ask for the number, a
+    # company must be identified, and the row must be inside a document
+    # retrieval already returned. Failing any of the three yields an empty
+    # string and leaves the evidence unchanged.
+    # See docs/design-rationale.md#section-chunking
     if _ASK_CORP_NUMBER.search(clean) and r.companies:
         docs = [PERIODIC_DOC_PREFIX + no for no in (provenance or {})]
         line = tools.corp_number_line(r.companies[0], docs)
@@ -2507,8 +2519,10 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, line)
             trace.append(f"corp_number line=1 chars={len(line)}")
 
-    # 🔴 A29b — 정정 이력을 접수일 순으로 펴서 한 줄로 싣는다. `aggregate_line` 과
-    #    **축이 다르다**: 저쪽은 값 하나(합·차·몫)이고 이쪽은 여러 값의 순서다.
+    # Lay out a revision history in filing-date order as one line. A different
+    # axis from the aggregate line: that one carries a single value, this one
+    # carries the order of several.
+    # See docs/design-rationale.md#revision-series
     if ablation.enabled("revision_series"):
         from argus.agent import aggregate
 
@@ -2518,22 +2532,23 @@ def answer_question(question_id: str, question: str) -> dict:
             trace.append(f"series line=1 chars={len(series)}")
 
     try:
-        # 🔴 `A8-lean` 은 여기서 갈린다. `enabled()` 로 읽는 이유는 오타가 조용히
-        #    False 가 되지 않게 하기 위해서다 — 없는 플래그 이름은 `KeyError` 다.
-        #    기본값(False)에서는 아래 두 줄이 종전과 글자 하나 다르지 않다.
+        # Read through `enabled()` so that a misspelled flag raises instead of
+        # silently evaluating false. At the default the two lines below are
+        # unchanged.
         messages = build_answer_messages(
             clean, evidence, r.use_cot,
             lean_rules=ablation.enabled("lean_rules"),
             strict_refusal=ablation.enabled("strict_refusal"))
         max_tokens = 800 if r.use_cot else 300
         arm = ablation.current()
-        # 🔴 `A24` 는 여기서 갈린다 — 도구를 내밀고 왕복한다. 기본값(False)에서는 아래
-        #    `else` 가지가 종전과 글자 하나 다르지 않다.
+        # The function-calling arm branches here into the tool round trip. At
+        # the default the `else` branch below is unchanged.
         if _offer_tools(arm, clean, trace):
             answer = _answer_with_tools(messages, max_tokens, arm, budget, trace)
         else:
-            # 🔴 온도는 이제 `Arm` 이 들고 있다. **기본값이 0.0** 이라 `A10` 이외의 arm 에서
-            #    이 호출은 종전과 본문이 바이트 동일이고, 요청 캐시 키도 그대로다.
+            # Temperature is carried by the arm and defaults to zero, so on
+            # every arm but self-consistency this call is byte-identical and
+            # keeps the same request cache key.
             result = chat(messages, max_tokens=max_tokens,
                           temperature=arm.temperature, tag="answer")
             budget.spend_llm(result.prompt_tokens, result.completion_tokens)
@@ -2545,8 +2560,10 @@ def answer_question(question_id: str, question: str) -> dict:
         trace.append(f"예산 초과: {exc}")
         return _respond(question_id, question, evidence, trace, UNANSWERABLE, budget)
     except RuntimeError as exc:
-        # /answer 는 어떤 경우에도 5키 스키마를 돌려줘야 한다. 상류 장애로 500 을 내면 0점이다.
-        # 다만 **삼키지는 않는다** — 표식을 남겨 호출부가 전송 실패를 가려낼 수 있게 한다.
+        # `/answer` must return the five-key schema in every case; a 500 from
+        # an upstream fault scores zero. The fault is not swallowed: a marker
+        # lets the caller tell a transport failure apart from an answer.
+        # See docs/design-rationale.md#upstream-failure
         trace.append(f"{_upstream_mark('generate', exc)} 생성 실패: {exc}")
         return _respond(question_id, question, evidence, trace, UNANSWERABLE, budget)
 
@@ -2562,15 +2579,17 @@ def answer_question(question_id: str, question: str) -> dict:
         except RuntimeError as exc:
             trace.append(f"{_upstream_mark('critic', exc)} critic 생략: {exc}")
 
-    # 🔴 `budget` 을 넘긴다 — `A20r` 의 재생성이 LLM 호출을 하나 더 쓰고, 그것이
-    #    게이트 F 의 `budget llm=` 에 잡혀야 한다. 나머지 arm 에서는 안 쓰인다.
+    # The budget is passed through because regeneration spends one more LLM
+    # call, which has to appear in the reported budget. Other arms do not use
+    # it.
     answer = _verify(clean, answer, evidence, r, trace, budget)
-    # 🔴 A25 — 근거 표기를 우리가 붙인다. **여기여야 한다**: 모든 LLM 호출이 끝난 뒤라
-    #    생성·critic·재생성 프롬프트가 바이트 동일로 남고 `RequestCache` 가 적중한다.
-    #    플래그가 꺼져 있으면(기본값) 아래 두 줄은 종전과 글자 하나 다르지 않다.
-    # 🔴 A29s — 결정적 집계값으로 답변의 **틀린 합계 하나**를 갈아 끼운다.
-    #    `A25`(부착)와 같은 자리다 — 모든 LLM 호출이 끝난 뒤라 생성·critic·재생성
-    #    프롬프트가 바이트 동일로 남고 `RequestCache` 가 적중한다. LLM 0회.
+    # The citation is attached by code, and it has to happen here: after every
+    # LLM call, so the generation, critic and regeneration prompts stay
+    # byte-identical and the request cache still hits. With the flag off the
+    # two lines below are unchanged.
+    #
+    # Aggregate substitution sits in the same place for the same reason, and
+    # costs no LLM call.
     if ablation.enabled("substitute_aggregate"):
         from argus.agent import aggregate
 
@@ -2579,10 +2598,13 @@ def answer_question(question_id: str, question: str) -> dict:
         if swapped:
             trace.append(f"aggregate substitute={swapped}")
 
-    # 🔴 결과값 부재 — 치환이 못 잡는 자리다. `H-008` 에서 모델은 **틀린 수를 쓴 게
-    #    아니라 맞는 수를 틀리게 엮었고**, 그래서 "근거 밖 수 하나" 라는 치환의 발화
-    #    조건에 안 걸렸다. 질문이 부른 값이 답변에 아예 없으면 한 문장으로 적는다.
-    #    🔴 `substitute` **뒤**다 — 치환할 수 있으면 치환이 낫다(문장이 안 는다).
+    # Missing result: a case substitution cannot reach, because the model
+    # combined correct figures wrongly rather than writing a wrong one, so the
+    # single-figure-outside-the-evidence condition never held. When the value
+    # the question asked for is absent entirely, it is stated in one sentence.
+    # Runs after substitution, which is preferable where it applies since it
+    # adds no sentence.
+    # See docs/design-rationale.md#state-total
     if ablation.enabled("state_total"):
         from argus.agent import aggregate
 
@@ -2591,8 +2613,10 @@ def answer_question(question_id: str, question: str) -> dict:
         if stated:
             trace.append(f"aggregate {stated}")
 
-    # 🔴 A35 — 괄호 환산을 우리가 다시 쓴다. **치환 뒤에 서야 한다** — `substitute` 가
-    #    본 수치만 갈아 끼우면 모델이 제 오답에서 계산한 괄호가 남는다(`Q-115` 실측).
+    # Rewrite the parenthesised unit conversion. Runs after substitution:
+    # replacing the body figure alone leaves behind the parenthesised value the
+    # model derived from its own wrong figure.
+    # See docs/design-rationale.md#unit-conversion
     if ablation.enabled("fix_unit_parens"):
         from argus.agent import aggregate
 
@@ -2600,12 +2624,11 @@ def answer_question(question_id: str, question: str) -> dict:
         if repaired:
             trace.append(f'unit_paren fixed={len(repaired)} {" · ".join(repaired)}')
 
-    # 🔴 반올림 복원 — `fix_unit_parens` 의 **반대 자리**다. 저쪽은 "원값은 맞고 괄호가
-    #    틀린" 것을 고치고, 이쪽은 "괄호만 있고 원값이 없는" 것을 고친다. `N-011` 실측:
-    #    근거에 257,732,228,908 과 725,693,799,075 가 둘 다 있는데 답변이 "2,577억원" ·
-    #    "7,257억원" 으로만 적었다. 값은 맞고 **정밀도만 잃었다.**
-    #    🔴 `fix_unit_parens` **뒤**에 선다 — 저쪽이 괄호를 고친 뒤라야 이쪽이 만든
-    #    `원값 (억)` 짝을 저쪽이 다시 건드리지 않는다.
+    # Rounding restoration, the mirror of the conversion fix: that one repairs
+    # a correct figure with a wrong parenthesis, this one a parenthesis with no
+    # figure. It runs after the conversion fix so that the pairs it creates are
+    # not rewritten again.
+    # See docs/design-rationale.md#unit-conversion
     if ablation.enabled("expand_rounded"):
         from argus.agent import aggregate
 
@@ -2613,8 +2636,9 @@ def answer_question(question_id: str, question: str) -> dict:
         if grown:
             trace.append(f'expand_rounded n={len(grown)} {" · ".join(grown)}')
 
-    # 🔴 A38 — 답변이 **스스로 쓴 식과 어긋나는 수**를 맞춘다. 규약 「추론 논리성」.
-    #    closed judge 진단이 이 자리를 찾았다 — EM 도 수치검사도 못 잡는 자기모순이다.
+    # Align a figure that contradicts an expression the answer wrote itself, a
+    # self-contradiction that neither exact match nor the numeric checks catch.
+    # See docs/design-rationale.md#self-contradiction
     if ablation.enabled("self_consistency_fix"):
         from argus.agent import aggregate
 
@@ -2627,46 +2651,41 @@ def answer_question(question_id: str, question: str) -> dict:
     return _respond(question_id, question, evidence, trace, mask_pii(answer), budget)
 
 
-# --- A6 Verifier — 결정적 검증 2종. LLM 0회 ------------------------------------
-# `judge` 는 "답이 근거로 지지되는가" 만 본다. 그래서 정정 전 금액만 근거에 있으면
-# 모델이 그 값을 답하고 critic 은 통과시킨다 — 근거 자체가 불완전하다는 것을 못 본다
-# (07-verifier G-4, 실측 오답 5건). 두 검증은 축이 다르다.
+# --- Deterministic verification. No LLM call --------------------------------
+# The judge only asks whether the answer is supported by the evidence, so an
+# answer taken from a pre-revision figure passes while the evidence itself is
+# incomplete. Two deterministic checks cover different axes: one recomputes the
+# answer's figures against the source records, the other asks whether the
+# evidence is sufficient.
 #
-#   verify_calculation  — 답변 수치를 근거 레코드 원값으로 재계산 대조   (TOOL)
-#   verify_completeness — 근거가 충분한가                              (RETRIEVAL·GENERATION)
+# The original design annotates rather than rewrites, on the grounds that
+# judging contributes more than generating. Measurement showed the cost of that
+# design: detection reached every case and correction none of them, with
+# recomputed values identical to the golden answer discarded into a note that
+# the scorer strips before scoring.
 #
-# **답을 갈아엎지 않는다.** 결함을 찾아도 재생성하지 않고 경고만 붙인다 — 재생성은
-# 호출을 하나 더 쓰는 별개의 조작이고, 이 arm 이 재는 것은 '판정' 의 기여다
-# (SWE-Lancer 부록 C: 판단 44.9% > 생성 26.2%).
-#
-# 🔴 **그 설계의 대가를 v4 R0 가 실측했다 — 탐지 100% · 교정 0%.** `Q-097` 의 `per_unit`
-# 재계산값 207,684,631,210 은 골든과 바이트까지 같은데 각주로만 붙고 버려졌다. 채점기는
-# 그 각주를 일부러 잘라내고 채점한다(`error_analysis.strip_verify_tail`) — 즉 **우리는
-# 정답을 계산해 놓고 버리고 있었다.**
-#
-# 🔴 그래서 기본값을 바꾸지 않고 **arm 으로 만들었다** (`ablation.Arm.substitute_verified`
-# = `A20`). 위 설계에는 근거가 있으니 갈아엎지 말고 켰다 껐다 잰다. 플래그가 꺼져 있으면
-# 이 함수의 동작은 v3 세대 664 답변 전수에서 **바이트 동일**이다.
+# Rather than replacing the default, the correcting behaviour is an arm. With
+# the flags off, this function's behaviour is byte-identical across the whole
+# recorded generation.
+# See docs/design-rationale.md#verifier-disposition
 
 _EVIDENCE_RCEPT = re.compile(r"접수번호\s*(\d{14})")
 
 
 def _prepend(evidence: str, line: str) -> str:
-    """결정적 집계 줄을 근거 **머리**에 둔다.
+    """Place a deterministic aggregate line at the head of the evidence.
 
-    🔴 **꼬리에 두면 안 읽힌다** (2026-08-16 실측). `Q-023` 에 정정 금액 7건의 시계열을
-    꼬리에 실었는데 답은 여전히 *"계약금액은 변동 없이 유지되었습니다"* 였다 — 블록
-    열 개를 지나온 뒤라 마지막 한 줄이 묻힌다. KDD '26 실측의 주의 배분(system 36.9% ·
-    output 34.5% · 근거 14.0%)에서 그 14% 안의 **자리**도 균등하지 않다는 뜻이다.
-
-    🔴 시스템 프롬프트로 올리지 않는다 — 거기는 36.9% 를 먹는 자리라 집계와 무관한
-    문항의 답까지 흔든다 (`A27` 이 그렇게 역효과를 냈다). 근거 안의 맨 앞이 절충이다.
+    A line at the tail is not read, and moving it to the system prompt
+    perturbs answers to unrelated questions. The head of the evidence is the
+    compromise.
+    See docs/design-rationale.md#line-position
     """
     return f"{line}\n\n{evidence}"
 
 
 def _evidence_records(evidence: str) -> list[dict]:
-    """근거에 실린 접수번호로 정형 레코드를 되찾는다. 검색이 아니라 조회다 (스텝 0)."""
+    """Recover structured records by the receipt numbers present in the
+    evidence. A lookup rather than a retrieval, so it costs no step."""
     out = []
     for rcept_no in dict.fromkeys(_EVIDENCE_RCEPT.findall(evidence or "")):
         record = tools._record_of(rcept_no)
@@ -2677,45 +2696,49 @@ def _evidence_records(evidence: str) -> list[dict]:
 
 def _verdict(question: str, answer: str, evidence: str, records: list[dict], r,
              arm) -> dict:
-    """답변 **하나**에 대한 검증 판정 한 벌. 부작용이 없다 — trace 도 안 건드린다.
+    """One set of verification verdicts for a single answer. Side-effect free:
+    it does not touch the trace either.
 
-    🔴 `A20r` 이 이것을 **두 번** 부른다 (원본 · 재생성본). 그래서 규칙을 여기 한 곳에만
-    둔다 — 재생성 전후를 다른 잣대로 재면 *"여전히 발화하면 원본을 쓴다"* 가 성립하지
-    않는다 (`critic.unique_recomputed` 를 한 곳에 둔 것과 같은 이유).
+    Regeneration calls this twice, on the original and on the regenerated
+    answer, so the rule lives here alone. Measuring before and after by
+    different standards would break the rule that the original is kept when the
+    check still fires.
 
-    `records` 를 인자로 받는 것도 같은 이유다. 근거에서 되찾는 정형 레코드는 답변과
-    무관하므로 두 번 조회할 일이 없다.
+    `records` is a parameter for the same reason: the structured records
+    recovered from the evidence do not depend on the answer, so there is no
+    reason to look them up twice.
+    See docs/design-rationale.md#verifier-disposition
     """
-    # 레코드가 여러 건이면 **하나라도 설명되면 통과**다. 체인 안에서 원공시와 정정본의
-    # 금액이 갈리므로(227,500 vs 114,800) 전건 일치를 요구하면 정답이 오답이 된다.
+    # With several records, one explained record is enough to pass, because an
+    # original and its revision carry different amounts within a chain and
+    # requiring all of them to match would turn a correct answer wrong.
     #
-    # 🔴 그 관용에 구멍이 있었다 — **자릿수 오류도 함께 묻혔다.** Q-065 는 Dukovany 금액을
-    # 10배로 틀렸는데 같은 답변의 신한울 금액이 정확해서 `explained=True` 로 통과했다.
-    # 체인 관용은 '같은 값의 다른 시점' 을 위한 것이고 자릿수 오류는 시점 문제가 아니다.
-    # 판정을 `critic.aggregate_calculation()` 한 곳으로 모은다 — 규칙이 두 곳에 있으면 갈린다
-    # (`scripts/error_analysis.verify_answer_calc` 도 같은 함수를 쓴다).
+    # That tolerance had a hole: an order-of-magnitude error was buried by it
+    # too, when another figure in the same answer was accurate. Chain tolerance
+    # exists for the same value at different points in time, and a magnitude
+    # error is not a timing problem, so the verdict is concentrated in
+    # `critic.aggregate_calculation()`.
     reports = [verify_calculation(answer, record) for record in records]
     agg = aggregate_calculation(reports)
     checked, calc_failed = agg["checked"], agg["failed"]
 
-    # 🔴 A20 — `verify_answer_arithmetic` 를 라이브 경로에 배선한다. **플래그 뒤에 둔다.**
-    # 이 검사는 근거를 한 줄도 안 읽고 답변이 스스로 쓴 등식·재기술쌍만 본다. 그래서
-    # 정형 레코드가 0건인 문항(실측 Q-044·Q-047)에서도 서고, 그런 문항이 위 `reports` 로는
-    # 통째로 안 보인다 — v3 까지 이 함수는 `scripts/error_analysis.py` 만 썼다.
+    # Answer-arithmetic verification, wired behind the flag. This check reads
+    # no evidence at all and looks only at equations the answer wrote itself,
+    # so it fires on questions with no structured records, which the reports
+    # above cannot see.
     #
-    # 🔴 **`reports` 에 합치지 않는다.** `aggregate_calculation` 의 `explained` 는
-    # "레코드 하나라도 설명하면 통과" 인데, 이 검사는 레코드가 아니라 답변당 하나다.
-    # 안에 넣으면 등식이 맞는 답변이 근거 대조 실패까지 덮어 **체인 관용이 뒤집힌다**
-    # (`critic.verify_answer_arithmetic` 머리말 ②). 판정만 OR 로 합친다.
+    # It is not merged into `reports`: those pass when one record is explained,
+    # while this check is one per answer, and merging would let a correct
+    # equation mask a failed comparison against the evidence, inverting the
+    # chain tolerance. Only the verdicts are combined.
     #
-    # 🔴 무조건 배선하면 플래그를 **끈** 상태에서도 각주가 늘어난다 — v3 세대 664 답변
-    # 전수 대조로 확인했다(Step 0b). 그 자체가 답변 변화이고 `A20` 의 Δ 와 섞이므로
-    # 배선도 플래그 뒤에 둔다.
+    # The wiring is behind the flag because attaching it unconditionally adds
+    # notes on arms where the flag is off, which is itself an answer change.
     #
-    # 🔴 **`A20r` 도 이 검사를 켠다.** 재생성에 실을 **사유의 원천**이 필요하고, 실측
-    # `Q-044` 는 정형 레코드가 0건이라 이 검사 없이는 발화조차 없다 — 그러면 `A20r` 의
-    # 겨냥이 그 문항에서 조용히 사라진다. `A20`·`A20r` 이 같은 판정을 읽고 **처분만**
-    # 갈리는 것이 두 arm 을 나란히 재는 설계의 전부다.
+    # The regeneration arm enables this check too: it needs a source of
+    # reasons, and without it questions with no structured records produce
+    # nothing to regenerate from.
+    # See docs/design-rationale.md#verifier-disposition
     arith_reports: list[dict] = []
     if arm.substitute_verified or arm.regenerate_on_verify:
         arith = verify_answer_arithmetic(answer)
@@ -2723,21 +2746,19 @@ def _verdict(question: str, answer: str, evidence: str, records: list[dict], r,
         checked = sorted({*checked, *arith["checked"]})
         calc_failed = calc_failed or not arith["ok"]
 
-    # 🔴 A21 — 수치 출처 게이트. **`calc_failed` 에 합치지 않는다.** 이 검사는 *"이 숫자가
-    # 근거에 있는가"* 를 묻고 계산 판정과 축이 다르다 — 합치면 ① `A20` 의 치환이 이 게이트
-    # 때문에 발화하고(이 검사는 `recomputed` 가 항상 비어 있어 치환할 값이 없다) ② Δ 가
-    # `calculation` 으로 귀속돼 두 arm 의 사유가 섞인다. 별개 `kind` 로 세운다.
+    # Number-provenance gate, kept separate from the calculation verdict. It
+    # asks whether a figure appears in the evidence, a different axis: merging
+    # it would make substitution fire on this gate, which carries no recomputed
+    # value to substitute, and would attribute the delta to calculation.
     #
-    # 🔴 배선을 플래그 뒤에 둔 것은 `A20` 과 같은 이유다 — 무조건 배선하면 플래그를 끈
-    # arm 에서도 각주가 늘어나고 그 자체가 답변 변화다 (v3 세대 664 답변 중 23건 발화).
+    # The wiring is behind the flag for the same reason as above.
     provenance = verify_number_provenance(answer, evidence) if arm.provenance_gate else None
 
-    # 🔴 A36 — **발주처는 공시자가 아니다.** `missing_corp` 은 *"비교 질의인데 근거에
-    #    그 기업이 없다"* 를 잡는데, 질문이 지목한 발주처는 그 계약을 **공시한 쪽이
-    #    아니라 발주한 쪽**이라 근거에 있을 수가 없다. 실측(Q-113·Q-115): 정답인
-    #    답변에 *"근거에 삼성전자 이(가) 없다"* 각주가 영구히 붙는다.
-    #    저장소가 이미 아는 사실이다 — `_wants_enumeration` 의 발주처 가드와
-    #    `test_disclosing_company_is_never_bound_as_counterparty` 가 같은 판단이다.
+    # An orderer is not a filer. The missing-company check catches a
+    # comparison whose evidence lacks one company, but an orderer named by the
+    # question placed the order rather than filing it and cannot appear in the
+    # evidence, so correct answers carried that note permanently. The same
+    # judgment already exists in the enumeration guard and its router test.
     compared = list(r.companies or [])
     if ablation.enabled("counterparty_exempt") and getattr(r, "counterparty", None):
         compared = [c for c in compared if c != r.counterparty]
@@ -2746,13 +2767,14 @@ def _verdict(question: str, answer: str, evidence: str, records: list[dict], r,
     kinds = sorted({*(["calculation"] if calc_failed else []), *complete["failed_kinds"],
                     *(provenance["failed_kinds"] if provenance else [])})
 
-    # 사유도 `aggregate_calculation` 이 정한 순서를 쓴다 — 자릿수 오류가 앞에 온다.
-    # 손으로 첫 사유를 뽑으면 무해한 이웃이 먼저 실려 경고가 약해진다.
+    # Reasons keep the order `aggregate_calculation` set, which puts magnitude
+    # errors first. Picking the first reason by hand would surface a harmless
+    # neighbour and weaken the warning.
     #
-    # 🔴 **이 목록이 `A20r` 이 재생성에 싣는 것 그대로다.** 각주와 프롬프트가 같은
-    # 목록을 읽어야 "각주로 본 것" 과 "모델에게 준 것" 이 갈리지 않는다. 원천이 둘이다 —
-    # ① 계산 불일치(`aggregate_calculation`·`verify_answer_arithmetic`)와
-    # ② 🔴 근거에 없는 수(`verify_number_provenance` = `A21` 의 판정).
+    # This list is exactly what regeneration carries into its prompt, so that
+    # what the note reports and what the model is given cannot diverge. It has
+    # two sources: calculation mismatches, and figures absent from the
+    # evidence.
     reasons = agg["reasons"][:1] if calc_failed else []
     if not reasons and arith_reports and arith_reports[0]["reason"]:
         reasons = [arith_reports[0]["reason"]]      # 레코드가 0건인 문항 (실측 Q-044)
@@ -2769,25 +2791,30 @@ def _verdict(question: str, answer: str, evidence: str, records: list[dict], r,
 def _regenerate_once(question: str, answer: str, evidence: str, records: list[dict],
                      r, arm, trace: list[str], budget: Budget | None,
                      verdict: dict) -> tuple[str, dict]:
-    """🔴 `A20r` — 실패 사유를 실어 **딱 한 번** 다시 생성한다. 돌려주는 것은
-    (채택한 답변, 그 답변의 판정) 짝이다.
+    """Regenerate exactly once, carrying the failure reasons into the prompt.
 
-    🔴 **재생성본에 검사가 여전히 발화하면 원본과 원본의 판정을 그대로 돌려준다** —
-    그러면 호출부가 종전대로 각주를 붙인다. '더 나빠지면 원본' 을 판정 교체로 표현한
-    것이라 두 자리에서 규칙이 갈릴 여지가 없다.
+    Returns the (adopted answer, verdict for that answer) pair.
 
-    🔴 **1회로 못 박는다.** 여기서 자기 자신을 다시 부르지 않는 것이 그 상한의 전부다 —
-    루프를 두면 문항당 비용 상한이 사라진다 (이 파일 머리말: 고정 횟수 단계).
+    If the checks still fire on the regenerated answer, the original and its
+    verdict are returned unchanged and the caller annotates as before. Keeping
+    the original when the result is no better is expressed as a verdict
+    swap, so the rule cannot diverge between two places.
+
+    The single attempt is enforced by this function not calling itself; a loop
+    would remove the per-question cost bound.
+    See docs/design-rationale.md#verifier-disposition
     """
     if budget is None:
-        # 🔴 조용히 건너뛰면 **조용한 Δ 0** 이고, 세지 않고 부르면 게이트 F 가 거짓을
-        #    말한다. 둘 다 안 되므로 여기서 멈춘다.
+        # Skipping silently would report a delta of zero for a step that never
+        # ran, and calling without counting would make the budget report false.
+        # Neither is acceptable, so stop here.
         raise ValueError(
             "regenerate_on_verify 는 예산 계정이 필요합니다 — 재생성 호출을 아무도 세지 "
             "않으면 게이트 F 의 `budget llm=` 이 거짓을 말합니다. `_verify(..., budget=)` "
             "로 넘기십시오.")
     if budget.remaining()["llm_calls"] <= 0:
-        # 🔴 **부르기 전에** 본다. 부르고 나서 세면 크레딧은 이미 나갔다.
+        # Checked before the call: counting afterwards means the credits are
+        # already spent.
         trace.append("verify regen=skip_budget (LLM 호출 상한) kept=original")
         return answer, verdict
 
@@ -2797,17 +2824,19 @@ def _regenerate_once(question: str, answer: str, evidence: str, records: list[di
                           question, evidence, verdict["reasons"], answer,
                           use_cot=use_cot, lean_rules=ablation.enabled("lean_rules")),
                       max_tokens=800 if use_cot else 300,
-                      # 🔴 온도 0.0 을 유지한다 — 다양성을 사는 것은 `A10` 의 조작이다.
-                      #    `Arm.temperature` 가 생긴 뒤에도 **여기서는 읽지 않는다**:
-                      #    `A20r` 이 재는 것은 진단 주입이고, 온도를 함께 올리면 그 Δ 에
-                      #    다양성의 몫이 섞여 두 arm 을 나란히 비교할 수 없게 된다.
+                      # Temperature stays at zero. Buying diversity is the
+                      # self-consistency manipulation, and the arm temperature
+                      # is deliberately not read here: this arm measures the
+                      # injection of diagnostics, and raising the temperature
+                      # with it would mix the diversity share into that delta.
                       temperature=0.0, tag="regenerate")
         budget.spend_llm(result.prompt_tokens, result.completion_tokens)
     except BudgetExceeded as exc:
         trace.append(f"verify regen=skip_budget ({exc}) kept=original")
         return answer, verdict
     except RuntimeError as exc:
-        # 상류 장애로 답변을 잃지 않는다. 다만 **삼키지는 않는다** (`answer_question` 과 같은 규약).
+        # An upstream fault must not lose the answer, and is not swallowed
+        # either, the same rule as `answer_question`.
         trace.append(f"{_upstream_mark('regenerate', exc)} verify regen=skip_error "
                      f"kept=original: {exc}")
         return answer, verdict
@@ -2826,12 +2855,14 @@ def _regenerate_once(question: str, answer: str, evidence: str, records: list[di
 
 def _verify(question: str, answer: str, evidence: str, r, trace: list[str],
             budget: Budget | None = None) -> str:
-    """A6. 결함이 있으면 답변에 경고를 붙이고 trace 에 판정을 남긴다.
+    """Annotate the answer with a warning when a defect is found, and record
+    the verdict in the trace.
 
-    🔴 `substitute_verified`(A20)가 켜져 있으면 경고를 붙이는 대신 **검사가 낸 유일한
-    재계산값으로 답변의 그 수치를 치환**한다.
-    🔴 `regenerate_on_verify`(A20r)가 켜져 있으면 **실패 사유를 실어 한 번 재생성**한다.
-    둘 다 꺼져 있으면 종전 동작 그대로다 — 각주만 붙인다.
+    With substitution enabled, the figure is replaced from the unique
+    recomputed value instead of being annotated. With regeneration enabled, the
+    answer is regenerated once carrying the failure reasons. With both off, the
+    behaviour is the original one: a note only.
+    See docs/design-rationale.md#verifier-disposition
     """
     arm = ablation.current()
     if not arm.verifier:
@@ -2840,8 +2871,9 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str],
     records = _evidence_records(evidence)
     v = _verdict(question, answer, evidence, records, r, arm)
 
-    # 🔴 게이트가 꺼진 arm 의 트레이스는 **바이트 동일**이어야 한다 — 필드를 무조건 찍으면
-    #    v3 세대 전 arm 의 `think_trace` 가 달라지고 저장 산출물과 대조가 안 된다.
+    # On arms where the gate is off, the trace has to stay byte-identical.
+    # Emitting the field unconditionally would change `think_trace` on every
+    # arm and break comparison against the stored artifacts.
     gate = (f'provenance_checked={",".join(v["provenance"]["checked"]) or "-"} '
             if v["provenance"] else "")
     trace.append(f'verify calc_checked={",".join(v["checked"]) or "-"} '
@@ -2850,18 +2882,20 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str],
     if not v["kinds"]:
         return answer
 
-    # 🔴 A20r — 각주 대신 **사유를 실어 재생성 1회.** 치환보다 먼저 선다: 재생성이
-    #    결함을 지웠으면 치환할 것이 남아 있지 않다. `A20r` 은 `substitute_verified`
-    #    를 켜지 않으므로 현 구성에서 둘이 한 답변에 함께 손대는 일은 없다.
+    # Regeneration runs before substitution: if regeneration removed the
+    # defect there is nothing left to substitute. The regeneration arm does not
+    # enable substitution, so in the current configuration the two never touch
+    # the same answer.
     if arm.regenerate_on_verify:
         answer, v = _regenerate_once(question, answer, evidence, records, r, arm,
                                      trace, budget, v)
         if not v["kinds"]:
             return answer
 
-    # 🔴 A20 — 각주 대신 치환한다. 유일성 판정은 `critic.unique_recomputed` 한 곳에만 있고
-    # (`aggregate_calculation` 도 같은 함수를 쓴다) 여기서는 **레코드 판정 + 답변 산술
-    # 판정의 합집합**으로 부른다. 값이 갈리면 `None` 이 오고 치환은 일어나지 않는다.
+    # Substitute instead of annotating. Uniqueness is decided in
+    # `critic.unique_recomputed` alone, called here over the union of the
+    # record verdicts and the answer-arithmetic verdict. Divergent values yield
+    # None and no substitution happens.
     substituted: list[str] = []
     if arm.substitute_verified and v["calc_failed"]:
         pool = v["reports"] + v["arith_reports"]
@@ -2869,8 +2903,9 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str],
         if substituted:
             trace.append(f'verify substituted={"; ".join(substituted)}')
 
-    # 🔴 치환했으면 그렇게 적는다. 고쳐 놓고 "결함이 발견되었습니다" 라고만 쓰면 각주가
-    # 본문과 어긋난다. 접두사 `(주의:` 는 유지한다 — `strip_verify_tail` 이 그것을 읽는다.
+    # A substitution is stated as such. Reporting only that a defect was found
+    # after fixing it would leave the note contradicting the body. The prefix
+    # is kept, because `strip_verify_tail` reads it.
     head = ("자동 검증에서 결함이 발견되어 재계산값으로 정정했습니다" if substituted
             else "자동 검증에서 결함이 발견되었습니다")
     return answer + f'\n\n(주의: {head} — {"; ".join(v["reasons"])})'
@@ -2878,7 +2913,8 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str],
 
 def _respond(question_id: str, question: str, evidence: str, trace: list[str],
              answer: str, budget: Budget | None = None) -> dict:
-    """5키 스키마. 어떤 경로로 나가든 마지막에 예산 실사용량을 남긴다 (게이트 F)."""
+    """The five-key response schema. Whichever path the answer leaves by, the
+    actual budget usage is recorded at the end."""
     if budget is not None:
         trace = trace + [f"budget steps={budget.steps} hops={budget.hops} "
                          f"llm={budget.llm_calls} tokens={budget.tokens}"]
