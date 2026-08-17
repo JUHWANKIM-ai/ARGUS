@@ -272,8 +272,13 @@ pip install -r requirements.txt
 
 | 묶음 | 용량 | 내용 |
 |---|---|---|
-| [artifacts](https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=drive_link) | 1.3GB | 색인, 정형 레코드, 계약상대 그래프 |
-| [data](https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEOZIsJ?usp=sharing) | 5.2GB | 원본 공시, 문서 대장, 기업 목록 |
+| artifacts | 1.3GB | 색인, 정형 레코드, 계약상대 그래프 |
+| data | 5.2GB | 원본 공시, 문서 대장, 기업 목록 |
+
+```
+artifacts   https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=drive_link
+data        https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEOZIsJ?usp=sharing
+```
 
 `data/dart-disclosures/manifest.jsonl` 과 `universe.csv` 가 없으면 라우터가 대상 기업
 70곳을 읽지 못해 모든 질의가 범위 밖으로 처리된다. 반드시 함께 배치한다.
@@ -316,7 +321,14 @@ python scripts/build_nary.py                     # 규칙이 놓친 관계 보�
 | 1 | 소스코드 및 환경 정의 | 본 저장소, `requirements.txt` |
 | 2 | 기술 제안서 | `docs/proposal/` |
 | 3 | End-point URL 및 API 명세 | [7.1 평가용 API](#71-평가용-api) |
-| 4 | 전처리 산출물 | [artifacts](https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=drive_link) 1.3GB, [data](https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEOZIsJ?usp=sharing) 5.2GB, `evalset/` |
+| 4 | 전처리 산출물 | 아래 스토리지, `evalset/` |
+
+전처리 산출물 스토리지
+
+```
+artifacts (1.3GB)   https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=drive_link
+data      (5.2GB)   https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEOZIsJ?usp=sharing
+```
 
 주최 측 공지를 기다리는 항목이 둘 있다. 발신 IP 대역이 공지되면 방화벽 인바운드를 해당
 대역으로 좁히고, 평가 운영 일자가 공지되면 그 기간에 맞추어 서버를 운영한다.
