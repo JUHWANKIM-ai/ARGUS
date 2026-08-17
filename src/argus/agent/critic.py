@@ -1094,56 +1094,58 @@ def verify_number_provenance(answer: str, evidence) -> dict:
         "failure_stage": PROVENANCE_FAILURE_STAGE if mismatches else None,
         "reason": "; ".join(f"{PROVENANCE_KIND}: 답변 {m['claimed']} 이 근거에 없다"
                             for m in mismatches),
-        # 🔴 항상 비어 있다 — 위 독스트링 참조. `A20` 과 재료를 나눠 갖지 않는다.
+        # Always empty, see the docstring above. This check supplies no
+        # material to substitution.
         "recomputed": {},
     }
 
 
-# --- G. 완전성 검증 (LLM 0회) ------------------------------------------------
-# **지지(support)와 완전성(completeness)은 다른 축이다.** `judge` 는 "답이 근거로
-# 지지되는가"만 본다. 그래서 정정 전 금액만 근거에 있으면 모델이 그 값을 답하고
-# critic 은 "근거에 있으니 지지됨" 으로 통과시킨다 — 근거 자체가 불완전하다는 것을
-# 못 본다. Phase H dev 42문항 실측에서 정확히 이 기전으로 **오답 5건**
-# (Q-005·Q-006·Q-018·Q-035·Q-049)이 `supported=True` 로 빠져나갔다.
+# --- Completeness verification. No LLM call ---------------------------------
+# Support and completeness are different axes. The judge asks only whether the
+# answer is supported by the evidence, so an answer taken from a pre-revision
+# figure passes while the evidence itself is incomplete.
 #
-# 설계 원칙 두 가지.
-#   ① **과잉 차단이 오답을 놓치는 것보다 나쁘다.** 확신할 수 없으면 통과시킨다.
-#      Q-026 이 그 경계다 — 근거에 정정본이 없는 것은 Q-005 와 똑같지만, 질문이
-#      '정정공시가 **있었는가**' 라서 부재 자체가 정답이다. 값을 요구하는 질문
-#      (`_OUTCOME_ASK`)에만 규칙을 건다.
-#   ② SWE-Lancer 부록 C — 판단(45%)이 생성(26%)보다 잘 된다. 완벽한 답을 요구하지
-#      말고 **명백한 결함**만 잡는다. 규칙은 전부 결정적 문자열/수치 대조다.
+# Two principles: over-blocking is worse than missing a wrong answer, so an
+# uncertain case passes; and only obvious defects are caught, with every rule a
+# deterministic string or numeric comparison.
+# See docs/design-rationale.md#completeness-checks
 
-#: 완전성 결함의 실패 단계 귀속. 근거가 **안 온 것**과 온 근거를 **잘못 고른 것**을
-#: 가른다 — Phase I A6 은 이 두 갈래에 서로 다른 처방을 붙인다.
+#: Failure stage per completeness defect, separating evidence that never
+#: arrived from evidence that arrived and was chosen wrongly. The two get
+#: different remedies.
 COMPLETENESS_STAGES = {
-    "evidence_gap": "RETRIEVAL",     # 정정·해지 레코드가 근거에 아예 없다
-    "missing_corp": "RETRIEVAL",     # 비교 질의인데 한쪽 기업 근거가 없다
-    "stale_value": "GENERATION",     # 최신본이 왔는데 답이 대체본 값을 썼다
-    "interim_source": "GENERATION",  # 연간 근거가 왔는데 답이 반기·분기 값을 썼다
+    "evidence_gap": "RETRIEVAL",     # the revision record is absent entirely
+    "missing_corp": "RETRIEVAL",     # a comparison is missing one company
+    "stale_value": "GENERATION",     # the latest record arrived, the answer used the superseded one
+    "interim_source": "GENERATION",  # the annual record arrived, the answer used the interim one
 }
 
-#: 질문이 정정·해지 축을 건드리는가.
+#: Whether the question touches the revision or termination axis.
 _CHAIN_ASK = re.compile(r"정정|해지|철회|변경계약")
 
-#: 그 축의 **결과값**을 요구하는가. 존재 여부만 묻는 질문과 가르는 유일한 신호다.
+#: Whether it asks for the resulting value on that axis. The only signal
+#: separating it from a question that asks only whether something happened.
 _OUTCOME_ASK = re.compile(r"얼마로\s*바뀌|반영\s*후|얼마나\s*(증가|감소|줄|늘|커|작아)|"
                           r"어떻게\s*(바뀌|달라|변했|처리)|이력|무엇이\s*왜|"
                           r"몇\s*차례|여러\s*차례|과정에서")
 
-#: '정정공시가 있었는가' 류. 정정본의 **부재가 곧 정답**이라 절대 걸면 안 된다.
+#: Existence questions, where the absence of a revision is itself the answer.
+#: The rule must never fire on these.
 _EXISTENCE_ASK = re.compile(r"(정정공시|정정|해지|철회)\s*(가|이|는|은|를|을)?\s*"
                             r"(있었|없었|되었|됐|하였|했)(는가|나|는지|습니까)")
 
-#: 답변이 스스로 '근거가 이걸 안 담고 있다' 고 말한 자리. 모델의 자백은 공짜 신호다.
+#: Where the answer itself states that the evidence does not contain
+#: something. The model's own admission is a free signal.
 _ADMIT = re.compile(r"근거에\s*(는\s*)?없|포함되어\s*있지\s*않|언급이\s*없|"
                     r"확인되지\s*않|확인할\s*수\s*없|답변(을)?\s*(드릴|할)\s*수\s*없|"
                     r"별도의?\s*(검색|조회|확인)이?\s*필요")
 
 _BLOCK_SPLIT = re.compile(r"^##\s+", re.M)
-#: `## [기재정정] [공급계약 체결] 삼성전자 – …` 에서 기업명만. 구분자는 en/em dash 다.
+#: The company name out of an evidence header. The separator is an en or em
+#: dash.
 _HEAD_CORP = re.compile(r"\]\s*([^\[\]–—]+?)\s*[–—]")
-#: 블록이 어느 **문서**에서 왔는가. 정기공시는 한 문서를 여러 절로 잘라 싣는다.
+#: Which document a block came from. A periodic filing is carried as several
+#: sections of one document.
 _BLOCK_RCEPT = re.compile(r"접수번호\s*(\d{14})")
 _CORRECTION_HEAD = re.compile(r"\[기재정정\]|정\s*정\s*신\s*고")
 _STALE_NOTE = re.compile(r"정정체인:.*대체됨")
@@ -1152,13 +1154,16 @@ _INTERIM_HEAD = re.compile(r"반기보고서|분기보고서")
 _ANNUAL_HEAD = re.compile(r"사업보고서")
 _INTERIM_ASK = re.compile(r"반기|분기")
 
-#: 5자리 이상만 본다. 연도(2025)·건수(3건)를 값으로 세면 오탐만 는다.
+#: Five digits or more only. Counting years and item counts as values would
+#: add false positives alone.
 _FIGURE = re.compile(r"\d[\d,]{4,}")
-#: 14자리는 접수번호다. 값이 아니라 주소이므로 대조 대상에서 뺀다.
+#: Fourteen digits is a receipt number: an address rather than a value, so it
+#: is excluded from comparison.
 _RCEPT = re.compile(r"^\d{14}$")
-#: 8자리 `YYYYMMDD` 는 공시일이다. 접수번호와 **같은 이유로** 값이 아니라 주소다.
-#: A6 실측 거짓 경보(Q-048): 답변이 인용에 적은 공시일 `20230515` 가 '대체본 값
-#: 20,230,515' 로 보고됐다. 근거 머리글의 `(공시일 20230515)` 와 짝이 맞아 버린다.
+#: An eight-digit `YYYYMMDD` is a filing date, an address for the same reason.
+#: Without excluding it, a filing date written inside a citation was reported
+#: as a superseded value, because it matched the date in an evidence header.
+#: See docs/design-rationale.md#completeness-checks
 _DATE8 = re.compile(r"^(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])$")
 
 
@@ -1179,7 +1184,8 @@ def _record_text(record: dict) -> str:
 
 
 def _blocks(evidence) -> list[dict]:
-    """근거를 블록 목록으로. 마크다운 문자열·레코드 리스트·도구 반환형을 모두 받는다."""
+    """Evidence as a list of blocks. Accepts a markdown string, a list of
+    records, or the tool return shape."""
     if isinstance(evidence, str):
         rows = [{"markdown": "## " + part} for part in _BLOCK_SPLIT.split(evidence)[1:]]
     elif isinstance(evidence, dict):
@@ -1218,13 +1224,15 @@ def _blocks(evidence) -> list[dict]:
 
 
 def _split_chain(blocks: list[dict]) -> tuple[list[dict], list[dict]]:
-    """(대체본, 최신본). `is_latest` 가 없으면 `[기재정정]` 머리글로 대신 가른다.
+    """The (superseded, latest) split. Without the record flag, the revision
+    marker in the header is used instead.
 
-    머리글 대체는 **기업 단위 추정**이라 뒤로 한 발 물러서야 하는 자리다.
-    같은 접수번호를 단 블록은 **같은 문서**이므로 서로 대체본·최신본일 수 없다.
-    A6 실측 거짓 경보(Q-048): 정기공시는 원공시와 정정본이 같은 `path` 를 갖고
-    값만 다른데, 정정본의 본문 블록과 `정 정 신 고` 블록이 접수번호를 공유한다.
-    기업 단위 추정은 이 둘을 갈라 **정정본 본문을 대체본으로** 몰았다.
+    That fallback is a per-company inference and needs a step back: blocks
+    sharing a receipt number are the same document and cannot be superseded and
+    latest relative to each other. Without that guard, the body block and the
+    revision-notice block of one periodic filing were split apart and the body
+    was labelled superseded.
+    See docs/design-rationale.md#completeness-checks
     """
     corrected_corps = {b["corp"] for b in blocks if b["correction"] and b["corp"]}
     corrected_rcepts = {b["rcept"] for b in blocks if b["correction"] and b["rcept"]}
@@ -1233,7 +1241,8 @@ def _split_chain(blocks: list[dict]) -> tuple[list[dict], list[dict]]:
              or (b["is_latest"] is None and not b["correction"]
                  and b["corp"] in corrected_corps
                  and b["rcept"] not in corrected_rcepts)]
-    # 같은 블록이 두 번 실려도 값 비교로 뭉개지지 않게 **동일성**으로 뺀다.
+    # Removed by identity rather than by value, so a block carried twice is
+    # not collapsed by the comparison.
     stale_ids = {id(b) for b in stale}
     latest = [b for b in blocks
               if id(b) not in stale_ids
@@ -1255,37 +1264,23 @@ def _fmt_figures(values) -> str:
 
 def verify_completeness(question: str, answer: str, evidence,
                         *, companies: Sequence[str] | None = None) -> dict:
-    """근거가 **충분한가**를 본다. LLM 0회.
+    """Whether the evidence is sufficient. No LLM call.
 
-    🔴 **`verify_calculation` 과 같은 반환 규격이 아니다** (종전 주석이 그렇게 적혀
-    있었고 틀렸다 — v4 조사 §2-b ③이 키를 세어 잡았다). 실제로 같은 것은 셋이다:
-    `verify_answer_arithmetic` · `verify_number_provenance` · `_tool_result_report`
-    (10키 동일). `verify_calculation` 은 거기에 `gated` 가 붙은 11키다.
+    The return shape is not the same as the other deterministic checks, despite
+    an earlier comment saying so. This one carries `gaps` where they carry
+    `mismatches`, and has no recomputed values and no hard kinds. Do not merge
+    them: a gap is a list of what is absent from the evidence rather than a
+    recomputation, and the pipeline reads the two differently.
 
-        이 함수(8키)  ok llm_calls checked skipped **gaps** failed_kinds
-                      failure_stage reason
-        나머지        ok llm_calls checked skipped **mismatches** failed_kinds
-                      failure_stage reason **recomputed hard_kinds**
+    This does not overlap the support axis the judge covers. Four defects are
+    caught here, each with its own premise and failure-stage attribution.
 
-    `mismatches` 대신 `gaps` 이고 `recomputed`·`hard_kinds` 가 없다. 🔴 **합치지 마라** —
-    `gaps` 는 재계산 결과가 아니라 '근거에 없는 것' 의 목록이라 값의 성질이 다르다.
-    `pipeline._verdict` 가 이 둘을 각각 다르게 읽는다.
+    A premise that does not hold is recorded as skipped rather than passed.
 
-    `judge` 가 보는 축(지지)과 겹치지 않는다. 여기서 잡는 것은 넷이다.
-
-    | kind | 전제 | 결함 | 귀속 |
-    |---|---|---|---|
-    | `evidence_gap` | 질문이 정정·해지 **결과값**을 요구 | 답이 근거 부족을 자백 | RETRIEVAL |
-    | `stale_value` | 대체본과 최신본이 **서로 다른 문서로** 함께 있음 | 답이 대체본 값만 씀 | GENERATION |
-    | `interim_source` | 연간 질의 + 반기·분기와 사업보고서가 함께 옴 | 답이 반기 값만 씀 | GENERATION |
-    | `missing_corp` | `companies` 를 넘겼고 2곳 이상 | 근거에 없는 기업이 있음 | RETRIEVAL |
-
-    전제가 안 서면 `skipped` 다 — 검증 대상이 없는 것과 결함을 섞으면 Phase H·I 의
-    귀속이 오염된다 (`verify_calculation` 의 `skipped` 설계와 같은 이유).
-
-    **확신할 수 없으면 통과시킨다.** 저장 응답 두 스냅샷 전수에서 정답 문항 거짓
-    경보 0건이다 (`COMPLETENESS_SNAPSHOTS`). 수치는 스냅샷과 함께 읽어야 한다 —
-    같은 규칙이 Phase H(골든 근거 38/60)에서는 7건, A6(59/60)에서는 1건 발화한다.
+    An uncertain case passes. Across both recorded snapshots there are no false
+    alarms on correct answers, but those counts have to be read together with
+    the snapshot they came from.
+    See docs/design-rationale.md#completeness-checks
     """
     text = answer or ""
     blocks = _blocks(evidence)
@@ -1301,8 +1296,9 @@ def verify_completeness(question: str, answer: str, evidence,
                          "failure_stage": COMPLETENESS_STAGES[kind],
                          "figures": list(found)})
 
-    # ① 근거 공백 — 정정·해지 결과값을 요구했는데 답이 근거 부족을 자백했다.
-    #    존재 질의(Q-026)는 부재가 정답이라 전제에서 뺀다.
+    # Evidence gap: the question asked for a revision or termination result
+    # and the answer admits the evidence is short. Existence questions are
+    # excluded from the premise, since there absence is the answer.
     wants_outcome = bool(_CHAIN_ASK.search(question or "")
                          and _OUTCOME_ASK.search(question or "")
                          and not _EXISTENCE_ASK.search(question or ""))
@@ -1314,10 +1310,11 @@ def verify_completeness(question: str, answer: str, evidence,
                 f"정정·해지 결과값을 물었으나 답이 근거 부족을 자백했다 ('{hit.group(0)}')"
                 if hit else "")
 
-    # ② 대체본 사용 — 체인이 통째로 왔을 때만 성립한다. 다른 트랙이 골든 근거 적중을
-    #    38/60 → 59/60 으로 올리면서 정정 전·후 금액이 둘 다 보이게 됐고, 그 바람에
-    #    이 전제가 1회 → 7회로 자주 서게 됐다 (`COMPLETENESS_SNAPSHOTS`).
-    #    **전제가 자주 서는 것 자체는 정상이다.** 그때 발화가 정확한지를 다시 재야 한다.
+    # Superseded value: the premise holds only when the whole chain arrived.
+    # Better retrieval made both the pre- and post-revision amounts visible, so
+    # this premise now holds far more often. That is normal in itself; what has
+    # to be re-measured is whether the firings are still accurate.
+    # See docs/design-rationale.md#premise-drift
     stale, latest = _split_chain(blocks)
     if not (wants_outcome and stale and latest and said):
         _record("stale_value", False)
@@ -1329,8 +1326,9 @@ def verify_completeness(question: str, answer: str, evidence,
                 f"근거에 최신본이 있는데 답이 대체본 값 {_fmt_figures(used_stale)} 을 썼다"
                 if used_stale and not (said & latest_only) else "", used_stale)
 
-    # ③ 반기·분기 출처 — 연간 값을 물었는데 같은 기업의 사업보고서가 함께 왔는데도
-    #    답이 반기·분기 블록에만 있는 수치를 골랐다 (Q-049 실측: 11,830,403).
+    # Interim source: the question asked for an annual figure, the annual
+    # report for the same company was present, and the answer still took a
+    # figure that appears only in an interim block.
     interim = [b for b in blocks if _INTERIM_HEAD.search(b["head"])]
     annual = [b for b in blocks if _ANNUAL_HEAD.search(b["head"])]
     shared = {b["corp"] for b in interim} & {b["corp"] for b in annual} - {""}
@@ -1345,7 +1343,8 @@ def verify_completeness(question: str, answer: str, evidence,
                 f"연간 값을 물었으나 반기·분기 보고서에만 있는 수치 "
                 f"{_fmt_figures(used_interim)} 을 썼다" if used_interim else "", used_interim)
 
-    # ④ 비교 축 — 기업 목록을 **넘겼을 때만** 돈다. 근거 없는 차단은 하지 않는다.
+    # Comparison axis: runs only when a company list was supplied. No blocking
+    # without that basis.
     names = [c for c in (companies or []) if c]
     if len(names) < 2 or not blocks:
         _record("missing_corp", False)
@@ -1369,22 +1368,25 @@ def verify_completeness(question: str, answer: str, evidence,
     }
 
 
-# --- G. 완전성 규칙이 낡는 것을 드러내는 계기 ----------------------------------
-# 이 트랙에서 배운 것 하나. **규칙이 틀린 게 아니라 규칙이 가정한 세계가 바뀐다.**
-# `verify_completeness` 는 만들 때 정밀도 7/7 이었는데, 다른 트랙이 골든 근거 적중을
-# 38/60 → 59/60 으로 올리자 `stale_value` 의 전제(대체본+최신본 공존)가 **1회 → 7회**
-# 로 늘면서 거짓 경보가 생겼다. 발화 수만 보면 이 변화가 안 보인다.
+# --- Detecting when a completeness rule goes stale --------------------------
+# A rule does not become wrong; the world it assumed changes. The completeness
+# checks were precise when written, and improving retrieval elsewhere made one
+# premise hold far more often, which produced false alarms. Counting firings
+# alone does not show that.
 #
-# 그래서 **전제가 몇 번 섰는지(`checked`)와 몇 번 발화했는지를 분리해** 센다.
-# 발화는 그대로인데 `checked` 만 뛰면 규칙이 낡고 있다는 뜻이다. 다음 트랙이 Recall 을
-# 더 올리면 같은 일이 또 생긴다 — 그때 이 표가 먼저 어긋난다.
+# So how often a premise held and how often the rule fired are counted
+# separately. Firings flat while the premise count jumps means the rule is
+# going stale.
+# See docs/design-rationale.md#premise-drift
 
-#: `checked` 가 기준선의 몇 배가 되면 규칙을 다시 보라고 표시할 것인가.
+#: Multiple of the baseline premise count at which a rule is flagged for
+#: review.
 PREMISE_DRIFT_FACTOR = 2.0
 
-#: **수치는 스냅샷과 함께만 의미가 있다.** 07-verifier 의 7/7 이 Phase H 응답 기준인
-#: 줄 모르고 A6 에 그대로 적용된 것이 이번 혼선의 직접적 원인이었다. 어느 응답
-#: 묶음에서 잰 값인지 여기에 못 박고, `tests/test_critic.py` 가 전수로 재확인한다.
+#: These numbers mean nothing apart from the snapshot they were measured on.
+#: Applying a precision figure from one response set to another was the direct
+#: cause of an earlier misreading, so each snapshot names its response set and
+#: the tests re-verify it exhaustively.
 COMPLETENESS_SNAPSHOTS = {
     "phase_h": {
         "responses": "artifacts/eval/responses",
@@ -1406,15 +1408,13 @@ COMPLETENESS_SNAPSHOTS = {
         "fired": {"evidence_gap": 0, "stale_value": 1,
                   "interim_source": 0, "missing_corp": 0},
     },
-    # A7 — 구성은 A6 그대로다 (플래그가 하나도 다르지 않다). 바뀐 것은 **답변**이다.
-    # 거절 강제(라우터 게이트)와 시점 규칙이 답변 문장을 바꾸자 전제 성립 수가 움직였다.
+    # Same configuration as the snapshot above, with no flag different. What
+    # changed is the answers: the refusal gate and the as-of rule altered the
+    # answer text, which moved the premise counts.
     #
-    #   stale_value    7 -> 6   Q-040 이 근거 없이 거절로 빠져 체인 블록이 사라졌다
-    #   interim_source 3 -> 2   같은 이유
-    #
-    # **규칙은 한 줄도 고치지 않았다.** 배율이 0.86·0.67 로 `PREMISE_DRIFT_FACTOR`(2.0)
-    # 밖이라 드리프트 경보는 안 뜨지만, 수치는 스냅샷과 함께만 의미가 있으므로 새로 박는다.
-    # 정밀도는 그대로 1.00 이다 — 발화 1건(Q-023)이 오답이고 정답 문항 거짓 경보는 0건.
+    # No rule was changed. The ratios stay inside the drift factor, so no
+    # warning is raised, but the numbers are recorded afresh because they only
+    # mean something alongside their snapshot. Precision is unchanged.
     "ablation_a7": {
         "responses": "artifacts/ablation/A7/responses",
         "labels": "artifacts/ablation/A7/report.json",
@@ -1429,15 +1429,18 @@ COMPLETENESS_SNAPSHOTS = {
 
 
 def completeness_audit(reports: Sequence[dict], *, baseline=None) -> dict:
-    """`verify_completeness` 결과 묶음에서 **전제 성립과 발화를 따로** 센다. LLM 0회.
+    """Count premises held and rules fired separately across a set of
+    completeness results. No LLM call.
 
-    `fire_rate` 는 발화 / 전제 성립이다. 전체 문항 수로 나누지 않는다 — 전제가
-    안 선 문항은 검사 대상이 아니었으므로 분모에 넣으면 규칙이 좋아진 것처럼 보인다.
+    The fire rate divides firings by premises held rather than by the question
+    count: questions whose premise never held were not under test, and putting
+    them in the denominator makes the rule look better than it is.
 
-    `baseline` 에 `COMPLETENESS_SNAPSHOTS` 의 키(또는 같은 모양의 dict)를 주면
-    기준선 대비 `checked` 배율을 함께 낸다. `PREMISE_DRIFT_FACTOR` 이상 벌어진
-    kind 는 `drifted` 에 실린다 — **그 규칙의 전제가 다른 세계에서 서고 있다는 뜻**이라
-    거짓 경보를 다시 재야 한다.
+    Given a baseline, the ratio of premise counts against it is reported too,
+    and any kind beyond the drift factor is listed as drifted, meaning its
+    premise now holds in a different world and its false alarms have to be
+    measured again.
+    See docs/design-rationale.md#premise-drift
     """
     checked = {kind: 0 for kind in COMPLETENESS_STAGES}
     fired = {kind: 0 for kind in COMPLETENESS_STAGES}
@@ -1498,9 +1501,11 @@ def judge(evidence: str, answer: str, budget: Budget | None = None) -> Verdict:
 
 def judge_open(question: str, evidence: str, key_points: list[str] | None,
                answer: str, budget: Budget | None = None) -> OpenVerdict:
-    """서술형 채점. LLM 1회 — closed 는 정규화 EM 이라 여기 오지 않는다.
+    """Score an open-ended answer. One LLM call; closed questions are scored by
+    normalised exact match and never reach here.
 
-    파싱 실패는 **오답이 아니라 판정 실패**다. 3항목을 모두 False 로 두고 이유를 남긴다.
+    A parse failure is a scoring failure rather than a wrong answer: all three
+    criteria are set false and the reason records what happened.
     """
     result = chat(build_open_judge_messages(question, evidence, key_points, answer),
                   max_tokens=200, temperature=0.0, tag="judge_open")
