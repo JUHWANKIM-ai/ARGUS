@@ -135,41 +135,33 @@ ROUND_TOLERANCE = 0.05
 #: Failure stage a calculation mismatch is attributed to.
 FAILURE_STAGE = "TOOL"
 
-# --- 자릿수(단위) 오류 — 관용에서 **뺀다** ------------------------------------
-# 종전 `_compare` 는 `min(claims, key=|c-expected|)` 로 **답변 수치 중 기대값에 가장
-# 가까운 것 하나만** 보고 통과를 판정했다. 그 선택은 두 가지 일을 겹쳐서 하고 있었다.
+# --- Order-of-magnitude errors, excluded from the tolerance -----------------
+# Selecting the answer figure closest to the expected value conflates two
+# jobs: choosing which figure refers to this record, which is necessary when
+# the evidence holds several records, and burying a candidate that differs by
+# an order of magnitude as a merely mismatched neighbour, which is a defect.
 #
-#   ① 어느 수치가 이 레코드를 말한 것인지 고른다      — 필요하다. 근거가 여러 건이면
-#      답변은 여러 금액을 말하고, 그중 이 레코드와 무관한 값이 섞이는 것이 정상이다.
-#   ② 자릿수가 다른 후보를 '그냥 안 맞는 이웃' 으로 묻는다 — **이것이 결함이다.**
-#
-# 실측 Q-065. 근거 `4,928,968,079,043원`(49,289.68억)을 답변이 `492,909억원` 으로
-# 옮겼다 (배율 10.0002). 같은 답변에 신한울 `23,381억원` 이 정확히 들어 있어서 ①이
-# 그 값을 골라 amount 를 통과시켰고, 10배 오류는 판정에 흔적조차 남지 않았다.
-# `docs/total_plan.md §0b ③` 이 이 문항의 처방을 두 번 뒤집은 이유가 여기 있다.
-#
-# **`10^k (k≠0)` 배는 무해한 이웃이 아니다.** 두 계약금액이 우연히 정확히 10배가
-# 되는 일은 실측으로 없다 — 정정 체인 865건의 금액쌍 20,586개를 전수로 재 보니 이
-# 창(`SCALE_LOG_TOLERANCE`)에 드는 쌍은 2개뿐이고 둘 다 금액이 `8원`·`1원` 인 파싱
-# 잔재다 (`SCALE_MIN_VALUE` 로 뺀다). 그래서 자릿수 후보는 **다른 후보가 맞아도**
-# 따로 보고하고(`hard`), 레코드 단위 관용으로도 지우지 않는다
-# (`aggregate_calculation`).
+# Two contract amounts are never exactly a power of ten apart by coincidence in
+# this corpus, so a magnitude candidate is reported separately even when
+# another candidate matches, and is not cleared by the per-record tolerance.
+# See docs/design-rationale.md#magnitude-errors
 
-#: `10^k` 에서 로그10 거리가 이 안이면 자릿수 실수로 본다 (배율 ±2.3%).
-#: 실측 두 건이 이 창에 든다 — Q-065 `10.0002배`(거리 1.1e-5) ·
-#: Q-047 `10.08배`(거리 3.6e-3, `333조 6,059억원` → `33,636,059억원`).
+#: Log10 distance from a power of ten within which a mismatch is treated as a
+#: magnitude error.
 SCALE_LOG_TOLERANCE = 0.01
 
-#: 이보다 작은 값은 자릿수 판정에서 뺀다. `8원`·`1원` 같은 파싱 잔재가 아무 큰 값과도
-#: 10^k 관계를 맺어 버린다 (실측 20230914800071 `amount=8`, 20240402800113 `amount=1`).
+#: Values below this are excluded from the magnitude test. Parsing residue of a
+#: few won stands in a power-of-ten relation to almost any large value.
 SCALE_MIN_VALUE = 1e6
 
-#: `10^7` 배를 넘는 관계는 단위 실수가 아니라 다른 값이다 (원↔조 가 10^12 이므로 넉넉하다).
+#: Beyond this exponent the relation is a different value rather than a unit
+#: mistake. Won to trillion is 10^12, so this leaves ample room.
 SCALE_MAX_EXP = 7
 
 
 def _scale_exponent(claimed: float, expected: float) -> int | None:
-    """`claimed` 가 `expected` 의 `10^k (k≠0)` 배인가. 맞으면 k, 아니면 None."""
+    """Whether `claimed` is `expected` times a non-zero power of ten. Returns
+    the exponent, else None."""
     if not claimed or not expected:
         return None
     if abs(claimed) < SCALE_MIN_VALUE or abs(expected) < SCALE_MIN_VALUE:
@@ -185,14 +177,12 @@ def _scale_exponent(claimed: float, expected: float) -> int | None:
     return exponent
 
 
-#: 🔴 **A20 — 치환할 자리를 고르는 창.** 기대값과 로그10 거리가 이 안이면 "답변이 이 수치를
-#: 말하려 한 자리" 로 본다 (배율 ±12%). 하나만 바꾸면 안 되기 때문에 있는 상수다 — 실측
-#: Q-097 의 답변은 같은 값을 **두 표기로** 쓴다(`207,848,465,710원` 과 `약 2,078억 원`).
-#: `_compare` 는 그중 기대값에 가장 가까운 하나만 불일치로 보고하므로, 보고된 literal 만
-#: 갈아 끼우면 나머지 표기가 남아 **답변이 스스로 모순된다.**
-#:
-#: 창 밖은 건드리지 않는다. 같은 답변의 총액 `2,492,215,574,520원` 은 기대값의 12배
-#: (로그10 거리 1.08)이고, 다른 계약의 금액은 자릿수부터 다르다.
+#: Window for choosing where to substitute. A figure within this log10
+#: distance of the expected value is treated as a place the answer meant to
+#: state that value. The constant exists because one answer can write the same
+#: value in two notations, and replacing only the reported one leaves the
+#: answer contradicting itself. Figures outside the window are left alone.
+#: See docs/design-rationale.md#substitution-window
 SUBSTITUTE_LOG_TOLERANCE = 0.05
 
 
@@ -208,7 +198,8 @@ def _to_float(text) -> float | None:
 
 
 def _half_ulp(literal: str, scale: float = 1.0) -> float:
-    """답변이 쓴 자릿수의 절반. '227,648억원' 은 ±5천만원까지 같은 값이다."""
+    """Half of the last place the answer wrote, so a figure stated in a coarse
+    unit compares equal within that unit."""
     decimals = len(literal.split(".")[1]) if "." in literal else 0
     return 0.5 * (10.0 ** -decimals) * scale
 
@@ -222,22 +213,21 @@ def _percent_claims(answer: str) -> list[tuple[float, float, str]]:
     return out
 
 
-#: 🔴 **우리 프롬프트가 시키는 표기를 우리 검증기가 못 읽고 있었다.**
-#: 규칙 9 가 조 단위를 `4조 9,290억원` 으로 쓰라고 하는데(W1 이 콤마 밀림을 막으려고
-#: 도입), `_MONEY_RE` 는 그것을 `4조`(=4e12)와 `9,290억원`(=9.29e11) **두 조각**으로
-#: 쪼갠다. 그래서 정답에 자릿수 거짓 경보가 났다 — 현 세대 `hard` 발화 3건 중 2건
-#: (vc Q-107·Q-109)이 그것이다. `aggregate_calculation` 이 hard 를 일부러 관용에서
-#: 빼 놓았으므로 완충이 없다.
-#: 복합 표기를 **먼저** 잡아 하나의 값으로 합친다.
+#: The verifier could not read the notation the prompt itself asks for. The
+#: money pattern splits a compound figure into two separate amounts, which
+#: raised magnitude false alarms on correct answers, and magnitude findings are
+#: deliberately outside the per-record tolerance so nothing absorbs them.
+#: Compound notation is therefore matched first and joined into one value.
 _COMPOUND_MONEY_RE = re.compile(
     r"(-?\d[\d,]*)\s*조\s*(\d[\d,]*)\s*억\s*원?")
 
 
 def _money_spans(answer: str) -> list[tuple[int, int, float, float, str]]:
-    """금액 표기를 **위치까지** 붙여 돌려준다 — `(시작, 끝, 값, 허용오차, 원문)`.
+    """Amount mentions with their positions: (start, end, value, tolerance,
+    literal).
 
-    `_money_claims` 가 값만 쓰던 것을 위치가 필요한 검사(`_restatement_mismatches`)와
-    함께 쓰려고 갈랐다. 파싱 규칙은 한 곳에만 둔다.
+    Split out from the value-only accessor so that checks needing positions can
+    share it. The parsing rule stays in one place.
     """
     out: list[tuple[int, int, float, float, str]] = []
     seen: list[tuple[int, int]] = []
@@ -249,7 +239,7 @@ def _money_spans(answer: str) -> list[tuple[int, int, float, float, str]]:
         out.append((m.start(), m.end(), value, _half_ulp(m.group(2), 1e8), m.group(0)))
         seen.append(m.span())
     for m in _MONEY_RE.finditer(answer or ""):
-        # 복합 표기 안의 조각(`4조`·`9,290억원`)을 두 번 세지 않는다.
+        # Do not count the parts of a compound figure a second time.
         if any(s <= m.start() and m.end() <= e for s, e in seen):
             continue
         value = _to_float(m.group(1))
@@ -265,10 +255,11 @@ def _money_claims(answer: str) -> list[tuple[float, float, str]]:
 
 
 def money_values(text: str) -> list[float]:
-    """텍스트가 말한 금액의 **값만**. `_money_spans` 의 공개 창구다.
+    """Values of the amounts a text states. The public accessor.
 
-    🔴 채점기(`scripts/error_analysis.py`)가 `_money_spans` 를 직접 부르면 금액 파싱
-    규칙을 읽는 자리가 둘이 된다. 표지 목록과 마찬가지로 창구를 하나로 둔다.
+    Callers reaching past this into the span function would create a second
+    place that reads the parsing rule, the same failure the single marker list
+    prevents.
     """
     return [value for _, _, value, _, _ in _money_spans(text or "")]
 
@@ -283,7 +274,7 @@ def _bare_claims(answer: str) -> list[tuple[float, float, str]]:
 
 
 def _fields(evidence) -> dict:
-    """도구 반환 형태(`{"count":.., "events":[..]}`)와 단일 레코드를 모두 받는다."""
+    """Accepts both the tool return shape and a single record."""
     if not isinstance(evidence, dict):
         return {}
     for key in ("events", "records", "chunks", "filings"):
@@ -304,22 +295,22 @@ def _pick(fields: dict, *keys) -> float | None:
 
 
 def _squash(text) -> str:
-    """공백을 지운 사본. 답변은 `**총 조달 금액**` 처럼 레이블을 띄어 쓴다."""
+    """Whitespace-stripped copy: answers space out the labels they quote."""
     return _WS.sub("", text if isinstance(text, str) else "")
 
 
 def _says_amount(answer: str, label) -> bool:
-    """답변이 **이 레코드의 금액**을 말하고 있는가. 레이블(`amount_type`)로만 가른다.
+    """Whether the answer states this record's amount, decided by its label
+    alone.
 
-    A6 실측 거짓 경보(Q-014). 근거 레코드는 유상증자 `조달금액` 2,000,113,200,000 이고
-    답변은 질문이 물은 **하위 항목** `시설자금` 454,100,000,000원을 정확히 옮겼다.
-    그런데 `_money_claims` 는 답변의 금액 표기를 **전부** 긁어 amount 와 대조하므로
-    정답이 `TOOL` 오류로 뒤집혔다. 답변이 레코드의 금액 레이블을 한 번도 말하지
-    않았다면 그 금액을 주장한 적이 없는 것이다 — 틀린 게 아니라 `skipped` 다.
+    Amount extraction collects every figure in the answer, so an answer that
+    correctly quotes a sub-item of a record was compared against the record's
+    headline amount and turned into a failure. An answer that never names the
+    record's amount label never claimed that amount: the check is skipped
+    rather than failed.
 
-    레이블이 없는 근거(`amount_type` 미기재·테스트 픽스처)는 판단할 재료가 없으므로
-    게이트를 걸지 않는다. **확신할 수 없으면 검사하는 쪽이 아니라 통과시키는 쪽**이
-    기본값이지만, 여기서는 게이트 자체를 못 세우는 것이라 종전 동작을 유지한다.
+    Evidence with no label carries nothing to decide on, so no gate is applied
+    and the prior behaviour stands.
     """
     if not isinstance(label, str) or not label:
         return True
@@ -327,10 +318,12 @@ def _says_amount(answer: str, label) -> bool:
 
 
 def _targets(expected: float, claims: list[tuple[float, float, str]]) -> list[str]:
-    """기대값과 **같은 자릿수**인데 값이 다른 후보의 원문. A20 이 갈아 끼울 자리다.
+    """Literals of candidates at the expected magnitude but with a different
+    value: the places substitution replaces.
 
-    불일치 보고(`reason`)는 후보 하나만 고르지만, 치환은 답변에 남은 같은 값의 **다른
-    표기까지** 함께 바꿔야 한다 (`SUBSTITUTE_LOG_TOLERANCE` 주석 — 실측 Q-097).
+    The mismatch report names a single candidate, but substitution has to
+    replace every other notation of the same value left in the answer.
+    See docs/design-rationale.md#substitution-window
     """
     out = []
     for value, tol, literal in claims:
@@ -345,7 +338,8 @@ def _targets(expected: float, claims: list[tuple[float, float, str]]) -> list[st
 
 
 def _revenue(fields: dict) -> float | None:
-    """비중의 분모. 명시 키가 없으면 원 표(raw_rows)의 '최근매출액' 을 쓴다."""
+    """Denominator for a ratio. Falls back to the revenue row of the source
+    table when no explicit key is present."""
     explicit = _pick(fields, "revenue", "whole", "share_whole", "ratio_denominator")
     if explicit:
         return explicit
@@ -361,17 +355,16 @@ def _revenue(fields: dict) -> float | None:
 
 
 def verify_calculation(answer: str, evidence: dict) -> dict:
-    """답변에서 수치를 파싱해 compute.py 로 재계산하고 대조한다. LLM 0회.
+    """Parse figures out of the answer, recompute them from the records and
+    compare. No LLM call.
 
-    ① 답변 텍스트에서 수치·단위 추출 (`22,764,764,160,000원`·`7.6%`·`8년 5개월`)
-    ② 근거 레코드 원값으로 재계산
-    ③ 허용 오차(반올림 1자리) 밖이면 불일치로 보고하고 `TOOL` 실패로 귀속
+    Figures and units are extracted from the answer text, recomputed from the
+    source values of the evidence records, and reported as a mismatch when they
+    fall outside the rounding tolerance.
 
-    답변이 해당 수치를 아예 말하지 않았으면 불일치가 아니라 `skipped` 다 —
-    검증할 대상이 없는 것과 틀린 것을 섞으면 Phase H 의 병목 판정이 오염된다.
-
-    실측 근거: HCX-005 는 2025-07-24 ~ 2033-12-31 계약기간을 Direct·CoT 모두
-    `9년 5개월` 로 답했다 (정답 `8년 5개월`). judge 로는 잡히지 않는 오류다.
+    An answer that never states the figure is skipped rather than failed:
+    conflating nothing to verify with a wrong value would corrupt the
+    failure-stage attribution.
     """
     text = answer or ""
     fields = _fields(evidence)
@@ -382,10 +375,13 @@ def verify_calculation(answer: str, evidence: dict) -> dict:
 
     def _compare(kind: str, expected: float, claims: list[tuple[float, float, str]],
                  detail: str, *, scale_guard: bool = False) -> None:
-        """후보 중 하나가 맞으면 통과 — 단, **자릿수가 다른 후보는 따로 보고한다.**
+        """Pass when any candidate matches, but report a candidate that differs
+        by an order of magnitude separately.
 
-        `scale_guard` 는 금액에만 건다. 비율은 `30.36%` 와 `3.11%` 처럼 **서로 다른
-        레코드의 정당한 값**이 10배 근처에 흔히 놓이므로 같은 규칙을 걸 수 없다.
+        The magnitude guard applies to amounts only. Legitimate ratios from
+        different records sit near a factor of ten from each other routinely,
+        so the same rule cannot be applied to them.
+        See docs/design-rationale.md#magnitude-errors
         """
         if not claims:
             skipped.append(kind)
