@@ -1,252 +1,222 @@
-# ARGUS — DART 공시 QA Agent
+# ARGUS
 
-**제10회 2026 미래에셋증권 AI Festival · 「공시 Agent」 주제 제출물** (마감 2026-09-06 23:59 KST).
+**DART 전자공시 질의응답 에이전트**
 
-거래소공시·정기공시를 **오프라인에서 정규화·색인**해 두고, 평가 질의가 들어오면
-라우팅 → 검색·도구 호출(정정체인 추적·거래상대방 그래프·수치 계산) → 근거 기반 생성 →
-검증(critic·judge)을 거쳐 고정 스키마 `GET /answer` 로 **답변·검색근거·사고과정**을 돌려준다.
-HyperCLOVA X 는 생성·검증 단계에서만 부르고, 색인·검색·정규화·계산은 **LLM 호출 0회**로 돈다.
-답할 수 없는 질의는 지어내지 않고 **한계를 고지**한다.
+제10회 미래에셋증권 AI Festival 출품작. 국내 상장사 70곳의 2023년 1월부터 2026년 3월까지
+공시 문서를 대상으로, 자연어 질문에 **근거 공시를 명시한 답변**을 돌려준다.
 
-> 🔴 **성적·지출 수치는 이 문서에 쓰지 않는다.** 정본은
-> [`docs/total_plan.md`](docs/total_plan.md) 한 곳이며, 이 README 는 그것을 복제하지 않고 가리킨다.
+```
+질문   HD현대일렉트릭이 2023년 1월에 체결한 2500kVA 배전변압기 등 3,500대
+       공급계약의 계약금액은 얼마인가?
+
+답변   HD현대일렉트릭이 2023년 1월에 체결한 2500kVA 배전변압기 등 3,500대
+       공급계약의 계약금액은 97,000,000,000원(970억 원)입니다.
+       (근거: 단일판매ㆍ공급계약체결, 2023-01-31, 접수번호 20230131800162)
+```
 
 ---
 
-## 1. 🔴 평가용 API End-point — 제출물 3
+## 무엇을 푸는가
 
-주최측 2차 공지: *"End-point 주소는 `README.md` 파일에 명시합니다(필수)"*
-(전문 [`docs/organizer-qa.md`](docs/organizer-qa.md) · 규격 정본 [`docs/CONVENTION.md`](docs/CONVENTION.md) §4).
+공시 질의응답은 검색과 생성을 잇는 것만으로 풀리지 않는다. 실무에서 부딪히는 벽이 셋이다.
 
-| 항목 | 값 |
-|---|---|
-| **End-point** | ✅ **`http://223.130.129.131/answer`** (2026-08-17 확정) — 현재 코드(`A42`)가 이 주소에서 가동 중이고 규약 §4 계약을 실측으로 만족한다(200 · `application/json` · 5키 전부 string · 인증 헤더 없음 · 최대 10.0초). 🔴 **공인 IP `223.130.129.131` 은 2026-09-20 까지 유지해야 한다** — 반납 후 재획득하면 새 IP 가 나오고 제출 URL 이 죽어 전 문항 0점이다. 🔴 **2026-09-07 이전에 반드시 서버를 시작할 것** |
-| **호출 URL 형태** | `http://<공인 IP>/answer?question_id={ID}&question={질의}` |
-| 프로토콜 · 포트 | **HTTP · 80** — `deploy/argus.service` 의 `--port 80`. HTTPS 는 선택이고 self-signed 무방하므로 쓰지 않는다. 도메인 불필요(공인 IP 제출 허용) |
-| 접근 제어 | 인증 헤더 없음. 주최측 발신 IP 허용 방식 → **`TBD-4`: 발신 IP 대역 미공지.** 공지되면 `deploy/README.md` 의 ACG 인바운드를 그 대역으로 좁힌다 |
-| 운영 창 | 09-07 ~ 09-20 중 **주제별 최대 1주** → **`TBD-5`: 정확한 일자·시간대 미공지** |
-| 헬스체크 | `GET /health` → `{"status": "ok"}` — **우리 운영용**이다. 평가가 쓰는 경로는 `/answer` 하나뿐이다 |
+**정정공시가 답을 바꾼다.** 한 계약이 최초 공시 이후 여러 차례 정정된다. 최신본만 봐도,
+원본만 봐도 틀린다. 무엇이 언제 얼마로 바뀌었는지를 체인으로 따라가야 한다.
 
-배포 절차(NCP `c2-g3a` · Ubuntu 24.04 · ACG · swap · systemd)는
-[`deploy/README.md`](deploy/README.md) 에 있다.
+**답이 한 문서에 없다.** 계약상대를 축으로 여러 상장사의 공시를 모아야 비로소 답이 되는
+질의가 있다. 합계와 차액은 문서 사이에서 계산된다.
+
+**모르는 것을 모른다고 해야 한다.** 코퍼스 밖 기업, 아직 나오지 않은 보고서, 공시에
+적히지 않는 미래 전망. 이때 그럴듯한 답을 지어내는 것이 가장 나쁜 실패다.
+
+## 어떻게 푸는가
+
+**계산과 검증을 모델에서 빼내 코드로 옮겼다.** 검색, 정정체인 추적, 집계, 수치 검증,
+근거 표기, 안전 처리가 전부 결정적 규칙으로 돈다. 언어 모델은 답변 문장을 짓는 데만
+쓴다. 파이프라인의 대부분이 LLM 호출 없이 끝나므로 응답이 빠르고 재현성이 높다.
+
+**아는 값을 모델에게 맡기지 않는다.** 합계와 차액을 시스템이 먼저 계산해 근거 첫 줄에
+싣고, 답변이 그 값을 쓰지 않으면 결정적으로 바로잡는다. 근거 표기의 접수번호 14자리도
+모델이 옮겨 적게 하지 않고 시스템이 붙인다.
+
+**답할 수 없는 질의를 앞에서 가른다.** 코퍼스 범위 밖, 지목한 보고서 부재, 지시대상 불명,
+미래 추정 요구, 개인 식별번호 요구를 다섯 갈래로 나누어 언어 모델을 부르기 전에 한계를
+고지하거나 되묻는다.
+
+## 성능
+
+| | 값 | 분모 |
+|---|---|---|
+| 평가셋 정확도 | 110/112 (98.2%) | 자체 골든셋. 응답 캐시 재생 기준 |
+| **미공개 문항 정확도** | **49/54 (90.7%)** | **캐시 없이 새로 생성. 실전 기대값** |
+
+두 수를 함께 싣는 이유는 앞의 수가 낙관적이기 때문이다. 골든셋 성적은 저장된 응답을
+재생해 얻은 값이고, 실제 평가는 매 질의를 새로 생성한다. 온도를 0으로 고정해도 긴
+답변의 문안은 회차마다 달라진다는 것을 실측으로 확인했다. 그래서 **한 번도 본 적 없는
+문항 54개를 캐시 없이 돌린 90.7%** 를 기대값으로 인용한다.
+
+질의 유형별로는 빈 칸이 없다.
+
+| 유형 | Closed | Open |
+|---|---|---|
+| 검색 및 정보 추출 | 15/15 | 13/13 |
+| 다중 조회 및 비교 연산 | 19/19 | 15/15 |
+| 복합 문서 추론 | 15/16 | 14/15 |
+| 안전성 및 정보 한계 | 19/19 | |
+
+평가 지표 여덟 축은 다음과 같다. 지표마다 분모가 다르므로 함께 적는다.
+
+| 지표 | 값 | 분모 |
+|---|---|---|
+| 정확성 | 97.3% | 112문항 전체 |
+| 근거 완전성 | 97.0% | 답변 도출에 필수적인 근거 166건 |
+| 요구사항 충족 | 99.1% | 112문항 전체 |
+| 근거 기반 | 97.7% | 판정기 적용 대상 43문항 |
+| 추론 논리성 | 97.3% | 112문항 전체. 실패 양식 일곱 중 다섯을 검사 |
+| 안전성 및 신뢰성 | 100% | 안전성 트랙 12문항 |
+| 정보 한계 대응 | 100% | 정보 한계 트랙 6문항 |
+| 근거 표시 | 100% | 표기가 필요한 94문항 |
 
 ---
 
-## 2. API 명세
-
-**정본은 코드다** — [`src/argus/api/server.py`](src/argus/api/server.py) 와
-[`docs/CONVENTION.md`](docs/CONVENTION.md) §4. 아래는 그 두 곳과 일치시킨 서술이다.
-
-### 요청
+## 평가용 API
 
 ```
-GET {end-point}/answer?question_id={ID}&question={평가 질의}
+GET http://223.130.129.131/answer?question_id={id}&question={질의}
 ```
 
-| | |
-|---|---|
-| 메서드 · 경로 | `GET` · **`/answer` 고정** |
-| 쿼리 파라미터 | `question_id` (string, 필수) · `question` (string, 필수, 한글) |
-| 헤더 | **없음.** 인증 헤더도 요구하지 않는다 |
-| 본문 | 없음 |
-
-```bash
-curl -sG "http://<공인 IP>/answer" \
-  --data-urlencode "question_id=Q-001" \
-  --data-urlencode "question=삼성전자의 최근 공급계약 규모는?"
-```
+공인 IP 직접 접근. HTTP 표준 포트 80. 인증 헤더 없음.
 
 ### 응답
-
-`application/json` · **5키 고정** · **전 필드 string** · 길이 제한 없음.
 
 ```json
 {
   "question_id": "Q-001",
   "question": "평가 질의 원문",
-  "retrieved_context": "답변 생성에 참고한 검색 근거",
-  "think_trace": "라우팅 · 검색 · 도구 호출 · 예산 사용량이 ' | ' 로 이어진 한 줄",
+  "retrieved_context": "답변 생성에 참고한 검색 문서",
+  "think_trace": "사고, 추론, 도구 사용 과정",
   "answer": "최종 생성 답변"
 }
 ```
 
-| 필드 | 타입 | 채우는 값 |
-|---|---|---|
-| `question_id` | string | 요청값 그대로 반향 |
-| `question` | string | 요청값 그대로 반향 |
-| `retrieved_context` | string | 검색·도구가 모은 근거 텍스트. **근거가 없어 한계를 고지한 경우 빈 문자열**(주최측 답변 #15 로 허용 확인) |
-| `think_trace` | string | 사고·도구 사용 과정. 형식 규정이 없어 한 줄 로그로 낸다 |
-| `answer` | string | 최종 답변 또는 한계 고지문 |
+다섯 필드 모두 문자열이며 `Content-Type: application/json` 으로 내려간다.
 
-### 상태 코드 — 🔴 5xx 를 내지 않는다
+### 운영 특성
 
-| 상황 | 응답 |
+| 항목 | 값 |
 |---|---|
-| 정상 | `200` + 5키 |
-| 답할 수 없는 질의 · 근거 없음 · 상류(HCX) 장애 · **내부 예외 일체** | 🔴 `200` + 5키 (`answer` 는 한계 고지). `server.py` 의 `except Exception` → `pipeline.fault_response` 가 마지막 방어선이다 |
-| `question_id` 또는 `question` 누락 | 🔴 `200` + 5키. 없는 값은 빈 문자열로 채우고 **있는 것으로 답한다** — `question` 만 온 요청은 답할 수 있는데 `422` 로 버리면 스스로 0점을 만든다. `server.py` 의 `RequestValidationError` 핸들러 (규약 감사 `F-4`) |
+| 응답 시간 | 실측 최대 10.0초 (규약 상한 300초) |
+| 오류 응답 | 없음. 내부 장애를 포함한 모든 경우에 200과 한계 고지를 돌려준다 |
+| 동시성 | 순차 호출 1건 기준 |
+| 가용 기간 | 2026-09-20까지 유지 |
 
-**왜 5xx 를 안 내는가**: 주최측은 타임아웃·5xx 에 **최대 2회 재시도**한다. 5xx 를 흘리면
-같은 질의가 최대 3회 들어와 세 번 다 실패하면 그 문항이 0점이고, 비결정적 실패면 캐시를
-못 타 크레딧이 3배로 나간다. **200 + 한계 고지**는 채점 항목인 "정보한계 대응"에 걸린다.
-근거는 `pipeline.fault_response` 독스트링과 `tests/test_server.py` 의 마지막 방어선 테스트다.
+5xx를 내지 않는 것은 설계 선택이다. 규약상 타임아웃과 5xx는 최대 2회 재시도되고 세 번
+모두 실패하면 그 문항이 0점이 된다. 상류 장애가 나더라도 스키마를 지킨 한계 고지를
+돌려주는 편이 안전하다.
 
-문항당 타임아웃은 **300초**이고 호출은 **순차 1건씩**(동시 요청 없음)이다.
+### 호출 예시
+
+```python
+import requests
+
+resp = requests.get(
+    "http://223.130.129.131/answer",
+    params={"question_id": "Q-001", "question": "평가 질의"},
+    timeout=300,
+)
+result = resp.json()
+```
 
 ---
 
-## 3. 환경 구성 · 실행
+## 환경 구성
 
-### ✅ `requirements.txt` — 작성 완료 (2026-08-15)
-
-[`requirements.txt`](requirements.txt) 가 런타임 의존성을 **고정 버전으로** 담는다.
-의존성 선언의 정본은 [`pyproject.toml`](pyproject.toml) 이고, `requirements.txt` 는
-**실제로 검증된 버전을 고정한 것**이다(검증 환경 Python 3.13.13 · 전량 테스트 통과).
+파이썬 3.12 이상. 의존성은 `requirements.txt` 에 검증된 버전으로 고정되어 있다.
 
 ```bash
-python3 -m venv .venv && . .venv/bin/activate
+git clone <repository>
+cd ARGUS
 pip install -r requirements.txt
-pip install -e .                    # argus 패키지 자체 (src/ 레이아웃)
 ```
 
-🔴 **`pip freeze` 로 뜨지 않았다.** Windows/conda 에서 뜨면 Windows 전용 휠(`pywin32` 등)과
-conda 채널 빌드 문자열이 섞여 **Ubuntu 배포 서버에서 설치되지 않는다.** 그래서
-`pyproject.toml` 선언에 검증 버전을 고정해 **손으로 작성**했다.
+전처리 산출물과 코퍼스 대장은 용량 때문에 저장소에 포함하지 않았다. 아래에서 내려받아
+저장소 루트에 푼다.
 
-🔴 **작성 과정에서 결함 하나를 찾았다.** 전 소스의 `import` 를 AST 로 전수 스캔한 결과
-**`pydantic` 이 [`src/argus/api/server.py`](src/argus/api/server.py) 에서 직접 쓰이는데
-`pyproject.toml` 에 선언돼 있지 않았다.** `fastapi` 가 끌어오므로 지금까지 우연히
-동작했지만 `fastapi` 가 의존을 바꾸면 조용히 깨진다. 선언에 추가했다.
+| 묶음 | 용량 | 내용 |
+|---|---|---|
+| [artifacts](https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=drive_link) | 1.3GB | 색인, 정형 레코드, 계약상대 그래프 |
+| [data](https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEOZIsJ?usp=sharing) | 5.2GB | 원본 공시, 문서 대장, 기업 목록 |
 
-`numpy` 는 넣지 않았다 — `scripts/build_embeddings.py` 만 쓰고 그 arm(`A2` 임베딩)은
-측정 후 기각됐다. **서버 런타임 경로에 없다.**
+`data/dart-disclosures/manifest.jsonl` 과 `universe.csv` 가 없으면 라우터가 대상 기업
+70곳을 읽지 못해 모든 질의가 범위 밖으로 처리된다. 반드시 함께 배치한다.
 
-### 개발 환경
+무결성 대조표는 `artifacts/audit/preprocessing_manifest.json` 에 있다. 파일 20개의
+SHA256과 바이트 수를 담고 있다.
+
+### 실행
 
 ```bash
-pip install -e ".[dev]"
+# API 서버
+python -m uvicorn argus.api.server:app --host 0.0.0.0 --port 8000
+# 평가 서버는 systemd 로 포트 80에서 구동한다. deploy/README.md 참고
+
+# 테스트
+python -m pytest -q
 ```
 
-코퍼스 원본과 `.env` 는 저장소에 없다(둘 다 `.gitignore` 대상). 코퍼스는
-`data/dart-disclosures/` 에 배치하고, CLOVA 키는 `.env` 의 `CLOVA_API_KEY` 로 넣는다.
-코퍼스 규모·구성은 [`docs/pipeline/01-eda.md`](docs/pipeline/01-eda.md) 를 본다.
+### 색인 재생성
 
-### 인덱스 빌드 (LLM 호출 0회)
+전처리 산출물을 직접 만들려면 아래를 순서대로 실행한다. 언어 모델을 호출하지 않는다.
 
 ```bash
-python scripts/build_index.py --group exchange     # 거래소공시 BM25 (major · holding 도 같은 방식)
-python scripts/build_sections.py                   # 정기공시 섹션 분할
-python scripts/build_section_index.py              # 섹션 인덱스
-python scripts/build_references.py                 # 정정·참조 체인
-python scripts/build_counterparty_graph.py         # 거래상대방 그래프
-python scripts/build_embeddings.py                 # (선택) dense 임베딩
-```
-
-산출물은 `artifacts/` 로 나간다. 문서군은 `exchange` · `major` · `holding` · `periodic` 넷이다
-(`src/argus/agent/tools.py::RECORD_GROUPS`). `--limit N` 부분 빌드, `--out-dir` 출력 경로 변경.
-
-### 서버 실행
-
-```bash
-# 로컬
-uvicorn argus.api.server:app --host 0.0.0.0 --port 8000
-curl -s "http://127.0.0.1:8000/answer?question_id=Q-001&question=테스트"
-
-# 평가 서버 (systemd · 포트 80) — deploy/README.md
-systemctl enable --now argus
-```
-
-### 테스트 · 평가
-
-```bash
-python -m pytest -q            # 전 테스트 (통과 수는 docs/total_plan.md §1)
-python scripts/eval_e2e.py     # E2E 평가 하네스 → artifacts/eval_report.json
-python scripts/ablation.py --arm A8 --dry   # arm 별 기여도 측정. --dry 는 LLM 0회
-                                           # (--dry 없이 돌리면 유료다. 러너에 정지선이 있다)
+python scripts/build_index.py --group exchange   # 거래소공시 레코드와 BM25
+python scripts/build_index.py --group major      # 주요사항보고
+python scripts/build_index.py --group holding    # 지분공시
+python scripts/build_sections.py                 # 정기공시 섹션 색인
+python scripts/build_counterparty_graph.py       # 계약상대 2-hop 그래프
+python scripts/build_nary.py                     # 규칙이 놓친 관계 보강
 ```
 
 ---
 
-## 4. 저장소 구조
+## 저장소 구조
 
-| 경로 | 책임 |
+```
+src/argus/
+  api/          FastAPI 서버. 다섯 필드 스키마를 고정한다
+  agent/        라우팅, 검색, 집계, 검증, 처분
+  corpus/       공시 파싱, 섹션 분해, 정정 관계 추출
+  retrieve/     BM25 색인
+  ablation.py   구성 스위치 레지스트리
+
+evalset/        평가 문항과 정답
+scripts/        색인 빌드, 측정, 채점
+tests/          1,409개
+docs/           설계 문서와 측정 기록
+deploy/         배포 절차와 systemd 유닛
+```
+
+## 문서
+
+| 문서 | 내용 |
 |---|---|
-| `src/argus/config.py` | `.env` 로딩, 코퍼스·산출물 경로 해석, 상수 |
-| `src/argus/clova.py` | HyperCLOVA X 호출 단일 창구. 토큰·지연·캐시 기록 |
-| `src/argus/corpus/` | manifest 프리필터 · HTML 파싱 · 정규화 · 마크다운 · 섹션 · 정정체인 · 거래상대방 · 날짜 연산 |
-| `src/argus/retrieve/bm25.py` · `embed.py` | BM25 색인·검색 · 임베딩 (LLM 생성 호출 없음) |
-| `src/argus/agent/` | 라우터 · 질의 확장 · 검색·계산 도구 · 파이프라인 · critic · 예산 · 안전 필터 |
-| `src/argus/api/server.py` | FastAPI `GET /answer` · `GET /health` |
-| `src/argus/ablation.py` | arm 플래그 — 단일 변수 조작을 코드로 강제 |
-| `scripts/` | 인덱스 빌드 · EDA · 평가 하네스 · ablation · evalset 검증 CLI |
-| `docs/` | 규약 · 총괄 계획 · Phase A~I 문서 · 기술제안서 |
-| `evalset/` | 골든셋 (`questions.jsonl` · `heldout.jsonl` · `regression.jsonl` · `valuechain.jsonl`) |
-| `artifacts/` | 전처리·색인·측정 산출물 (제출물 4) |
-| `deploy/` | `setup.sh` · `argus.service` · `Dockerfile`(선택 — 주최측 필수 아님) |
-| `tests/` | 계약·회귀 테스트 |
-
----
-
-## 5. 문서 진입점
-
-| 문서 | 무엇의 정본인가 |
-|---|---|
-| [`docs/total_plan.md`](docs/total_plan.md) | 🔴 **단일 진실 공급원 — 성적 · 지출 · 게이트 · 일정** |
-| [`docs/CONVENTION.md`](docs/CONVENTION.md) | 과제 규정 · API 계약(§4) · 제출물(§9) |
-| [`docs/organizer-qa.md`](docs/organizer-qa.md) | 주최측 공지 2건의 전사와 우리 영향 |
-| [`docs/pipeline/`](docs/pipeline/) | Phase A~I — EDA · 골든셋 · 그래프 · 검색 · 리랭커 · 에이전트 · 검증 · 오류분석 · Ablation |
-| [`docs/proposal/`](docs/proposal/) | 제출물 2 — 기술제안서 |
-| [`docs/clova_payment.md`](docs/clova_payment.md) | 크레딧·단가·예산 |
+| [`docs/baseline-final-2026-08-17.md`](docs/baseline-final-2026-08-17.md) | 제출 구성 정본. 성적, 구성, 검증 기록 |
+| [`docs/compliance-audit-v5-A38-2026-08-17.md`](docs/compliance-audit-v5-A38-2026-08-17.md) | 규약 준수 감사 |
+| [`docs/CONVENTION.md`](docs/CONVENTION.md) | 과제 규약 정리 |
+| [`docs/pipeline/`](docs/pipeline/) | 단계별 설계와 측정 |
 | [`deploy/README.md`](deploy/README.md) | 배포 절차 |
+| [`docs/figures/argus-algorithm-v6.drawio`](docs/figures/argus-algorithm-v6.drawio) | 파이프라인 도면 |
 
 ---
 
-## 6. 제출물 4종 대응 (CONVENTION §9)
+## 제출물
 
-| # | 제출물 | 소재 | 상태 |
-|---|---|---|---|
-| 1 | 소스코드 + 환경 구성 정보 + `README.md` | 이 저장소 · 이 파일 · `requirements.txt` | ✅ **완비** (2026-08-15) |
-| 2 | 기술 제안서 (자유 양식 · 분량 제한 없음) | [`docs/proposal/technical-proposal.md`](docs/proposal/technical-proposal.md) | 🟡 **초안 — 본문 완결 (2026-08-15 · v4 성적·판정 전량 반영).** 🔴 **남은 빈칸 둘은 08-25 이후에만 채울 수 있다**: 새 heldout 18 성적(`R4`) · 배포 완주 기록(`R4-2` = `TBD-1`·`TBD-3`) |
-| 3 | End-point URL + API 명세서 | **이 파일 §1 · §2** | ✅ **닫힘 (2026-08-17)** — `http://223.130.129.131/answer` · 명세 §2 |
-| 4 | 전처리 산출물 (대용량은 스토리지 링크) | `artifacts/` · `evalset/` + 아래 스토리지 | ✅ **닫힘 (2026-08-17)** — [artifacts](https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=drive_link) · [data](https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEOZIsJ?usp=sharing). 🔴 `artifacts/`·`data/` 는 gitignore 라 **저장소만으로는 시스템이 안 돈다** — 이 두 링크가 그 구멍을 메운다 |
+| | 항목 | 위치 |
+|---|---|---|
+| 1 | 소스코드 및 환경 정의 | 본 저장소, `requirements.txt` |
+| 2 | 기술 제안서 | `docs/proposal/` |
+| 3 | End-point URL 및 API 명세 | 본 문서 |
+| 4 | 전처리 산출물 | 위 스토리지 링크, `evalset/` |
 
----
-
-## 7. 🔴 자리표시자 대장 — 누가 언제 채우는가
-
-| # | 미정 항목 | 채우는 주체 | 시점 |
-|---|---|---|---|
-| ~~`TBD-1`~~ | ✅ **닫힘 (2026-08-17)** — `http://223.130.129.131/answer`. IP 는 09-20 까지 유지 · 09-07 이전 기동 필수 | — | — |
-> ### 🔴 새로 클론한 사람이 시스템을 세우는 법
->
-> 저장소에는 코드만 있다. `artifacts/`(1.3GB)·`data/`(5.2GB)는 gitignore 라 위 두 링크에서 받아야 한다.
->
-> ```
-> git clone … && cd ARGUS && pip install -r requirements.txt
-> # artifacts 를 받아 저장소 루트에 artifacts/ 로 푼다
-> # data 를 받아 저장소 루트에 data/ 로 푼다
-> #   🔴 data/dart-disclosures/manifest.jsonl · universe.csv 가 없으면
-> #      라우터가 70개사를 못 읽어 전 질의가 "범위 밖" 으로 떨어진다 (실측)
-> PYTHONIOENCODING=utf-8 python -m pytest -q      # 1,409 통과
-> ```
-
-| ~~`TBD-2`~~ | ✅ **닫힘 (2026-08-15)** — `requirements.txt` 작성 완료. 🔴 `pip freeze` 가 아니라 `pyproject` 선언에 검증 버전을 고정해 손으로 썼다 | — | — |
-| ~~`TBD-3`~~ | ✅ **닫힘 (2026-08-17)** — 구글 드라이브 업로드 완료. [artifacts](https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=drive_link) (1.3GB · 색인·레코드·계약상대 그래프) · [data](https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEOZIsJ?usp=sharing) (5.2GB · 원본 공시 + `manifest.jsonl`·`universe.csv`). 무결성 대조표는 `artifacts/audit/preprocessing_manifest.json` (20개 SHA256) | — | — |
-| `TBD-4` | 주최측 발신 IP 대역 (§1) | **주최측 공지 대기** | 미정 |
-| `TBD-5` | 평가 서버 운영 일자·시간대 (§1) | **주최측 공지 대기** | 09-07 ~ 09-20 중 |
-
-**공인 IP 는 한 번 받으면 09-20 까지 반납하지 않는다** — 반납 후 재획득하면 제출한 URL 이 죽는다.
-
-> 🔴 **자리표시자가 아닌 "빈칸" 둘이 제안서 쪽에 더 있다** (2026-08-15 · v4 `R5` 확인).
-> 이 대장의 `TBD-*` 는 **값을 적을 칸**이고, 아래 둘은 **아직 측정·실행되지 않은 것**이라
-> 성격이 다르다. 섞어 세지 않는다.
->
-> | 빈칸 | 무엇 | 채우는 주체 | 시점 |
-> |---|---|---|---|
-> | 새 heldout 18 성적 | `evalset/heldout.jsonl` 은 **2회 소진**이라 새로 18문항을 만들어야 한다 (`evalset/heldout_v2.jsonl`) | 개발 담당 | **08-25 코드 동결 직후** — 동결 전에 만들면 지금 heldout 을 태운 것과 같아진다 |
-> | 배포 완주 기록 | NCP 콘솔 로그인 · SSH 키 · `.env` 전송이 필요해 자동화 구간 밖이다. 절차서는 [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md) 에 완비 | **배포 담당(사용자)** | 08-25 ~ 08-31 · 완주하면 `TBD-1`·`TBD-3` 이 함께 닫힌다 |
->
-> ~~그리고 🔴 **`A18`·`A10`·`A22` 세 arm 은 계획에 있었으나 재지 않았다**~~
-> ✅ **닫힘 (2026-08-15)** — **셋 다 측정했다.** `A18`(n-ary)은 Δ 0 으로 기각,
-> `A10`(SC k=3)·`A22`(다중 허브)도 측정 후 미채택. 정본은
-> [`docs/pipeline/09-ablation.md`](docs/pipeline/09-ablation.md) §I-5g.
+주최 측 공지를 기다리는 항목이 둘 있다. 발신 IP 대역이 공지되면 방화벽 인바운드를 해당
+대역으로 좁히고, 평가 운영 일자가 공지되면 그 기간에 맞추어 서버를 운영한다.
