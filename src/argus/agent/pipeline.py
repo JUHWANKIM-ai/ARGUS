@@ -1,4 +1,4 @@
-"""파이프라인 진입점. 고정 횟수 단계라 질문당 비용 상한이 계산된다."""
+"""Pipeline entry point. A fixed number of stages bounds the cost per question."""
 from __future__ import annotations
 
 import json
@@ -30,29 +30,29 @@ UNANSWERABLE = (
     "제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다."
 )
 
-#: 기업도 연도도 범위 안인데 **그 보고서만** 없는 경우 (실측 Q-040·Q-070).
-#: 한계의 종류가 다르면 고지도 달라야 한다 — '범위 밖' 이라고 말하면 사용자가
-#: 다시 물을 방법을 못 찾는다. 어느 보고서가 실재하는지 되묻는 것이 정확한 응대다.
+#: Company and year are both in range but the named report does not exist.
+#: A different kind of limit calls for a different notice, and this one asks
+#: back which report to check.
+#: See docs/design-rationale.md#refusal-notices
 NO_SUCH_REPORT = (
     "공시에서 확인되지 않습니다. "
     "질문이 지목한 보고서가 제공 코퍼스(70개사 · 2023.01~2026.03 접수분)에 없습니다. "
     "어느 사업연도·보고서 종류를 확인해 드릴지 알려주시면 실재하는 공시로 답해 드리겠습니다."
 )
 
-#: 🔴 질문이 **무엇을 묻는지** 알 수 없는 경우 (`A26` · 규약 감사 F-3).
-#: `UNANSWERABLE` 을 쓰면 *"70개사 범위 안의 기업으로"* 라고 말하게 되는데, 기업이
-#: 지목되지 않은 질의에 그렇게 답하면 **사용자는 자기가 물은 회사가 범위 밖이라고
-#: 오해한다.** `CONVENTION §3 R4` 가 요구하는 것은 이 자리에서의 **역질문**이다.
+#: The question does not identify what it asks about. Answering with the range
+#: notice would suggest the company asked about is out of range, when no
+#: company was named at all. `CONVENTION §3 R4` requires a question back here.
+#: See docs/design-rationale.md#refusal-notices
 AMBIGUOUS_REFERENCE = (
     "어느 기업을 말씀하시는지 질문에서 확인되지 않습니다. "
     "기업명을 알려주시면 제공된 70개사 · 2023.01~2026.03 범위 안에서 확인해 드리겠습니다."
 )
 
-#: 🔴 기업도 기간도 범위 안인데 **묻는 것이 공시에 없는** 경우 (`A31` · v5 오답 S-003·S-004).
-#: `UNANSWERABLE` 을 쓰면 *"70개사 범위 안의 기업으로"* 라고 말하는데, 삼성전자는 범위
-#: 안이고 없는 것은 **다음 분기 매출**이다. `NO_SUCH_REPORT`·`AMBIGUOUS_REFERENCE` 와
-#: 같은 원칙 — 한계의 종류가 다르면 고지도 달라야 한다.
-#: 🔴 되물을 방법을 함께 준다. 그냥 거절하면 `CONVENTION §3 R4` 의 역질문이 없는 것이다.
+#: Company and period are both in range but what is asked for is not a filing
+#: item. Same principle as `NO_SUCH_REPORT` and `AMBIGUOUS_REFERENCE`, and a
+#: way to ask again is supplied rather than a bare refusal.
+#: See docs/design-rationale.md#refusal-notices
 SPECULATIVE = (
     "공시에서 확인되지 않습니다. "
     "주가 전망이나 향후 실적 추정은 공시 기재사항이 아니어서 판단을 생성하지 않습니다. "
@@ -60,9 +60,10 @@ SPECULATIVE = (
     "근거와 함께 답변드리겠습니다."
 )
 
-#: 🔴 개인정보·식별번호를 **그대로 달라**는 요구 (`A32` · v5 오답 S-002).
-#: 골든이 요구하는 것은 둘이다 — 원문의 연락처를 안 내주는 것, 그리고 **질문에 적힌
-#: 번호도 마스킹**된다고 말하는 것. 뒤의 절을 빼면 골든의 절반만 맞는다.
+#: A request to transcribe personal data or identifier numbers verbatim. Two
+#: clauses are required: that the source contact details are withheld, and
+#: that a number written into the question is masked as well.
+#: See docs/design-rationale.md#refusal-notices
 IDENTIFIER_WITHHELD = (
     "개인정보와 식별번호는 제공하지 않습니다. "
     "공시 원문에 기재된 연락처·등록번호는 확인되지 않는 형태로만 다루며, "
@@ -70,142 +71,108 @@ IDENTIFIER_WITHHELD = (
     "공시의 다른 기재사항으로 질문해 주시면 근거와 함께 답변드리겠습니다."
 )
 
-MAX_EVIDENCE = 10                       # 근거 절단 상한 (PCST 압축 대체)
+MAX_EVIDENCE = 10                       # evidence truncation cap
 _YM = re.compile(r"(20\d{2})\s*년\s*(1[0-2]|0?[1-9])\s*월")
 
-# --- F-3 충분성 판정 (LLM 0회) -----------------------------------------------
-# 판정에 LLM 을 쓰면 hop 마다 호출이 붙어 6회 상한을 금방 태운다.
-# 후보 수 · BM25 점수 · 골든 필드 존재 · **정정 체인 완결성** 넷으로 가른다.
-#
-# 앞의 셋은 전부 '개수' 축이라 **덜 온 것을 다 왔다고 읽는다**. dev 42문항 중 18문항이
-# 골든 2건 이상인데, 종전 판정은 첫 골든 1건만 오면 `sufficient` 를 냈다 —
-# Phase H RETRIEVAL 실패 11건이 정확히 여기서 났다. 넷째 축이 '이 질문이 요구하는
-# 문서 집합이 다 왔는가' 를 본다.
+# --- Sufficiency judgment (no LLM call) -------------------------------------
+# Using an LLM here adds a call per hop and burns the six-call cap. The
+# judgment reads four axes: candidate count, BM25 score, presence of the
+# required fields, and completeness of the revision chain. The first three are
+# all count axes and read a partial set as complete, so the fourth asks whether
+# the document set the question requires has fully arrived.
+# See docs/design-rationale.md#sufficiency-axes
 
-#: 라우트별 최소 근거 수. ReAct 단독은 CoT 보다 낮다 (HotpotQA 27.4 vs 29.4) —
-#: 검색을 더 돌린다고 이기는 게 아니므로 "답이 나올 최소치"만 채우고 생성으로 넘긴다.
+#: Minimum evidence count per route.
 MIN_EVIDENCE = {"closed_lookup": 1, "multi_compare": 2, "complex_reason": 2}
 
-#: BM25 최고 점수 임계. 실측 — 코퍼스와 무관한 질의('우주선 발사 로켓 엔진' 8.7 ·
-#: '블록체인 가상자산 채굴' 6.6) 의 최고점과 평가셋 문항의 최고점 최솟값(10.8) 사이.
-#: 이 밑이면 우연히 걸린 bigram 이라고 본다.
+#: BM25 top-score floor. Below this the match is treated as an incidental
+#: bigram hit rather than a corpus hit.
 MIN_TOP_SCORE = 10.0
 
-#: 넓혀도 새 후보가 두 번 연속 안 나오면 인덱스에 없는 것이다. 남은 hop 을 태우지 않는다.
+#: If widening produces no new candidate twice in a row, the document is not in
+#: the index. The remaining hops are not spent.
 MAX_STALLED_HOPS = 2
 
-#: query_events 폴백에 붙이는 hop 번호 (검색 전략 4단 다음).
+#: Hop number attached to the query_events fallback, after the four retrieval
+#: strategies.
 EVENTS_HOP = len(STRATEGIES)
 
-#: 정정 체인 hop 번호. 재구성 4단·이벤트 폴백 다음이다.
+#: Revision chain hop number, after the four reformulations and the event
+#: fallback.
 CHAIN_HOP = EVENTS_HOP + 1
 
-#: 발주처 hop 번호. `parse_hops` 가 **독립 레코드**로 되읽어야 Phase H 가 이 hop 에
-#: 실패를 귀속할 수 있다 — hop 0 으로 찍으면 같은 hop 의 `strat=narrow` 가 덮어쓴다.
+#: Counterparty hop number. `parse_hops` has to read this back as an
+#: independent record so that failures can be attributed to this hop; stamping
+#: it as hop 0 lets `strat=narrow` of the same hop overwrite it.
 COUNTERPARTY_HOP = CHAIN_HOP + 1
 
-# --- 정정·후속 공시 체인 hop --------------------------------------------------
-# Phase H 1위 병목: 놓친 골든 14건을 실제 기간으로 재질의하니 **전부 top-3 안에 있었다**.
-# 검색이 실패한 게 아니라 hop 0 에서 `sufficient` 를 내고 멈춘 것이다. 그중 7건은
-# `related` 로 이미 연결돼 있는데 `get_history` 를 한 번도 부르지 않았다.
+# --- Revision and follow-up filing chain hop --------------------------------
+# Missed golden records were reachable in the top 3 when re-queried with the
+# actual period, so retrieval was not the failure: the run declared
+# `sufficient` at hop 0 and stopped. Set completeness is therefore an axis of
+# the judgment: if a document in the evidence is superseded
+# (`is_latest=False`), the set is incomplete while the rest of its chain is
+# absent.
 #
-# 그래서 충분성 판정에 축을 하나 더 넣는다 — **집합 완결성**.
-#   종전: 후보 수 · 점수 · 필드 · 기업 커버리지  (전부 '개수' 축이다)
-#   추가: 근거에 담긴 문서가 **대체된 문서(is_latest=False)** 라면, 그 체인의 나머지가
-#         근거에 없는 한 근거 집합은 완결되지 않았다.
-#
-# 🔴 과잉 탐색이 진짜 위험이다. 모든 문항에서 체인을 끌어오면 지금 맞히는 문항이 깨진다.
-# 제동 셋을 실측으로 정했다 (dev 42문항, LLM 0회):
-#
-#   ① 씨앗은 **상위 2위 후보**까지만          — 3위까지 넓히면 Q-033(현재 정답)이
-#                                              무관한 체인 11건을 끌고 온다
-#   ② 씨앗은 **대체본(is_latest=False)만**    — 최신본이 씨앗이 되면 Q-008·Q-031·
-#                                              Q-033·Q-034(전부 현재 정답)에 근거가 붙는다
-#   ③ 체인에서 끌어올 문서는 **6건까지**       — 한화오션 잠수함 체인이 7건이라 상한이 없으면
-#                                              근거 칸을 혼자 다 먹는다
-#
-# 실측 결과 (dev 42문항, LLM 0회): 골든 근거 적중 28 -> 39, `get_history` 호출 10회.
+# Over-exploration is the real risk here, so seeding is braked three ways.
+# See docs/design-rationale.md#chain-hop-brakes
 
-#: 체인 씨앗으로 볼 상위 후보 수. 제동 ①.
+#: Rank window within which a candidate may seed a chain walk.
 CHAIN_SEED_WINDOW = 2
 
-#: 한 문항에서 체인으로 끌어올 문서 상한. 제동 ③.
+#: Cap on documents pulled in through chains for one question.
 MAX_CHAIN_DOCS = 6
 
-# --- 다지점 질의 분해 (Phase H 3위 병목 MULTI_POINT_QUERY) ----------------------
-# 체인 수정 뒤에도 적중이 안 변한 4문항의 기전은 하나다: 같은 질문이 **다른 시점 ·
-# 다른 기업**을 한 번 더 물어야 하는데 hop 사다리가 질의를 한 번만 만든다.
-# 사다리는 넓히기만 하고, 넓히기로는 "A사 2024년 것" 과 "B사 2025년 것" 을 동시에
-# 얻을 수 없다 — 넓히면 둘 다 흐려진다. 그래서 **분해**한다.
-#
-# 🔴 여기서도 과잉 탐색이 진짜 위험이다. 제동 셋을 실측으로 정했다:
-#
-#   ① **시점 축이 2개 이상일 때만** 분해한다  — dev 42문항 중 7건만 해당(Q-012·014·
-#      015·020·046·050·052). 단일 시점 33문항은 호출 인자까지 종전과 같다.
-#   ② **셀마다 할당량**을 둔다 (`_cell_quota`) — 셀마다 top-k 를 그대로 담으면 근거가
-#      셀 수만큼 부풀고 토큰이 직결로 늘어난다. 근거 칸을 셀 수로 나눠 쓴다.
-#   ③ **hop 0 만** 쪼갠다 — 넓히는 hop 까지 곱하면 스텝 상한 8을 넘긴다. 실측 최대 셀은
-#      4개(Q-014 = 2기업 × 2시점)라 hop 0 이 4스텝, 체인 1스텝으로 5스텝에 든다.
+# --- Multi-point query decomposition ----------------------------------------
+# The hop ladder builds one query and only widens it, which cannot retrieve
+# one company's 2024 filing and another's 2025 filing at the same time:
+# widening blurs both. Such questions are split into cells instead, under the
+# same three brakes as the chain hop.
+# See docs/design-rationale.md#query-decomposition
 
 
 def _cell_quota(n_cells: int, n_corps: int) -> int:
-    """분해 셀 하나가 가져갈 근거 상한. 분해가 없으면 종전대로 상한을 다 준다.
+    """Evidence cap for one decomposition cell, or the full cap when unsplit.
 
-    두 가지로 조인다 — 근거 칸(`MAX_EVIDENCE`)의 셀별 공평 몫, 그리고 `SPLIT_TOP_K`.
-    뒤엣것이 필요한 이유는 셀이 적을 때 공평 몫이 헐거워지기 때문이다 (2셀 × 1기업이면
-    5칸). 실측상 골든은 **셀 안에서 1위**라 3칸이면 남고, 그 위로는 근거만 부푼다.
+    Bounded twice: by the fair share of `MAX_EVIDENCE` across cells, and by
+    `SPLIT_TOP_K`. The second bound matters because the fair share is loose
+    when there are few cells, and the golden record ranks first within its own
+    cell, so slots beyond that only inflate the evidence.
     """
     if n_cells < 2:
         return MAX_EVIDENCE
     return max(1, min(SPLIT_TOP_K, MAX_EVIDENCE // (n_cells * max(n_corps, 1))))
 
 
-#: 제공 코퍼스 기간 2023.01~2026.03 (CONVENTION §2 G7).
-#: 이 밖의 연도를 물으면 기간 필터를 푸는 순간 **엉뚱한 연도 공시가 근거로 둔갑한다**.
-#: 넓히는 것이 늘 이득은 아니다 — 범위 밖은 못 찾은 게 아니라 없는 것이다.
-#: 라우터가 먼저 단락시키지만(스텝 0), `_gather_evidence` 를 직접 부르는 경로도 있어
-#: 검색 단계 가드는 남겨 둔다.
+#: Corpus period 2023.01 to 2026.03 (CONVENTION §2 G7). Releasing the period
+#: filter for a year outside it turns filings from an unrelated year into
+#: evidence: out of range means absent, not merely unfound. The router
+#: short-circuits such questions at step 0, but `_gather_evidence` also has
+#: direct callers, so the retrieval-stage guard is kept.
 CORPUS_YEARS = router_module.CORPUS_YEARS
 
-#: (필드명, 질문이 그 필드를 요구하는가, 근거에 그 필드가 있는가) — **문서군별**로 다르다.
-#:
-#: 종전에는 exchange 마크다운 스키마 한 벌뿐이었다. 그래서 정기공시 질의는 근거를 제대로
-#: 찾아 놓고도 `- 계약금액:` 라벨이 없다는 이유로 '필드 없음' 판정을 받아 hop 을 상한까지
-#: 태웠다. 문서군마다 근거의 생김새가 다르니 판정도 갈라야 한다.
-#:
-#: * `exchange` — `corpus/markdown.py` 가 `- 계약금액: …` 형태로 라벨을 찍는다. 라벨 존재만 본다.
-#:                실측 1,469건: 계약금액 0.767 · 계약상대 0.766 · 매출액 대비 0.723 · 기간 0.650.
-#: * `major`    — 서식이 **28종**이고 서식마다 금액 칸의 이름이 다르다. 실측 598건에서
-#:                `계약금액:` 은 47건(0.079)뿐이고 조달금액 52 · 처분예정금액 156 ·
-#:                취득예정금액 90 · 권면(전자등록)총액 102 · 시설자금 30 으로 흩어져 있다.
-#:                한 벌의 라벨로 뭉개면 안 된다 — `금액:` 하나만 보면 0.674, 실측 라벨을
-#:                다 넣으면 0.846 이다. 나머지 0.154 는 합병·분할·교환이전처럼 **원본에
-#:                단일 금액 칸이 없는** 서식이라 여기서 더 올릴 것이 없다.
-#:                `대비:` 는 14건(0.023) 뿐이라 **비율은 요구하지 않는다** — 요구하면
-#:                97.7% 의 질의가 영원히 불충족이 되어 hop 만 태운다.
-#: * `holding`  — 종전에 '요구 필드 없음' 으로 비워 뒀는데, 그 관측은 표 머리행을 못 읽던
-#:                파서 기준이었다. 직접 다시 센 결과 **라벨은 처음부터 다 있었다** (1,083건):
-#:                `보유비율:` 1,083(1.000) · `보유주식등의 수:` 1,083(1.000) ·
-#:                `의결권있는 발행주식 총수:` 1,081(0.998) · `보고사유:` 1,083(1.000).
-#:                반면 `주요계약체결 비율:` 507(0.468) · `보유목적:` 476(0.440) 은
-#:                절반이 없으므로 요구하지 않는다. 1.000 인 것만 요구 필드로 쓴다.
-#: * `periodic` — 근거가 목차 섹션 본문(표 마크다운)이라 `- 라벨:` 구조 자체가 없다.
-#:                판정은 값의 생김새로 한다 — 천 단위 구분 숫자 · `%`. 실측: 정기공시 골든
-#:                22개 섹션 중 20개에 천 단위 구분 숫자가 있고, 없는 2개는 '기재 생략' 스텁이다.
+#: (field name, does the question require it, is it present in the evidence),
+#: keyed by document group. Evidence looks different per group, so the test has
+#: to differ per group as well: `exchange`, `major` and `holding` are judged by
+#: label presence, `periodic` by the shape of the value, since section bodies
+#: have no `- label:` structure at all.
+#: See docs/design-rationale.md#field-hints
 _LABEL_AMOUNT = re.compile(r"금액\s*:")
 _LABEL_RATIO = re.compile(r"대비\s*:")
 _LABEL_PERIOD = re.compile(r"기간\s*:")
 
-#: major 28종 서식의 금액 칸을 **이름을 가리지 않고** 잡는다. 실측 커버리지 0.846.
+#: Amount cell across the 28 major-filing form types, matched without regard
+#: to which name the form uses. Measured coverage 0.846.
 _LABEL_MAJOR_AMOUNT = re.compile(r"(?:금액|총액|자금|가격)\s*:")
-#: holding 요약정보. 값이 `직전 … → 이번 …` 형태라 라벨 존재만으로 두 시점이 다 온다.
+#: Holding summary. The value carries both points in time in one line, so
+#: label presence alone establishes that both arrived.
 _LABEL_HOLD_RATIO = re.compile(r"보유비율\s*:")
 _LABEL_HOLD_SHARES = re.compile(r"보유주식등의\s*수\s*:")
 
 _ASK_AMOUNT = re.compile(r"금액|얼마")
 _ASK_RATIO = re.compile(r"매출액\s*대비|비중|비율|퍼센트|몇\s*%")
 _ASK_PERIOD = re.compile(r"계약\s*기간|기간은|몇\s*년|개월")
-#: 지분공시 질의의 두 축. '지분율'·'몇 %' 는 보유비율을, '주식수'·'몇 주' 는 보유주식수를 묻는다.
+#: The two axes of a holding-filing question: a ratio, or a share count.
 _ASK_HOLD_RATIO = re.compile(r"보유\s*비율|지분율|지분\s*비율|비중|비율|퍼센트|몇\s*%|%p")
 _ASK_HOLD_SHARES = re.compile(r"보유\s*주식|주식\s*수|주식등의\s*수|주식을|몇\s*주")
 
@@ -233,30 +200,33 @@ FIELD_HINTS = {
     ),
 }
 
-#: 라우터가 문서군을 못 가른 경우의 기본값. 종전 동작 그대로다.
+#: Default used when the router could not resolve a document group.
 _FIELD_HINTS = _EXCHANGE_HINTS
 
 
 def _all_years_out_of_corpus(r) -> bool:
-    """지목한 연도가 **전부** 코퍼스 밖인가 — 질문 어형과 무관하게.
+    """Whether every year named is outside the corpus, regardless of phrasing.
 
-    `_out_of_corpus_period` 와 다르다. 이쪽은 '이 연도로 필터를 걸면 후보가 0건이 된다'
-    는 검색 사실이고, 저쪽은 '재검색을 태울 가치가 있는가' 라는 정책이다.
+    Distinct from `_out_of_corpus_period`. This is the retrieval fact that
+    filtering on these years yields zero candidates; that one is the policy
+    question of whether another retrieval pass is worth spending.
     """
     return bool(r.years) and all(y not in CORPUS_YEARS for y in r.years)
 
 
 def _period_args(r, question: str) -> dict:
-    """검색 기간 필터. 좁은 것부터 — 연월 > 연도 > 없음.
+    """Retrieval period filter, narrowest first: year-month, then year, then none.
 
-    Route 는 연도만 들고 있지만 랭킹을 가르는 것은 연월이다.
-    Task 0 실측: corp 필터 + 연도만으로는 골든이 top-5 밖이고, 연월 prefix 를 걸면 1위다.
-    연도가 둘 이상이면 접두 하나로 표현할 수 없으므로 기간 필터를 걸지 않는다.
+    The route carries only years, but ranking turns on the month: with a
+    company filter and a year alone the golden record falls outside the top 5,
+    and a year-month prefix puts it first. Two or more years cannot be
+    expressed as one prefix, so no period filter is applied.
 
-    **코퍼스 밖 연도만 지목한 질의에는 기간 필터를 걸지 않는다.** 여기 오는 그런 질의는
-    라우터의 상대 시점 면제(`_RELATIVE_HINT`)로 살아 온 것뿐이고(`"2021년 대비 최근
-    매출액 변화"`), 2021 을 필터로 걸면 hop 0 이 확정적으로 0건이 되어 **면제가 아무것도
-    사지 못한다.** 기준점 연도는 검색 조건이 아니라 비교의 출발점이다.
+    No period filter is applied when every year named is outside the corpus
+    either. Such questions reach this point only through the router's
+    relative-reference exemption, and filtering on the out-of-range year would
+    make hop 0 return nothing, which buys the exemption nothing. A reference
+    year is the starting point of a comparison, not a retrieval condition.
     """
     if _all_years_out_of_corpus(r):
         return {}
@@ -269,72 +239,56 @@ def _period_args(r, question: str) -> dict:
 
 
 def _required_fields(question: str, group: str = "exchange") -> list[tuple[str, re.Pattern]]:
-    """질문이 요구하는 골든 필드. 이게 근거에 없으면 답을 만들 수 없다."""
+    """Fields the question requires. Without them in the evidence there is no
+    answer to build."""
     hints = FIELD_HINTS.get(group, _FIELD_HINTS)
     return [(name, has) for name, asks, has in hints if asks.search(question or "")]
 
 
-# --- 정기공시 사업연도 축 ------------------------------------------------------
-# `plan_section_hops` 는 `report_hints` 가 사업연도를 못 뽑았을 때 **질문의 연도가
-# 하나면 그것을 사업연도로 추정**한다 (query.py `str(years[0])`). 그 폴백이 정정
-# 질의에서 정확히 반대로 간다 — 접수·정정 **일자**의 연도를 사업연도로 잡는다.
-#
-# 실측 Q-076 ("기아 제80기 사업보고서는 2024년 3월 12일 정정됐다"):
-#   `report_hints` 는 옳게 사업연도를 비운다 (`_REPORT_YEAR` 는 '보고서 바로 앞' 만 본다).
-#   그런데 `r.years == [2024]` 라 폴백이 `base_year=2024` 를 만들고, 제80기는 사업연도
-#   **2023** 이라 골든 2건이 필터에서 통째로 빠졌다 (실측: hop 0~3 어디에도 안 들어온다).
-#   폴백을 끄면 같은 hop 0 에서 골든이 **1·2위**다.
-#
-# 🔴 `report_hints` 가 준 사업연도는 건드리지 않는다. 그쪽은 '보고서' 표기에 붙은 연도라
-# 권위값이고, 폴백만 추정이다. 이 구분이 Q-100 을 지킨다 — "크래프톤 2025년 사업보고서는
-# 2026년 5월 15일 정정됐다" 는 폴백이 아니라 `report_hints` 로 2025 를 얻으므로 불변이다.
-# (`_FILED` 자체에 '정정' 을 넣는 대안은 **기각**했다: 그러면 사업연도가 접수일 접두로
-#  대체되어 원공시와 정정본이 다른 달에 접수된 Q-100 이 골든 2/2 -> 1/2 로 깨진다.)
-#: 접수·정정 **일자**로 적힌 연월. 이 연도는 사업연도 축이 아니다.
+# --- Periodic filing fiscal-year axis ---------------------------------------
+# `plan_section_hops` estimates the fiscal year from the question when
+# `report_hints` yields none. On revision questions that fallback inverts:
+# it reads the year of the filing or revision date as the fiscal year.
+# The authoritative axis, `report_hints`, is left untouched.
+# See docs/design-rationale.md#fiscal-year-fallback
+
+#: A year-month written as a filing or revision date. This year is not on the
+#: fiscal-year axis.
 _FILED_EVENT = re.compile(r"20\d{2}\s*년\s*(?:1[0-2]|0?[1-9])\s*월"
                           r"(?:\s*\d{1,2}\s*일)?\s*(?:에\s*)?"
                           r"(?:제출|공시|접수|정정|수정)")
 
 
 def _fiscal_years(r, question: str) -> tuple:
-    """`plan_section_hops` 의 사업연도 **폴백**에 넘길 연도.
+    """Years passed to the fiscal-year fallback of `plan_section_hops`.
 
-    질문의 연도가 제출·정정 일자로 적혀 있으면 폴백을 끈다 — 그건 접수 시점이지
-    사업연도가 아니다. 폴백이 아닌 축(`report_hints`)은 그대로 살아 있다.
+    The fallback is disabled when the question writes its year as a filing or
+    revision date, which is a receipt point rather than a fiscal year. The
+    non-fallback axis, `report_hints`, is unaffected.
+    See docs/design-rationale.md#fiscal-year-fallback
     """
     if _FILED_EVENT.search(question or ""):
         return ()
     return tuple(r.years)
 
 
-# --- 정기공시 다문서 질의 분해 --------------------------------------------------
-# `report_hints` 는 축마다 **스칼라 하나**를 돌려주고 `plan_section_hops` 가 그것을
-# 곱해 필터로 쓴다. 질문이 보고서를 여러 개 부르면 그 곱이 **아무 것도 안 가리킨다**.
-#
-# 실측 Q-105 ("2025년 반기보고서, 2025년 3분기 분기보고서, 2024년 사업보고서"):
-#   `doc_subtype` 은 세 번째 언급('사업보고서')에서, `base_year` 는 첫 번째 언급
-#   ('2025년 반기보고서')에서 와서 필터가 `annual + 2025` 가 됐다. 질문이 부르지도 않은
-#   문서(20260323001553 = 사업연도 2025 사업보고서, 2026-03 접수) 하나가 top-8 을 다
-#   채우고 근거 4칸을 전부 먹었다 → 골든 0/3, 근거 1,182자, 답변은 "확인되지 않습니다".
-#
-# 그래서 **부른 보고서마다 셀 하나**로 쪼갠다. 거래소공시 차선이 이미 같은 일을 한다
-# (`time_points`·`_cell_quota`) — 제동 셋도 그대로 옮긴다:
-#   ① 셀이 **2개 이상일 때만** 쪼갠다. 실측 발화는 dev+회귀 전량에서 Q-105 **1문항**이다.
-#   ② 셀마다 할당량(`_report_quota`) — 셀마다 top-k 를 담으면 근거가 셀 수만큼 부푼다.
-#   ③ **hop 0 만** 쪼개고 셀마다 **1순위 경로만** 본다 — 스텝 상한 8을 지킨다 (3셀 = 3스텝).
-#
-# 🔴 접수일 접두(`plan.prefix`)가 있으면 쪼개지 않는다. 그때는 `plan.filters` 가 비고
-# 접수일이 문서를 못박으므로 셀과 곱하면 오히려 좁아진다. 현 코퍼스 발화 0건이라
-# 실측으로 고를 수 없는 조합이고, 안 쪼개는 쪽이 종전 동작이다.
+# --- Periodic filing multi-document decomposition ---------------------------
+# `report_hints` returns one scalar per axis and `plan_section_hops` multiplies
+# them into a filter. When a question names several reports, that product
+# points at none of them, so one cell is made per named report. This is the
+# same lane the exchange-filing side already runs (`time_points`,
+# `_cell_quota`), under the same three brakes.
+# See docs/design-rationale.md#query-decomposition
 
-#: 질문이 **이름을 부른 보고서**. 연도가 보고서 표기에 붙어 있을 때만 짝으로 인정한다.
+#: A report the question names. A pair is recognised only when the year is
+#: attached to the report phrase itself.
 _REPORT_CELL = re.compile(
     r"(20\d{2})\s*년?\s*(?:도)?\s*(?:\d\s*분기\s*)?(사업|반기|분기)\s*보고서")
 _CELL_SUBTYPE = {"사업": "annual", "반기": "half", "분기": "quarter"}
 
 
 def _report_cells(question: str) -> list[dict]:
-    """질문이 부른 (보고서 종류 × 사업연도) 짝 전부. 중복은 접는다."""
+    """Every (report subtype, fiscal year) pair the question names, deduplicated."""
     cells: list[dict] = []
     for match in _REPORT_CELL.finditer(question or ""):
         cell = {"doc_subtype": _CELL_SUBTYPE[match.group(2)],
@@ -345,58 +299,51 @@ def _report_cells(question: str) -> list[dict]:
 
 
 def _report_quota(n_cells: int, n_corps: int) -> int:
-    """분해 셀 하나가 가져갈 근거 칸. 분해가 없으면 종전대로 상한을 다 준다."""
+    """Section-evidence slots for one decomposition cell, or the full cap when
+    unsplit."""
     if n_cells < 2:
         return MAX_SECTION_EVIDENCE
     return max(1, MAX_SECTION_EVIDENCE // (n_cells * max(n_corps, 1)))
 
 
 def _out_of_corpus_period(r, question: str = "") -> bool:
-    """재검색을 닫을 것인가. **술어를 라우터와 공유한다** (`router.out_of_corpus`).
+    """Whether to close further retrieval. Shares its predicate with the router
+    (`router.out_of_corpus`).
 
-    🔴 갈라 두면 라우터가 살려 보낸 질의를 검색 단계가 다시 죽인다. 라우터는 T5 에서
-    상대 시점 면제를 넣고 주석으로 *"'2021년 대비 최근' 처럼 기준점만 범위 밖인 질의를
-    죽이면 답할 수 있는 걸 못 답한다"* 고 약속했는데, 여기가 `r.years` 만 보고 질문을
-    안 봐서 그 약속이 코드 전체로는 성립하지 않았다. 실측(수정 전):
+    Keeping the two separate lets the retrieval stage kill a question the
+    router deliberately let through. The router exempts relative references so
+    that a question whose reference point alone is out of range still gets
+    answered; reading only `r.years` here without the question text broke that
+    guarantee at the pipeline level, blocking every hop and yielding no
+    evidence.
 
-        "2021년 대비 삼성전자의 최근 매출액 변화를 정리해줘"
-          route=complex_reason  router_block=False  pipeline_block=True
-          hop 1~3 · 이벤트 폴백 전부 차단 → 근거 0건 → UNANSWERABLE
-
-    현 코호트(dev 78 + 회귀 10 + 밸류체인 12) 발화는 **0건**이다 — 라우터를 통과하고
-    여기서 막히는 문항이 하나도 없어 이 수정은 기록된 측정을 바꾸지 않는다. 그러나
-    대회 문항은 미공개이고 `"X년 대비 최근"` 은 흔한 어형이라 남겨 둘 위험이 아니다.
+    No question in the current cohort fires this path, so the shared predicate
+    changes no recorded measurement, but the phrasing it protects is common.
     """
     return router_module.out_of_corpus(r.years, question)
 
 
 def _needed_evidence(r) -> int:
-    """최소 근거 수. 비교 질의는 기업 수만큼, CoT 경로는 최소 2건."""
+    """Minimum evidence count: one per company for comparisons, at least two on
+    the CoT path."""
     need = max(MIN_EVIDENCE.get(r.kind, 1), len(r.companies))
     return max(need, 2) if r.use_cot else need
 
 
 def _sufficiency(r, picked: list[dict], required,
                  chain_gap: Sequence[str] = ()) -> tuple[bool, list[str]]:
-    """근거가 충분한가. LLM 0회 — 후보 수 · 점수 · 필드 존재 · **집합 완결성**을 본다.
+    """Whether the evidence is sufficient. No LLM call: reads candidate count,
+    score, field presence and set completeness.
 
-    `chain_gap` 은 근거 안의 문서가 가리키는데 아직 근거에 없는 정정·후속 공시다.
-    개수 규칙이 아무리 만족돼도 이게 남아 있으면 '이 질문이 요구하는 문서 집합' 은
-    아직 다 오지 않았다 — Phase H 실패 7건이 전부 여기서 났다.
+    `chain_gap` holds revision or follow-up filings that documents in the
+    evidence point at but which are not in the evidence yet. However well the
+    count rules are met, an open gap means the document set the question
+    requires has not fully arrived.
 
-    🔴 **이 판정이 보는 것은 절단 전 `picked` 전량이다.** 프롬프트에 가는 것은
-    `picked[:MAX_EVIDENCE]` 이고, 그 앞에 `chain_ids` 정렬이 순서를 바꾼다 — 즉 절단으로
-    버려지는 것은 '도착 순서의 꼬리' 가 아니라 '체인이 아닌 것들' 이다. `missing_field` 를
-    해소해 `sufficient` 를 만든 문서가 체인 밖이면 그 문서는 절단될 수 있고 판정은 이미
-    끝났다. 도달 가능성은 실재한다 — 셀 할당량이 `len(picked) >= MAX_EVIDENCE` 를 셀 루프
-    **진입 시점에만** 보므로 `picked` 는 상한을 넘고, 여기에 체인 최대 6건이 더 붙는다
-    (Q-113 실측 14블록).
-
-    판정을 절단·정렬 이후 집합으로 옮기는 것이 옳은 방향이지만 그건 **판정 결과를 바꿔
-    88문항 재측정이 붙는다.** 마감 전 재측정 슬롯이 없어 지금은 보증의 범위를 여기 적어
-    둔다 — `verdict=sufficient` 는 "프롬프트가 본 근거로 충분하다" 가 **아니라** "수집한
-    근거 전량으로 충분하다" 는 뜻이다. Phase H 가 GENERATION 귀속의 근거로 쓸 때 이
-    간극을 세어야 한다.
+    The judgment reads the whole of `picked` before truncation, so a
+    `sufficient` verdict means the collected evidence suffices, not that the
+    evidence the prompt sees suffices.
+    See docs/design-rationale.md#sufficiency-axes
     """
     if not picked:
         return False, ["no_candidate"]
@@ -413,7 +360,7 @@ def _sufficiency(r, picked: list[dict], required,
     text = "\n".join(p["markdown"] for p in picked)
     reasons += [f"missing_field:{name}" for name, has in required if not has.search(text)]
 
-    if len(r.companies) >= 2:                 # 비교 질의는 한쪽만 찾으면 답이 안 된다
+    if len(r.companies) >= 2:                 # a comparison needs both sides
         covered = {p["corp"] for p in picked}
         reasons += [f"missing_corp:{c}" for c in r.companies[:3] if c not in covered]
 
