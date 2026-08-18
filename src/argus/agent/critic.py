@@ -1166,7 +1166,7 @@ COMPLETENESS_STAGES = {
     "missing_corp": "RETRIEVAL",     # a comparison is missing one company
     "stale_value": "GENERATION",     # the latest record arrived, the answer used the superseded one
     "interim_source": "GENERATION",  # the annual record arrived, the answer used the interim one
-    "amount_gap": "GENERATION",      # the evidence carried amounts, the answer stated none
+    "amount_gap": "GENERATION",      # the answer stated no amounts, or covered less than half the evidence's ratios
 }
 
 #: Whether the question touches the revision or termination axis.
