@@ -1032,38 +1032,44 @@ _LINE_DIRECTIVE = re.compile(
 #: Digit-only boundaries instead of `\b`, the same idiom `safety.py` uses and
 #: for the same reason: Python's `\w` includes Hangul, so a figure followed by
 #: a Korean particle has no word boundary between its last digit and the
-#: particle. Blocking an adjacent digit or comma is enough on its own: it
-#: keeps a figure from matching inside a longer numeral (`68.19%` inside
-#: `168.19%`, `500,000,000` inside `1,500,000,000`) while still treating
-#: Hangul, `%`, and punctuation as boundaries.
+#: particle. Blocking an adjacent digit is enough on the left; a comma or a
+#: decimal point is blocked only when it turns out to be part of the same
+#: longer numeral rather than punctuation, which is decided against the
+#: unmodified body -- see `_figure_present` for why the body has to stay
+#: unmodified for that decision to be possible at all.
 #:
-#: A period matters only when it is a decimal point, which means a digit
-#: sits on its other side too: `20,000,000` inside `20,000,000.50` (digit
-#: after) or, symmetrically, inside `0.20,000,000` (digit before). An
-#: unconditional period block is wrong on *either* side for the far more
-#: common case of a plain sentence boundary: `_figure_present` compares
-#: space-stripped text (`44, 200, 027` has to match `44,200,027`), and
-#: stripping spaces removes the one that would otherwise sit between a
-#: sentence's period and the figure that opens the next clause
-#: (`확인했다. 68.19%` strips to `확인했다.68.19%`, `68.19%.` stays
-#: `68.19%.`) — the naive unconditional block was checked against exactly
-#: that case and found to reject a plainly-stated figure. Blocking the
-#: period only when a digit sits on the far side too keeps that failure
-#: closed on both sides.
+#: A trailing comma blocks only when exactly three digits follow it with no
+#: gap (`,\d{3}`): that shape is a thousands group continuing the same
+#: number, as in `44,200,027,500` read while looking for `44,200,027`. A
+#: comma followed by a space is a list separator instead -- `20,000,000,
+#: 30,000,000` -- and must not block. A trailing period blocks only when a
+#: digit follows it immediately (`\.\d`), a decimal tail as in
+#: `20,000,000.50`; a period followed by a space or nothing is sentence
+#: punctuation and must not block. A leading digit-then-period (`\d\.`)
+#: is blocked the same way, symmetrically.
 _FIG_D0 = r"(?<![\d,])(?<!\d\.)"
-_FIG_D1 = r"(?![\d,])(?!\.\d)"
+_FIG_D1 = r"(?!\d)(?!,\d{3})(?!\.\d)"
 
 
 def _figure_present(figure: str, body: str) -> bool:
     """Whether `figure` occurs in `body` as a complete number.
 
     Plain substring containment would count a figure as present inside a
-    longer, different one. Space-insensitive on both sides, since the model
-    sometimes writes a comma group with spaces inside it (`44, 200, 027`).
+    longer, different one. The body is searched as written, never modified:
+    an earlier version stripped every space from the body to tolerate a
+    figure written with stray spaces (`44, 200, 027`), and that stripping is
+    what broke every boundary rule built on top of it. Deleting the space
+    after a list separator's comma made it indistinguishable from a
+    thousands-group comma, so every figure in a plain comma-separated list
+    -- the most ordinary way an answer states several amounts -- read as
+    absent. The tolerance for stray spacing is built into the search pattern
+    instead: each character of the figure is escaped and joined by `\\s*`,
+    so whitespace is allowed, never required, between any two of its digits.
+    See docs/design-rationale.md#gap-repair
     """
-    needle = re.escape(figure.replace(" ", ""))
-    haystack = (body or "").replace(" ", "")
-    return re.search(_FIG_D0 + needle + _FIG_D1, haystack) is not None
+    chars = figure.replace(" ", "")
+    pattern = r"\s*".join(re.escape(ch) for ch in chars)
+    return re.search(_FIG_D0 + pattern + _FIG_D1, body or "") is not None
 
 
 def decisive_lines(evidence: str) -> list[str]:

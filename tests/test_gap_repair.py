@@ -14,6 +14,8 @@ check: an answer stating one amount escapes `amount_gap` while still missing
 most of the line.
 See docs/design-rationale.md#gap-repair
 """
+import pytest
+
 from argus import ablation
 from argus.agent import aggregate
 
@@ -274,11 +276,101 @@ def test_a_sentence_period_with_a_stripped_space_does_not_block_the_leading_figu
 
 def test_a_decimal_continuation_is_not_counted_as_the_figure():
     """"20,000,000.50" is a different, more precise number than
-    "20,000,000" and must not count as coverage of it."""
-    answer = "확인된 금액은 20,000,000.50원 입니다."
-    out, reason = aggregate.repair_gap(answer, BOUNDARY_EVIDENCE)
-    assert reason
-    assert "40,000,000" in out
+    "20,000,000" and must not count as coverage of it.
+
+    Asserted directly on `_figure_present`, not through `repair_gap`: going
+    through `repair_gap` against BOUNDARY_EVIDENCE would pass regardless of
+    this specific boundary, because BOUNDARY_LINE's other three figures are
+    absent from the answer either way, so coverage stays under half whether
+    or not this one figure is miscounted as present. The assertion has to be
+    about the thing the test names.
+    """
+    assert not aggregate._figure_present(
+        "20,000,000", "확인된 금액은 20,000,000.50원 입니다.")
+
+
+# --- Finding 3, round 3: the space-stripping itself was the root cause
+#
+# Round 2 fixed the boundary regexes but left `_figure_present` comparing a
+# space-stripped copy of the body (kept from the original naive-containment
+# version, to tolerate a figure written with stray spaces, "44, 200, 027").
+# Every boundary rule built on top of that stripped text was fighting
+# adjacency the stripping itself manufactured. Three more live failures
+# surfaced, all against the space-stripped implementation:
+#
+#   _figure_present("700,000,000", "총액은 700,000,000. 2024년에 집행되었다.")  -> False
+#   _figure_present("68.19%",      "1. 68.19% 2. 50.06%")                    -> False
+#   _figure_present("20,000,000",  "금액은 20,000,000, 30,000,000, 40,000,000 입니다.") -> False
+#
+# The last is the worst: stripping the space after a list separator's comma
+# makes it indistinguishable from a thousands-group comma, so every figure
+# in a plain comma-separated list -- the most ordinary way an answer states
+# several amounts -- read as absent.
+#
+# The fix does not modify the body at all. A space-tolerant pattern is built
+# from the figure instead (each of its characters escaped and joined by
+# `\s*`), and searched against the body as written. The boundary rules can
+# now be decided correctly because the real spacing survives: a trailing
+# comma blocks only when exactly three digits follow it with no gap (a
+# thousands group), not when a space follows it (a list separator); a
+# trailing period blocks only when a digit follows it immediately (a
+# decimal tail), not when a space or nothing follows it (sentence
+# punctuation); the leading rule narrows the same way, symmetrically.
+#
+# Every case is asserted directly on `_figure_present`, not through
+# `repair_gap` -- the same reason the decimal-continuation test above was
+# rewritten: a `repair_gap` scenario can pass regardless of one figure's
+# boundary when the line's other figures are absent either way, so the
+# assertion has to be about the boundary itself.
+
+_BOUNDARY_CASES = [
+    ("trailing_sentence_period",
+     "68.19%", "비율은 68.19%. 금액은 20,000,000원이 확인됩니다.", True),
+    ("leading_digit_collision_percent",
+     "68.19%", "168.19%", False),
+    ("stray_spaces_in_comma_group",
+     "44,200,027", "44, 200, 027주", True),
+    ("leading_digit_collision_integer",
+     "44,200,027", "144,200,027", False),
+    ("leading_comma_collision",
+     "500,000,000", "1,500,000,000", False),
+    ("trailing_thousands_continuation",
+     "44,200,027", "44,200,027,500", False),
+    ("trailing_decimal_continuation",
+     "20,000,000", "20,000,000.50", False),
+    ("trailing_hangul_particle",
+     "20,000,000", "20,000,000원", True),
+    ("period_space_then_next_sentence",
+     "700,000,000", "총액은 700,000,000. 2024년에 집행되었다.", True),
+    ("numbered_list_prefix",
+     "68.19%", "1. 68.19% 2. 50.06%", True),
+    ("comma_list_first_item",
+     "20,000,000", "금액은 20,000,000, 30,000,000, 40,000,000 입니다.", True),
+    ("comma_list_middle_item",
+     "30,000,000", "금액은 20,000,000, 30,000,000, 40,000,000 입니다.", True),
+    ("comma_list_last_item",
+     "40,000,000", "금액은 20,000,000, 30,000,000, 40,000,000 입니다.", True),
+    ("percent_point_suffix_with_leading_minus",
+     "18.13%", "누적 -18.13%p 감소했고", True),
+]
+
+
+@pytest.mark.parametrize(
+    "figure,body,expected",
+    [case[1:] for case in _BOUNDARY_CASES],
+    ids=[case[0] for case in _BOUNDARY_CASES])
+def test_figure_present_boundary_case(figure, body, expected):
+    assert aggregate._figure_present(figure, body) is expected
+
+
+def test_the_comma_list_case_is_the_worst_case_this_round_fixes():
+    """A plain comma-separated list of amounts is the most ordinary way an
+    answer states several figures. All three must read present together, not
+    just individually -- this is the shape a real answer would produce."""
+    body = "금액은 20,000,000, 30,000,000, 40,000,000 입니다."
+    assert aggregate._figure_present("20,000,000", body)
+    assert aggregate._figure_present("30,000,000", body)
+    assert aggregate._figure_present("40,000,000", body)
 
 
 # --- Finding 4: the repair reaches more than the narrative lines, on purpose
