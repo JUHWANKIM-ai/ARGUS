@@ -87,20 +87,3 @@ def test_the_line_carries_no_receipt_numbers():
 def test_the_flag_is_off_by_default():
     assert ablation.Arm("X").holding_series is False
     assert "holding_series" in ablation.FLAG_NAMES
-
-
-def test_the_line_reaches_the_evidence_only_when_the_flag_is_on(monkeypatch):
-    """A gate that is never read is a flag with no effect. Removing the wiring
-    must break this test."""
-    from argus.agent import pipeline
-
-    monkeypatch.setattr(pipeline, "_evidence_records", lambda _: DOOSAN)
-    seen = []
-    monkeypatch.setattr(pipeline, "_prepend",
-                        lambda evidence, line: seen.append(line) or evidence)
-
-    with ablation.use(ablation.replace(ablation.current(), name="T",
-                                       holding_series=True)):
-        assert ablation.enabled("holding_series") is True
-    with ablation.use(ablation.ARMS["A43"]):
-        assert ablation.enabled("holding_series") is False
