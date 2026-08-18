@@ -223,7 +223,10 @@ def test_a_longer_percentage_is_not_counted_as_the_figure():
     answer = "비율은 168.19% 였고 금액은 700,000,000원 이었습니다."
     out, reason = aggregate.repair_gap(answer, COLLISION_EVIDENCE)
     assert reason
-    assert "68.19%" in out and "500,000,000" in out
+    # Only "500,000,000" is asserted: it appears nowhere in `answer`, so
+    # finding it in `out` can only mean the line was appended. Asserting
+    # "68.19%" here would hold either way -- "168.19%" already contains it.
+    assert "500,000,000" in out
 
 
 def test_a_longer_integer_is_not_counted_as_the_figure():
@@ -231,127 +234,122 @@ def test_a_longer_integer_is_not_counted_as_the_figure():
     answer = "68.19% 였고 정정 후 1,500,000,000원이 되었습니다."
     out, reason = aggregate.repair_gap(answer, COLLISION_EVIDENCE)
     assert reason
-    assert "500,000,000" in out and "700,000,000" in out
+    # Same audit, mirrored: "700,000,000" is absent from `answer`, so it can
+    # only come from the appended line. "500,000,000" would hold either way
+    # -- "1,500,000,000" already contains it.
+    assert "700,000,000" in out
 
 
-# --- Finding 3, round 2: a period only matters as a decimal point
+# --- Finding 3, rounds 2-4: what actually ends a figure
 #
-# The first fix over-anchored: `_FIG_D1 = r"(?![\d,.])"` blocked a following
-# period unconditionally, so a figure stated right before an ordinary
-# Korean sentence period ("68.19%.") was counted absent — the opposite
-# error from the one just fixed, and the newer, visible kind (a redundant
-# append the reader can see, rather than a silent no-op). A period is only
-# a decimal continuation, and therefore only worth blocking, when a digit
-# sits on its far side too.
+# Three rounds of boundary defects lived here, each exposed by the fix for
+# the one before it.
 #
-# The same question was checked on the leading side rather than assumed
-# fine: `_figure_present` compares space-stripped text, and stripping
-# removes the space that ordinarily sits between a sentence's period and
-# the figure opening the next clause. An unconditional leading period block
-# was checked against that shape directly and found to reject a plainly
-# stated figure the same way — so the leading side needed the same
-# digit-conditional narrowing, not just the trailing side the finding named.
+# Round 2: the round-1 guard blocked any following period, so a figure
+# stated right before an ordinary Korean sentence period ("68.19%.") read
+# as absent. A period only continues a number when a digit sits on its far
+# side.
+#
+# Round 3: both guards sat on top of a body with every space stripped
+# (originally so a figure written "44, 200, 027" would still match). That
+# stripping manufactured the very adjacency the guards were fighting: with
+# the space gone, a list separator's comma was indistinguishable from a
+# thousands-group comma, so every figure in a plain comma-separated list --
+# the most ordinary way an answer states several amounts -- read as absent.
+# The body is no longer modified at all.
+#
+# Round 4: with the body intact, the guards turned out not to be
+# whitespace-aware. A single space at the collision point defeated them:
+# "1, 500,000,000" is one number, not a list, yet it read as stating
+# "500,000,000". The signal that separates a continuing comma from a
+# list-separating comma is that a thousands group is exactly three digits
+# -- ", 500" continues the number, ", 30,000,000" starts a new one.
+#
+# Every case below is asserted directly on `_figure_present`, never through
+# `repair_gap`: a `repair_gap` scenario can pass regardless of one figure's
+# boundary when the line's other figures are absent from the answer either
+# way, so the assertion has to be about the boundary itself.
 
 def test_a_sentence_final_period_does_not_block_the_trailing_figure():
-    """A figure immediately followed by a Korean sentence's period (no space
-    before the period, as in "68.19%.") must still count as present — that
-    period is sentence punctuation, not a decimal continuation. The line has
-    three figures; this states two of them (majority), so the repair must
-    stay silent."""
+    """The same trailing-period shape as the unit case below, but pinned
+    end to end through `repair_gap`, so the boundary rule is shown to reach
+    the trigger decision and not only the helper.
+
+    The line has three figures; this answer states two of them (a majority),
+    so the repair must stay silent. Miscounting "68.19%" as absent drops
+    coverage to 1 of 3 and the repair fires -- a visible, redundant append.
+    """
     answer = "비율은 68.19%. 다른 금액은 700,000,000원 입니다."
     out, reason = aggregate.repair_gap(answer, COLLISION_EVIDENCE)
     assert out == answer and reason == ""
 
 
-def test_a_sentence_period_with_a_stripped_space_does_not_block_the_leading_figure():
-    """The presence check strips all spaces from the answer (so
-    "44, 200, 027" still matches "44,200,027"), which also strips the space
-    that ordinarily separates a sentence's period from the figure opening
-    the next clause. An unconditional leading period block would then count
-    a plainly stated figure as absent."""
+def test_a_period_before_the_figure_does_not_block_it_either():
+    """The mirror shape: a sentence ends and the next clause opens with the
+    figure. Same three-figure line, same two-of-three majority, so the same
+    silence is required.
+
+    This was a live defect while the body was space-stripped -- stripping
+    deleted the space between the period and the figure, and the leading
+    guard then rejected a plainly stated figure. The body is no longer
+    modified, but the shape stays pinned so it cannot regress.
+    """
     answer = "확인했다. 68.19%이고 700,000,000원 입니다."
     out, reason = aggregate.repair_gap(answer, COLLISION_EVIDENCE)
     assert out == answer and reason == ""
 
 
-def test_a_decimal_continuation_is_not_counted_as_the_figure():
-    """"20,000,000.50" is a different, more precise number than
-    "20,000,000" and must not count as coverage of it.
-
-    Asserted directly on `_figure_present`, not through `repair_gap`: going
-    through `repair_gap` against BOUNDARY_EVIDENCE would pass regardless of
-    this specific boundary, because BOUNDARY_LINE's other three figures are
-    absent from the answer either way, so coverage stays under half whether
-    or not this one figure is miscounted as present. The assertion has to be
-    about the thing the test names.
-    """
-    assert not aggregate._figure_present(
-        "20,000,000", "확인된 금액은 20,000,000.50원 입니다.")
-
-
-# --- Finding 3, round 3: the space-stripping itself was the root cause
-#
-# Round 2 fixed the boundary regexes but left `_figure_present` comparing a
-# space-stripped copy of the body (kept from the original naive-containment
-# version, to tolerate a figure written with stray spaces, "44, 200, 027").
-# Every boundary rule built on top of that stripped text was fighting
-# adjacency the stripping itself manufactured. Three more live failures
-# surfaced, all against the space-stripped implementation:
-#
-#   _figure_present("700,000,000", "총액은 700,000,000. 2024년에 집행되었다.")  -> False
-#   _figure_present("68.19%",      "1. 68.19% 2. 50.06%")                    -> False
-#   _figure_present("20,000,000",  "금액은 20,000,000, 30,000,000, 40,000,000 입니다.") -> False
-#
-# The last is the worst: stripping the space after a list separator's comma
-# makes it indistinguishable from a thousands-group comma, so every figure
-# in a plain comma-separated list -- the most ordinary way an answer states
-# several amounts -- read as absent.
-#
-# The fix does not modify the body at all. A space-tolerant pattern is built
-# from the figure instead (each of its characters escaped and joined by
-# `\s*`), and searched against the body as written. The boundary rules can
-# now be decided correctly because the real spacing survives: a trailing
-# comma blocks only when exactly three digits follow it with no gap (a
-# thousands group), not when a space follows it (a list separator); a
-# trailing period blocks only when a digit follows it immediately (a
-# decimal tail), not when a space or nothing follows it (sentence
-# punctuation); the leading rule narrows the same way, symmetrically.
-#
-# Every case is asserted directly on `_figure_present`, not through
-# `repair_gap` -- the same reason the decimal-continuation test above was
-# rewritten: a `repair_gap` scenario can pass regardless of one figure's
-# boundary when the line's other figures are absent either way, so the
-# assertion has to be about the boundary itself.
-
+#: Every boundary shape `_figure_present` has to decide, one row per shape.
+#: The three whitespace-at-the-collision-point rows -- a continuing group
+#: reached across a space on either side, and a figure whose own digits are
+#: scattered -- are the round-4 additions.
 _BOUNDARY_CASES = [
-    ("trailing_sentence_period",
-     "68.19%", "비율은 68.19%. 금액은 20,000,000원이 확인됩니다.", True),
-    ("leading_digit_collision_percent",
-     "68.19%", "168.19%", False),
-    ("stray_spaces_in_comma_group",
-     "44,200,027", "44, 200, 027주", True),
-    ("leading_digit_collision_integer",
-     "44,200,027", "144,200,027", False),
-    ("leading_comma_collision",
-     "500,000,000", "1,500,000,000", False),
-    ("trailing_thousands_continuation",
-     "44,200,027", "44,200,027,500", False),
-    ("trailing_decimal_continuation",
-     "20,000,000", "20,000,000.50", False),
-    ("trailing_hangul_particle",
-     "20,000,000", "20,000,000원", True),
-    ("period_space_then_next_sentence",
+    # A period is sentence punctuation unless a digit sits right after it.
+    ("sentence_period_after_the_figure",
+     "68.19%", "비율은 68.19%.", True),
+    ("sentence_period_then_a_year",
      "700,000,000", "총액은 700,000,000. 2024년에 집행되었다.", True),
-    ("numbered_list_prefix",
-     "68.19%", "1. 68.19% 2. 50.06%", True),
+    ("decimal_tail_continues_the_number",
+     "20,000,000", "20,000,000.50", False),
+    # A digit immediately on either side means a longer, different number.
+    ("longer_percentage_starting_earlier",
+     "68.19%", "168.19%", False),
+    ("longer_integer_starting_earlier",
+     "44,200,027", "144,200,027", False),
+    # A comma continues the number only when exactly three digits follow it.
+    ("preceding_thousands_group",
+     "500,000,000", "1,500,000,000", False),
+    ("preceding_thousands_group_across_a_space",
+     "500,000,000", "1, 500,000,000", False),
+    ("following_thousands_group",
+     "44,200,027", "44,200,027,500", False),
+    ("following_thousands_group_across_a_space",
+     "44,200,027", "44,200,027, 500", False),
+    # A comma followed by anything but a bare three-digit group separates
+    # list items, which is how an answer usually states several amounts.
     ("comma_list_first_item",
      "20,000,000", "금액은 20,000,000, 30,000,000, 40,000,000 입니다.", True),
     ("comma_list_middle_item",
      "30,000,000", "금액은 20,000,000, 30,000,000, 40,000,000 입니다.", True),
     ("comma_list_last_item",
      "40,000,000", "금액은 20,000,000, 30,000,000, 40,000,000 입니다.", True),
-    ("percent_point_suffix_with_leading_minus",
-     "18.13%", "누적 -18.13%p 감소했고", True),
+    # Whitespace is tolerated inside the figure's own comma groups, so a
+    # model writing "44, 200, 027" still counts -- but only there.
+    ("stray_spaces_inside_the_groups",
+     "44,200,027", "44, 200, 027주", True),
+    ("figure_digits_scattered_across_lines",
+     "12,345", "1\n2,3\n4\n5", False),
+    # Hangul, %, and list markers are ordinary boundaries. `\b` cannot say
+    # so: Python's `\w` includes Hangul, so there is no word boundary
+    # between a figure's last digit and a Korean particle.
+    ("hangul_particle_after_the_figure",
+     "20,000,000", "20,000,000원", True),
+    ("figure_embedded_mid_sentence",
+     "32,449,065", "보유주식수는 32,449,065주가 됐다.", True),
+    ("minus_sign_and_percent_point_suffix",
+     "18.13%", "누적 -18.13%p 감소", True),
+    ("numbered_list_prefix_before_the_figure",
+     "68.19%", "1. 68.19% 2. 50.06%", True),
 ]
 
 
@@ -361,16 +359,6 @@ _BOUNDARY_CASES = [
     ids=[case[0] for case in _BOUNDARY_CASES])
 def test_figure_present_boundary_case(figure, body, expected):
     assert aggregate._figure_present(figure, body) is expected
-
-
-def test_the_comma_list_case_is_the_worst_case_this_round_fixes():
-    """A plain comma-separated list of amounts is the most ordinary way an
-    answer states several figures. All three must read present together, not
-    just individually -- this is the shape a real answer would produce."""
-    body = "금액은 20,000,000, 30,000,000, 40,000,000 입니다."
-    assert aggregate._figure_present("20,000,000", body)
-    assert aggregate._figure_present("30,000,000", body)
-    assert aggregate._figure_present("40,000,000", body)
 
 
 # --- Finding 4: the repair reaches more than the narrative lines, on purpose

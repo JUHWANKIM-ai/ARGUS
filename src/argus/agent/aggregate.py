@@ -1029,47 +1029,80 @@ _LINE_FIGURE = re.compile(r"\d{1,3}(?:,\d{3})+|\d+\.\d+\s*%")
 _LINE_DIRECTIVE = re.compile(
     r"\((?:이 값은 시스템이|이는 시스템이)[^)]*\)|^\s+답변은 .*$", re.MULTILINE)
 
-#: Digit-only boundaries instead of `\b`, the same idiom `safety.py` uses and
-#: for the same reason: Python's `\w` includes Hangul, so a figure followed by
-#: a Korean particle has no word boundary between its last digit and the
-#: particle. Blocking an adjacent digit is enough on the left; a comma or a
-#: decimal point is blocked only when it turns out to be part of the same
-#: longer numeral rather than punctuation, which is decided against the
-#: unmodified body -- see `_figure_present` for why the body has to stay
-#: unmodified for that decision to be possible at all.
+#: Digit-only adjacency checks instead of `\b`, the same idiom `safety.py`
+#: uses and for the same reason: `\w` in Python `re` includes Hangul, so a
+#: figure followed by a Korean particle has no word boundary between its
+#: last digit and the particle.
 #:
-#: A trailing comma blocks only when exactly three digits follow it with no
-#: gap (`,\d{3}`): that shape is a thousands group continuing the same
-#: number, as in `44,200,027,500` read while looking for `44,200,027`. A
-#: comma followed by a space is a list separator instead -- `20,000,000,
-#: 30,000,000` -- and must not block. A trailing period blocks only when a
-#: digit follows it immediately (`\.\d`), a decimal tail as in
-#: `20,000,000.50`; a period followed by a space or nothing is sentence
-#: punctuation and must not block. A leading digit-then-period (`\d\.`)
-#: is blocked the same way, symmetrically.
-_FIG_D0 = r"(?<![\d,])(?<!\d\.)"
-_FIG_D1 = r"(?!\d)(?!,\d{3})(?!\.\d)"
+#: These are no longer regex lookarounds. Python `re` requires a fixed-width
+#: lookbehind, and the left boundary is not fixed width: a continuing comma
+#: may sit past any amount of whitespace (`1, 500,000,000` versus
+#: `1,500,000,000`), so `_figure_present` walks each match and inspects the
+#: text on both sides directly instead of embedding the rule in the pattern.
+#:
+#: A comma blocks only when exactly three digits follow it, with any amount
+#: of whitespace tolerated around the comma itself: that shape is a
+#: thousands group continuing the same longer number, as in
+#: `44,200,027,500` read while looking for `44,200,027`, or `1, 500,000,000`
+#: read while looking for `500,000,000`. A comma does not block when it
+#: separates list items instead -- `20,000,000, 30,000,000` -- because a
+#: list item never continues with exactly three more digits and nothing
+#: else. The leading group of the figure being searched for also has to be
+#: exactly three digits for a preceding comma to plausibly continue a
+#: larger number: `44` is not, so `44,200,027` can never be read as the
+#: tail of some other number no matter what precedes it.
+#:
+#: A period blocks only when a digit follows it immediately, with no
+#: whitespace tolerated: `20,000,000.50` is a decimal tail. This is a
+#: deliberate, asymmetric choice, not an oversight: `20,000,000. 50` and
+#: `700,000,000. 2024년에` are the identical shape -- number, period, space,
+#: digits -- and nothing in the text distinguishes a decimal written with a
+#: stray space after the point from an ordinary Korean sentence ending
+#: before the next one opens with a year or a count. The second shape is far
+#: more common in this corpus than the first, so the tie goes to reading the
+#: figure as present. The cost is real and accepted rather than missed:
+#: `20,000,000. 50` reads as present even though it names a different, more
+#: precise value.
+_GROUP = re.compile(r"\d{3}")
+_AFTER_GROUP = re.compile(r"\s*,\s*\d{3}(?!\d)")
+_AFTER_DECIMAL = re.compile(r"\.\d")
 
 
 def _figure_present(figure: str, body: str) -> bool:
-    """Whether `figure` occurs in `body` as a complete number.
+    r"""Whether `figure` occurs in `body` as a complete number.
 
     Plain substring containment would count a figure as present inside a
     longer, different one. The body is searched as written, never modified:
     an earlier version stripped every space from the body to tolerate a
-    figure written with stray spaces (`44, 200, 027`), and that stripping is
-    what broke every boundary rule built on top of it. Deleting the space
-    after a list separator's comma made it indistinguishable from a
-    thousands-group comma, so every figure in a plain comma-separated list
-    -- the most ordinary way an answer states several amounts -- read as
-    absent. The tolerance for stray spacing is built into the search pattern
-    instead: each character of the figure is escaped and joined by `\\s*`,
-    so whitespace is allowed, never required, between any two of its digits.
+    figure written with stray spaces (`44, 200, 027`), and every boundary
+    rule built on that stripped copy was fighting adjacency the stripping
+    itself had manufactured.
+
+    Whitespace tolerance now lives only around the commas inside the figure
+    being searched for (`\s*,\s*` between each comma-separated group), not
+    between every character of the figure: tolerating whitespace everywhere
+    let four scattered, unrelated digits on separate lines read as present,
+    because nothing then required them to actually sit next to each other.
     See docs/design-rationale.md#gap-repair
     """
+    body = body or ""
     chars = figure.replace(" ", "")
-    pattern = r"\s*".join(re.escape(ch) for ch in chars)
-    return re.search(_FIG_D0 + pattern + _FIG_D1, body or "") is not None
+    pattern = r"\s*,\s*".join(re.escape(part) for part in chars.split(","))
+    head = chars.split(",")[0].lstrip("-")
+    for match in re.finditer(pattern, body):
+        before, after = body[:match.start()], body[match.end():]
+        if before[-1:].isdigit():
+            continue                              # inside a longer number
+        left = before.rstrip()
+        if (left.endswith(",") and _GROUP.fullmatch(head)
+                and left[:-1].rstrip()[-1:].isdigit()):
+            continue                              # a thousands group of a longer number
+        if after[:1].isdigit():
+            continue
+        if _AFTER_GROUP.match(after) or _AFTER_DECIMAL.match(after):
+            continue
+        return True
+    return False
 
 
 def decisive_lines(evidence: str) -> list[str]:
