@@ -3067,3 +3067,64 @@ def test_every_gate_section_is_reachable_from_the_real_v2_artifacts():
         assert heading in text, f"{heading} 절이 사라졌다"
     # 두 번 렌더해도 같은 문서다. 절 함수가 공용 상태를 고치면 여기서 갈린다.
     assert text == runner.render_gate(root, budget_cap=runner.BUDGET_WON)
+
+
+def test_the_dry_stub_judge_response_has_a_covered_array_sized_to_the_points(
+        monkeypatch):
+    """The `--dry` rehearsal judge branch used to return
+    `{"covers_key_points":1,...}` with no `covered` key at all. After Task 1's
+    per-point judge, that shape has no `covered` array, so every open
+    question in a rehearsal fell into the length-mismatch scoring-failure
+    branch — a rehearsal would read as total judge breakage.
+
+    This drives the stub's raw output through the real `critic.judge_open`
+    parsing path (via a stubbed `chat`) instead of re-implementing the
+    parsing rules here, so the assertion is about the actual consumer.
+    """
+    from argus import clova
+    from argus.agent import critic, prompts
+    from scripts import ablation as runner
+
+    # install_dry_stub assigns clova._post directly (it does not go through
+    # monkeypatch itself). Recording the current value here means teardown
+    # restores it regardless of what install_dry_stub does to the attribute
+    # afterward, so the stub cannot leak into a later test.
+    monkeypatch.setattr(clova, "_post", clova._post)
+    runner.install_dry_stub()
+
+    points = ["첫째", "둘째", "셋째"]
+    messages = prompts.build_open_judge_messages("질문", "근거", points, "답변")
+    _status, payload, _latency = clova._post(
+        "https://x/chat", {}, {"messages": messages})
+    text = payload["result"]["message"]["content"]
+
+    class _Result:
+        def __init__(self, text):
+            self.text = text
+            self.prompt_tokens = 0
+            self.completion_tokens = 0
+
+    monkeypatch.setattr(critic, "chat", lambda *a, **k: _Result(text))
+    verdict = critic.judge_open("질문", "근거", points, "답변")
+
+    # A scoring failure is `covered == ()`. The point of the fix is that the
+    # stub's array length tracks the golden point count instead.
+    assert len(verdict.covered) == len(points)
+    assert verdict.covered == (True, True, True)
+
+
+def test_dry_point_count_reads_the_numbered_list_back_out_of_the_prompt():
+    """Unit-level check on the counting helper itself, independent of the
+    stub wiring above."""
+    from argus.agent import prompts
+    from scripts import ablation as runner
+
+    messages = prompts.build_open_judge_messages(
+        "질문", "근거", ["첫째", "둘째", "셋째"], "답변")
+    assert runner._dry_point_count({"messages": messages}) == 3
+
+    # No key points at all still counts as 1 rather than 0 — `judge_open`
+    # scores an empty golden set as a failure either way, and a 0-length
+    # stub array would be an odd, unused shape to emit.
+    empty = prompts.build_open_judge_messages("질문", "근거", [], "답변")
+    assert runner._dry_point_count({"messages": empty}) == 1

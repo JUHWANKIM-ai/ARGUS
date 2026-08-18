@@ -201,6 +201,28 @@ class RequestCache:
         return ea.cost_won(self.fresh_prompt, self.fresh_completion)
 
 
+def _dry_point_count(body: dict) -> int:
+    """리허설 판정이 낼 요점 배열의 길이.
+
+    판정기가 골든 요점 수와 같은 길이를 요구하므로(`critic.judge_open`),
+    프롬프트에 실린 번호 목록을 되읽어 맞춘다. 안 맞추면 개방형 전 문항이
+    채점 실패로 떨어지고, 그것이 판정기 고장으로 읽힌다.
+
+    **`user` 메시지만 본다.** `SYSTEM_OPEN_JUDGE` 자체가 `covered` 필드를
+    설명하며 "[모범답안 요소]" 표지를 문장 안에서 그대로 인용한다. system
+    메시지까지 훑으면 그 설명문에 먼저 걸려 실제 번호 목록(user 메시지)에
+    닿기도 전에 0건으로 되돌아간다(`or 1` 로 항상 1이 나온다).
+    """
+    for message in body.get("messages") or []:
+        if message.get("role") != "user":
+            continue
+        content = str(message.get("content") or "")
+        if "[모범답안 요소]" in content:
+            block = content.split("[모범답안 요소]", 1)[1].split("[제출답변]", 1)[0]
+            return len(re.findall(r"^\s*\d+\.\s", block, re.MULTILINE)) or 1
+    return 1
+
+
 def install_dry_stub() -> None:
     """LLM 0회 리허설. 검색·성형·검증의 arm 차이만 본다. 크레딧 0원."""
     from argus import clova
@@ -210,7 +232,8 @@ def install_dry_stub() -> None:
                 if "critic" not in json.dumps(body)[:200] else
                 '{"supported":true,"has_citation":true,"hallucination":false,"reason":"dry"}')
         if "심사자" in json.dumps(body, ensure_ascii=False)[:2000]:
-            text = ('{"covers_key_points":1,"grounded":1,"no_fabrication":1,"reason":"dry"}')
+            text = ('{"covered":%s,"grounded":1,"no_fabrication":1,"reason":"dry"}'
+                    % json.dumps([1] * _dry_point_count(body)))
         return 200, {"result": {"message": {"content": text},
                                 "usage": {"promptTokens": 0, "completionTokens": 0},
                                 "finishReason": "stop"}}, 0.0
