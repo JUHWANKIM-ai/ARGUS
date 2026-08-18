@@ -299,6 +299,72 @@ def test_counterparty_branch_is_silent_when_one_side_is_empty():
     assert aggregate.counterparty_branch({}) == ""
 
 
+#: The same eleven counterparties, but with the records the line now reads:
+#: a contract title and an amount. Golden points 2, 3 and 4 of `Q-117` are
+#: contract names and amounts, which the name-only line could not carry.
+def _rich_groups() -> dict[str, list[dict]]:
+    def _row(no, title, amount):
+        return {"rcept_no": no,
+                "title": f"단일판매ㆍ공급계약체결 — {title}",
+                "amount": amount}
+
+    groups = {name: [{"rcept_no": f"{name}-{i}"} for i in range(n)]
+              for name, n in _Q117_COUNTERPARTIES}
+    groups["두산에너빌리티"] = [
+        _row("20230330800844", "신한울원자력발전소 3,4호기 원자로계통 설계용역",
+             181_608_900_000),
+        _row("20251224800396", "체코 두코바니 5&6호기 원자로계통설계용역",
+             373_449_426_066),
+    ]
+    groups["한국수력원자력"] = [
+        _row("20251212801320", "체코 두코바니 5&6호기 종합설계용역",
+             1_250_850_298_678),
+    ]
+    return groups
+
+
+def test_the_branch_line_carries_contract_names_and_amounts():
+    """Golden points 2 and 3: the re-order branch's contracts are all
+    원자로계통설계, and 신한울 3,4호기 is 181,608,900,000원."""
+    line = aggregate.counterparty_branch(_rich_groups())
+    assert "원자로계통설계" in line or "원자로계통 설계" in line
+    assert "181,608,900,000" in line
+
+
+def test_the_re_order_branch_carries_two_contracts():
+    """Golden point 4 needs both Dukovany contracts visible at once, so the
+    supplier branch carries two while the orderer branch carries one each."""
+    line = aggregate.counterparty_branch(_rich_groups())
+    assert "신한울" in line and "두코바니" in line
+
+
+def test_the_orderer_branch_carries_one_contract_each():
+    line = aggregate.counterparty_branch(_rich_groups())
+    assert "1,250,850,298,678" in line
+
+
+def test_a_counterparty_with_no_amount_is_named_only():
+    """Nine of the eleven groups hold bare records in this fixture. They must
+    still be named, because golden point 1 is the list of orderers."""
+    line = aggregate.counterparty_branch(_rich_groups())
+    for name in ("한국중부발전", "한국남부발전", "한국동서발전", "한국남동발전"):
+        assert name in line
+
+
+def test_the_enriched_line_still_carries_no_internal_vocabulary():
+    """The leak this line already caused once. Contract names and amounts are
+    source values and are meant to be copied; our predicate is not."""
+    line = aggregate.counterparty_branch(_rich_groups())
+    for leaked in ("70개사", "평가 대상", "유니버스", "universe"):
+        assert leaked not in line
+
+
+def test_the_enriched_line_still_carries_no_receipt_numbers():
+    line = aggregate.counterparty_branch(_rich_groups())
+    assert not re.search(r"\d{14}", line)
+    assert not re.search(r"\d+건", line)
+
+
 def test_asks_structure_predicate():
     assert pipeline._asks_structure(
         "한전기술이 공시한 계약의 발주 구조가 두 갈래로 나뉜다") is True

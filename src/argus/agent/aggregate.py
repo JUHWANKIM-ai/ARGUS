@@ -369,6 +369,29 @@ def _subject(event: dict) -> str:
 MAX_SUBJECT_CHARS = 44
 
 
+#: Representative contracts carried per counterparty. The supplier branch
+#: carries two, because one golden point needs the two contracts of a single
+#: project visible together; the orderer branch carries one each, because
+#: there the point is the list of names.
+#: See docs/design-rationale.md#counterparty-branch
+MAX_BRANCH_CONTRACTS_SUPPLIER = 2
+MAX_BRANCH_CONTRACTS_ORDERER = 1
+
+
+def _branch_entry(name: str, events: list[dict], limit: int) -> str:
+    """One counterparty rendered as `name(contract amount · contract amount)`.
+
+    Falls back to the bare name when no record carries an amount. Nine of
+    Q-117's eleven counterparties are named for the list alone, and dropping
+    them because they lack a figure would lose the first golden point.
+    """
+    priced = [e for e in (events or []) if _amount(e) is not None][:limit]
+    if not priced:
+        return name
+    parts = [f"{_subject(e)} {_amount(e):,}원" for e in priced]
+    return f"{name}({' · '.join(parts)})"
+
+
 def counterparty_branch(groups: dict) -> str:
     """Emit a counterparty set split into two industry-term groups, as one
     line.
@@ -387,6 +410,15 @@ def counterparty_branch(groups: dict) -> str:
     groups in industry terms (an ordering client versus a supplier that
     re-ordered) rather than in terms of that predicate: naming the predicate
     itself leaked into an answer once. See docs/design-rationale.md#counterparty-branch
+
+    Each counterparty also carries its representative contract(s): a question
+    asking what the two branches *are* is answered by the contracts, not by
+    the company names alone. Contract titles and amounts are source values
+    copied out of the evidence, so carrying them into this line is the
+    intended behaviour — unlike the predicate name above, which leaked
+    verbatim into an answer once and stays out of this string. A counterparty
+    whose records carry no amount still renders as its bare name, so the
+    fallback used by every pre-existing caller of this function is preserved.
     """
     from argus.corpus.counterparty import classify
 
@@ -398,10 +430,20 @@ def counterparty_branch(groups: dict) -> str:
     outside = [n for n in order if n not in inside]
     if not inside or not outside:
         return ""
+    # The bare name list carried the split but none of its content: a question
+    # asking what the two branches are is answered by the contracts, not by
+    # the company names alone. Contract titles and amounts are source values,
+    # so copying them into the answer is the intended behaviour — unlike our
+    # own predicate, which leaked verbatim once and stays out of this string.
+    # See docs/design-rationale.md#counterparty-branch
+    outside_text = " · ".join(
+        _branch_entry(n, groups[n], MAX_BRANCH_CONTRACTS_ORDERER) for n in outside)
+    inside_text = " · ".join(
+        _branch_entry(n, groups[n], MAX_BRANCH_CONTRACTS_SUPPLIER) for n in inside)
     return (
         f"- [결정적 집계] 계약상대 {len(order)}곳이 두 갈래로 나뉜다: "
-        f"발주처 {len(outside)}곳 — {' · '.join(outside)} · "
-        f"공급사 재수주 {len(inside)}곳 — {' · '.join(inside)} "
+        f"발주처 {len(outside)}곳 — {outside_text} · "
+        f"공급사 재수주 {len(inside)}곳 — {inside_text} "
         f"(공급사 쪽도 스스로 공시 대상 상장사다)\n"
         f"  답변은 이 두 갈래로만 나누고 다른 축으로 다시 나누지 않는다."
     )
