@@ -11,11 +11,12 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
 
-from argus.agent import pipeline, tools
+from argus.agent import aggregate, pipeline, tools
 from argus.agent.router import route
 
 _VC = Path(__file__).resolve().parents[1] / "evalset/valuechain.jsonl"
@@ -232,3 +233,112 @@ def test_the_enumeration_hop_fires_on_exactly_one_question_in_the_corpus():
         if pipeline._wants_enumeration(r, question, r.group):
             fired.append(qid)
     assert fired == ["Q-117"], fired
+
+
+# --- Counterparty branch line: universe vs non-universe split --------------
+# `Q-117`'s failure is not retrieval: `partner_profile` already carries all
+# eleven counterparties into the evidence as one line and the answer is still
+# wrong, because the model splits the set on the wrong axis. The two golden
+# branches split deterministically on one predicate already available in this
+# repository: whether the counterparty is one of the 70 companies the
+# evaluation covers.
+# See docs/design-rationale.md#counterparty-branch
+
+def _groups(*names_and_counts: tuple[str, int]) -> dict[str, list[dict]]:
+    """Build a `groups` dict shaped like `_enumerate_events` produces: name ->
+    one dummy record per count. Only the key and its length matter to
+    `counterparty_branch`, never the record contents."""
+    return {name: [{"rcept_no": f"{name}-{i}"} for i in range(n)]
+            for name, n in names_and_counts}
+
+
+#: `Q-117`'s real eleven counterparties (measured), split by universe
+#: membership: `두산에너빌리티` alone is inside, the other ten are outside
+#: (five state utilities, one overseas name, four other listed or unlisted
+#: names, including `삼성물산` which is not among the 70 companies this
+#: evaluation covers even though it is a large listed company).
+_Q117_COUNTERPARTIES = (
+    ("한국수력원자력", 11), ("두산에너빌리티", 4), ("한국동서발전", 3),
+    ("ptpln", 2), ("한주", 1), ("삼성물산", 1), ("한국중부발전", 1),
+    ("한국남동발전", 1), ("넥서스그린에너지", 1), ("한국남부발전", 1),
+    ("완도금일해상풍력", 1))
+
+
+def test_counterparty_branch_splits_universe_from_non_universe():
+    line = aggregate.counterparty_branch(_groups(*_Q117_COUNTERPARTIES))
+    assert line
+    assert "70개사 소속 1곳" in line
+    assert "70개사 밖 10곳" in line
+    assert "두산에너빌리티" in line
+    for outsider in ("한국수력원자력", "한국동서발전", "ptpln", "한주", "삼성물산",
+                     "한국중부발전", "한국남동발전", "넥서스그린에너지",
+                     "한국남부발전", "완도금일해상풍력"):
+        assert outsider in line
+    # No receipt numbers and no per-company filing counts, the same rule as
+    # `_counterparty_note` (`counterparty-note-no-counts`).
+    assert not re.search(r"\d{14}", line)
+    assert not re.search(r"\d+건", line)
+
+
+def test_counterparty_branch_is_silent_when_one_side_is_empty():
+    """A single branch is not a split, and asserting one would be a
+    confident wrong statement."""
+    all_inside = _groups(("두산에너빌리티", 4), ("삼성전자", 2))     # both universe
+    assert aggregate.counterparty_branch(all_inside) == ""
+    all_outside = _groups(("한국수력원자력", 11), ("한국동서발전", 3))  # neither universe
+    assert aggregate.counterparty_branch(all_outside) == ""
+    assert aggregate.counterparty_branch({}) == ""
+
+
+def test_asks_structure_predicate():
+    assert pipeline._asks_structure(
+        "한전기술이 공시한 계약의 발주 구조가 두 갈래로 나뉜다") is True
+    assert pipeline._asks_structure("한전기술이 공시한 계약상대는 누구인가?") is False
+
+
+def test_asks_structure_is_narrower_than_the_enumeration_hint():
+    """`_ENUMERATION_HINT` gates the whole hop broadly (`나뉘` alone opens
+    it); the branch line makes a stronger claim, a named two-way split, and
+    needs its own narrower vocabulary check so the two do not drift apart.
+    """
+    q = "한전기술이 공시한 계약의 계약상대가 어떻게 나뉘어 있는가"
+    assert pipeline._wants_enumeration(_Route(["한전기술"]), q, "exchange") is True
+    assert pipeline._asks_structure(q) is False
+
+
+@pytest.mark.skipif(not _VC.exists(), reason="evalset/valuechain.jsonl 없음")
+def test_q117_branch_line_reaches_the_head_of_the_evidence_under_a45():
+    """`A45` wires the flag in. The line must reach the head of the evidence,
+    the same position as `_roster_line` and `partner_profile`
+    (`line-position`, `roster-position`)."""
+    from argus import ablation
+    from argus.agent.budget import Budget
+
+    row = _rows()["Q-117"]
+    r = route(row["question"])
+    with ablation.use("A45"):
+        evidence, trace = pipeline._gather_evidence(r, row["question"], Budget())
+    if not evidence:
+        pytest.skip("artifacts/exchange_records.jsonl 없음")
+    assert any("counterparty_branch" in line for line in trace)
+    head = evidence.split("\n\n## ", 1)[0]
+    assert "두산에너빌리티" in head
+    assert "70개사 소속" in head and "70개사 밖" in head
+    assert not re.search(r"\d{14}", head)
+
+
+@pytest.mark.skipif(not _VC.exists(), reason="evalset/valuechain.jsonl 없음")
+def test_q117_branch_line_is_absent_under_the_untouched_default_arm():
+    """The new flag defaults to False. An untouched operational arm (the
+    module default, not `A45`) behaves exactly as before."""
+    from argus import ablation
+    from argus.agent.budget import Budget
+
+    assert ablation.current().counterparty_branch is False
+    row = _rows()["Q-117"]
+    r = route(row["question"])
+    evidence, trace = pipeline._gather_evidence(r, row["question"], Budget())
+    if not evidence:
+        pytest.skip("artifacts/exchange_records.jsonl 없음")
+    assert not any("counterparty_branch" in line for line in trace)
+    assert "70개사 소속" not in evidence

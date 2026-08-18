@@ -951,6 +951,22 @@ def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[st
 #: enumerations.
 _ENUMERATION_HINT = ("갈래", "나뉘", "나뉜", "유형")
 
+#: Markers for a question asking about the structure of the counterparty set,
+#: gating the universe/non-universe branch line specifically. Kept as its own
+#: list rather than folded into `_ENUMERATION_HINT`: that one gates the whole
+#: enumeration hop and is deliberately broad, while this line makes a stronger
+#: claim, a named two-way split, and needs a check of its own so the two do
+#: not drift apart.
+#: See docs/design-rationale.md#counterparty-branch
+_ASKS_STRUCTURE = ("나뉜다", "갈래", "구조", "유형")
+
+
+def _asks_structure(question: str) -> bool:
+    """Whether the question asks how the counterparty set divides. No LLM
+    call and no retrieval."""
+    return any(h in (question or "") for h in _ASKS_STRUCTURE)
+
+
 #: Cap on what the enumeration may contribute. Half of `MAX_EVIDENCE`, so that
 #: enumeration appends after `_take` without displacing retrieval evidence.
 #: Values of 4, 5 and 6 were measured and recover identically.
@@ -1051,6 +1067,21 @@ def _enumerate_events(r, question: str, budget: Budget, trace: list[str], take,
         if profile:
             extra.append(profile)
             trace.append(f"partner_profile groups={len(groups)} chars={len(profile)}")
+
+    # State which of the two branches each counterparty belongs to: inside
+    # the 70-company coverage universe or outside it. The two branches split
+    # deterministically on that one predicate, with no alias table and no
+    # semantic judgment. Fires only for a question asking about the structure
+    # of the counterparty set, and only when both branches are non-empty.
+    # See docs/design-rationale.md#counterparty-branch
+    if (extra is not None and ablation.enabled("counterparty_branch")
+            and _asks_structure(question)):
+        from argus.agent import aggregate
+
+        branch = aggregate.counterparty_branch(groups)
+        if branch:
+            extra.append(branch)
+            trace.append(f"counterparty_branch groups={len(groups)} chars={len(branch)}")
 
     taken: list[str] = []
     depth = 0

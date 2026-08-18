@@ -266,6 +266,42 @@ def _subject(event: dict) -> str:
 MAX_SUBJECT_CHARS = 44
 
 
+def counterparty_branch(groups: dict) -> str:
+    """Emit the universe/non-universe split of a counterparty set as one line.
+
+    No LLM call, no retrieval. Returns "" unless both branches are non-empty:
+    a single branch is not a split, and asserting one would be a confident
+    wrong statement.
+
+    Carries no receipt numbers and no per-company filing counts, for the same
+    reason as `partner_profile`.
+
+    The split is decided by one predicate: whether the counterparty is one of
+    the 70 companies the evaluation covers. That membership test is already
+    implemented and tested in `argus.corpus.counterparty.classify`, so it is
+    reused here rather than duplicated.
+    See docs/design-rationale.md#counterparty-branch
+    """
+    from argus.corpus.counterparty import classify
+
+    names = [name for name in (groups or {}) if name]
+    if not names:
+        return ""
+    order = sorted(names, key=lambda k: (-len(groups[k]), k))
+    inside = [n for n in order if classify(n) == "universe"]
+    outside = [n for n in order if n not in inside]
+    if not inside or not outside:
+        return ""
+    return (
+        f"- [결정적 집계] 계약상대 {len(order)}곳의 발주 구조 갈래 "
+        f"(평가 대상 70개사 소속 여부 기준): "
+        f"70개사 소속 {len(inside)}곳 — {' · '.join(inside)} · "
+        f"70개사 밖 {len(outside)}곳 — {' · '.join(outside)}\n"
+        f"  (이 갈래는 시스템이 계약상대 각각의 70개사 소속 여부에서 직접 가른 것이다. "
+        f"답변은 이 두 갈래로만 나누고 다른 축으로 다시 나누지 않는다.)"
+    )
+
+
 #: The answer form `1,234,567,890원(12억원)`. Markdown emphasis has to be
 #: crossed, since answers contain `**207,684,631,210원**(20,768억원)`.
 _PAREN_UNIT = re.compile(r"(\d{1,3}(?:,\d{3}){2,})(\s*원?\s*\**\s*)"

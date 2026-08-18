@@ -34,7 +34,8 @@ RETRIEVAL_MODES = ("meta", "exchange", "all")
 #: component that never ran.
 #: See docs/design-rationale.md#unreachable-flag-guards
 META_UNREACHABLE_FLAGS = ("hop_ladder", "chain_hop", "split_query", "counterparty_hop",
-                          "followup_hop", "reverse_chain", "partner_profile")
+                          "followup_hop", "reverse_chain", "partner_profile",
+                          "counterparty_branch")
 
 #: Axes that must stay at their defaults under `retrieval="meta"`. The meaning
 #: matches `META_UNREACHABLE_FLAGS` and only the form of the check differs,
@@ -58,7 +59,7 @@ META_UNREACHABLE_AXES = ("meta_corp", "meta_date", "meta_group")
 #: See docs/design-rationale.md#unreachable-flag-guards
 FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     "chain_hop": ("followup_hop", "reverse_chain"),
-    "hop_ladder": ("partner_profile",),
+    "hop_ladder": ("partner_profile", "counterparty_branch"),
     "calc_values": ("lean_rules",),
     "counterparty_hop": ("multi_hub",),
     "function_calling": ("calc_tools_only", "calc_queries_only",
@@ -83,7 +84,7 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
 ORACLE_UNREACHABLE_FLAGS = ("retrieval", "dense", "hop_ladder", "chain_hop",
                             "split_query", "counterparty_hop", "followup_hop",
                             "meta_corp", "meta_date", "meta_group", "multi_hub",
-                            "reverse_chain", "partner_profile")
+                            "reverse_chain", "partner_profile", "counterparty_branch")
 
 
 @dataclass(frozen=True)
@@ -390,6 +391,13 @@ class Arm:
     #: credits.
     #: See docs/design-rationale.md#citation-detection
     attach_citation: bool = False
+    #: True states which counterparties in an enumerated set are inside the
+    #: 70-company coverage universe and which are outside it, as one
+    #: deterministic line. No LLM call. Fires only for a question that asks
+    #: how the set divides, and only when both branches are non-empty, since a
+    #: single branch is not a split.
+    #: See docs/design-rationale.md#counterparty-branch
+    counterparty_branch: bool = False
     #: Sample count for self-consistency. One is the prior behaviour, so on the
     #: operational path answer generation is exactly one call.
     #: See docs/design-rationale.md#self-consistency-arm
@@ -818,6 +826,14 @@ A43 = replace(A42, name="A43", unit_line=True)
 #: See docs/design-rationale.md#amount-coverage
 A44 = replace(A43, name="A44", amount_coverage_gate=True)
 
+# --- Counterparty universe/non-universe branch line, off the ladder ---------
+#: One flag apart from the operational default. States which counterparties in
+#: an enumerated set sit inside the 70-company coverage universe and which sit
+#: outside it, so a question asking how the set divides into groups has that
+#: split named instead of left for the model to invent from the wrong axis.
+#: See docs/design-rationale.md#counterparty-branch
+A45 = replace(A43, name="A45", counterparty_branch=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -865,7 +881,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
+             "A45", "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
 #: The ladder itself. The embedding arms and the leave-one-outs do not belong
@@ -910,7 +926,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A24B, A24BS, A25, A26, A25_A26, A27B, A28, A31, A32, A33,
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
-                         V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44)}
+                         V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

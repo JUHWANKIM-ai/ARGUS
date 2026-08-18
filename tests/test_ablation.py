@@ -2686,6 +2686,40 @@ def test_amount_coverage_gate_is_unreachable_without_the_verifier():
         replace(ablation.A0, name="bad", amount_coverage_gate=True)
 
 
+def test_a45_turns_on_only_the_counterparty_branch():
+    """`A45` = `A43`(운영 기본값) + `counterparty_branch` 하나. 기본값은 그대로 `A43`이다.
+    See docs/design-rationale.md#counterparty-branch
+    """
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["A45"], f) != getattr(ablation.A43, f)]
+    assert diff == ["counterparty_branch"], diff
+    assert ablation.ARMS["A45"].counterparty_branch is True
+    assert ablation.A43.counterparty_branch is False
+    assert "A45" in ablation.SIDE_ARMS
+    assert "A45" not in ablation.LADDER and "A45" not in ablation.LOO_REMOVED
+    assert "A45" in ablation.RUN_ORDER
+    # The default arm is untouched: resetting the switches still reproduces
+    # `A43` exactly, not `A45`.
+    assert ablation.current() == ablation.A43
+    assert ablation.current().counterparty_branch is False
+
+
+def test_counterparty_branch_is_unreachable_without_the_hop_ladder():
+    """`_enumerate_events` only runs when `arm.hop_ladder` is True, so the
+    flag being on without it would report a delta of zero for a component
+    that never ran.
+
+    `A1B` rather than `A0` is the base here: `A0` also has `retrieval="meta"`,
+    which would raise for a different, unrelated reason
+    (`META_UNREACHABLE_FLAGS`) and the test would pass without ever exercising
+    the `FLAG_DEPENDENCIES` check it names.
+    """
+    assert "counterparty_branch" in ablation.FLAG_DEPENDENCIES["hop_ladder"]
+    assert ablation.A1B.retrieval != "meta" and not ablation.A1B.hop_ladder
+    with pytest.raises(ValueError, match="counterparty_branch"):
+        replace(ablation.A1B, name="bad", counterparty_branch=True)
+
+
 def test_self_consistency_at_temperature_zero_is_rejected():
     """온도 0 에서 k 를 올리면 표본이 전부 같아 다수결이 정의상 만장일치가 된다.
     그 0 을 "SC 는 효과가 없다" 로 읽는 것이 이 저장소가 막으려는 사고다."""
