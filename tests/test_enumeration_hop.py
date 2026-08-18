@@ -343,6 +343,69 @@ def test_the_orderer_branch_carries_one_contract_each():
     assert "1,250,850,298,678" in line
 
 
+#: Three priced records whose titles share no token with each other, with the
+#: 두코바니/신한울 fixtures above, or with any other string in this file. A
+#: prior version of the tests below asserted "신한울" and "두코바니" both
+#: appear in the line, which passed even when the branch caps were made equal
+#: or removed entirely: 두코바니 reaches the line through 한국수력원자력's own
+#: one contract regardless of what 두산에너빌리티's cap allows through. These
+#: unique tokens close that gap — a title's presence or absence can only be
+#: explained by the cap that gates it, never by another counterparty's
+#: contract supplying the same word by coincidence.
+def _distinct_priced_records() -> list[dict]:
+    return [
+        {"rcept_no": "distinct-1",
+         "title": "단일판매ㆍ공급계약체결 — 톈진프로젝트설비공급", "amount": 111_111_111},
+        {"rcept_no": "distinct-2",
+         "title": "단일판매ㆍ공급계약체결 — 오슬로항만증설공사", "amount": 222_222_222},
+        {"rcept_no": "distinct-3",
+         "title": "단일판매ㆍ공급계약체결 — 나이로비수처리설비", "amount": 333_333_333},
+    ]
+
+
+def test_the_supplier_branch_truncates_a_third_contract():
+    """MAX_BRANCH_CONTRACTS_SUPPLIER caps the supplier branch at two. The
+    sibling (orderer) counterparty here is bare, so every priced title in the
+    line comes from the supplier side alone: the third record's absence can
+    only be explained by the cap. Widening the cap to three, or removing the
+    `[:limit]` slice, would make 나이로비수처리설비 appear and this test would
+    fail — which is the point of the assertion."""
+    groups = {"두산에너빌리티": _distinct_priced_records(),
+              "한국수력원자력": [{"rcept_no": "hk-0"}]}          # bare: contributes nothing
+    line = aggregate.counterparty_branch(groups)
+    assert "톈진프로젝트설비공급" in line and "111,111,111" in line
+    assert "오슬로항만증설공사" in line and "222,222,222" in line
+    assert "나이로비수처리설비" not in line and "333,333,333" not in line
+
+
+def test_the_orderer_branch_truncates_a_second_contract():
+    """MAX_BRANCH_CONTRACTS_ORDERER caps the orderer branch at one. The
+    sibling (supplier) counterparty here is bare, so the second record's
+    absence can only be explained by this branch's own cap, not by anything
+    the supplier side contributes."""
+    groups = {"한국수력원자력": _distinct_priced_records()[:2],
+              "두산에너빌리티": [{"rcept_no": "de-0"}]}          # bare: contributes nothing
+    line = aggregate.counterparty_branch(groups)
+    assert "톈진프로젝트설비공급" in line and "111,111,111" in line
+    assert "오슬로항만증설공사" not in line and "222,222,222" not in line
+
+
+def test_the_two_branch_caps_are_not_equal():
+    """Pins the asymmetry directly, rather than each cap in isolation. The
+    identical three-record list sits on both a universe and a non-universe
+    counterparty at once, so the second record can only reach the rendered
+    line through the supplier branch (cap 2) — the orderer branch (cap 1)
+    never gets past its first record. It must therefore appear exactly once
+    in the whole line: zero times if both caps collapsed to 1, twice if both
+    widened to 2. Either equalisation breaks this count, which is what makes
+    this assertion a test of the asymmetry and not of either cap alone."""
+    records = _distinct_priced_records()
+    groups = {"두산에너빌리티": records, "한국수력원자력": records}
+    line = aggregate.counterparty_branch(groups)
+    assert line.count("오슬로항만증설공사") == 1
+    assert line.count("222,222,222") == 1
+
+
 def test_a_counterparty_with_no_amount_is_named_only():
     """Nine of the eleven groups hold bare records in this fixture. They must
     still be named, because golden point 1 is the list of orderers."""

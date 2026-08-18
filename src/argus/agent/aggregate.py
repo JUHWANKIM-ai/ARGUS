@@ -430,12 +430,9 @@ def counterparty_branch(groups: dict) -> str:
     outside = [n for n in order if n not in inside]
     if not inside or not outside:
         return ""
-    # The bare name list carried the split but none of its content: a question
-    # asking what the two branches are is answered by the contracts, not by
-    # the company names alone. Contract titles and amounts are source values,
-    # so copying them into the answer is the intended behaviour — unlike our
-    # own predicate, which leaked verbatim once and stays out of this string.
-    # See docs/design-rationale.md#counterparty-branch
+    # Rationale for carrying contract content here (not just names) is in the
+    # docstring above; the two branches use different caps, see
+    # MAX_BRANCH_CONTRACTS_SUPPLIER / MAX_BRANCH_CONTRACTS_ORDERER.
     outside_text = " · ".join(
         _branch_entry(n, groups[n], MAX_BRANCH_CONTRACTS_ORDERER) for n in outside)
     inside_text = " · ".join(
