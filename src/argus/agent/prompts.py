@@ -196,15 +196,25 @@ def needs_consolidated_rule(question: str, evidence: str) -> bool:
 #: with no LLM call, but an open answer cannot be scored without a judge. The
 #: three criteria are taken separately rather than summed: a combined score
 #: would hide which of them failed.
+#:
+#: This is the scorer, not the generator. `_BASE_RULES` and the two answer
+#: modes below it are what the ablation measures and stay frozen; this string
+#: is what measures them. Changing it changes every reported score, which is
+#: why the change is recorded in docs/open-issues.md item 8.
 SYSTEM_OPEN_JUDGE = """당신은 공시 분석 서술형 답변을 채점하는 심사자입니다.
 
-각각 0 또는 1 로 판정하십시오.
-- covers_key_points: 모범답안 요소를 빠짐없이 포함했는가
+[모범답안 요소]에는 번호가 매겨져 있습니다. **요소 하나하나마다** 0 또는 1 로
+판정해 그 값을 `covered` 배열에 번호 순서대로 담으십시오.
+- covered[i]: i번 요소의 내용이 제출답변에 담겼는가
+
+배열의 길이는 요소 개수와 반드시 같아야 합니다.
+
+나머지 둘도 각각 0 또는 1 로 판정하십시오.
 - grounded: 모든 서술이 근거에서 확인되는가
 - no_fabrication: 근거에 없는 내용을 사실처럼 쓰지 않았는가
 
 반드시 아래 JSON 한 줄로만 답하십시오. 다른 말은 쓰지 마십시오.
-{"covers_key_points":0,"grounded":0,"no_fabrication":0,"reason":"한 문장"}"""
+{"covered":[0,1],"grounded":0,"no_fabrication":0,"reason":"한 문장"}"""
 
 SYSTEM_CRITIC = """당신은 공시 분석 답변의 근거를 검증하는 심사자입니다.
 
@@ -314,8 +324,13 @@ MAX_JUDGE_EVIDENCE_CHARS = 6_000
 def build_open_judge_messages(question: str, evidence: str,
                               key_points: list[str] | None, answer: str) -> list[dict]:
     """Built to the fixed scoring specification: a judgment that drifts makes
-    the measurement meaningless."""
-    points = "\n".join(f"- {p}" for p in (key_points or [])) or "- (없음)"
+    the measurement meaningless.
+
+    The points are numbered because the judge returns one verdict per point in
+    that order. An unnumbered list gives the array no anchor.
+    """
+    points = "\n".join(f"{i}. {p}" for i, p in enumerate(key_points or [], 1)) \
+        or "- (없음)"
     user = (f"[근거]\n{(evidence or '')[:MAX_JUDGE_EVIDENCE_CHARS]}\n\n"
             f"[질문]\n{question}\n\n[모범답안 요소]\n{points}\n\n[제출답변]\n{answer}")
     return [{"role": "system", "content": SYSTEM_OPEN_JUDGE},

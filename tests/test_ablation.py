@@ -2082,7 +2082,9 @@ def _stub_judge(monkeypatch, verdicts):
     def fake(question, evidence, key_points, answer, budget=None):
         mark = verdicts[min(len(calls), len(verdicts) - 1)]
         calls.append(answer)
-        return critic.OpenVerdict(mark, mark, mark, f"stub#{len(calls)}")
+        # `covered` is an array now. One covered point is a majority of one,
+        # so a True mark still reads as covered and a False one does not.
+        return critic.OpenVerdict((mark,), mark, mark, f"stub#{len(calls)}")
 
     monkeypatch.setattr(critic, "judge_open", fake)
     return calls

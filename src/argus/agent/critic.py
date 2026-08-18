@@ -54,11 +54,29 @@ class Verdict:
 
 @dataclass
 class OpenVerdict:
-    """Open-question scoring result. The three criteria are not summed."""
-    covers_key_points: bool
+    """Open-question scoring result. The three criteria are not summed.
+
+    `covered` holds one verdict per golden key point. `covers_key_points` is a
+    strict majority over that array rather than one judgement over all points
+    together: the single boolean let an answer covering three of six points
+    score as correct. See docs/open-issues.md item 8.
+    """
+    covered: tuple[bool, ...]
     grounded: bool
     no_fabrication: bool
     reason: str
+
+    @property
+    def covers_key_points(self) -> bool:
+        """Strict majority. Five points need three, six need four.
+
+        A tie fails. An empty array fails: an open question with no golden
+        points cannot be scored, and reporting it as covered would score the
+        absence of a standard as a pass.
+        """
+        if not self.covered:
+            return False
+        return sum(self.covered) * 2 > len(self.covered)
 
     @property
     def correct(self) -> bool:
@@ -1588,24 +1606,34 @@ def judge_open(question: str, evidence: str, key_points: list[str] | None,
     """Score an open-ended answer. One LLM call; closed questions are scored by
     normalised exact match and never reach here.
 
-    A parse failure is a scoring failure rather than a wrong answer: all three
-    criteria are set false and the reason records what happened.
+    A parse failure is a scoring failure rather than a wrong answer: `covered`
+    is emptied, both remaining axes are set false, and the reason records what
+    happened. A `covered` array whose length differs from the point count is
+    the same kind of failure — the judge did not count the points — and
+    padding it would turn that into a wrong answer.
     """
+    points = list(key_points or [])
     result = chat(build_open_judge_messages(question, evidence, key_points, answer),
-                  max_tokens=200, temperature=0.0, tag="judge_open")
+                  max_tokens=300, temperature=0.0, tag="judge_open")
     if budget:
         budget.spend_llm(result.prompt_tokens, result.completion_tokens)
 
     match = _JSON.search(result.text or "")
     if not match:
-        return OpenVerdict(False, False, False, "judge 응답 파싱 실패")
+        return OpenVerdict((), False, False, "judge 응답 파싱 실패")
     try:
         data = json.loads(match.group(0))
     except json.JSONDecodeError:
-        return OpenVerdict(False, False, False, "judge 응답 파싱 실패")
+        return OpenVerdict((), False, False, "judge 응답 파싱 실패")
+
+    covered = data.get("covered")
+    if not isinstance(covered, list) or len(covered) != len(points):
+        got = len(covered) if isinstance(covered, list) else "없음"
+        return OpenVerdict((), False, False,
+                           f"judge 요점 판정 길이 불일치 (받은 것 {got} · 요점 {len(points)})")
 
     return OpenVerdict(
-        covers_key_points=bool(data.get("covers_key_points")),
+        covered=tuple(bool(c) for c in covered),
         grounded=bool(data.get("grounded")),
         no_fabrication=bool(data.get("no_fabrication")),
         reason=str(data.get("reason", "")),
