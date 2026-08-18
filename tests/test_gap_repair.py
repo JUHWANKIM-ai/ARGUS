@@ -232,6 +232,55 @@ def test_a_longer_integer_is_not_counted_as_the_figure():
     assert "500,000,000" in out and "700,000,000" in out
 
 
+# --- Finding 3, round 2: a period only matters as a decimal point
+#
+# The first fix over-anchored: `_FIG_D1 = r"(?![\d,.])"` blocked a following
+# period unconditionally, so a figure stated right before an ordinary
+# Korean sentence period ("68.19%.") was counted absent — the opposite
+# error from the one just fixed, and the newer, visible kind (a redundant
+# append the reader can see, rather than a silent no-op). A period is only
+# a decimal continuation, and therefore only worth blocking, when a digit
+# sits on its far side too.
+#
+# The same question was checked on the leading side rather than assumed
+# fine: `_figure_present` compares space-stripped text, and stripping
+# removes the space that ordinarily sits between a sentence's period and
+# the figure opening the next clause. An unconditional leading period block
+# was checked against that shape directly and found to reject a plainly
+# stated figure the same way — so the leading side needed the same
+# digit-conditional narrowing, not just the trailing side the finding named.
+
+def test_a_sentence_final_period_does_not_block_the_trailing_figure():
+    """A figure immediately followed by a Korean sentence's period (no space
+    before the period, as in "68.19%.") must still count as present — that
+    period is sentence punctuation, not a decimal continuation. The line has
+    three figures; this states two of them (majority), so the repair must
+    stay silent."""
+    answer = "비율은 68.19%. 다른 금액은 700,000,000원 입니다."
+    out, reason = aggregate.repair_gap(answer, COLLISION_EVIDENCE)
+    assert out == answer and reason == ""
+
+
+def test_a_sentence_period_with_a_stripped_space_does_not_block_the_leading_figure():
+    """The presence check strips all spaces from the answer (so
+    "44, 200, 027" still matches "44,200,027"), which also strips the space
+    that ordinarily separates a sentence's period from the figure opening
+    the next clause. An unconditional leading period block would then count
+    a plainly stated figure as absent."""
+    answer = "확인했다. 68.19%이고 700,000,000원 입니다."
+    out, reason = aggregate.repair_gap(answer, COLLISION_EVIDENCE)
+    assert out == answer and reason == ""
+
+
+def test_a_decimal_continuation_is_not_counted_as_the_figure():
+    """"20,000,000.50" is a different, more precise number than
+    "20,000,000" and must not count as coverage of it."""
+    answer = "확인된 금액은 20,000,000.50원 입니다."
+    out, reason = aggregate.repair_gap(answer, BOUNDARY_EVIDENCE)
+    assert reason
+    assert "40,000,000" in out
+
+
 # --- Finding 4: the repair reaches more than the narrative lines, on purpose
 #
 # `substitute` and `state_total` both read `_total`, which returns None for

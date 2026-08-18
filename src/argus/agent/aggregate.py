@@ -1032,11 +1032,26 @@ _LINE_DIRECTIVE = re.compile(
 #: Digit-only boundaries instead of `\b`, the same idiom `safety.py` uses and
 #: for the same reason: Python's `\w` includes Hangul, so a figure followed by
 #: a Korean particle has no word boundary between its last digit and the
-#: particle. Blocking an adjacent digit, comma or decimal point is enough: it
+#: particle. Blocking an adjacent digit or comma is enough on its own: it
 #: keeps a figure from matching inside a longer numeral (`68.19%` inside
 #: `168.19%`, `500,000,000` inside `1,500,000,000`) while still treating
 #: Hangul, `%`, and punctuation as boundaries.
-_FIG_D0, _FIG_D1 = r"(?<![\d,.])", r"(?![\d,.])"
+#:
+#: A period matters only when it is a decimal point, which means a digit
+#: sits on its other side too: `20,000,000` inside `20,000,000.50` (digit
+#: after) or, symmetrically, inside `0.20,000,000` (digit before). An
+#: unconditional period block is wrong on *either* side for the far more
+#: common case of a plain sentence boundary: `_figure_present` compares
+#: space-stripped text (`44, 200, 027` has to match `44,200,027`), and
+#: stripping spaces removes the one that would otherwise sit between a
+#: sentence's period and the figure that opens the next clause
+#: (`확인했다. 68.19%` strips to `확인했다.68.19%`, `68.19%.` stays
+#: `68.19%.`) — the naive unconditional block was checked against exactly
+#: that case and found to reject a plainly-stated figure. Blocking the
+#: period only when a digit sits on the far side too keeps that failure
+#: closed on both sides.
+_FIG_D0 = r"(?<![\d,])(?<!\d\.)"
+_FIG_D1 = r"(?![\d,])(?!\.\d)"
 
 
 def _figure_present(figure: str, body: str) -> bool:
