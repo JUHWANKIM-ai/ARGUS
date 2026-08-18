@@ -7,8 +7,6 @@ See docs/open-issues.md item 8.
 """
 import json
 
-import pytest
-
 from argus.agent import critic, prompts
 
 
