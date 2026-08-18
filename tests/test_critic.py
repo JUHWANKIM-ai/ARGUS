@@ -734,6 +734,69 @@ def test_verify_completeness_amount_gap_counts_the_whole_evidence_not_only_block
     assert out["failed_kinds"] == ["amount_gap"]
 
 
+# The ratio branch of the same check. `money_values` never sees a percentage,
+# so a question answered entirely in ratios was outside the check's reach and
+# Q-106 dropped an 18.05%p collapse with nothing recorded.
+# See docs/open-issues.md item 9.
+
+RATIO_GAP_EVIDENCE = """## [대량보유상황보고서] 두산로보틱스 · 보고자 (주)두산
+- 보유비율: 이번 68.19%
+
+## [대량보유상황보고서] 두산로보틱스 · 보고자 (주)두산
+- 보유비율: 직전 68.19% → 이번 68.15%
+
+## [대량보유상황보고서] 두산로보틱스 · 보고자 (주)두산
+- 보유비율: 직전 68.15% → 이번 68.11%
+
+## [대량보유상황보고서] 두산로보틱스 · 보고자 (주)두산
+- 보유비율: 직전 68.11% → 이번 50.06%"""
+
+RATIO_GAP_QUESTION = "(주)두산이 보고한 보유비율이 어떻게 변해 왔는지 설명해줘."
+RATIO_GAP_THIN_ANSWER = "보유비율은 68.19% 에서 시작해 소폭 줄었습니다."
+
+
+def test_amount_gap_fires_on_a_ratio_answer_that_covers_less_than_half():
+    """Four distinct ratios in the evidence, one in the answer. The question
+    asks how the value changed and names a ratio, so both extra premises hold.
+    """
+    out = critic.verify_completeness(
+        RATIO_GAP_QUESTION, RATIO_GAP_THIN_ANSWER, RATIO_GAP_EVIDENCE,
+        amount_coverage=True)
+    assert out["ok"] is False
+    assert out["failed_kinds"] == ["amount_gap"]
+    assert "비율" in out["reason"]
+
+
+def test_amount_gap_is_silent_when_the_answer_covers_the_ratios():
+    answer = "보유비율은 68.19% → 68.15% → 68.11% → 50.06% 로 줄었습니다."
+    out = critic.verify_completeness(
+        RATIO_GAP_QUESTION, answer, RATIO_GAP_EVIDENCE, amount_coverage=True)
+    assert out["ok"] is True
+
+
+def test_amount_gap_ratio_branch_needs_the_question_to_name_a_ratio():
+    """Evidence carries ratios on almost every contract filing (매출액대비).
+    Without this premise the branch would fire across the corpus."""
+    out = critic.verify_completeness(
+        "계약 상황을 각각 정리해줘.", RATIO_GAP_THIN_ANSWER, RATIO_GAP_EVIDENCE,
+        amount_coverage=True)
+    assert "amount_gap" not in out["failed_kinds"]
+
+
+def test_amount_gap_ratio_branch_needs_enough_evidence_ratios():
+    thin = "## [보고서] 두산\n- 보유비율: 이번 68.19%\n\n## [보고서] 두산\n- 보유비율: 이번 68.15%"
+    out = critic.verify_completeness(
+        RATIO_GAP_QUESTION, "보유비율은 68.19% 입니다.", thin, amount_coverage=True)
+    assert "amount_gap" not in out["failed_kinds"]
+
+
+def test_amount_gap_ratio_branch_stays_silent_on_a_refusal():
+    out = critic.verify_completeness(
+        RATIO_GAP_QUESTION, "공시 근거에는 해당 내용이 포함되어 있지 않습니다.",
+        RATIO_GAP_EVIDENCE, amount_coverage=True)
+    assert "amount_gap" not in out["failed_kinds"]
+
+
 def test_verify_completeness_is_noop_without_evidence():
     out = critic.verify_completeness("계약금액은?", "97,000,000,000원입니다.", "")
     assert out["ok"] is True and out["failed_kinds"] == [] and out["failure_stage"] is None

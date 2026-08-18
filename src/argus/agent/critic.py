@@ -1230,6 +1230,24 @@ AMOUNT_GAP_SET_ASK = (
     "어떻게 변", "나뉜다", "갈래", "무엇이 달라",
 )
 
+#: Minimum count of distinct ratios the evidence has to carry for the ratio
+#: branch of the coverage premise to hold. Higher than the amount floor:
+#: a contract filing states its 매출액대비 ratio as a matter of course, so two
+#: ratios in the evidence carry far less signal than two amounts do.
+#: See docs/design-rationale.md#ratio-coverage
+RATIO_GAP_MIN_EVIDENCE = 3
+
+#: Substrings marking a question whose answer is expected to be made of
+#: ratios. Without this premise the branch fires wherever a filing states its
+#: revenue ratio, which is nearly everywhere.
+#: See docs/design-rationale.md#ratio-coverage
+RATIO_ASK = ("비율", "지분", "퍼센트", "%", "%p", "포인트")
+
+
+def _ratios(text: str) -> set[str]:
+    """Distinct percentage figures in a text, as written."""
+    return {m.group(1) for m in _PCT_RE.finditer(text or "")}
+
 
 def _figures(text: str) -> set[str]:
     out = set()
@@ -1441,15 +1459,40 @@ def verify_completeness(question: str, answer: str, evidence,
     # on evidence shaped that way. The premise asks what the model was shown,
     # which is the whole evidence text, not the reassembly.
     # See docs/design-rationale.md#amount-coverage
+    #
+    # The ratio branch. `money_values` never matches a percentage, so a
+    # question whose answer is made of ratios sat outside this check entirely
+    # and Q-106 dropped a 68.11% -> 50.06% collapse with nothing recorded.
+    # The branch is narrowed the same way the amount branch is: the question
+    # has to name a ratio, and the evidence floor is higher, because a filing
+    # states its revenue ratio as a matter of course.
+    # See docs/design-rationale.md#ratio-coverage
     asks_for_set = any(term in (question or "") for term in AMOUNT_GAP_SET_ASK)
-    evidence_amounts = money_values(_evidence_text(evidence))
-    if not (amount_coverage and asks_for_set
-            and len(evidence_amounts) >= AMOUNT_GAP_MIN_EVIDENCE):
+    evidence_text = _evidence_text(evidence)
+    evidence_amounts = money_values(evidence_text)
+    evidence_ratios = _ratios(evidence_text)
+    amount_premise = len(evidence_amounts) >= AMOUNT_GAP_MIN_EVIDENCE
+    ratio_premise = (len(evidence_ratios) >= RATIO_GAP_MIN_EVIDENCE
+                     and any(t in (question or "") for t in RATIO_ASK))
+    if not (amount_coverage and asks_for_set and (amount_premise or ratio_premise)):
         _record("amount_gap", False)
     else:
-        fires = not _ADMIT.search(text) and not money_values(text)
-        _record("amount_gap", True,
-                "근거에 금액이 여럿 있는데 답이 금액을 하나도 쓰지 않았다" if fires else "")
+        admits = bool(_ADMIT.search(text))
+        amount_fires = amount_premise and not money_values(text)
+        # Half of the evidence ratios, not all of them: an answer is allowed
+        # to leave out the incidental ones. Missing most of them is what the
+        # measured defect looked like.
+        covered_ratios = _ratios(text) & evidence_ratios
+        ratio_fires = (ratio_premise
+                       and len(covered_ratios) * 2 < len(evidence_ratios))
+        fires = not admits and (amount_fires or ratio_fires)
+        detail = ""
+        if fires and amount_fires:
+            detail = "근거에 금액이 여럿 있는데 답이 금액을 하나도 쓰지 않았다"
+        elif fires:
+            detail = (f"근거의 비율 {len(evidence_ratios)}종 중 "
+                      f"{len(covered_ratios)}종만 답에 담겼다")
+        _record("amount_gap", True, detail)
 
     failed = sorted({g["kind"] for g in gaps})
     return {
