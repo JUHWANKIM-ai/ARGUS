@@ -1173,3 +1173,51 @@ def test_the_real_targets_carry_their_reason_into_the_prompt(monkeypatch, qid, n
         pipeline._verify(resp["question"], body, resp["retrieved_context"], r, [], Budget())
     assert len(seen) == 1, f"{qid} 에서 재생성이 안 돌았다"
     assert needle in _prompt_of(seen[0])
+
+
+# --- Amount coverage, off by default -----------------------------------------
+# See docs/design-rationale.md#amount-coverage
+#
+# `A44` is `A43` (the operational default) plus `amount_coverage_gate` alone.
+# The point of the flag is that a firing check actually changes the answer,
+# so the wiring is proven end to end through `pipeline._verify`: the gap has
+# to reach the reasons list `_regenerate_once` carries into the prompt, and
+# the untouched default arm has to leave the same input untouched.
+
+A44_ARM = ablation.ARMS["A44"]
+
+#: Two amounts in the evidence, a "report both" question, and a silent
+#: answer with neither figure and no refusal wording.
+AMOUNT_GAP_QUESTION = "삼성중공업과 한화오션의 계약금액은 각각 얼마인가?"
+AMOUNT_GAP_EVIDENCE = ("## [공급계약 체결] 삼성중공업 – 단일판매ㆍ공급계약체결 — "
+                       "원유운반선 2척\n- 계약금액: 100,000,000,000원\n\n"
+                       "## [공급계약 체결] 한화오션 – 단일판매ㆍ공급계약체결 — 잠수함 1척\n"
+                       "- 계약금액: 200,000,000,000원")
+AMOUNT_GAP_SILENT_ANSWER = "두 계약 모두 정상적으로 체결되어 이행 중입니다."
+AMOUNT_GAP_REGENERATED = "삼성중공업 100,000,000,000원, 한화오션 200,000,000,000원입니다."
+
+
+def test_amount_gap_reason_reaches_the_regeneration_prompt(monkeypatch):
+    """`_verdict` 의 `reasons` 는 재생성 프롬프트가 그대로 읽는 자리다. `amount_gap` 이
+    거기 닿지 않으면 발화해도 아무것도 안 바뀐다 — 배선이 이 변경의 전부다."""
+    r = types.SimpleNamespace(companies=[], use_cot=False)
+    seen = _fake_chat(monkeypatch, [AMOUNT_GAP_REGENERATED])
+    with ablation.use(A44_ARM):
+        out = pipeline._verify(AMOUNT_GAP_QUESTION, AMOUNT_GAP_SILENT_ANSWER,
+                               AMOUNT_GAP_EVIDENCE, r, [], Budget())
+    assert len(seen) == 1, "🔴 amount_gap 이 발화했는데 재생성이 안 돌았다"
+    prompt = _prompt_of(seen[0])
+    assert "근거에 금액이 여럿 있는데 답이 금액을 하나도 쓰지 않았다" in prompt
+    assert out == AMOUNT_GAP_REGENERATED, "고쳐진 답을 채택해야 한다"
+
+
+def test_amount_gap_does_not_fire_on_the_untouched_default_arm(monkeypatch):
+    """`A44` 와 `A43` 의 유일한 차이는 `amount_coverage_gate` 다. 그 플래그가 꺼진 운영
+    기본값에서는 같은 입력이 answer도 trace도 chat 호출도 바꾸지 않아야 한다."""
+    r = types.SimpleNamespace(companies=[], use_cot=False)
+    seen = _fake_chat(monkeypatch, [AMOUNT_GAP_REGENERATED])
+    with ablation.use(ablation.A43):
+        out = pipeline._verify(AMOUNT_GAP_QUESTION, AMOUNT_GAP_SILENT_ANSWER,
+                               AMOUNT_GAP_EVIDENCE, r, [], Budget())
+    assert seen == [], "🔴 amount_coverage_gate 가 꺼진 arm 에서 재생성이 돌았다"
+    assert out == AMOUNT_GAP_SILENT_ANSWER, "🔴 운영 기본값의 답이 바뀌었다"

@@ -1139,6 +1139,7 @@ COMPLETENESS_STAGES = {
     "missing_corp": "RETRIEVAL",     # a comparison is missing one company
     "stale_value": "GENERATION",     # the latest record arrived, the answer used the superseded one
     "interim_source": "GENERATION",  # the annual record arrived, the answer used the interim one
+    "amount_gap": "GENERATION",      # the evidence carried amounts, the answer stated none
 }
 
 #: Whether the question touches the revision or termination axis.
@@ -1186,6 +1187,21 @@ _RCEPT = re.compile(r"^\d{14}$")
 #: as a superseded value, because it matched the date in an evidence header.
 #: See docs/design-rationale.md#completeness-checks
 _DATE8 = re.compile(r"^(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])$")
+
+#: Minimum amount count the evidence has to carry for the coverage premise to
+#: hold. Below this, an answer with no amount is not distinguishable from
+#: evidence that simply carries too few figures to expect one.
+#: See docs/design-rationale.md#amount-coverage
+AMOUNT_GAP_MIN_EVIDENCE = 2
+
+#: Substrings marking a question that asks for several figures to be reported
+#: together, rather than a single value. Restricting the check to these cuts
+#: the false-alarm rate the bare premise carries on its own.
+#: See docs/design-rationale.md#amount-coverage
+AMOUNT_GAP_SET_ASK = (
+    "각각", "어디이며", "정리해", "비교", "관계", "달라진",
+    "어떻게 변", "나뉜다", "갈래", "무엇이 달라",
+)
 
 
 def _figures(text: str) -> set[str]:
@@ -1284,7 +1300,8 @@ def _fmt_figures(values) -> str:
 
 
 def verify_completeness(question: str, answer: str, evidence,
-                        *, companies: Sequence[str] | None = None) -> dict:
+                        *, companies: Sequence[str] | None = None,
+                        amount_coverage: bool = False) -> dict:
     """Whether the evidence is sufficient. No LLM call.
 
     The return shape is not the same as the other deterministic checks, despite
@@ -1293,8 +1310,12 @@ def verify_completeness(question: str, answer: str, evidence,
     them: a gap is a list of what is absent from the evidence rather than a
     recomputation, and the pipeline reads the two differently.
 
-    This does not overlap the support axis the judge covers. Four defects are
-    caught here, each with its own premise and failure-stage attribution.
+    This does not overlap the support axis the judge covers. Five defects are
+    caught here, each with its own premise and failure-stage attribution. The
+    fifth, amount coverage, is opt-in through the `amount_coverage` keyword
+    rather than a module-level flag, the same way `companies` is opt-in: this
+    module reads no ablation flags, so the pipeline decides the value and
+    passes it in.
 
     A premise that does not hold is recorded as skipped rather than passed.
 
@@ -1376,6 +1397,25 @@ def verify_completeness(question: str, answer: str, evidence,
         _record("missing_corp", True,
                 f"비교 질의인데 근거에 {', '.join(missing)} 이(가) 없다" if missing else "")
 
+    # Amount coverage: the evidence carries several monetary figures and the
+    # answer states none at all. The bare premise alone fires on far more
+    # correct answers than wrong ones, so it is narrowed by two more premises:
+    # the question asks for a set of figures to be reported, and the answer
+    # does not read as a refusal. A refusal legitimately carries no figures,
+    # and `_ADMIT` is the same admission signal `evidence_gap` reads, applied
+    # in the opposite direction: there an admission is the defect, here its
+    # absence is a condition for one.
+    # See docs/design-rationale.md#amount-coverage
+    asks_for_set = any(term in (question or "") for term in AMOUNT_GAP_SET_ASK)
+    evidence_amounts = [v for b in blocks for v in money_values(b["text"])]
+    if not (amount_coverage and asks_for_set
+            and len(evidence_amounts) >= AMOUNT_GAP_MIN_EVIDENCE):
+        _record("amount_gap", False)
+    else:
+        fires = not _ADMIT.search(text) and not money_values(text)
+        _record("amount_gap", True,
+                "근거에 금액이 여럿 있는데 답이 금액을 하나도 쓰지 않았다" if fires else "")
+
     failed = sorted({g["kind"] for g in gaps})
     return {
         "ok": not gaps,
@@ -1408,6 +1448,12 @@ PREMISE_DRIFT_FACTOR = 2.0
 #: Applying a precision figure from one response set to another was the direct
 #: cause of an earlier misreading, so each snapshot names its response set and
 #: the tests re-verify it exhaustively.
+#:
+#: `amount_gap` did not exist when these three snapshots were measured, and the
+#: check stays off unless `amount_coverage=True` is passed in, so it is
+#: recorded here as never checked and never fired rather than left out. Leaving
+#: it out would break the invariant that a snapshot names every kind in
+#: `COMPLETENESS_STAGES`.
 COMPLETENESS_SNAPSHOTS = {
     "phase_h": {
         "responses": "artifacts/eval/responses",
@@ -1415,9 +1461,9 @@ COMPLETENESS_SNAPSHOTS = {
         "golden_evidence": "38/60",
         "n": 42, "correct": 25,
         "checked": {"evidence_gap": 7, "stale_value": 1,
-                    "interim_source": 4, "missing_corp": 3},
+                    "interim_source": 4, "missing_corp": 3, "amount_gap": 0},
         "fired": {"evidence_gap": 5, "stale_value": 1,
-                  "interim_source": 1, "missing_corp": 0},
+                  "interim_source": 1, "missing_corp": 0, "amount_gap": 0},
     },
     "ablation_a6": {
         "responses": "artifacts/ablation/A6/responses",
@@ -1425,9 +1471,9 @@ COMPLETENESS_SNAPSHOTS = {
         "golden_evidence": "59/60",
         "n": 42, "correct": 36,
         "checked": {"evidence_gap": 7, "stale_value": 7,
-                    "interim_source": 3, "missing_corp": 3},
+                    "interim_source": 3, "missing_corp": 3, "amount_gap": 0},
         "fired": {"evidence_gap": 0, "stale_value": 1,
-                  "interim_source": 0, "missing_corp": 0},
+                  "interim_source": 0, "missing_corp": 0, "amount_gap": 0},
     },
     # Same configuration as the snapshot above, with no flag different. What
     # changed is the answers: the refusal gate and the as-of rule altered the
@@ -1442,9 +1488,9 @@ COMPLETENESS_SNAPSHOTS = {
         "golden_evidence": "59/60",
         "n": 42, "correct": 38,
         "checked": {"evidence_gap": 7, "stale_value": 6,
-                    "interim_source": 2, "missing_corp": 3},
+                    "interim_source": 2, "missing_corp": 3, "amount_gap": 0},
         "fired": {"evidence_gap": 0, "stale_value": 1,
-                  "interim_source": 0, "missing_corp": 0},
+                  "interim_source": 0, "missing_corp": 0, "amount_gap": 0},
     },
 }
 

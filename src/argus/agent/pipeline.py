@@ -2845,7 +2845,13 @@ def _verdict(question: str, answer: str, evidence: str, records: list[dict], r,
     compared = list(r.companies or [])
     if ablation.enabled("counterparty_exempt") and getattr(r, "counterparty", None):
         compared = [c for c in compared if c != r.counterparty]
-    complete = verify_completeness(question, answer, evidence, companies=compared)
+    # The amount-coverage kind is passed as a plain argument rather than read
+    # from `ablation` inside `verify_completeness`, so that module continues
+    # to import no flags. The pipeline decides the value here, the same way
+    # it decides `compared` above.
+    # See docs/design-rationale.md#amount-coverage
+    complete = verify_completeness(question, answer, evidence, companies=compared,
+                                   amount_coverage=arm.amount_coverage_gate)
 
     kinds = sorted({*(["calculation"] if calc_failed else []), *complete["failed_kinds"],
                     *(provenance["failed_kinds"] if provenance else [])})

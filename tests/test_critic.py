@@ -635,6 +635,82 @@ def test_verify_completeness_passes_when_both_corps_present():
     assert "missing_corp" not in out["failed_kinds"]
 
 
+# --- Amount coverage: evidence carries figures, the answer states none ------
+# Off by default (`amount_coverage=False`). Three premises have to hold at
+# once: the evidence carries at least two amounts, the question asks for a
+# set of figures, and the answer does not read as a refusal.
+# See docs/design-rationale.md#amount-coverage
+
+AMOUNT_GAP_EVIDENCE = """## [공급계약 체결] 삼성중공업 – 단일판매ㆍ공급계약체결 — 원유운반선 2척
+- 계약금액: 100,000,000,000원
+
+## [공급계약 체결] 한화오션 – 단일판매ㆍ공급계약체결 — 잠수함 1척
+- 계약금액: 200,000,000,000원"""
+
+AMOUNT_GAP_QUESTION = "삼성중공업과 한화오션의 계약금액은 각각 얼마인가?"
+AMOUNT_GAP_SILENT_ANSWER = "두 계약 모두 정상적으로 체결되어 이행 중입니다."
+
+
+def test_verify_completeness_catches_amount_gap_when_all_premises_hold():
+    """근거 금액 ≥2 · 여럿 보고 질문 · 답 금액 0 · 거절 아님 — 넷이 다 서면 발화한다."""
+    out = critic.verify_completeness(
+        AMOUNT_GAP_QUESTION, AMOUNT_GAP_SILENT_ANSWER, AMOUNT_GAP_EVIDENCE,
+        amount_coverage=True)
+    assert out["ok"] is False
+    assert out["failed_kinds"] == ["amount_gap"]
+    assert out["failure_stage"] == "GENERATION"
+    assert "amount_gap" in out["checked"]
+
+
+def test_verify_completeness_amount_gap_is_off_by_default():
+    """`amount_coverage` 를 안 넘기면 기본값 `False` 라 조용하다."""
+    out = critic.verify_completeness(
+        AMOUNT_GAP_QUESTION, AMOUNT_GAP_SILENT_ANSWER, AMOUNT_GAP_EVIDENCE)
+    assert out["ok"] is True
+    assert "amount_gap" in out["skipped"]
+    assert "amount_gap" not in out["failed_kinds"]
+
+
+def test_verify_completeness_amount_gap_needs_enough_evidence_amounts():
+    """근거 금액이 하나뿐이면 전제가 안 선다."""
+    one_amount_evidence = ("## [공급계약 체결] 삼성중공업 – 단일판매ㆍ공급계약체결 — "
+                           "원유운반선 2척\n- 계약금액: 100,000,000,000원")
+    out = critic.verify_completeness(
+        AMOUNT_GAP_QUESTION, AMOUNT_GAP_SILENT_ANSWER, one_amount_evidence,
+        amount_coverage=True)
+    assert out["ok"] is True
+    assert "amount_gap" in out["skipped"]
+
+
+def test_verify_completeness_amount_gap_needs_a_set_reporting_question():
+    """질문이 "여럿을 보고하라" 형태(`AMOUNT_GAP_SET_ASK`)가 아니면 전제가 안 선다."""
+    single_question = "삼성중공업 계약금액은 얼마인가?"
+    out = critic.verify_completeness(
+        single_question, AMOUNT_GAP_SILENT_ANSWER, AMOUNT_GAP_EVIDENCE,
+        amount_coverage=True)
+    assert out["ok"] is True
+    assert "amount_gap" in out["skipped"]
+
+
+def test_verify_completeness_amount_gap_passes_when_the_answer_states_a_figure():
+    """답이 금액을 하나라도 말하면 결함이 아니다."""
+    out = critic.verify_completeness(
+        AMOUNT_GAP_QUESTION, "삼성중공업 계약금액은 100,000,000,000원입니다.",
+        AMOUNT_GAP_EVIDENCE, amount_coverage=True)
+    assert out["ok"] is True
+    assert "amount_gap" in out["checked"]
+
+
+def test_verify_completeness_amount_gap_passes_on_a_refusal():
+    """답이 `_ADMIT` 자백 신호를 담으면 결함이 아니다 — 정당한 거절의 침묵이다."""
+    refusal_answer = "해당 정보는 근거에 없어 확인되지 않습니다."
+    out = critic.verify_completeness(
+        AMOUNT_GAP_QUESTION, refusal_answer, AMOUNT_GAP_EVIDENCE,
+        amount_coverage=True)
+    assert out["ok"] is True
+    assert "amount_gap" in out["checked"]
+
+
 def test_verify_completeness_is_noop_without_evidence():
     out = critic.verify_completeness("계약금액은?", "97,000,000,000원입니다.", "")
     assert out["ok"] is True and out["failed_kinds"] == [] and out["failure_stage"] is None

@@ -2659,6 +2659,33 @@ def test_v7_4_turns_on_only_the_unit_line():
     assert "V7-4" not in ablation.LADDER and "V7-4" not in ablation.LOO_REMOVED
 
 
+def test_a44_turns_on_only_the_amount_coverage_gate():
+    """`A44` = `A43`(운영 기본값) + `amount_coverage_gate` 하나. 기본값은 그대로 `A43`이다.
+    See docs/design-rationale.md#amount-coverage
+    """
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["A44"], f) != getattr(ablation.A43, f)]
+    assert diff == ["amount_coverage_gate"], diff
+    assert ablation.ARMS["A44"].amount_coverage_gate is True
+    assert ablation.A43.amount_coverage_gate is False
+    assert "A44" in ablation.SIDE_ARMS
+    assert "A44" not in ablation.LADDER and "A44" not in ablation.LOO_REMOVED
+    assert "A44" in ablation.RUN_ORDER
+    # The default arm is untouched: resetting the switches still reproduces
+    # `A43` exactly, not `A44`.
+    assert ablation.current() == ablation.A43
+    assert ablation.current().amount_coverage_gate is False
+
+
+def test_amount_coverage_gate_is_unreachable_without_the_verifier():
+    """`_verify` returns before `_verdict` runs when `verifier=False`, so the
+    flag being on there would report a delta of zero for a component that
+    never ran."""
+    assert "amount_coverage_gate" in ablation.FLAG_DEPENDENCIES["verifier"]
+    with pytest.raises(ValueError, match="amount_coverage_gate"):
+        replace(ablation.A0, name="bad", amount_coverage_gate=True)
+
+
 def test_self_consistency_at_temperature_zero_is_rejected():
     """온도 0 에서 k 를 올리면 표본이 전부 같아 다수결이 정의상 만장일치가 된다.
     그 0 을 "SC 는 효과가 없다" 로 읽는 것이 이 저장소가 막으려는 사고다."""
