@@ -950,7 +950,8 @@ def score_arm(arm: str, cases: list[dict], records: dict, cohort: str = "") -> d
 # 표준편차를 표(Table 6·7·8)로 내는 것과 같은 이유이고 같은 방법이다.
 
 #: 판정을 이루는 세 축. `correct` 는 셋의 AND 다 (`critic.OpenVerdict.correct`).
-JUDGE_FIELDS = ("covers_key_points", "grounded", "no_fabrication")
+#: `covered` 는 요점별 판정 배열이고, `covers_key_points` 는 그 과반 초과다.
+JUDGE_FIELDS = ("covered", "covers_key_points", "grounded", "no_fabrication")
 
 
 def _short(path: Path) -> str:
@@ -1031,7 +1032,9 @@ def judge_sigma(arm: str, cases: list[dict], records: dict,
         if not any(got):
             continue                       # 회차가 하나도 없는 문항 (예산 제동 뒤)
         marks = [None if v is None else bool(v["correct"]) for v in got]
-        fields = {f: [None if v is None else bool(v[f]) for v in got]
+        # `v.get(f)` — `covered` 는 이번에 더한 축이라 이전 판에 저장된 회차 파일에는
+        #    키가 없다. `v[f]` 로 두면 옛 산출물을 재는 순간 KeyError 로 죽는다.
+        fields = {f: [None if v is None or f not in v else bool(v[f]) for v in got]
                   for f in JUDGE_FIELDS}
         base = baseline.get(qid)
         agreed = len(set(marks)) == 1

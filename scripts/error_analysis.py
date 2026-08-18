@@ -1422,6 +1422,19 @@ def run_case(case: dict, force: bool = False) -> tuple[dict, bool]:
     return record, False
 
 
+def judge_open(*args, **kwargs):
+    """`argus.agent.critic.judge_open` 을 그때그때 다시 읽어 부르는 얇은 대리자.
+
+    이 이름을 이 모듈 전역에 두는 이유는 `run_judge` 를 patch 없이 관통시키는
+    시험들이 `critic.judge_open` 을 갈아 끼우기 때문이고(호출마다 새로 읽어야
+    그 patch 가 보인다), 동시에 이 이름 **자체**가 `error_analysis.judge_open`
+    으로 monkeypatch 될 수 있어야 하기 때문이다(판정 결과를 통째로 대신하는
+    시험은 이쪽을 간다). 어느 쪽으로 patch 해도 `run_judge` 는 한 곳만 본다."""
+    from argus.agent.critic import judge_open as _judge_open
+
+    return _judge_open(*args, **kwargs)
+
+
 def run_judge(case: dict, response: dict, force: bool = False,
               path: Path | None = None) -> tuple[dict, bool]:
     """open 문항 채점 (B-5). closed 는 여기 오지 않는다. EM 이 LLM 0회다.
@@ -1454,7 +1467,6 @@ def run_judge(case: dict, response: dict, force: bool = False,
     if path.exists() and not force:
         return json.loads(path.read_text(encoding="utf-8")), True
 
-    from argus.agent.critic import judge_open
     from argus.clova import CALL_LOG
 
     CALL_LOG.clear()
@@ -1468,6 +1480,9 @@ def run_judge(case: dict, response: dict, force: bool = False,
     calls = _call_rows(CALL_LOG.records)
     record = {
         "question_id": case["question_id"],
+        # 어느 요점을 놓쳤는지가 엄격 판정기 변경의 절반이다. 굴린 불리언만
+        # 남기면 다음 처방을 세울 근거가 사라진다.
+        "covered": list(verdict.covered),
         "covers_key_points": verdict.covers_key_points,
         "grounded": verdict.grounded,
         "no_fabrication": verdict.no_fabrication,
@@ -1544,7 +1559,8 @@ def analyse(cases: list[dict], records: dict[str, dict]) -> list[dict]:
             "correct": correct,
             "scored_by": scored.get("by"),
             "judge": judged and {k: judged[k] for k in
-                                 ("covers_key_points", "grounded", "no_fabrication", "reason")},
+                                 ("covered", "covers_key_points", "grounded",
+                                  "no_fabrication", "reason") if k in judged},
             "first_failure": failure["stage"],
             "root_cause": cause,
             "failure_why": failure["why"],
