@@ -105,16 +105,53 @@ def test_a_question_naming_no_project_leaves_the_axis_silent(project_arm):
     assert aggregate._project_token(DUKOVANY, plain) == ""
 
 
-def test_an_empty_result_reverts_instead_of_emptying_the_set(project_arm):
-    """Same defence the counterparty filter already has: a filter that
-    matches nothing is not applied, because uniqueness is what silences this
-    module and an empty set is not uniqueness."""
-    off_project = [dict(r, supply_region="체코") for r in DUKOVANY]
-    for record in off_project:
-        record["title"] = "단일판매ㆍ공급계약체결 — 무관한 계약"
-    picked, _ = aggregate.select(off_project, "체코 사업의 계약금액 합계는?",
-                                 _Route(None), "합")
-    assert len(picked) == 4
+def test_the_project_filter_never_empties_the_set(project_arm):
+    """Pins the real invariant the revert-on-empty guard exists to protect,
+    rather than a record count that would hold even with the guard deleted.
+    `select`'s comment on the guard explains why it is unreachable today
+    (the token's own record always survives its own vocabulary source) and
+    why it stays anyway (a future divergence between the vocabulary source
+    and the narrow-check target should fail safe, not empty the set).
+
+    For every input where `_project_token` finds a token, running the
+    project filter through `select` must never yield an empty set."""
+    cases = (
+        (DUKOVANY, QUESTION, _Route("한국수력원자력")),
+        (DUKOVANY + [SINHANUL], QUESTION, _Route("한국수력원자력")),
+        (DUKOVANY, QUESTION, _Route(None)),
+        ([dict(r, supply_region="체코",
+               title="단일판매ㆍ공급계약체결 — 무관한 계약") for r in DUKOVANY],
+         "체코 사업의 계약금액 합계는?", _Route(None)),
+    )
+    for records, question, route in cases:
+        token = aggregate._project_token(records, question)
+        if token:
+            picked, _ = aggregate.select(records, question, route, "합")
+            assert len(picked) > 0
+
+
+def test_the_project_axis_alone_keeps_the_trap_filing(project_arm):
+    """Isolates which axis removes the trap filing. With no counterparty on
+    the route, the project axis alone must keep all four Dukovany filings --
+    including the trap, whose orderer differs -- because narrowing by
+    project is not this axis's job. Only the counterparty axis afterward
+    removes it. `test_the_wrong_counterparty_filing_is_excluded` checks the
+    combined result, which alone does not show which axis did the work."""
+    picked, note = aggregate.select(DUKOVANY, QUESTION, _Route(None), "합")
+    assert [r["rcept_no"] for r in picked] == [r["rcept_no"] for r in DUKOVANY]
+    assert aggregate._PROJECT_NOTE in note
+
+
+def test_the_tie_break_is_deterministic(project_arm):
+    """Two equal-length region tokens, both present in the question. Without
+    a secondary sort key, `hits` -- built from a `set` -- could return either
+    one depending on `PYTHONHASHSEED`: proven to flip between seed 0 and seed
+    3 before this fix. The secondary key `(-len(t), t)` breaks length ties by
+    codepoint order, which does not depend on the hash seed, so the winner
+    (and the total that follows from it) stays stable across restarts."""
+    records = [{"supply_region": "체코 남부"}]
+    question = "체코 남부 지역 사업의 계약금액 합계는?"
+    assert aggregate._project_token(records, question) == "남부"
 
 
 def test_the_axis_is_off_when_the_flag_is_off():

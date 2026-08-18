@@ -125,7 +125,12 @@ def _project_token(picked: list[dict], question: str) -> str:
     and this function has nothing to read.
 
     The longest hit wins, because a more specific place name is a tighter
-    filter than the country containing it.
+    filter than the country containing it. Ties are broken by codepoint
+    order rather than left to `max`'s first-seen behaviour: `tokens` is
+    built from a `set`, whose iteration order depends on `PYTHONHASHSEED`,
+    so two equal-length hits without a secondary key would make the winner
+    (and therefore the total downstream) change across process restarts with
+    no error raised. A measurement pipeline cannot tolerate that.
     See docs/design-rationale.md#project-scope
     """
     tokens: set[str] = set()
@@ -134,7 +139,9 @@ def _project_token(picked: list[dict], question: str) -> str:
             if len(token) >= MIN_PROJECT_TOKEN:
                 tokens.add(token)
     hits = [t for t in tokens if t in (question or "")]
-    return max(hits, key=len) if hits else ""
+    if not hits:
+        return ""
+    return sorted(hits, key=lambda t: (-len(t), t))[0]
 
 
 def substitute(answer: str, records, question: str, route) -> tuple[str, str]:
@@ -698,6 +705,15 @@ def select(records, question: str, route, op: str = "") -> tuple[list[dict], str
             narrowed = [r for r in picked
                         if token in f"{r.get('title') or ''} "
                                     f"{r.get('supply_region') or ''}"]
+            # `narrowed` cannot be empty today: `token` only ever comes from
+            # some record's own `supply_region` (that is `_project_token`'s
+            # sole vocabulary source), and the check just above re-tests that
+            # same `supply_region`, so that record always survives. The
+            # guard is kept anyway so that if the vocabulary source and this
+            # check ever diverge -- for instance if a token is later also
+            # drawn from `title` while this check still requires
+            # `supply_region` to carry it too -- the filter fails safe by
+            # reverting instead of silently emptying the set.
             if narrowed:
                 picked = narrowed
                 notes.append(f"{token} {_PROJECT_NOTE}")
