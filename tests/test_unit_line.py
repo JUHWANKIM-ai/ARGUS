@@ -25,12 +25,11 @@ def test_an_unknown_unit_is_skipped():
     assert units.unit_line("(단위 : 주)\n| 수량 | 100 |\n") == ""
 
 
-def test_the_unit_line_flag_is_off_by_default_so_the_operational_arm_is_unaffected():
-    # A fresh Arm defaults to False, and so does the operational arm actually
-    # in use (ablation.current()). The pipeline hook sits behind
-    # ablation.enabled("unit_line"), so an untouched operational arm never
-    # reaches units.unit_line and the evidence it builds stays byte-identical.
+def test_the_unit_line_flag_defaults_to_false_but_the_promoted_arm_turns_it_on():
+    # The dataclass default did not move: a fresh Arm still has it off. The
+    # operational arm is A43, which turns this one flag on over A42.
+    # See docs/design-rationale.md#operational-default-history
     assert ablation.Arm("X").unit_line is False
-    assert ablation.current().unit_line is False
-    assert ablation.enabled("unit_line") is False
+    assert ablation.current().unit_line is True
+    assert ablation.enabled("unit_line") is True
     assert "unit_line" in ablation.FLAG_NAMES

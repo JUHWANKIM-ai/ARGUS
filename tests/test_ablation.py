@@ -376,8 +376,8 @@ def test_default_arm_is_the_submission_configuration():
     이 값을 바꾸면 **평가 서버도 다시 배포해야 한다**. `api/server.py` 는 arm 을
     지정하지 않으므로 이것이 곧 주최측이 받는 답변의 구성이다.
     """
-    assert ablation.current() == ablation.A42
-    assert ablation.current().name == "A42"
+    assert ablation.current() == ablation.A43
+    assert ablation.current().name == "A43"
     # v5 정확성 개선 둘. 성적은 안 움직이고 규약 「정확성」 축만 움직인다.
     assert ablation.current().fix_unit_parens is True
     assert ablation.current().counterparty_exempt is True
@@ -396,6 +396,9 @@ def test_default_arm_is_the_submission_configuration():
     assert ablation.current().state_total is True
     # 같은 날 공시 가르기, K-004. 둘 다 근거에 있었고 선택이 틀렸다.
     assert ablation.current().date_disambiguation is True
+    # v7 promotion, A42 -> A43. Three-round minimum 102 -> 107, flipping
+    #    questions 9 -> 3. See docs/design-rationale.md#operational-default-history
+    assert ablation.current().unit_line is True
     # v5 가 켠 여덟 스위치. 하나라도 빠지면 잰 성적이 아니다.
     for flag in ("speculation_gate", "identifier_gate", "reverse_chain",
                  "aggregate_line", "substitute_aggregate", "substitute_verified",
