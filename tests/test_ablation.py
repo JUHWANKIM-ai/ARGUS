@@ -376,8 +376,8 @@ def test_default_arm_is_the_submission_configuration():
     이 값을 바꾸면 **평가 서버도 다시 배포해야 한다**. `api/server.py` 는 arm 을
     지정하지 않으므로 이것이 곧 주최측이 받는 답변의 구성이다.
     """
-    assert ablation.current() == ablation.A42
-    assert ablation.current().name == "A42"
+    assert ablation.current() == ablation.A43
+    assert ablation.current().name == "A43"
     # v5 정확성 개선 둘. 성적은 안 움직이고 규약 「정확성」 축만 움직인다.
     assert ablation.current().fix_unit_parens is True
     assert ablation.current().counterparty_exempt is True
@@ -396,6 +396,9 @@ def test_default_arm_is_the_submission_configuration():
     assert ablation.current().state_total is True
     # 같은 날 공시 가르기, K-004. 둘 다 근거에 있었고 선택이 틀렸다.
     assert ablation.current().date_disambiguation is True
+    # v7 promotion, A42 -> A43. Three-round minimum 102 -> 107, flipping
+    #    questions 9 -> 3. See docs/design-rationale.md#operational-default-history
+    assert ablation.current().unit_line is True
     # v5 가 켠 여덟 스위치. 하나라도 빠지면 잰 성적이 아니다.
     for flag in ("speculation_gate", "identifier_gate", "reverse_chain",
                  "aggregate_line", "substitute_aggregate", "substitute_verified",
@@ -2581,22 +2584,25 @@ def test_w1_arms_call_the_counterparty_hop_with_the_old_arguments():
                                         "prefer": ()})
 
 
-# --- A10, 자기일관성 k=3 (온도 통제 변수를 깨는 유일한 arm) ---------------------
+# --- A10, V7-1: the two arms allowed to move the temperature control -------
 # 09-ablation §I-3 이 "온도 0.0" 을 고정으로 못박았고 v3 까지 그 값은 파이프라인에
 # **하드코딩**돼 있었다. `Arm` 으로 옮기는 조작의 위험은 하나다. **기본값이 0.0 이
-# 아니면 v1~v4 측정이 전부 무효가 된다.** 아래 첫 두 검사가 그것만 본다.
+# 아니면 v1~v4 측정이 전부 무효가 된다.** A10 applies self-consistency to every
+# question, while V7-1 narrows it to the scope the paper states (a fixed
+# answer set and a parser). These are the only two arms that move this
+# control, so the first check below covers both.
 
 def test_temperature_moved_to_the_arm_but_the_default_is_still_zero():
     assert "temperature" in FLAGS and "sc_k" in FLAGS
     for name, arm in ablation.ARMS.items():
-        if name == "A10":
+        if name in ("A10", "V7-1"):
             continue
         assert arm.temperature == 0.0, f"{name} 의 온도가 0.0 이 아니다 — 통제가 깨졌다"
         assert arm.sc_k == 1, f"{name} 이 표본을 둘 이상 뽑는다"
     assert ablation.current().temperature == 0.0        # 스위치를 안 건드린 운영 경로
 
 
-def test_a10_is_the_only_arm_that_moves_the_temperature():
+def test_a10_moves_only_sc_k_and_temperature_from_a8():
     diff = [f for f in FLAGS
             if getattr(ablation.ARMS["A10"], f) != getattr(ablation.A8, f)]
     assert sorted(diff) == ["sc_k", "temperature"], diff
@@ -2604,6 +2610,53 @@ def test_a10_is_the_only_arm_that_moves_the_temperature():
     assert ablation.ARMS["A10"].temperature > 0.0
     assert "A10" in ablation.SIDE_ARMS
     assert "A10" not in ablation.LADDER and "A10" not in ablation.LOO_REMOVED
+
+
+def test_v7_1_narrows_self_consistency_to_the_papers_scope():
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["V7-1"], f) != getattr(ablation.A42, f)]
+    assert sorted(diff) == ["sc_figures_only", "sc_k", "temperature"], diff
+    assert ablation.ARMS["V7-1"].sc_k == 3
+    assert ablation.ARMS["V7-1"].temperature > 0.0
+    assert ablation.ARMS["V7-1"].sc_figures_only is True
+    assert "V7-1" in ablation.SIDE_ARMS
+    assert "V7-1" not in ablation.LADDER and "V7-1" not in ablation.LOO_REMOVED
+
+
+def test_v7_5_pairs_the_relevance_allocation_with_the_region_field():
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["V7-5"], f) != getattr(ablation.A42, f)]
+    assert diff == ["counterparty_relevance"], diff
+    assert ablation.ARMS["V7-5"].counterparty_relevance is True
+    assert "V7-5" in ablation.SIDE_ARMS
+    assert "V7-5" not in ablation.LADDER and "V7-5" not in ablation.LOO_REMOVED
+
+
+def test_v7_2_adopts_regeneration_on_a_strict_subset_of_failure_kinds():
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["V7-2"], f) != getattr(ablation.A42, f)]
+    assert diff == ["regenerate_partial"], diff
+    assert ablation.ARMS["V7-2"].regenerate_partial is True
+    assert "V7-2" in ablation.SIDE_ARMS
+    assert "V7-2" not in ablation.LADDER and "V7-2" not in ablation.LOO_REMOVED
+
+
+def test_v7_3_turns_on_only_the_comparison_line():
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["V7-3"], f) != getattr(ablation.A42, f)]
+    assert diff == ["compare_line"], diff
+    assert ablation.ARMS["V7-3"].compare_line is True
+    assert "V7-3" in ablation.SIDE_ARMS
+    assert "V7-3" not in ablation.LADDER and "V7-3" not in ablation.LOO_REMOVED
+
+
+def test_v7_4_turns_on_only_the_unit_line():
+    diff = [f for f in FLAGS
+            if getattr(ablation.ARMS["V7-4"], f) != getattr(ablation.A42, f)]
+    assert diff == ["unit_line"], diff
+    assert ablation.ARMS["V7-4"].unit_line is True
+    assert "V7-4" in ablation.SIDE_ARMS
+    assert "V7-4" not in ablation.LADDER and "V7-4" not in ablation.LOO_REMOVED
 
 
 def test_self_consistency_at_temperature_zero_is_rejected():
@@ -2645,6 +2698,53 @@ def test_the_answer_call_uses_the_arm_temperature(monkeypatch):
         answers = [t for t in seen if t[0].startswith("answer")]
         assert len(answers) == want_calls, (arm, seen)
         assert all(temp == want_temp for _, temp in answers), (arm, seen)
+
+
+def test_v7_1_call_site_gates_on_whether_the_first_sample_states_a_figure(monkeypatch):
+    """Wiring check for the V7-1 scope gate at the call site
+    (`if arm.sc_k > 1 and _sc_applies(answer):`). If the `_sc_applies`
+    conjunct is ever dropped, a narrative first answer would draw the extra
+    samples too, which silently reverts V7-1 to A10's previously-rejected
+    all-questions shape while the flag still reads as scoped.
+    """
+    seen = []
+
+    class _R:
+        prompt_tokens = completion_tokens = 1
+        latency_s = 0.0
+        finish = "stop"
+        tool_calls = None
+        tag = "answer"
+
+        def __init__(self, text):
+            self.text = text
+
+    def _run(first_answer):
+        seen.clear()
+
+        def _chat(messages, max_tokens=512, temperature=0.0, tag="", **kw):
+            seen.append(tag)
+            return _R(first_answer)
+
+        monkeypatch.setattr(pipeline, "chat", _chat)
+        monkeypatch.setattr(pipeline, "_gather_evidence",
+                            lambda r, q, b, *a: ("## 접수번호 20250101000001\n- 계약금액: 1원", []))
+        monkeypatch.setattr(pipeline, "_verify", lambda *a, **kw: a[1])
+        # The critic is not this test's axis: assume a citation is present.
+        monkeypatch.setattr(pipeline, "quick_check", lambda answer: {"has_citation": True})
+        with ablation.use("V7-1"):
+            pipeline.answer_question("Q-001", "삼성전자의 2025년 계약금액은 얼마인가?")
+        return [t for t in seen if t.startswith("answer")]
+
+    # (a) No figure in the first sample: the gate stays closed and only the
+    # first sample is generated.
+    narrative_calls = _run("서술만 있는 답변입니다.")
+    assert len(narrative_calls) == 1, narrative_calls
+
+    # (b) An amount in the first sample: the gate opens and all sc_k=3
+    # samples are drawn.
+    figure_calls = _run("계약금액은 1,102,000,000,000원입니다.")
+    assert len(figure_calls) == 3, figure_calls
 
 
 def test_self_consistency_picks_the_majority_and_falls_back_to_the_first_sample():

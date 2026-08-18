@@ -21,12 +21,21 @@ from __future__ import annotations
 
 import re
 
+from argus import ablation
+
 #: Operation requested by the question. Order matters: difference must be
 #: tested before sum so that growth phrasings do not fall through to sum.
 #: The difference group includes revision phrasings, which state that a
 #: value changed without stating a direction. That matches `_delta_groups`
 #: taking an absolute value.
-_OPS = (("차", ("얼마나 증가", "얼마나 늘었", "얼마나 감소", "얼마나 줄었",
+#:
+#: Comparison is tested first of all. Its hint "차이는" also appears in
+#: difference questions, and `_op` returns the first match, so the order
+#: decides which operation a question with both phrasings receives.
+#: See docs/design-rationale.md#comparison-line
+_OPS = (("비교", ("보다 큰가", "보다 작은가", "보다 얼마나 큰", "보다 얼마나 작은",
+                 "얼마나 큰가", "얼마나 작은가", "어느 쪽이 큰", "어느 쪽이 더")),
+        ("차", ("얼마나 증가", "얼마나 늘었", "얼마나 감소", "얼마나 줄었",
                 "증가했는가", "감소했는가", "얼마나 늘어", "얼마나 줄어",
                 "얼마나 바뀌", "얼마나 변경", "얼마나 달라", "얼마나 올랐",
                 "얼마나 내렸", "변경되었는가", "바뀌었는가",
@@ -461,6 +470,21 @@ def _delta_groups(picked: list[dict], question: str):
     return groups[:want]
 
 
+def _compare_pair(picked: list[dict], question: str):
+    """The two records a comparison question sets against each other.
+
+    Exactly two records with an amount qualify. With three or more the pair is
+    not determined by the question, and naming the wrong two would put a
+    confident wrong figure at the head of the evidence, which is worse than
+    saying nothing.
+    See docs/design-rationale.md#comparison-line
+    """
+    rows = [r for r in _latest_per_chain(picked) if _amount(r) is not None]
+    if len(rows) != 2:
+        return None
+    return rows[0], rows[1]
+
+
 def _amount(record: dict):
     value = (record or {}).get("amount")
     return value if isinstance(value, int) and value > 0 else None
@@ -608,6 +632,26 @@ def line(records, question: str, route) -> str:
     if not picked:
         return ""
     scope = f" ({note})" if note else ""
+
+    if op == "비교":
+        if not ablation.enabled("compare_line"):
+            return ""
+        pair = _compare_pair(picked, question)
+        if pair is None:
+            return ""
+        first, second = pair
+        gap = _amount(first) - _amount(second)
+        if gap == 0:
+            # A zero gap names no side. See docs/design-rationale.md#comparison-line
+            verdict = "두 금액은 같다"
+        else:
+            bigger = first if gap > 0 else second
+            verdict = f"{bigger.get('corp_name', '')} 쪽이 더 크다"
+        return (f"- [결정적 집계] 두 금액 비교{scope}: "
+                f"{first.get('corp_name', '')} {_amount(first):,}원 · "
+                f"{second.get('corp_name', '')} {_amount(second):,}원 · "
+                f"차이 **{abs(gap):,}원** · "
+                f"{verdict} {_DIRECTIVE}")
 
     if op == "합":
         rows = _sum_rows(picked, question, note)

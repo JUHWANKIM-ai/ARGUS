@@ -2170,6 +2170,22 @@ def _sc_key(answer: str) -> str:
     return "|".join(values) if values else " ".join(text.split())
 
 
+def _sc_applies(first: str) -> bool:
+    """Whether the extra samples are worth drawing for this answer.
+
+    The majority is taken over the figures a sample states, so an answer with
+    none has nothing to vote on. Reusing the key builder keeps the gate and the
+    aggregation from disagreeing about what counts as a figure.
+    See docs/design-rationale.md#self-consistency-scope
+    """
+    if not ablation.enabled("sc_figures_only"):
+        return True
+    from argus.agent import critic
+
+    text = first or ""
+    return bool(critic._money_spans(text) or critic._PCT_RE.search(text))
+
+
 def _self_consistent(messages: list[dict], max_tokens: int, arm, first: str,
                      budget: Budget, trace: list[str]) -> str:
     """Answer chosen by majority across `k` samples. The first sample already
@@ -2541,6 +2557,20 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, extra)
             trace.append(f"aggregate line=1 chars={len(extra)}")
 
+    # A periodic table states its scale in a header above the table rather
+    # than in the cell, so the figure's meaning depends on a line the model
+    # has to carry across the table. Restated at the head alongside the other
+    # deterministic lines, since a recorded run held the correct scale in the
+    # evidence throughout and still misread the figure.
+    # See docs/design-rationale.md#unit-line
+    if ablation.enabled("unit_line"):
+        from argus.agent import units
+
+        scales = units.unit_line(evidence)
+        if scales:
+            evidence = _prepend(evidence, scales)
+            trace.append(f"unit_line scales={scales.count('=')}")
+
     # Separate the filing a date points at. Where two filings share a date and
     # a title and both are in the evidence, the selection rather than the
     # retrieval is what goes wrong, so the remedy matches `_roster_line`: one
@@ -2605,8 +2635,10 @@ def answer_question(question_id: str, question: str) -> dict:
             budget.spend_llm(result.prompt_tokens, result.completion_tokens)
             answer = result.text
             trace.append(f"generate tokens={result.prompt_tokens}+{result.completion_tokens}")
-        if arm.sc_k > 1:
+        if arm.sc_k > 1 and _sc_applies(answer):
             answer = _self_consistent(messages, max_tokens, arm, answer, budget, trace)
+        elif arm.sc_k > 1:
+            trace.append("sc skip=no_figures k=1/%d" % arm.sc_k)
     except BudgetExceeded as exc:
         trace.append(f"예산 초과: {exc}")
         return _respond(question_id, question, evidence, trace, UNANSWERABLE, budget)
@@ -2839,6 +2871,22 @@ def _verdict(question: str, answer: str, evidence: str, records: list[dict], r,
             "kinds": kinds, "reasons": reasons}
 
 
+def _keeps_regenerated(before: list[str], after: list[str]) -> bool:
+    """Whether the regenerated answer replaces the original.
+
+    A clean result is always adopted, which is the prior behaviour. Beyond
+    that, adoption requires the failing kinds to be a strict subset: a set that
+    merely changed is not an improvement, and adopting it would trade one
+    defect for another while spending a call to do it.
+    See docs/design-rationale.md#regeneration-adoption
+    """
+    if not after:
+        return True
+    if not ablation.enabled("regenerate_partial"):
+        return False
+    return set(after) < set(before)
+
+
 def _regenerate_once(question: str, answer: str, evidence: str, records: list[dict],
                      r, arm, trace: list[str], budget: Budget | None,
                      verdict: dict) -> tuple[str, dict]:
@@ -2898,7 +2946,8 @@ def _regenerate_once(question: str, answer: str, evidence: str, records: list[di
         return answer, verdict
 
     again = _verdict(question, candidate, evidence, records, r, arm)
-    kept = "regenerated" if not again["kinds"] else "original"
+    kept = "regenerated" if _keeps_regenerated(verdict["kinds"], again["kinds"]) \
+        else "original"
     trace.append(f'verify regen=1 reasons={"; ".join(verdict["reasons"])} '
                  f'kinds_after={",".join(again["kinds"]) or "-"} kept={kept}')
     return (candidate, again) if kept == "regenerated" else (answer, verdict)
