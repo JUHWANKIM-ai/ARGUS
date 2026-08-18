@@ -220,6 +220,68 @@ def _ymd(record: dict) -> str:
     return f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}" if len(raw) >= 8 else raw
 
 
+#: Firing words for the holding-ratio series. A separate tuple from
+#: `_SERIES_ASK`: widening that one to catch Q-106's "어떻게 변해 왔는지" would
+#: move `revision_series`'s firing range too, and that function's behaviour is
+#: already measured. This tuple can stay loose because the record condition
+#: below — two or more holding filings by one reporter — is the strong half of
+#: the premise.
+#: See docs/design-rationale.md#holding-series
+_HOLDING_ASK = ("추이", "변해", "변화", "변동", "바뀌", "시간순", "시계열", "어떻게 변")
+
+
+def _ratio_of(record: dict):
+    """This filing's holding ratio as a float, or None."""
+    value = record.get("ratio_current")
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def holding_series(records, question: str) -> str:
+    """Lay out one reporter's holding ratios in filing order, as one line.
+
+    No LLM call and no retrieval. Returns "" when the question does not ask
+    for a history or the records do not carry a series.
+
+    The same move `revision_series` makes for a revision chain's amounts, with
+    two differences: the grouping axis is the reporter rather than the chain,
+    and the value is `ratio_current` rather than `amount`. The reporter filter
+    is load-bearing — the same window holds other reporters' filings on the
+    same issuer, and splicing them produces a series that never happened.
+
+    Only the reporter of the top-ranked record is laid out, the same rule
+    `revision_series` uses for chains.
+    See docs/design-rationale.md#holding-series
+    """
+    if not any(h in (question or "") for h in _HOLDING_ASK):
+        return ""
+    rows = [r for r in (records or []) if _ratio_of(r) is not None]
+    if len(rows) < 2:
+        return ""
+    reporter = str(rows[0].get("reporter") or "")
+    chain = [r for r in rows if str(r.get("reporter") or "") == reporter]
+    if len(chain) < 2:
+        return ""
+    chain.sort(key=lambda r: (str(r.get("rcept_dt", "")), r.get("rcept_no", "")))
+
+    steps = []
+    for index, record in enumerate(chain):
+        shares = str(record.get("shares_current") or "")
+        # Share counts only at the ends. Golden points 1 and 5 are the first
+        # and last counts; carrying all of them doubles the line length for
+        # values the question did not ask about.
+        tail = f" ({shares}주)" if shares and index in (0, len(chain) - 1) else ""
+        steps.append(f"{_ymd(record)} {_ratio_of(record):.2f}%{tail}")
+
+    moved = _ratio_of(chain[0]) - _ratio_of(chain[-1])
+    return (f"- [결정적 집계] {reporter} 보고 보유비율 추이 ({len(chain)}건): "
+            f"{' → '.join(steps)} · 누적 {-moved:+.2f}%p "
+            f"(이 값은 시스템이 위 근거의 비율 필드에서 직접 읽은 것이다. "
+            f"답변의 해당 수치는 이 값을 그대로 쓴다.)")
+
+
 #: Upper bound on counterparties carried in the distribution line. A separate
 #: axis from `MAX_ENUM_EVIDENCE`, which counts evidence blocks; this counts
 #: items inside one line. Eleven groups fit in roughly 120 characters.

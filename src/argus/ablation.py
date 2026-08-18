@@ -362,6 +362,13 @@ class Arm:
     #: See docs/design-rationale.md#state-total
     state_total: bool = False
 
+    #: True lays one reporter's holding ratios out in filing order at the head
+    #: of the evidence. A different axis from `revision_series`: that one
+    #: follows a revision chain's amounts, this one a reporting series' ratios.
+    #: The model read only as far as the first evidence block and dropped the
+    #: largest move in the series.
+    #: See docs/design-rationale.md#holding-series
+    holding_series: bool = False
     #: True separates which filing a date points at when two share that date.
     #: With both filings in the evidence the selection rather than the
     #: retrieval goes wrong. The rule is what the date means: a contract filed

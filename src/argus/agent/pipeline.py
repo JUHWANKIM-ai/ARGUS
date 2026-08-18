@@ -2643,6 +2643,19 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, series)
             trace.append(f"series line=1 chars={len(series)}")
 
+    # The same shape for a reporting series rather than a revision chain. Kept
+    # as its own block rather than folded into the one above, because the two
+    # read different fields and fire on different questions, and merging them
+    # would make one flag move the other's behaviour.
+    # See docs/design-rationale.md#holding-series
+    if ablation.enabled("holding_series"):
+        from argus.agent import aggregate
+
+        holding = aggregate.holding_series(_evidence_records(evidence), clean)
+        if holding:
+            evidence = _prepend(evidence, holding)
+            trace.append(f"holding_series line=1 chars={len(holding)}")
+
     try:
         # Read through `enabled()` so that a misspelled flag raises instead of
         # silently evaluating false. At the default the two lines below are
