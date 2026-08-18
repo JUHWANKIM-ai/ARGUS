@@ -9,6 +9,7 @@ API constraints:
 from __future__ import annotations
 
 import json
+import re
 import time
 import urllib.error
 import urllib.request
@@ -89,6 +90,21 @@ class no_cache:
         _no_cache_depth = max(0, _no_cache_depth - 1)
 
 
+class _PostResult(tuple):
+    """The (status, payload, latency) triple, with response headers attached.
+
+    Unpacking into three values works exactly as before, so every existing
+    caller of `_post` (including test doubles that stand in for it) is
+    unaffected. New code that needs the response headers reads the
+    `.headers` attribute instead of a fourth unpacked value.
+    """
+
+    def __new__(cls, status, payload, latency, headers):
+        self = super().__new__(cls, (status, payload, latency))
+        self.headers = headers
+        return self
+
+
 def _post(url: str, headers: dict, body: dict, timeout: int = 60):
     req = urllib.request.Request(
         url,
@@ -99,13 +115,82 @@ def _post(url: str, headers: dict, body: dict, timeout: int = 60):
     t0 = time.time()
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return resp.status, json.loads(resp.read().decode("utf-8")), time.time() - t0
+            payload = json.loads(resp.read().decode("utf-8"))
+            return _PostResult(resp.status, payload, time.time() - t0,
+                                dict(resp.headers.items()))
     except urllib.error.HTTPError as exc:
         raw = exc.read().decode("utf-8", "replace")
+        resp_headers = dict(exc.headers.items()) if exc.headers else {}
         try:
-            return exc.code, json.loads(raw), time.time() - t0
+            payload = json.loads(raw)
         except json.JSONDecodeError:
-            return exc.code, {"raw": raw}, time.time() - t0
+            payload = {"raw": raw}
+        return _PostResult(exc.code, payload, time.time() - t0, resp_headers)
+
+
+# --- Chat rate-limit retry ----------------------------------------------------
+# Only 429 is retried. Every other non-200 status raises immediately, unchanged
+# from before: swallowing a real defect (a bad request, an auth failure, a
+# server bug) would hide it instead of surfacing it.
+# See docs/design-rationale.md#chat-rate-limit
+
+#: Total attempts for one `chat` call, the first try plus retries.
+_RETRY_ATTEMPTS = 3
+#: Wait applied when the response carries no usable reset header.
+_FALLBACK_WAIT_S = 60.0
+#: Ceiling on a single wait, so a malformed or oversized header value cannot
+#: stall a question by itself.
+_MAX_WAIT_S = 65.0
+#: Ceiling on the time spent waiting across all attempts of one call.
+_MAX_TOTAL_WAIT_S = 150.0
+#: Header names checked for a reset hint, in order. The first one present and
+#: parseable wins.
+_RESET_HEADER_CANDIDATES = ("x-ratelimit-reset-requests", "retry-after")
+
+#: Sleep hook. A module attribute rather than a `chat` parameter so tests can
+#: replace it without changing the call signature every caller already uses.
+_sleep = time.sleep
+
+_DURATION_RE = re.compile(
+    r"(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$")
+
+
+def _parse_duration_s(raw: str) -> float | None:
+    """Parse a rate-limit reset value into seconds.
+
+    Accepts a bare number ("53"), a number with a seconds suffix ("53s"), and
+    a compound duration ("1m30s"). Returns None when the text matches none of
+    these, so the caller falls back to a fixed wait instead of guessing.
+    """
+    text = str(raw).strip()
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        pass
+    match = _DURATION_RE.fullmatch(text)
+    if not match or not any(match.groups()):
+        return None
+    hours, minutes, seconds = (float(g) if g else 0.0 for g in match.groups())
+    return hours * 3600 + minutes * 60 + seconds
+
+
+def _reset_wait_s(headers: dict) -> float | None:
+    """Seconds until the rate limit window resets, read from the response
+    headers. Returns None when no candidate header is present or parseable.
+    """
+    if not headers:
+        return None
+    lower = {str(k).lower(): v for k, v in headers.items()}
+    for name in _RESET_HEADER_CANDIDATES:
+        raw = lower.get(name)
+        if raw is None:
+            continue
+        wait = _parse_duration_s(raw)
+        if wait is not None:
+            return wait
+    return None
 
 
 def chat(
@@ -130,9 +215,21 @@ def chat(
     else:
         body["maxTokens"] = max_tokens
 
-    status, payload, latency = _post(
-        cfg.clova_url, {"Authorization": f"Bearer {cfg.clova_api_key}"}, body
-    )
+    auth_headers = {"Authorization": f"Bearer {cfg.clova_api_key}"}
+    total_wait = 0.0
+    for attempt in range(_RETRY_ATTEMPTS):
+        outcome = _post(cfg.clova_url, auth_headers, body)
+        status, payload, latency = outcome
+        if status != 429 or attempt == _RETRY_ATTEMPTS - 1:
+            break
+        wait = _reset_wait_s(getattr(outcome, "headers", None) or {})
+        if wait is None:
+            wait = _FALLBACK_WAIT_S
+        wait = max(0.0, min(wait, _MAX_WAIT_S))
+        if total_wait + wait > _MAX_TOTAL_WAIT_S:
+            break
+        total_wait += wait
+        _sleep(wait)
     if status != 200:
         raise RuntimeError(f"CLOVA 호출 실패 {status}: {payload}")
 
