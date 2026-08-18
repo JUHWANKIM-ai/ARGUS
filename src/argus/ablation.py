@@ -369,6 +369,14 @@ class Arm:
     #: largest move in the series.
     #: See docs/design-rationale.md#holding-series
     holding_series: bool = False
+    #: True narrows the aggregation set by the project the question names,
+    #: read from the evidence's supply-region fields. Without it a sum
+    #: question that pins a project and an orderer has no axis to pin the set
+    #: with, so the module stays silent and the model sums by itself.
+    #: Requires the index built after the supply-region render: before it no
+    #: record carries the field and the axis reads nothing.
+    #: See docs/design-rationale.md#project-scope
+    project_scope: bool = False
     #: True separates which filing a date points at when two share that date.
     #: With both filings in the evidence the selection rather than the
     #: retrieval goes wrong. The rule is what the date means: a contract filed

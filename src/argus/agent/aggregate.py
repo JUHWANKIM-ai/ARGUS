@@ -102,6 +102,40 @@ MIN_SUBSTITUTE_AMOUNT = 100_000_000
 #: counterparty axis, which does not.
 _DATE_NOTE = "공시분"
 
+#: Marker recording that a project filter applied. Read by `_sum_rows` the
+#: same way `_DATE_NOTE` is: both pin the set, where the counterparty axis on
+#: its own does not.
+_PROJECT_NOTE = "사업분"
+
+#: Separators inside a supply-region field: `체코 남부 Dukovany Site`.
+_REGION_SPLIT = re.compile(r"[\s,·/]+")
+
+#: Shortest usable project token. One character matches far too much; two is
+#: the length of `체코`, the token Q-107 turns on.
+MIN_PROJECT_TOKEN = 2
+
+
+def _project_token(picked: list[dict], question: str) -> str:
+    """The project the question names, read from the evidence, or "".
+
+    The vocabulary is not guessed. A token counts only when it appears in a
+    `supply_region` the evidence actually carries AND in the question, so the
+    corpus supplies the terms and the question selects among them. This is why
+    the axis needs the rebuilt index: before it, no record carries the field
+    and this function has nothing to read.
+
+    The longest hit wins, because a more specific place name is a tighter
+    filter than the country containing it.
+    See docs/design-rationale.md#project-scope
+    """
+    tokens: set[str] = set()
+    for record in picked or []:
+        for token in _REGION_SPLIT.split(str(record.get("supply_region") or "")):
+            if len(token) >= MIN_PROJECT_TOKEN:
+                tokens.add(token)
+    hits = [t for t in tokens if t in (question or "")]
+    return max(hits, key=len) if hits else ""
+
 
 def substitute(answer: str, records, question: str, route) -> tuple[str, str]:
     """Replace a single incorrect total in the answer with the computed value.
@@ -621,9 +655,9 @@ def select(records, question: str, route, op: str = "") -> tuple[list[dict], str
 
     Returns ([], "") when there is no target.
 
-    Two filter axes exist: filing year and counterparty. These are the two the
-    measured wrong answers required. Adding axes breaks uniqueness, and without
-    uniqueness this module has to stay silent.
+    Three filter axes exist: filing year, project and counterparty. These are
+    the ones the measured wrong answers required. Adding axes breaks
+    uniqueness, and without uniqueness this module has to stay silent.
     """
     picked = [r for r in (records or []) if _amount(r) is not None]
     if not picked:
@@ -647,6 +681,26 @@ def select(records, question: str, route, op: str = "") -> tuple[list[dict], str
         want = year.group(1)
         picked = [r for r in picked if str(r.get("rcept_dt", ""))[:4] == want]
         notes.append(f"{want}년 공시분")
+
+    # Project axis. `_sum_rows` recorded why this had to exist: a counterparty
+    # filter on its own does not pin the set, because a hub holds several
+    # contracts, and what such a question narrows is the project. Applied
+    # before the counterparty filter so that the note ordering reads
+    # project-then-party, which is the order the question states them in.
+    #
+    # A filter matching nothing is not applied, the same defence the
+    # counterparty axis carries: uniqueness is what lets this module speak,
+    # and an empty set is not uniqueness.
+    # See docs/design-rationale.md#project-scope
+    if ablation.enabled("project_scope"):
+        token = _project_token(picked, question)
+        if token:
+            narrowed = [r for r in picked
+                        if token in f"{r.get('title') or ''} "
+                                    f"{r.get('supply_region') or ''}"]
+            if narrowed:
+                picked = narrowed
+                notes.append(f"{token} {_PROJECT_NOTE}")
 
     party = getattr(route, "counterparty", None)
     if party:
@@ -699,8 +753,11 @@ def _sum_rows(picked: list[dict], question: str, note: str = ""):
         return rows[:stated] if len(rows) >= stated else None
     # A counterparty filter on its own does not pin the set, because a hub
     # holds several contracts and summing them all overshoots. What such a
-    # question narrows is the project, and that axis is not available here.
-    return rows if _DATE_NOTE in note else None
+    # question narrows is the project, and that axis now exists: with it
+    # applied the set is the one project's contracts, which is what the
+    # question asked for.
+    # See docs/design-rationale.md#project-scope
+    return rows if (_DATE_NOTE in note or _PROJECT_NOTE in note) else None
 
 
 def _latest_per_chain(records: list[dict]) -> list[dict]:
