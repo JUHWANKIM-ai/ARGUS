@@ -120,9 +120,11 @@ def gate(row: dict, allowed: frozenset[str], where: str) -> dict:
 #: 판단한다. 조용히 통과시키지 않는다.
 #: `supply_region` 은 DART 원문 「4. 판매ㆍ공급지역」행이다 — 개인정보가 아니라
 #: `체코`·`경북 울진군 일대` 같은 지명이고, 이미 `markdown` 에 `- 공급지역: …` 로
-#: 렌더링돼 있다. **판단 완료: 원본 필드로 알려도 된다.** 다만 화면에 낼지는 별개
-#: 판단이라 `CONTRACT_FIELDS` 에는 아직 넣지 않았다 — 여기 있는 것은 "원본이 가진
-#: 필드를 안다"이지 "화면에 낸다"가 아니다.
+#: 렌더링돼 사용자가 챗 파이프라인에서 이미 보고 있다. **실어도 되는 필드다.**
+#: 그런데도 `CONTRACT_FIELDS` 에는 넣지 않았다 — 민감해서가 아니라, 화면에 새
+#: 열로 낼지는 **사이트 쪽의 별개 판단**이기 때문이다(어느 템플릿도 아직 이
+#: 필드를 그리지 않는다). 여기 있는 것은 "원본이 가진 필드를 안다"이고,
+#: `CONTRACT_FIELDS` 는 "화면에 낸다"다. 이 필드는 앞엣것만 통과했다.
 SOURCE_EXCHANGE = frozenset({
     "doc_id", "rcept_no", "rcept_dt", "corp_code", "corp_name", "sector", "doc_subtype",
     "is_correction", "amount", "amount_type", "ratio", "ratio_base", "counterparty",
