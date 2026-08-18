@@ -1009,6 +1009,16 @@ def _digits(text) -> str:
     return re.sub(r"\D", "", str(text or ""))
 
 
+def _evidence_text(evidence) -> str:
+    """Evidence flattened to one string, whatever shape it arrived in.
+
+    Shared by callers that read the evidence as a whole rather than by block,
+    such as `_evidence_digits` and the amount count in `verify_completeness`.
+    See docs/design-rationale.md#amount-coverage
+    """
+    return evidence if isinstance(evidence, str) else str(evidence or "")
+
+
 def _evidence_digits(evidence) -> set[str]:
     """Digit strings of the numbers present in the evidence, with separators
     removed to absorb notation differences.
@@ -1017,8 +1027,7 @@ def _evidence_digits(evidence) -> set[str]:
     thirteen-digit amount inside a fourteen-digit receipt number by coincidence
     and open the gate silently.
     """
-    text = evidence if isinstance(evidence, str) else str(evidence or "")
-    return {_digits(m.group(0)) for m in _ANY_NUMBER.finditer(text)}
+    return {_digits(m.group(0)) for m in _ANY_NUMBER.finditer(_evidence_text(evidence))}
 
 
 def _provenance_operands(spans, evidence_digits: set[str]) -> list[float]:
@@ -1405,9 +1414,17 @@ def verify_completeness(question: str, answer: str, evidence,
     # and `_ADMIT` is the same admission signal `evidence_gap` reads, applied
     # in the opposite direction: there an admission is the defect, here its
     # absence is a condition for one.
+    #
+    # The count reads the evidence as a whole rather than `blocks`, because
+    # `blocks` is the reassembly the other checks in this function need and it
+    # drops whatever precedes its first block heading. That is exactly where a
+    # deterministic aggregate line, such as a unit legend, is written, so
+    # counting through `blocks` undercounts and can miss the premise entirely
+    # on evidence shaped that way. The premise asks what the model was shown,
+    # which is the whole evidence text, not the reassembly.
     # See docs/design-rationale.md#amount-coverage
     asks_for_set = any(term in (question or "") for term in AMOUNT_GAP_SET_ASK)
-    evidence_amounts = [v for b in blocks for v in money_values(b["text"])]
+    evidence_amounts = money_values(_evidence_text(evidence))
     if not (amount_coverage and asks_for_set
             and len(evidence_amounts) >= AMOUNT_GAP_MIN_EVIDENCE):
         _record("amount_gap", False)

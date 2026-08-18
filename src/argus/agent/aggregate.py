@@ -267,7 +267,8 @@ MAX_SUBJECT_CHARS = 44
 
 
 def counterparty_branch(groups: dict) -> str:
-    """Emit the universe/non-universe split of a counterparty set as one line.
+    """Emit a counterparty set split into two industry-term groups, as one
+    line.
 
     No LLM call, no retrieval. Returns "" unless both branches are non-empty:
     a single branch is not a split, and asserting one would be a confident
@@ -279,8 +280,10 @@ def counterparty_branch(groups: dict) -> str:
     The split is decided by one predicate: whether the counterparty is one of
     the 70 companies the evaluation covers. That membership test is already
     implemented and tested in `argus.corpus.counterparty.classify`, so it is
-    reused here rather than duplicated.
-    See docs/design-rationale.md#counterparty-branch
+    reused here rather than duplicated. The line names the two resulting
+    groups in industry terms (an ordering client versus a supplier that
+    re-ordered) rather than in terms of that predicate: naming the predicate
+    itself leaked into an answer once. See docs/design-rationale.md#counterparty-branch
     """
     from argus.corpus.counterparty import classify
 
@@ -293,12 +296,11 @@ def counterparty_branch(groups: dict) -> str:
     if not inside or not outside:
         return ""
     return (
-        f"- [결정적 집계] 계약상대 {len(order)}곳의 발주 구조 갈래 "
-        f"(평가 대상 70개사 소속 여부 기준): "
-        f"70개사 소속 {len(inside)}곳 — {' · '.join(inside)} · "
-        f"70개사 밖 {len(outside)}곳 — {' · '.join(outside)}\n"
-        f"  (이 갈래는 시스템이 계약상대 각각의 70개사 소속 여부에서 직접 가른 것이다. "
-        f"답변은 이 두 갈래로만 나누고 다른 축으로 다시 나누지 않는다.)"
+        f"- [결정적 집계] 계약상대 {len(order)}곳이 두 갈래로 나뉜다: "
+        f"발주처 {len(outside)}곳 — {' · '.join(outside)} · "
+        f"공급사 재수주 {len(inside)}곳 — {' · '.join(inside)} "
+        f"(공급사 쪽도 스스로 공시 대상 상장사다)\n"
+        f"  답변은 이 두 갈래로만 나누고 다른 축으로 다시 나누지 않는다."
     )
 
 

@@ -265,10 +265,15 @@ _Q117_COUNTERPARTIES = (
 
 
 def test_counterparty_branch_splits_universe_from_non_universe():
+    """The predicate is still universe membership, but the line names the two
+    groups in industry terms and carries none of our internal vocabulary,
+    the wording that leaked verbatim into the `Q-117` answer.
+    See docs/design-rationale.md#counterparty-branch
+    """
     line = aggregate.counterparty_branch(_groups(*_Q117_COUNTERPARTIES))
     assert line
-    assert "70개사 소속 1곳" in line
-    assert "70개사 밖 10곳" in line
+    assert "발주처 10곳" in line
+    assert "공급사 재수주 1곳" in line
     assert "두산에너빌리티" in line
     for outsider in ("한국수력원자력", "한국동서발전", "ptpln", "한주", "삼성물산",
                      "한국중부발전", "한국남동발전", "넥서스그린에너지",
@@ -278,6 +283,10 @@ def test_counterparty_branch_splits_universe_from_non_universe():
     # `_counterparty_note` (`counterparty-note-no-counts`).
     assert not re.search(r"\d{14}", line)
     assert not re.search(r"\d+건", line)
+    # The internal coverage-list vocabulary must not reach the model: this is
+    # exactly what it copied verbatim into its `Q-117` answer.
+    for leaked in ("70개사", "평가 대상", "유니버스", "universe"):
+        assert leaked not in line
 
 
 def test_counterparty_branch_is_silent_when_one_side_is_empty():
@@ -323,8 +332,10 @@ def test_q117_branch_line_reaches_the_head_of_the_evidence_under_a45():
     assert any("counterparty_branch" in line for line in trace)
     head = evidence.split("\n\n## ", 1)[0]
     assert "두산에너빌리티" in head
-    assert "70개사 소속" in head and "70개사 밖" in head
+    assert "발주처" in head and "공급사 재수주" in head
     assert not re.search(r"\d{14}", head)
+    for leaked in ("70개사", "평가 대상", "유니버스", "universe"):
+        assert leaked not in head
 
 
 @pytest.mark.skipif(not _VC.exists(), reason="evalset/valuechain.jsonl 없음")
@@ -341,4 +352,6 @@ def test_q117_branch_line_is_absent_under_the_untouched_default_arm():
     if not evidence:
         pytest.skip("artifacts/exchange_records.jsonl 없음")
     assert not any("counterparty_branch" in line for line in trace)
-    assert "70개사 소속" not in evidence
+    # `공급사 재수주` is a phrase distinctive to this line's own wording, unlike
+    # `발주처`, which also appears in `_counterparty_note`'s unrelated line.
+    assert "공급사 재수주" not in evidence

@@ -711,6 +711,29 @@ def test_verify_completeness_amount_gap_passes_on_a_refusal():
     assert "amount_gap" in out["checked"]
 
 
+def test_verify_completeness_amount_gap_counts_the_whole_evidence_not_only_blocks():
+    """`_blocks` drops whatever text precedes its first `## ` heading, and a
+    deterministic aggregate line (a unit legend, here) is written exactly
+    there. Counting evidence amounts through `blocks` would miss them and the
+    premise would never hold, even though the model was shown these figures.
+
+    Measured on Q-094: the stored evidence carries 3 amounts as a whole but
+    only 1 once reassembled into blocks, and the check stayed silent
+    (`complete_checked=-`) until the count read the whole evidence.
+    See docs/design-rationale.md#amount-coverage
+    """
+    leading_amount_evidence = (
+        "- [결정적 단위] 위 표의 금액 단위: 천원 = 1,000원 · 백만원 = 1,000,000원\n\n"
+        "## [사업보고서 2024] NC – 26. 이익잉여금 (연결)\n"
+        "- 출처: 접수번호 20250318001264 (공시일 20250318)\n"
+        "표에 단위가 붙은 금액 표기가 없다.")
+    out = critic.verify_completeness(
+        AMOUNT_GAP_QUESTION, AMOUNT_GAP_SILENT_ANSWER, leading_amount_evidence,
+        amount_coverage=True)
+    assert out["ok"] is False
+    assert out["failed_kinds"] == ["amount_gap"]
+
+
 def test_verify_completeness_is_noop_without_evidence():
     out = critic.verify_completeness("계약금액은?", "97,000,000,000원입니다.", "")
     assert out["ok"] is True and out["failed_kinds"] == [] and out["failure_stage"] is None
