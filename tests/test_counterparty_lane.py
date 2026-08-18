@@ -97,6 +97,49 @@ def test_q107_lane_now_reaches_the_dukovany_contract():
 
     **겨냥 8건 중 실측 회수는 1건이다.** 나머지는 정렬 밖에서 막힌다. 사유는
     `pipeline._partner_order` 독스트링에 실측표와 함께 적어 두었다.
+
+    **2026-08-18 인덱스 재구축 이후 — 회수를 지키는 arm 이 바뀌었다.** 재구축이
+    거래소공시 레코드 전량에 `- 공급지역: …` 한 줄을 더 얹었고, 그만큼 BM25 문서
+    길이·용어빈도가 흔들려 이 문항의 레인 순위가 옮겨졌다. 재구축된 인덱스로 다시
+    잰 값(2026-08-18):
+
+        A43  (module default, counterparty_relevance off)  골든 2/3
+             ['20251216801147', '20251212801320']
+        V7-5 (counterparty_relevance on)                    골든 3/3
+             ['20251216801147', '20251216801163', '20251212801320']
+
+    지금은 `V7-5` 만 세 번째 골든(`20251216801163`)까지 회수한다. module default
+    (`A43`)는 이 계약을 놓친다 — 그 사실은 이 테스트의 짝
+    (`test_q107_lane_misses_the_dukovany_contract_under_the_default_arm`)이 고정한다.
+
+    **이 숫자는 인덱스에 종속적이다.** 코퍼스가 다시 재구축되면 레인 순위가 또
+    옮겨질 수 있고, 그때 이 표를 다시 실측해 고치는 것은 회귀가 아니라 예정된 일이다.
+    """
+    from argus import ablation
+    from argus.agent.budget import Budget
+    from argus.agent.router import route
+
+    rows = {json.loads(line)["question_id"]: json.loads(line)
+            for line in _RECORDS.open(encoding="utf-8") if line.strip()}
+    row = rows["Q-107"]
+    r = route(row["question"])
+    if r.counterparty is None:
+        pytest.skip("counterparty_graph.json 없음 (gitignore 된 산출물)")
+    with ablation.use("V7-5"):
+        evidence, _ = pipeline._gather_evidence(r, row["question"], Budget())
+    if not evidence:
+        pytest.skip("artifacts/exchange_records.jsonl 없음")
+    assert "20251216801163" in evidence
+
+
+@pytest.mark.skipif(not _RECORDS.exists(), reason="evalset/valuechain.jsonl 없음")
+def test_q107_lane_misses_the_dukovany_contract_under_the_default_arm():
+    """위 테스트의 짝. `counterparty_relevance` 가 꺼진 module default(`A43`) 로는
+    같은 계약(`20251216801163`)에 닿지 못한다.
+
+    위 테스트 혼자만 있으면 `V7-5` 가 성공한다는 것만 보이고, 그것이 **회수를
+    지키는 것이 기본 arm 이 아니라 이 플래그라는 사실**(델타)은 가려진다. 실측표는
+    위 테스트의 독스트링에 있다.
     """
     from argus.agent.budget import Budget
     from argus.agent.router import route
@@ -110,7 +153,7 @@ def test_q107_lane_now_reaches_the_dukovany_contract():
     evidence, _ = pipeline._gather_evidence(r, row["question"], Budget())
     if not evidence:
         pytest.skip("artifacts/exchange_records.jsonl 없음")
-    assert "20251216801163" in evidence
+    assert "20251216801163" not in evidence
 
 
 # --- 관련도 배분 (`counterparty_relevance`), v6 ------------------------------
