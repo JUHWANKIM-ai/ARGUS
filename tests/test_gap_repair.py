@@ -92,18 +92,221 @@ def test_a_branch_line_is_repaired_too():
     assert "답변은 이 두 갈래로만" not in out
 
 
+# --- Finding 1: the marker is pinned against every real writer, not a literal
+#
+# A hand-typed literal in this file (HOLDING_LINE, above) cannot detect a
+# writer's wording drifting from DECISIVE_MARK, because both sides of that
+# comparison would be author-written. Each of the five writers is called here
+# with the smallest real fixture that makes it speak.
+
+def _sum_line_records():
+    """Three unrelated records with a stated count of three — the minimal
+    fixture that makes `line`'s "합" branch speak."""
+    return [
+        {"rcept_no": "1", "rcept_dt": "20250101", "amount": 1_000_000_000,
+         "related": [], "corp_name": "가"},
+        {"rcept_no": "2", "rcept_dt": "20250102", "amount": 2_000_000_000,
+         "related": [], "corp_name": "나"},
+        {"rcept_no": "3", "rcept_dt": "20250103", "amount": 3_000_000_000,
+         "related": [], "corp_name": "다"},
+    ]
+
+
+def _revision_chain_records():
+    """Two records joined through `related` — the smallest chain
+    `revision_series` will lay out."""
+    return [
+        {"rcept_no": "10", "rcept_dt": "20250101", "amount": 500_000_000,
+         "related": ["11"], "corp_name": "가"},
+        {"rcept_no": "11", "rcept_dt": "20250201", "amount": 600_000_000,
+         "related": ["10"], "corp_name": "가"},
+    ]
+
+
+def _holding_chain_records():
+    """Two filings by one reporter — the smallest series `holding_series`
+    will lay out."""
+    return [
+        {"reporter": "두산", "rcept_no": "1", "rcept_dt": "20250101",
+         "ratio_current": "10.00", "shares_current": "1000"},
+        {"reporter": "두산", "rcept_no": "2", "rcept_dt": "20250201",
+         "ratio_current": "9.00", "shares_current": "900"},
+    ]
+
+
 def test_the_marker_matches_what_the_writers_actually_emit():
     """`DECISIVE_MARK` is a read-side constant: the five functions that place
-    a line write the literal. If a writer's wording drifts, the repair goes
-    silent with no error, so the constant is pinned against a real line here.
+    a line write the literal. Each is called here with a minimal real
+    fixture, so a writer's wording drifting from the literal is caught —
+    comparing two hand-typed strings, as the previous version of this test
+    did for `holding_series` via `HOLDING_LINE`, cannot catch that drift.
     """
-    line = aggregate.counterparty_branch({
-        "두산에너빌리티": [{"rcept_no": "1"}],
-        "한국수력원자력": [{"rcept_no": "2"}]})
-    assert line.startswith(aggregate.DECISIVE_MARK)
-    assert HOLDING_LINE.startswith(aggregate.DECISIVE_MARK)
+    lines = [
+        aggregate.line(_sum_line_records(),
+                        "가 나 다 3건의 계약금액 총액은 얼마인가?", None),
+        aggregate.revision_series(_revision_chain_records(),
+                                   "이 계약의 정정 과정을 알려줘"),
+        aggregate.partner_profile({
+            "가": [{"title": "공급계약"}],
+            "나": [{"title": "공급계약"}, {"title": "공급계약2"}]}),
+        aggregate.counterparty_branch({
+            "두산에너빌리티": [{"rcept_no": "1"}],
+            "한국수력원자력": [{"rcept_no": "2"}]}),
+        aggregate.holding_series(_holding_chain_records(), "보유비율 추이를 알려줘"),
+    ]
+    for line in lines:
+        assert line, "a writer produced nothing for its own minimal fixture"
+        assert line.startswith(aggregate.DECISIVE_MARK)
 
 
 def test_the_flag_is_off_by_default():
     assert ablation.Arm("X").gap_repair is False
     assert "gap_repair" in ablation.FLAG_NAMES
+
+
+# --- Finding 2: the half-coverage boundary itself, not just the extremes
+#
+# Every case above sits at an extreme (0/7, 1/7, 0/3, or full coverage). The
+# rule is strictly-fewer-than-half fires, half-or-more is silent, and an
+# off-by-one at that comparison (`>` vs `>=`) would pass every test above.
+# An even figure count is used here so "exactly half" is a distinct case from
+# "one fewer than half".
+
+BOUNDARY_LINE = ("- [결정적 집계] 경계 시험용 네 값 (4건): "
+                  "10,000,000 · 20,000,000 · 30,000,000 · 40,000,000 "
+                  "(이 값은 시스템이 계산한 것이다.)")
+
+BOUNDARY_EVIDENCE = BOUNDARY_LINE + "\n\n## 근거"
+
+
+def test_exactly_half_present_is_silent():
+    half = "금액은 10,000,000원과 20,000,000원이 확인됩니다."
+    out, reason = aggregate.repair_gap(half, BOUNDARY_EVIDENCE)
+    assert out == half and reason == ""
+
+
+def test_one_fewer_than_half_fires():
+    one_short = "금액은 10,000,000원이 확인됩니다."
+    out, reason = aggregate.repair_gap(one_short, BOUNDARY_EVIDENCE)
+    assert reason
+    assert "40,000,000" in out
+
+
+# --- Finding 3: substring containment can count a different number as
+# present
+#
+# `f in body` (naive containment) counts "68.19%" as present inside a body
+# that only ever states "168.19%", or "500,000,000" as present inside a body
+# that only ever states "1,500,000,000". Both are a different figure
+# entirely. The effect is silent under-triggering: coverage reads higher than
+# it is and the repair stays quiet when it should fire.
+#
+# COLLISION_LINE (three figures: 68.19%, 500,000,000, 700,000,000) is used so
+# that one genuine figure plus one colliding figure crosses the naive
+# check's threshold (2 of 3 counted, "silent") while the true count (1 of 3)
+# is below it ("fires"). Each test isolates one collision shape: the other
+# two figures of the line are entirely absent from the answer, so any
+# non-zero apparent coverage beyond the one genuine figure is attributable
+# only to the collision under test.
+
+COLLISION_LINE = ("- [결정적 집계] 경계 시험용 세 값 (3건): "
+                   "68.19% · 500,000,000 · 700,000,000 "
+                   "(이 값은 시스템이 계산한 것이다.)")
+
+COLLISION_EVIDENCE = COLLISION_LINE + "\n\n## 근거"
+
+
+def test_a_longer_percentage_is_not_counted_as_the_figure():
+    """"168.19%" must not be counted as coverage of the figure "68.19%"."""
+    answer = "비율은 168.19% 였고 금액은 700,000,000원 이었습니다."
+    out, reason = aggregate.repair_gap(answer, COLLISION_EVIDENCE)
+    assert reason
+    assert "68.19%" in out and "500,000,000" in out
+
+
+def test_a_longer_integer_is_not_counted_as_the_figure():
+    """"1,500,000,000" must not be counted as coverage of "500,000,000"."""
+    answer = "68.19% 였고 정정 후 1,500,000,000원이 되었습니다."
+    out, reason = aggregate.repair_gap(answer, COLLISION_EVIDENCE)
+    assert reason
+    assert "500,000,000" in out and "700,000,000" in out
+
+
+# --- Finding 4: the repair reaches more than the narrative lines, on purpose
+#
+# `substitute` and `state_total` both read `_total`, which returns None for
+# the "비교" (comparison) and "몫" (quotient) operations — so neither ever
+# fires for those two, even though `line()` still writes a DECISIVE_MARK'd
+# block for them, gated by its own separate flag. `gap_repair` is the only
+# answer-side path for those two operations.
+#
+# A single-chain "차" (difference) line carries three figures — older, newer,
+# delta — while `state_total` inserts only the delta (`_total`'s return
+# value). That is 1/3 coverage, under the threshold, so `gap_repair` reaches
+# what `state_total` left behind there too.
+#
+# This is deliberate, not overreach: the repair appends deterministic content
+# computed from the evidence, which is the behaviour wanted wherever the
+# answer dropped it, regardless of which writer produced the line. Narrowing
+# the read side to only the narrative writers would require `repair_gap` to
+# know which function produced a line, which is exactly the coupling
+# `DECISIVE_MARK` exists to avoid.
+
+def test_the_repair_reaches_a_comparison_line_state_total_cannot():
+    records = [
+        {"rcept_no": "1", "rcept_dt": "20251216", "amount": 4_928_968_079_043,
+         "related": [], "corp_name": "두산에너빌리티"},
+        {"rcept_no": "2", "rcept_dt": "20251216", "amount": 2_338_117_950_000,
+         "related": [], "corp_name": "한전기술"},
+    ]
+    question = "두산에너빌리티가 한전기술보다 얼마나 큰가"
+    # _total returns None for "비교": substitute/state_total never fire here.
+    assert aggregate._total(records, question, None) is None
+    with ablation.use(ablation.Arm("probe", compare_line=True)):
+        line = aggregate.line(records, question, None)
+    assert line.startswith(aggregate.DECISIVE_MARK)
+
+    thin = "두산에너빌리티 쪽 계약금액이 더 큽니다."
+    out, reason = aggregate.repair_gap(thin, line + "\n\n## 근거")
+    assert reason
+    assert "4,928,968,079,043" in out and "2,338,117,950,000" in out
+
+
+def test_a_single_chain_difference_line_is_completed_beyond_state_total():
+    records = [
+        {"rcept_no": "1", "rcept_dt": "20250101", "amount": 1_000_000_000,
+         "related": ["2"], "corp_name": "가"},
+        {"rcept_no": "2", "rcept_dt": "20250201", "amount": 1_300_000_000,
+         "related": ["1"], "corp_name": "가"},
+    ]
+    question = "정정 후 계약금액은 얼마나 증가했는가?"
+    line = aggregate.line(records, question, None)
+    assert line.startswith(aggregate.DECISIVE_MARK)
+
+    # state_total adds only the delta (300,000,000) — the other two figures
+    # of the line, the older and newer amounts, are still absent afterward.
+    answer, stated = aggregate.state_total(
+        "계약금액이 정정되어 늘었습니다.", records, question, None)
+    assert stated
+
+    out, reason = aggregate.repair_gap(answer, line + "\n\n## 근거")
+    assert reason
+    assert "1,000,000,000" in out and "1,300,000,000" in out
+
+
+# --- Minor: two qualifying lines in one evidence stay in evidence order
+
+def test_two_qualifying_lines_are_appended_in_evidence_order():
+    branch = (
+        "- [결정적 집계] 계약상대 11곳이 두 갈래로 나뉜다: 발주처 10곳 — "
+        "한국수력원자력(체코 두코바니 5&6호기 종합설계용역 1,250,850,298,678원) · "
+        "공급사 재수주 1곳 — 두산에너빌리티(신한울원자력발전소 3,4호기 원자로계통 "
+        "설계용역 181,608,900,000원 · 체코 두코바니 5&6호기 원자로계통설계용역 "
+        "373,449,426,066원) (공급사 쪽도 스스로 공시 대상 상장사다)\n"
+        "  답변은 이 두 갈래로만 나누고 다른 축으로 다시 나누지 않는다.")
+    evidence = HOLDING_LINE + "\n\n" + branch + "\n\n## 근거"
+    out, reason = aggregate.repair_gap(THIN, evidence)
+    assert reason == "repaired 2"
+    holding_pos = out.index("68.15%")
+    branch_pos = out.index("181,608,900,000")
+    assert holding_pos < branch_pos

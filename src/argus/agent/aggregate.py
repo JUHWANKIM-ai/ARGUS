@@ -1029,6 +1029,27 @@ _LINE_FIGURE = re.compile(r"\d{1,3}(?:,\d{3})+|\d+\.\d+\s*%")
 _LINE_DIRECTIVE = re.compile(
     r"\((?:이 값은 시스템이|이는 시스템이)[^)]*\)|^\s+답변은 .*$", re.MULTILINE)
 
+#: Digit-only boundaries instead of `\b`, the same idiom `safety.py` uses and
+#: for the same reason: Python's `\w` includes Hangul, so a figure followed by
+#: a Korean particle has no word boundary between its last digit and the
+#: particle. Blocking an adjacent digit, comma or decimal point is enough: it
+#: keeps a figure from matching inside a longer numeral (`68.19%` inside
+#: `168.19%`, `500,000,000` inside `1,500,000,000`) while still treating
+#: Hangul, `%`, and punctuation as boundaries.
+_FIG_D0, _FIG_D1 = r"(?<![\d,.])", r"(?![\d,.])"
+
+
+def _figure_present(figure: str, body: str) -> bool:
+    """Whether `figure` occurs in `body` as a complete number.
+
+    Plain substring containment would count a figure as present inside a
+    longer, different one. Space-insensitive on both sides, since the model
+    sometimes writes a comma group with spaces inside it (`44, 200, 027`).
+    """
+    needle = re.escape(figure.replace(" ", ""))
+    haystack = (body or "").replace(" ", "")
+    return re.search(_FIG_D0 + needle + _FIG_D1, haystack) is not None
+
 
 def decisive_lines(evidence: str) -> list[str]:
     """The decisive lines placed at the head of the evidence, cleaned.
@@ -1065,6 +1086,29 @@ def repair_gap(answer: str, evidence: str) -> tuple[str, str]:
     rate structurally, and it catches the case `amount_gap` cannot, where the
     answer states one figure and drops the rest.
     See docs/design-rationale.md#gap-repair
+
+    This reaches more than the narrative questions (Q-106, Q-117) that
+    motivated it, deliberately:
+
+    - `_total` returns None for the "비교" (comparison) and "몫" (quotient)
+      operations, so `substitute`/`state_total` never fire for them even
+      though `line()` still writes a DECISIVE_MARK'd block for both, gated by
+      its own flag. For those two operations this is the only answer-side
+      path back to a dropped line.
+    - A single-chain "차" (difference) line carries three figures — older,
+      newer, delta — while `state_total` inserts only the delta. That is 1/3
+      coverage, under the threshold, so this reaches what `state_total` left
+      behind there too.
+
+    Narrowing this to only the narrative writers would require it to know
+    which function produced a line, which is exactly the coupling reading by
+    `DECISIVE_MARK` alone is meant to avoid. The behaviour is the same
+    regardless of the writer: append deterministic content computed from the
+    evidence where the answer dropped it.
+
+    `partner_profile`'s line is permanently exempt, not by a special case but
+    structurally: it carries only bare filing counts, never a comma-grouped
+    amount or a percentage, so it can never reach `GAP_REPAIR_MIN_FIGURES`.
     """
     body, tail = split_tail(answer or "")
     if not body:
@@ -1074,7 +1118,7 @@ def repair_gap(answer: str, evidence: str) -> tuple[str, str]:
         figures = set(_LINE_FIGURE.findall(line))
         if len(figures) < GAP_REPAIR_MIN_FIGURES:
             continue
-        present = {f for f in figures if f.replace(" ", "") in body.replace(" ", "")}
+        present = {f for f in figures if _figure_present(f, body)}
         if len(present) * 2 >= len(figures):
             continue
         additions.append(line)
