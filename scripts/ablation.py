@@ -977,6 +977,20 @@ def score_arm(arm: str, cases: list[dict], records: dict, cohort: str = "") -> d
 JUDGE_FIELDS = ("covered", "covers_key_points", "grounded", "no_fabrication")
 
 
+def _judge_field_repr(value):
+    """`judge_sigma` 의 회차간 일치 비교에 쓰는 hashable 표현.
+
+    `covered` 는 스칼라가 아니라 리스트다. `bool(value)` 하나로 두면 비어 있지
+    않은 리스트는 전부 `True` 로 뭉개져서, 회차마다 요점 판정이 다르게 갈려도
+    (`[True, False, True]` 대 `[True, True, True]`) 그 차이가 `set()` 비교
+    이전에 사라진다. 리스트는 내용 그대로 튜플로, 스칼라는 종전대로 bool 로
+    비교한다.
+    """
+    if isinstance(value, list):
+        return tuple(bool(x) for x in value)
+    return bool(value)
+
+
 def _short(path: Path) -> str:
     """산출물에 적는 경로. 저장소 밖(테스트 tmp)이면 그대로 둔다."""
     try:
@@ -1055,9 +1069,17 @@ def judge_sigma(arm: str, cases: list[dict], records: dict,
         if not any(got):
             continue                       # 회차가 하나도 없는 문항 (예산 제동 뒤)
         marks = [None if v is None else bool(v["correct"]) for v in got]
-        # `v.get(f)` — `covered` 는 이번에 더한 축이라 이전 판에 저장된 회차 파일에는
-        #    키가 없다. `v[f]` 로 두면 옛 산출물을 재는 순간 KeyError 로 죽는다.
-        fields = {f: [None if v is None or f not in v else bool(v[f]) for v in got]
+        # `v[f]` 를 곧이곧대로 못 쓰는 이유가 둘이다. ① `covered` 는 이번에 더한
+        #    축이라 이전 판에 저장된 회차 파일에는 키 자체가 없다 — `v[f]` 로 두면
+        #    옛 산출물을 재는 순간 KeyError 로 죽는다(`f not in v` 로 없음을 가린다).
+        #    ② `covered` 는 스칼라가 아니라 리스트다 — `bool(v[f])` 로 뭉개면 요점별
+        #    판정이 회차마다 다르게 갈려도(`[True,False,True]` 대 `[True,True,True]`)
+        #    비어 있지 않은 리스트는 전부 True 로 같아져 그 차이가 사라진다
+        #    (`_judge_field_repr` 가 리스트는 내용으로, 스칼라는 종전대로 bool 로
+        #    비교 가능한 형태를 돌려준다). `None` 은 어느 쪽과도 같지 않으므로
+        #    "값이 없다" 가 "값이 거짓이다" 로 잘못 읽히지 않는다.
+        fields = {f: [None if v is None or f not in v else _judge_field_repr(v[f])
+                      for v in got]
                   for f in JUDGE_FIELDS}
         base = baseline.get(qid)
         agreed = len(set(marks)) == 1

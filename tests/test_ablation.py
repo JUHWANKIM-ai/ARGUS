@@ -2298,6 +2298,76 @@ def test_judge_sigma_restores_the_canonical_judge_directory(tmp_path, monkeypatc
     assert ea.JUDGE_DIR == base / "judge"
 
 
+def test_judge_sigma_field_agreement_catches_a_covered_array_flip(tmp_path, monkeypatch):
+    """A per-point flip on `covered` must be visible to the field-agreement
+    check even when the rolled-up `correct` mark agrees across rounds.
+
+    `covered` is a list, not a scalar. Casting it through `bool()` before
+    comparing rounds collapses any non-empty list to `True`, so two rounds
+    with genuinely different per-point verdicts ([True, False, True] vs
+    [True, True, True]) used to read as agreed on that axis -- the exact
+    per-point flip this task exists to surface was invisible to the one tool
+    built to catch judge instability (`fields_agreed` / `split_fields_only`).
+    """
+    from scripts import ablation as runner
+
+    monkeypatch.setattr(runner, "OUT_DIR", tmp_path)
+    base = tmp_path / "A8"
+    cases = [dict(_OPEN_CASE, question_id="Q-901")]
+    _seed_response(base, "Q-901")
+
+    def _put(folder: _Path, qid: str, covered: list, tag: str) -> None:
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{qid}.json").write_text(json.dumps({
+            "question_id": qid, "correct": True, "covered": covered,
+            "covers_key_points": True, "grounded": True, "no_fabrication": True,
+            "reason": tag}), encoding="utf-8")
+
+    # Same rolled-up `correct` mark both rounds, but the per-point array
+    # actually flips on the middle point.
+    _put(base / runner.JUDGE_REPEAT_DIRNAME / "round_1", "Q-901",
+         [True, False, True], "r1")
+    _put(base / runner.JUDGE_REPEAT_DIRNAME / "round_2", "Q-901",
+         [True, True, True], "r2")
+
+    out = runner.judge_sigma("A8", cases, {}, cohort="valuechain")
+
+    assert out["questions"]["Q-901"]["agreed"] is True          # `correct` agrees
+    assert out["questions"]["Q-901"]["fields_agreed"] is False  # `covered` does not
+    assert out["split_questions"] == []             # never split on `correct`
+    assert out["split_fields_only"] == ["Q-901"]     # but the axis flip is caught
+
+
+def test_judge_sigma_handles_old_format_judge_files_without_covered(tmp_path, monkeypatch):
+    """A judge file written before this task carries no `covered` key at all
+    (`error_analysis.py`'s own backward-compat guard is `if k in judged`).
+    Re-scoring an older artifact folder must not raise, and an axis missing
+    from every round is trivially uniform -- there is no evidence of a flip --
+    so it must not be reported as a disagreement either."""
+    from scripts import ablation as runner
+
+    monkeypatch.setattr(runner, "OUT_DIR", tmp_path)
+    base = tmp_path / "A8"
+    cases = [dict(_OPEN_CASE, question_id="Q-901")]
+    _seed_response(base, "Q-901")
+
+    def _put(folder: _Path, qid: str, tag: str) -> None:
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{qid}.json").write_text(json.dumps({
+            "question_id": qid, "correct": True,          # no "covered" key
+            "covers_key_points": True, "grounded": True, "no_fabrication": True,
+            "reason": tag}), encoding="utf-8")
+
+    _put(base / runner.JUDGE_REPEAT_DIRNAME / "round_1", "Q-901", "r1")
+    _put(base / runner.JUDGE_REPEAT_DIRNAME / "round_2", "Q-901", "r2")
+
+    out = runner.judge_sigma("A8", cases, {}, cohort="valuechain")  # must not raise
+
+    assert out["questions"]["Q-901"]["fields"]["covered"] == [None, None]
+    assert out["questions"]["Q-901"]["fields_agreed"] is True
+    assert out["split_fields_only"] == []
+
+
 def test_the_arm_without_repeat_rounds_has_nothing_to_measure(tmp_path, monkeypatch):
     """회차가 없으면 `None` 이다. 없는 σ 를 0 으로 적으면 "judge 는 결정적이다" 가
     측정 없이 산출물에 들어간다."""
