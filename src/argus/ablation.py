@@ -377,6 +377,13 @@ class Arm:
     #: record carries the field and the axis reads nothing.
     #: See docs/design-rationale.md#project-scope
     project_scope: bool = False
+    #: True appends a decisive line's content to the answer when the answer
+    #: dropped most of its figures. The evidence-side lines require the model
+    #: to copy them, and two measured runs show it does not. `substitute` and
+    #: `state_total` already close that gap for questions with a pinned
+    #: operation; this reaches the narrative ones, which have none.
+    #: See docs/design-rationale.md#gap-repair
+    gap_repair: bool = False
     #: True separates which filing a date points at when two share that date.
     #: With both filings in the evidence the selection rather than the
     #: retrieval goes wrong. The rule is what the date means: a contract filed

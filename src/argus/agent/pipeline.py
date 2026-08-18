@@ -2740,6 +2740,18 @@ def answer_question(question_id: str, question: str) -> dict:
         if stated:
             trace.append(f"aggregate {stated}")
 
+    # Same family as the two above and the last of them, so an answer the
+    # model wrote correctly, or that substitution already fixed, is left
+    # alone. Reads the evidence rather than recomputing, because the lines it
+    # repairs were written into the evidence earlier in this same call.
+    # See docs/design-rationale.md#gap-repair
+    if ablation.enabled("gap_repair"):
+        from argus.agent import aggregate
+
+        answer, repaired = aggregate.repair_gap(answer, evidence)
+        if repaired:
+            trace.append(f"gap_repair {repaired}")
+
     # Rewrite the parenthesised unit conversion. Runs after substitution:
     # replacing the body figure alone leaves behind the parenthesised value the
     # model derived from its own wrong figure.

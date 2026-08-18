@@ -1010,6 +1010,80 @@ def state_total(answer: str, records, question: str, route) -> tuple[str, str]:
     return body + sentence + tail, f"stated {total:,}"
 
 
+#: The decisive-line marker, written by every function in this module that
+#: places one. Single definition: the repair below finds lines by it, and a
+#: second copy would drift from the writers.
+DECISIVE_MARK = "- [결정적 집계]"
+
+#: Figures a decisive line has to carry before the repair considers it. Below
+#: this the line is a single value, which `substitute` and `state_total`
+#: already place without appending a sentence.
+GAP_REPAIR_MIN_FIGURES = 3
+
+#: Comma-grouped integers and percentages, the two figure shapes the decisive
+#: lines carry.
+_LINE_FIGURE = re.compile(r"\d{1,3}(?:,\d{3})+|\d+\.\d+\s*%")
+
+#: Trailing directives inside a decisive line. They instruct the model about
+#: the evidence; carried into an answer they are a leak of our own prompt.
+_LINE_DIRECTIVE = re.compile(
+    r"\((?:이 값은 시스템이|이는 시스템이)[^)]*\)|^\s+답변은 .*$", re.MULTILINE)
+
+
+def decisive_lines(evidence: str) -> list[str]:
+    """The decisive lines placed at the head of the evidence, cleaned.
+
+    The marker and the model-facing directives are removed, leaving the
+    computed content alone.
+    """
+    out = []
+    for block in (evidence or "").split("\n\n"):
+        if not block.lstrip().startswith(DECISIVE_MARK):
+            continue
+        text = _LINE_DIRECTIVE.sub("", block)
+        text = text.replace(DECISIVE_MARK, "").strip()
+        text = re.sub(r"\s*\n\s*", " ", text)
+        text = re.sub(r"\s{2,}", " ", text).strip(" ·")
+        if text:
+            out.append(text)
+    return out
+
+
+def repair_gap(answer: str, evidence: str) -> tuple[str, str]:
+    """Append a decisive line's content when the answer dropped most of it.
+
+    No LLM call. Returns (new answer, reason), or (original, "") when nothing
+    applies.
+
+    `substitute` and `state_total` reach only questions with a pinned
+    operation, because both read `_total`. Q-106 and Q-117 have none, so the
+    lines they depend on had no answer-side path at all and the model had to
+    copy them. It did not, twice, in measured runs.
+
+    The trigger is the line's own figures: fewer than half of them present in
+    the answer. Reading only what we ourselves wrote bounds the false-alarm
+    rate structurally, and it catches the case `amount_gap` cannot, where the
+    answer states one figure and drops the rest.
+    See docs/design-rationale.md#gap-repair
+    """
+    body, tail = split_tail(answer or "")
+    if not body:
+        return answer, ""
+    additions = []
+    for line in decisive_lines(evidence):
+        figures = set(_LINE_FIGURE.findall(line))
+        if len(figures) < GAP_REPAIR_MIN_FIGURES:
+            continue
+        present = {f for f in figures if f.replace(" ", "") in body.replace(" ", "")}
+        if len(present) * 2 >= len(figures):
+            continue
+        additions.append(line)
+    if not additions:
+        return answer, ""
+    stated = "\n\n" + "\n".join(f"정리하면 {a}" for a in additions)
+    return body + stated + tail, f"repaired {len(additions)}"
+
+
 def date_disambiguation(records, question: str) -> str:
     """State which filing a date in the question points at, as one line.
 
