@@ -45,6 +45,28 @@ def test_all_four_measured_cases_lose_their_referral():
         assert banned not in out
 
 
+def test_milder_register_referrals_are_still_caught():
+    """The four measured cases all use the assertive `추천드립니다`/
+    `권장드립니다`. Formal Korean also directs the reader elsewhere in plainer
+    closing forms — `참조하시기 바랍니다.`/`확인하시기 바랍니다.`/`확인하실 수
+    있습니다.` — and narrowing the verb list once let all three through
+    silently. Each fixture carries a leading sentence so removing the closer
+    does not empty the whole answer and trip the restoration guard instead —
+    that guard would hide a verb-list regression exactly the way it hid this
+    one the first time."""
+    lead = "해당 정보는 공시 자료에서 확인되지 않습니다. "
+    for closer, banned in (
+        ("회사의 공식 홈페이지를 참조하시기 바랍니다.", "공식 홈페이지"),
+        ("전자공시시스템에서 확인하시기 바랍니다.", "전자공시시스템"),
+        ("DART에서 확인하실 수 있습니다.", "DART"),
+    ):
+        text = lead + closer
+        out, removed = safety.strip_external_referral(text)
+        assert removed, closer
+        assert banned not in out
+        assert "확인되지 않습니다" in out
+
+
 def test_the_generic_lead_in_survives_by_design():
     """`다른 방법을 통해 확인해 보시기 바랍니다` names no source, so it does not
     assert an out-of-corpus path and is not a §5 defect. Cutting it to tidy
@@ -90,11 +112,13 @@ def test_an_answer_that_would_be_emptied_is_restored():
     """Deleting every sentence leaves no answer at all, which is worse than
     the defect. The original is returned instead.
 
-    The fixture must still satisfy the narrowed conjunction (source AND verb)
-    on its own, or this test would pass because nothing matched at all —
-    exercising the early `if not removed` return instead of the later
-    would-be-emptied restore. `확인해 보시` is in the narrowed verb list;
-    bare `참고하`/`바랍니다` no longer are."""
+    The fixture must still satisfy the conjunction (source AND verb) on its
+    own, or this test would pass because nothing matched at all — exercising
+    the early `if not removed` return instead of the later would-be-emptied
+    restore. `DART` names a kept source, and `확인해 보`/`바랍니다` both name a
+    kept verb, so this single sentence is genuinely matched, and the only
+    reason it survives is the emptied-answer guard, confirmed by deleting that
+    guard and observing the output become the empty string."""
     out, removed = safety.strip_external_referral(
         "DART 를 확인해 보시기 바랍니다.")
     assert out == "DART 를 확인해 보시기 바랍니다."

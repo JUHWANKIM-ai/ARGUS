@@ -83,15 +83,18 @@ def sanitize_question(question: str) -> tuple[str, list[str]]:
 #: them more often (A27, 1 case -> 3), so the list lives here in post
 #: processing where it cannot reach the model.
 #:
-#: Kept narrow on purpose: an earlier draft also listed the bare common nouns
-#: `홈페이지` and `관련 기관`. Both match ordinary closing sentences that
-#: describe the company's *own* disclosed action — "회사는 정정 공시를
-#: 홈페이지에 게시하오니 확인하시기 바랍니다." and "동사는 관련 기관의 승인을
-#: 받은 사실을 공시하였으니 참고하시기 바랍니다." — neither of which sends the
-#: user anywhere outside the corpus. A bare common noun is not an external
-#: service; only the qualified `공식 웹사이트`/`공식 홈페이지`/`공식 발표
-#: 채널` name one unambiguously. Widen this list only against a case that
-#: still fails with the qualified forms in place.
+#: This list carries the discrimination, not the verb list below: a referral
+#: names an external *service*, while ordinary disclosure prose names a place
+#: the company itself acted. Kept narrow on purpose: an earlier draft also
+#: listed the bare common nouns `홈페이지` and `관련 기관`. Both matched
+#: ordinary closing sentences that describe the company's *own* disclosed
+#: action — "회사는 정정 공시를 홈페이지에 게시하오니 확인하시기 바랍니다."
+#: and "동사는 관련 기관의 승인을 받은 사실을 공시하였으니 참고하시기
+#: 바랍니다." — neither of which sends the user anywhere outside the corpus.
+#: A bare common noun is not an external service; only the qualified `공식
+#: 웹사이트`/`공식 홈페이지`/`공식 발표 채널` name one unambiguously. Widen
+#: this list only against a case that still fails with the qualified forms in
+#: place.
 #: See docs/design-rationale.md#external-referral
 _EXTERNAL_SOURCE = (
     "네이버", "구글", "증권사", "전자공시시스템", "DART", "다트",
@@ -101,16 +104,27 @@ _EXTERNAL_SOURCE = (
 #: Recommending verbs. Both halves have to be in the same sentence: the
 #: refusal sentences carry a source name at most, never a recommendation.
 #:
-#: Kept narrow on purpose, for the same reason as `_EXTERNAL_SOURCE`: a bare
-#: `바랍니다` or bare `참고하` is ordinary polite closing form, not direction.
-#: Both false-positive sentences above end in "...하시기 바랍니다" and one
-#: says "참고하였으니" — neither is `참고하시는 것도`, the specific phrase the
-#: measured referral case uses. A politeness marker is not a recommendation;
-#: only a verb that names the *act of going elsewhere* qualifies.
+#: Kept broad on purpose, unlike `_EXTERNAL_SOURCE` above: formal Korean
+#: expresses "go check this yourself" across many registers, from the
+#: assertive `추천드립니다`/`권장드립니다` the four measured cases happen to
+#: use, down to the plain closing `확인하시기 바랍니다.`/`확인하실 수
+#: 있습니다.` A first narrowing pass dropped bare `바랍니다`/`참고하`/
+#: `참조하`/`확인하시`/`확인하실` to keep two false positives out —
+#: "회사는 정정 공시를 홈페이지에 게시하오니 확인하시기 바랍니다." and
+#: "동사는 관련 기관의 승인을 받은 사실을 공시하였으니 참고하시기 바랍니다."
+#: — but both of those are already excluded by the source list above: neither
+#: names a kept external service, so the verb narrowing bought no precision
+#: there. It did cost recall: "회사의 공식 홈페이지를 참조하시기 바랍니다.",
+#: "전자공시시스템에서 확인하시기 바랍니다.", and "DART에서 확인하실 수
+#: 있습니다." are genuine referrals in the register formal Korean actually
+#: uses, and a narrow verb list let all three through. Narrowing the verb
+#: list again is very unlikely to be the right move — reach for the source
+#: list first.
 #: See docs/design-rationale.md#external-referral
 _REFERRAL_VERB = (
-    "추천", "권장", "권해", "권합니다", "참고하시는 것도",
-    "확인해 보시", "문의해 보시", "알아보시",
+    "추천", "권장", "권해", "권합니다", "참고하", "참조하",
+    "확인해 보", "확인하시", "확인하실", "문의해 보", "알아보",
+    "도움이 될", "바랍니다",
 )
 
 #: Sentence boundary. A period followed by whitespace, or a line break. The
