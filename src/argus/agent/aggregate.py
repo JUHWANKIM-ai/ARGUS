@@ -457,11 +457,17 @@ MAX_SUBJECT_CHARS = 44
 
 
 #: Representative contracts carried per counterparty. The supplier branch
-#: carries two, because one golden point needs the two contracts of a single
-#: project visible together; the orderer branch carries one each, because
-#: there the point is the list of names.
+#: carries three: one golden point needs the two contracts of a single
+#: project (Dukovany) visible together, and a second needs a project that is
+#: distinct but not most recent — measured on Q-117, 두산에너빌리티 filed one
+#: project (신고리) four times and another (신한울) once, with 신한울 fifth by
+#: recency. `_branch_entry` dedupes by subject before this cap is applied, so
+#: the cap only has to reach as many *distinct* projects as a counterparty
+#: has, not as many filings; three is what it takes to reach 신고리, 두코바니
+#: and 신한울 among 두산에너빌리티's real filings. The orderer branch carries
+#: one each, because there the point is the list of names.
 #: See docs/design-rationale.md#counterparty-branch
-MAX_BRANCH_CONTRACTS_SUPPLIER = 2
+MAX_BRANCH_CONTRACTS_SUPPLIER = 3
 MAX_BRANCH_CONTRACTS_ORDERER = 1
 
 
@@ -471,8 +477,24 @@ def _branch_entry(name: str, events: list[dict], limit: int) -> str:
     Falls back to the bare name when no record carries an amount. Nine of
     Q-117's eleven counterparties are named for the list alone, and dropping
     them because they lack a figure would lose the first golden point.
+
+    Priced records are deduplicated by contract subject (`_subject`) before
+    the cap is applied, keeping the first occurrence of each distinct
+    subject in the order `events` arrives in (newest first, per caller). A
+    repeated subject carries no information the first instance did not, and
+    left alone it can crowd a distinct, once-filed project out of the cap
+    entirely — the defect measured on Q-117's 두산에너빌리티 records.
     """
-    priced = [e for e in (events or []) if _amount(e) is not None][:limit]
+    priced = [e for e in (events or []) if _amount(e) is not None]
+    deduped: list[dict] = []
+    seen_subjects: set[str] = set()
+    for event in priced:
+        subject = _subject(event)
+        if subject in seen_subjects:
+            continue
+        seen_subjects.add(subject)
+        deduped.append(event)
+    priced = deduped[:limit]
     if not priced:
         return name
     parts = [f"{_subject(e)} {_amount(e):,}원" for e in priced]

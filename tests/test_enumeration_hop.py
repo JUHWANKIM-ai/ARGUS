@@ -302,6 +302,15 @@ def test_counterparty_branch_is_silent_when_one_side_is_empty():
 #: The same eleven counterparties, but with the records the line now reads:
 #: a contract title and an amount. Golden points 2, 3 and 4 of `Q-117` are
 #: contract names and amounts, which the name-only line could not carry.
+#:
+#: 두산에너빌리티's six records are `Q-117`'s real, measured filings against
+#: this counterparty (newest first, as `_enumerate_events` passes them),
+#: not a simplified stand-in: 신고리 was filed four times, 두코바니 once, and
+#: 신한울 (golden point 3, 181,608,900,000원) sits fifth by recency — behind
+#: three of the four 신고리 repeats. A cap that merely slices the newest N
+#: records, with no dedupe, cannot reach it no matter how high the cap goes
+#: as long as it is below 5; this fixture is what makes that failure and its
+#: fix observable here rather than only in `artifacts/exchange_records.jsonl`.
 def _rich_groups() -> dict[str, list[dict]]:
     def _row(no, title, amount):
         return {"rcept_no": no,
@@ -311,10 +320,18 @@ def _rich_groups() -> dict[str, list[dict]]:
     groups = {name: [{"rcept_no": f"{name}-{i}"} for i in range(n)]
               for name, n in _Q117_COUNTERPARTIES}
     groups["두산에너빌리티"] = [
-        _row("20230330800844", "신한울원자력발전소 3,4호기 원자로계통 설계용역",
-             181_608_900_000),
+        _row("20260109800243", "신고리원자력발전소 5,6호기 원자로계통설계",
+             214_781_736_017),
         _row("20251224800396", "체코 두코바니 5&6호기 원자로계통설계용역",
              373_449_426_066),
+        _row("20251027800516", "신고리원자력발전소 5,6호기 원자로계통설계",
+             203_201_827_017),
+        _row("20231229800432", "신고리원자력발전소 5,6호기 원자로계통설계",
+             203_201_827_017),
+        _row("20230330800844", "신한울원자력발전소 3,4호기 원자로계통 설계용역",
+             181_608_900_000),
+        _row("20230105800282", "신고리원자력발전소 5,6호기 원자로계통설계",
+             196_248_837_017),
     ]
     groups["한국수력원자력"] = [
         _row("20251212801320", "체코 두코바니 5&6호기 종합설계용역",
@@ -325,7 +342,13 @@ def _rich_groups() -> dict[str, list[dict]]:
 
 def test_the_branch_line_carries_contract_names_and_amounts():
     """Golden points 2 and 3: the re-order branch's contracts are all
-    원자로계통설계, and 신한울 3,4호기 is 181,608,900,000원."""
+    원자로계통설계, and 신한울 3,4호기 is 181,608,900,000원.
+
+    181,608,900,000 is fifth by recency among 두산에너빌리티's six real
+    records, behind three repeats of a different project (신고리). It only
+    reaches the line because `_branch_entry` dedupes by contract subject
+    before applying the cap — a plain newest-N slice, however wide, would
+    have to reach depth 5 to find it, and the cap is 3."""
     line = aggregate.counterparty_branch(_rich_groups())
     assert "원자로계통설계" in line or "원자로계통 설계" in line
     assert "181,608,900,000" in line
@@ -333,7 +356,8 @@ def test_the_branch_line_carries_contract_names_and_amounts():
 
 def test_the_re_order_branch_carries_two_contracts():
     """Golden point 4 needs both Dukovany contracts visible at once, so the
-    supplier branch carries two while the orderer branch carries one each."""
+    supplier branch carries three (see docstring on `_rich_groups` for why
+    three, not two) while the orderer branch carries one each."""
     line = aggregate.counterparty_branch(_rich_groups())
     assert "신한울" in line and "두코바니" in line
 
@@ -363,19 +387,34 @@ def _distinct_priced_records() -> list[dict]:
     ]
 
 
-def test_the_supplier_branch_truncates_a_third_contract():
-    """MAX_BRANCH_CONTRACTS_SUPPLIER caps the supplier branch at two. The
+#: `_distinct_priced_records` plus a fourth record whose title shares no
+#: token with the other three, or with any other string in this file. Pins
+#: MAX_BRANCH_CONTRACTS_SUPPLIER's cap of three the same way
+#: `_distinct_priced_records` pinned the old cap of two: four distinct
+#: subjects mean dedupe passes all four through unchanged, so only the
+#: `[:limit]` slice can be responsible for the fourth one's absence.
+def _four_distinct_priced_records() -> list[dict]:
+    return _distinct_priced_records() + [
+        {"rcept_no": "distinct-4",
+         "title": "단일판매ㆍ공급계약체결 — 자카르타발전소보수공사", "amount": 444_444_444},
+    ]
+
+
+def test_the_supplier_branch_truncates_a_fourth_contract():
+    """MAX_BRANCH_CONTRACTS_SUPPLIER caps the supplier branch at three. The
     sibling (orderer) counterparty here is bare, so every priced title in the
-    line comes from the supplier side alone: the third record's absence can
-    only be explained by the cap. Widening the cap to three, or removing the
-    `[:limit]` slice, would make 나이로비수처리설비 appear and this test would
-    fail — which is the point of the assertion."""
-    groups = {"두산에너빌리티": _distinct_priced_records(),
+    line comes from the supplier side alone: the fourth record's absence can
+    only be explained by the cap. All four subjects are distinct, so dedupe
+    passes every one of them through unchanged — widening the cap to four,
+    or removing the `[:limit]` slice, would make 자카르타발전소보수공사 appear
+    and this test would fail, which is the point of the assertion."""
+    groups = {"두산에너빌리티": _four_distinct_priced_records(),
               "한국수력원자력": [{"rcept_no": "hk-0"}]}          # bare: contributes nothing
     line = aggregate.counterparty_branch(groups)
     assert "톈진프로젝트설비공급" in line and "111,111,111" in line
     assert "오슬로항만증설공사" in line and "222,222,222" in line
-    assert "나이로비수처리설비" not in line and "333,333,333" not in line
+    assert "나이로비수처리설비" in line and "333,333,333" in line
+    assert "자카르타발전소보수공사" not in line and "444,444,444" not in line
 
 
 def test_the_orderer_branch_truncates_a_second_contract():
@@ -394,16 +433,72 @@ def test_the_two_branch_caps_are_not_equal():
     """Pins the asymmetry directly, rather than each cap in isolation. The
     identical three-record list sits on both a universe and a non-universe
     counterparty at once, so the second record can only reach the rendered
-    line through the supplier branch (cap 2) — the orderer branch (cap 1)
+    line through the supplier branch (cap 3) — the orderer branch (cap 1)
     never gets past its first record. It must therefore appear exactly once
-    in the whole line: zero times if both caps collapsed to 1, twice if both
-    widened to 2. Either equalisation breaks this count, which is what makes
-    this assertion a test of the asymmetry and not of either cap alone."""
+    in the whole line: zero times if both caps collapsed to 1, twice if the
+    orderer cap were also widened past 1. Equalising the caps at 1 breaks
+    this count, which is what makes this assertion a test of the asymmetry
+    and not of either cap alone."""
     records = _distinct_priced_records()
     groups = {"두산에너빌리티": records, "한국수력원자력": records}
     line = aggregate.counterparty_branch(groups)
     assert line.count("오슬로항만증설공사") == 1
     assert line.count("222,222,222") == 1
+
+
+#: Seven priced records, newest first: one subject repeated four times
+#: (positions 1, 3, 4, 7) and three further subjects that each appear once
+#: (positions 2, 5, 6). Shaped like the real Q-117 defect (두산에너빌리티's
+#: six real records, four of them the same 신고리 filing) but with unique
+#: amounts per record so each one's presence in the rendered line can be
+#: checked independently of the others.
+def _repeated_and_distinct_priced_records() -> list[dict]:
+    def _row(no, title, amount):
+        return {"rcept_no": no,
+                "title": f"단일판매ㆍ공급계약체결 — {title}", "amount": amount}
+
+    return [
+        _row("rep-1", "가상프로젝트일", 111_000),
+        _row("rep-2", "가상프로젝트이", 222_000),
+        _row("rep-3", "가상프로젝트일", 333_000),   # repeat of rep-1's subject
+        _row("rep-4", "가상프로젝트일", 444_000),   # repeat of rep-1's subject
+        _row("rep-5", "가상프로젝트삼", 555_000),
+        _row("rep-6", "가상프로젝트사", 666_000),
+        _row("rep-7", "가상프로젝트일", 777_000),   # repeat of rep-1's subject
+    ]
+
+
+def test_dedupe_and_cap_act_independently():
+    """Separates the two effects the fix combines, the way the audit for
+    this change demanded: a fixture with more records than the cap *and*
+    repeated subjects, so a broken dedupe and a broken cap fail on different
+    assertions rather than both failing (or both passing) together.
+
+    Correct behaviour (dedupe by subject, then cap at three) keeps the first
+    occurrence of each distinct subject up to the cap: 111,000 (1st), 222,000
+    (2nd), 555,000 (3rd distinct subject — the repeats at 333,000/444,000
+    collapse into 111,000's slot and do not consume it). 666,000 is the 4th
+    distinct subject and is excluded by the cap.
+
+    Break dedupe alone (cap the raw list without deduping first): the third
+    slot becomes 333,000, a repeat, and 555,000 never reaches the line — the
+    assertion on 555,000 fails while 666,000 is still correctly absent, so a
+    cap-only test would not catch this.
+
+    Break the cap alone (dedupe, then keep all distinct subjects instead of
+    slicing to three): 666,000 appears — that assertion fails while 555,000
+    is still correctly present, so a dedupe-only test would not catch this.
+    """
+    groups = {"두산에너빌리티": _repeated_and_distinct_priced_records(),
+              "한국수력원자력": [{"rcept_no": "hk-0"}]}          # bare: contributes nothing
+    line = aggregate.counterparty_branch(groups)
+    assert "111,000" in line
+    assert "222,000" in line
+    assert "555,000" in line
+    assert "333,000" not in line
+    assert "444,000" not in line
+    assert "777,000" not in line
+    assert "666,000" not in line
 
 
 def test_a_counterparty_with_no_amount_is_named_only():
