@@ -98,3 +98,37 @@ def test_an_answer_that_would_be_emptied_is_restored():
 def test_the_flag_is_off_by_default():
     assert ablation.Arm("X").external_referral_strip is False
     assert "external_referral_strip" in ablation.FLAG_NAMES
+
+
+def test_a_disclosure_closing_sentence_naming_the_companys_own_page_survives():
+    """`홈페이지` bare is a common noun, not `공식 웹사이트`/`공식 홈페이지`. This
+    sentence describes the company's own disclosed action, not a path outside
+    the corpus, and a single-sentence fixture would hide the bug behind the
+    would-be-emptied restoration guard, so this answer carries a leading
+    sentence to keep the closer from being the whole answer."""
+    text = ("정정 신고서가 접수되어 반영되었습니다. 회사는 정정 공시를 "
+            "홈페이지에 게시하오니 확인하시기 바랍니다.")
+    out, removed = safety.strip_external_referral(text)
+    assert out == text and removed == []
+
+
+def test_a_disclosure_closing_sentence_naming_a_related_agency_survives():
+    """`관련 기관` bare names no specific external service, unlike `공식 발표
+    채널`. This sentence reports the company's own disclosed compliance, not a
+    referral to go find something ourselves."""
+    text = ("이사회는 해당 안건을 원안대로 가결하였습니다. 동사는 관련 기관의 "
+            "승인을 받은 사실을 공시하였으니 참고하시기 바랍니다.")
+    out, removed = safety.strip_external_referral(text)
+    assert out == text and removed == []
+
+
+def test_trailing_whitespace_survives_only_via_the_early_return():
+    """Every other untouched fixture in this file has no trailing whitespace
+    after its last kept sentence, so `"".join(kept).rstrip()` reproduces it
+    byte-for-byte even without the `if not removed: return answer, []` early
+    return — that path alone would never catch a regression that deletes the
+    early return. This fixture has a trailing blank line, which `.rstrip()`
+    would eat; only the early return preserves it."""
+    text = "정상적으로 답변되었습니다.\n\n"
+    out, removed = safety.strip_external_referral(text)
+    assert out == text and removed == []
