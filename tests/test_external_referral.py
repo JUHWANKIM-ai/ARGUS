@@ -88,10 +88,16 @@ def test_the_surrounding_text_keeps_its_spacing_when_one_sentence_goes():
 
 def test_an_answer_that_would_be_emptied_is_restored():
     """Deleting every sentence leaves no answer at all, which is worse than
-    the defect. The original is returned instead."""
+    the defect. The original is returned instead.
+
+    The fixture must still satisfy the narrowed conjunction (source AND verb)
+    on its own, or this test would pass because nothing matched at all —
+    exercising the early `if not removed` return instead of the later
+    would-be-emptied restore. `확인해 보시` is in the narrowed verb list;
+    bare `참고하`/`바랍니다` no longer are."""
     out, removed = safety.strip_external_referral(
-        "DART 를 참고하시기 바랍니다.")
-    assert out == "DART 를 참고하시기 바랍니다."
+        "DART 를 확인해 보시기 바랍니다.")
+    assert out == "DART 를 확인해 보시기 바랍니다."
     assert removed == []
 
 
