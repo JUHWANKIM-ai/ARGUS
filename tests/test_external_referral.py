@@ -103,6 +103,24 @@ def test_descriptive_self_citations_survive():
         assert out == text
 
 
+def test_a_sentence_using_helpful_descriptively_survives():
+    """`도움이 될` was dropped from `_REFERRAL_VERB` entirely, not narrowed:
+    unlike `참고하`/`참조하` it carries no honorific `-시-`/`-십-` form to
+    split on, so there was no directed-only version of it to keep. It also
+    bought no recall — every measured referral it used to help catch (S-010)
+    is already caught by `참고하시` alone. This sentence names a kept source
+    and uses `도움이 될` to describe our own citation reasoning, not to direct
+    the reader anywhere; it used to be silently deleted. Pinned here so
+    nobody adds the term back without seeing why it left."""
+    lead = "해당 정보는 공시 자료에서 확인되지 않습니다. "
+    text = lead + ("전자공시시스템에 공시된 자료가 판단에 도움이 될 것으로 "
+                   "보아 인용하였습니다.")
+    out, removed = safety.strip_external_referral(text)
+    assert removed == []
+    assert "전자공시시스템" in out
+    assert out == text
+
+
 def test_the_generic_lead_in_survives_by_design():
     """`다른 방법을 통해 확인해 보시기 바랍니다` names no source, so it does not
     assert an out-of-corpus path and is not a §5 defect. Cutting it to tidy

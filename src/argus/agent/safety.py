@@ -104,20 +104,33 @@ _EXTERNAL_SOURCE = (
 #: Recommending verbs. Both halves have to be in the same sentence: the
 #: refusal sentences carry a source name at most, never a recommendation.
 #:
-#: A referral is *directed at the reader*; a self-citation naming the same
-#: source is *descriptive* of what we did. Korean marks that difference in
-#: the verb ending, not the stem: the honorific `-시-`/`-십-` puts the reader
-#: in the subject position (`참고하시기`, `참고하십시오`, `확인하실`), while
-#: the plain stem describes an action already taken (`참고하여`,
-#: `참고하였습니다`, `참조하였습니다`). Two measured sentences taught this —
-#: "본 답변은 전자공시시스템에 공시된 자료를 참고하여 작성되었습니다." and
-#: "위 수치는 DART에 공시된 사업보고서를 참조하였습니다." — both name a kept
-#: source and use the bare stem, but both describe our own evidence use, and
-#: bare `참고하`/`참조하` swept them in.
+#: The rule every term on this list must satisfy: it must be *reader-directed*.
+#: A referral is directed at the reader; a self-citation naming the same
+#: source is *descriptive* of what we did, and no descriptive term belongs
+#: here no matter how strongly it correlates with real referrals. Korean
+#: usually marks the directed/descriptive difference in the verb ending, not
+#: the stem: the honorific `-시-`/`-십-` puts the reader in the subject
+#: position (`참고하시기`, `참고하십시오`, `확인하실`), while the plain stem
+#: describes an action already taken (`참고하여`, `참고하였습니다`,
+#: `참조하였습니다`). Two measured sentences taught this — "본 답변은
+#: 전자공시시스템에 공시된 자료를 참고하여 작성되었습니다." and "위 수치는
+#: DART에 공시된 사업보고서를 참조하였습니다." — both name a kept source and
+#: use the bare stem, but both describe our own evidence use, and bare
+#: `참고하`/`참조하` swept them in.
 #:
 #: `참고하십시오` needs its own entry alongside `참고하시`: its fourth
 #: syllable is `십`, not `시`, so `참고하시` does not match it. Same for
 #: `참조하십`. This is a case where reading the string is not enough — run it.
+#:
+#: `도움이 될` failed the rule and is gone. It has no honorific form to split
+#: on — it never carries `-시-`/`-십-` in either register — so unlike
+#: `참고하`/`참조하` there was no narrowing available, only removal. It also
+#: bought nothing: every measured referral it used to help catch is already
+#: caught by another term (`S-010`'s "...참고하시는 것도 도움이 될 수
+#: 있습니다." matches via `참고하시`), while it wrongly caught a plausible
+#: descriptive sentence — "전자공시시스템에 공시된 자료가 판단에 도움이 될
+#: 것으로 보아 인용하였습니다." — that names a kept source but describes our
+#: own citation reasoning, not a referral. Pure cost, no recall: removed.
 #:
 #: Bare `바랍니다` is gone too, but for a different reason than the stems
 #: above: it carries no stem at all to be directed or descriptive about, and
@@ -130,7 +143,7 @@ _REFERRAL_VERB = (
     "추천", "권장", "권해", "권합니다",
     "참고하시", "참고하십", "참조하시", "참조하십",
     "확인해 보시", "확인하시", "확인하실",
-    "문의해 보시", "알아보시", "도움이 될",
+    "문의해 보시", "알아보시",
 )
 
 #: Sentence boundary. A period followed by whitespace, or a line break. The
