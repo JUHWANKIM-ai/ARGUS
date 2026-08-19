@@ -22,6 +22,7 @@ the corpus actually has" (`DOOSAN`, returned by a stub `chain_lookup`),
 because that separation is exactly what the old code could not tell apart.
 See docs/design-rationale.md#holding-series
 """
+import inspect
 import re
 
 from argus import ablation
@@ -167,6 +168,111 @@ def test_evidence_padded_with_another_issuer_does_not_win_the_length_race():
         assert pct in line                         # the true NAVER chain, whole
 
 
+# --- The gate, not just the content: R22 review round 2 (2026-08-19) -------
+#
+# The `corp_name` pin fixed above does two jobs. The test above exercises the
+# *content* job (a mixed chain must not win the length race). This block
+# exercises the *gate* job: a reporter with exactly one true filing on the
+# pinned issuer, plus several on another issuer, must not clear the
+# `len(evidence_chain) < 2` gate just because the reporter's *total* evidence
+# count happens to be >= 2. Without the pin, that shape lets `chain_lookup`
+# be asked - legitimately, non-emptily - for the pinned issuer's one real
+# record, and the line would emit a truthful-looking "(1건)" with a
+# meaningless zero cumulative instead of returning "". A one-point "series"
+# claiming a trend is the same false-authority class this whole fix exists to
+# close, arriving through the gate instead of the content.
+
+_NPS_REPORTER = "국민연금공단"
+#: The pinned issuer's one true filing.
+_NPS_KAKAO = {"rcept_no": "kk1", "rcept_dt": "20200101", "reporter": _NPS_REPORTER,
+              "corp_name": "카카오", "ratio_current": 5.0, "shares_current": "500"}
+#: Three more filings by the *same reporter*, on a *different* issuer. Exist
+#: only to inflate the reporter's total evidence count past 2 if `corp_name`
+#: is not also part of the pin - the same reporter-only miscount the length
+#: race test above hits, but tripping the gate instead of the length race.
+_NPS_POSCO = [
+    {"rcept_no": f"ps{i}", "rcept_dt": f"202002{i:02d}", "reporter": _NPS_REPORTER,
+     "corp_name": "포스코", "ratio_current": 30.0 + i, "shares_current": str(300 + i)}
+    for i in range(1, 4)
+]
+#: `rows[0]` is the 카카오 record, so it is the pinned issuer.
+_NPS_MIXED_ISSUER_EVIDENCE = [_NPS_KAKAO] + _NPS_POSCO
+#: What `chain_lookup` legitimately knows for each issuer. 카카오's true chain
+#: really is just the one filing - this is not a lookup bug, which is what
+#: makes the one-point line the gate would otherwise let through so
+#: dangerous: nothing about the lookup's own answer is wrong.
+_NPS_ISSUER_CHAINS = {"카카오": [_NPS_KAKAO], "포스코": _NPS_POSCO}
+
+
+def test_a_single_true_filing_on_the_pinned_issuer_is_not_a_series():
+    """The real, pinned `holding_series`: the gate must return "" without
+    ever asking the corpus, because only one of the reporter's evidence
+    records is on the pinned issuer."""
+    calls = []
+
+    def lookup(rep, corp):
+        calls.append((rep, corp))
+        return _NPS_ISSUER_CHAINS.get(corp, [])
+
+    line = aggregate.holding_series(_NPS_MIXED_ISSUER_EVIDENCE, QUESTION, lookup)
+    assert line == ""
+    assert calls == []          # the gate stops before the corpus is ever asked
+
+
+def _reporter_only_evidence_chain_reconstruction():
+    """Rebuilds `aggregate.holding_series` with *only* the `corp_name` half
+    of the `evidence_chain` pin reverted, by editing the live function's own
+    source text and `exec`-ing the result - not by editing `src/`, which a
+    concurrent measurement run is reading while this suite runs.
+    `inspect.getsource` plus a single targeted string replacement guarantees
+    the two callables are byte-identical everywhere except the one reverted
+    line, which isolates exactly what this round of review asked to isolate:
+    the pin alone, not the length-comparison change from the same review
+    round, not the cap, not anything else this module does.
+    """
+    source = inspect.getsource(aggregate.holding_series)
+    pinned = (
+        '    evidence_chain = [r for r in rows if str(r.get("reporter") or "") == reporter\n'
+        '                      and str(r.get("corp_name") or "") == corp_name]\n'
+    )
+    reverted = (
+        '    evidence_chain = [r for r in rows if str(r.get("reporter") or "") == reporter]\n'
+    )
+    assert pinned in source, (
+        "aggregate.holding_series's source text no longer matches this "
+        "reconstruction - update the strings above to match the current pin")
+    namespace = dict(vars(aggregate))
+    exec(compile(source.replace(pinned, reverted), "<reporter_only_holding_series>", "exec"),
+         namespace)
+    return namespace["holding_series"]
+
+
+def test_reverting_only_the_corp_name_pin_lets_the_one_point_series_through():
+    """The break-and-observe the review asked for, run against the same
+    fixture as the test just above: revert *only* the `corp_name` pin (see
+    the reconstruction above) and watch the identical assertion fail. Where
+    the real, pinned `holding_series` returns "", the reporter-only
+    reconstruction lets the gate wrongly clear on a total evidence count of
+    4, asks `chain_lookup` for 카카오 alone, gets the single true record back
+    (legitimately non-empty, not a lookup bug), and emits exactly the
+    one-point false-trend line the review described - a truthful "(1건)"
+    label around a meaningless zero cumulative.
+    """
+    reporter_only = _reporter_only_evidence_chain_reconstruction()
+
+    def lookup(rep, corp):
+        return _NPS_ISSUER_CHAINS.get(corp, [])
+
+    broken_line = reporter_only(_NPS_MIXED_ISSUER_EVIDENCE, QUESTION, lookup)
+    assert broken_line != ""                # the gate the pin should have closed
+    assert "(1건)" in broken_line            # a "series" of exactly one point
+    assert "5.00%" in broken_line            # the pinned issuer's one true ratio
+    assert "-0.00%p" in broken_line          # a cumulative with nothing to sum
+    # (the line never names the issuer in its own text - only the reporter,
+    # see `holding_series`'s format string - which is exactly why the gate,
+    # not the wording, is the only thing standing between this and a
+    # confident false trend for whichever issuer happens to rank first)
+
 def test_a_single_filing_is_not_a_series():
     assert aggregate.holding_series(DOOSAN[:1], QUESTION, _must_not_be_called) == ""
 
@@ -209,12 +315,20 @@ def test_no_lookup_falls_back_to_the_evidence_records():
 
 # --- The cap: a chain longer than what fits verbatim states what it elided --
 #
-# 174 (reporter, issuer) pairs exist in the corpus (measured 2026-08-19).
-# Counts 2-10 alone cover 157 of them; the tail runs to 79
-# (에코프로 -> 에코프로비엠, the single largest pair). A cap of 10 therefore
-# shows every pair up to and including the 90th percentile in full, and the
-# elision path below exists for the long tail alone - it must never look like
-# the whole chain when it is not.
+# 174 (reporter, issuer) pairs exist in the corpus (measured 2026-08-19), 132
+# of them with two or more filings - a pair with exactly one can never reach
+# `holding_series` at all, since the firing gate itself requires two, so it
+# does not belong in this cap's denominator. Counts 2 through 10 cover 115 of
+# those 132 (87%); the tail runs to 79 (에코프로 -> 에코프로비엠, the single
+# largest pair). A cap of 10 therefore shows the large majority of pairs that
+# can ever fire this line in full, and the elision path below exists for the
+# long tail alone - it must never look like the whole chain when it is not.
+#
+# (119 of the corpus's 1,083 holding records carry a falsy `reporter` and are
+# excluded before pairing - a naive count that keeps them lands on 194/146/126
+# instead of 174/132/115, which is why this comment's numbers will look wrong
+# to a recount that does not also exclude them: those records can never fire
+# this feature either, so they do not belong in the denominator here.)
 
 def _long_chain(n):
     return [{"rcept_no": f"{i:03d}", "rcept_dt": f"202001{i:02d}",
