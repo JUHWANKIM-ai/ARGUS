@@ -104,27 +104,33 @@ _EXTERNAL_SOURCE = (
 #: Recommending verbs. Both halves have to be in the same sentence: the
 #: refusal sentences carry a source name at most, never a recommendation.
 #:
-#: Kept broad on purpose, unlike `_EXTERNAL_SOURCE` above: formal Korean
-#: expresses "go check this yourself" across many registers, from the
-#: assertive `추천드립니다`/`권장드립니다` the four measured cases happen to
-#: use, down to the plain closing `확인하시기 바랍니다.`/`확인하실 수
-#: 있습니다.` A first narrowing pass dropped bare `바랍니다`/`참고하`/
-#: `참조하`/`확인하시`/`확인하실` to keep two false positives out —
-#: "회사는 정정 공시를 홈페이지에 게시하오니 확인하시기 바랍니다." and
-#: "동사는 관련 기관의 승인을 받은 사실을 공시하였으니 참고하시기 바랍니다."
-#: — but both of those are already excluded by the source list above: neither
-#: names a kept external service, so the verb narrowing bought no precision
-#: there. It did cost recall: "회사의 공식 홈페이지를 참조하시기 바랍니다.",
-#: "전자공시시스템에서 확인하시기 바랍니다.", and "DART에서 확인하실 수
-#: 있습니다." are genuine referrals in the register formal Korean actually
-#: uses, and a narrow verb list let all three through. Narrowing the verb
-#: list again is very unlikely to be the right move — reach for the source
-#: list first.
+#: A referral is *directed at the reader*; a self-citation naming the same
+#: source is *descriptive* of what we did. Korean marks that difference in
+#: the verb ending, not the stem: the honorific `-시-`/`-십-` puts the reader
+#: in the subject position (`참고하시기`, `참고하십시오`, `확인하실`), while
+#: the plain stem describes an action already taken (`참고하여`,
+#: `참고하였습니다`, `참조하였습니다`). Two measured sentences taught this —
+#: "본 답변은 전자공시시스템에 공시된 자료를 참고하여 작성되었습니다." and
+#: "위 수치는 DART에 공시된 사업보고서를 참조하였습니다." — both name a kept
+#: source and use the bare stem, but both describe our own evidence use, and
+#: bare `참고하`/`참조하` swept them in.
+#:
+#: `참고하십시오` needs its own entry alongside `참고하시`: its fourth
+#: syllable is `십`, not `시`, so `참고하시` does not match it. Same for
+#: `참조하십`. This is a case where reading the string is not enough — run it.
+#:
+#: Bare `바랍니다` is gone too, but for a different reason than the stems
+#: above: it carries no stem at all to be directed or descriptive about, and
+#: every measured directed case that used to reach it also carries one of the
+#: honorific forms below in the same sentence (`...하시기 바랍니다.` always
+#: pairs a kept honorific stem with `바랍니다`), so dropping the bare form
+#: costs no recall.
 #: See docs/design-rationale.md#external-referral
 _REFERRAL_VERB = (
-    "추천", "권장", "권해", "권합니다", "참고하", "참조하",
-    "확인해 보", "확인하시", "확인하실", "문의해 보", "알아보",
-    "도움이 될", "바랍니다",
+    "추천", "권장", "권해", "권합니다",
+    "참고하시", "참고하십", "참조하시", "참조하십",
+    "확인해 보시", "확인하시", "확인하실",
+    "문의해 보시", "알아보시", "도움이 될",
 )
 
 #: Sentence boundary. A period followed by whitespace, or a line break. The

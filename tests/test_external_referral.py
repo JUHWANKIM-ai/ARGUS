@@ -67,6 +67,42 @@ def test_milder_register_referrals_are_still_caught():
         assert "확인되지 않습니다" in out
 
 
+def test_the_imperative_form_is_still_caught():
+    """`참고하십시오`'s fourth syllable is `십`, not `시`, so `참고하시` alone
+    does not match it — `참고하십` needs its own entry. This fixture has no
+    receipt number, unlike the one below, so a regression that dropped
+    `참고하십` and one that dropped the receipt guard would look identical
+    from `test_a_sentence_holding_a_receipt_number_is_never_removed` alone;
+    this one isolates the imperative-matching half on its own."""
+    lead = "해당 정보는 공시 자료에서 확인되지 않습니다. "
+    text = lead + "자세한 내용은 DART 공시를 참고하십시오."
+    out, removed = safety.strip_external_referral(text)
+    assert removed
+    assert "DART" not in out
+    assert "확인되지 않습니다" in out
+
+
+def test_descriptive_self_citations_survive():
+    """A referral is directed at the reader; a self-citation naming the same
+    source describes what *we* did. Korean marks the difference in the verb
+    ending, not the stem: the honorific `-시-`/`-십-` puts the reader in the
+    subject position, while the plain stem (`참고하여`, `참조하였습니다`,
+    `확인하여`) describes an action already taken. Bare `참고하`/`참조하` used
+    to sweep these in; only the honorific forms should now match."""
+    lead = "해당 정보는 공시 자료에서 확인되지 않습니다. "
+    for closer, banned in (
+        ("본 답변은 전자공시시스템에 공시된 자료를 참고하여 작성되었습니다.",
+         "전자공시시스템"),
+        ("위 수치는 DART에 공시된 사업보고서를 참조하였습니다.", "DART"),
+        ("해당 정보는 DART 공시자료를 확인하여 정리하였습니다.", "DART"),
+    ):
+        text = lead + closer
+        out, removed = safety.strip_external_referral(text)
+        assert removed == [], closer
+        assert banned in out
+        assert out == text
+
+
 def test_the_generic_lead_in_survives_by_design():
     """`다른 방법을 통해 확인해 보시기 바랍니다` names no source, so it does not
     assert an out-of-corpus path and is not a §5 defect. Cutting it to tidy
@@ -115,10 +151,11 @@ def test_an_answer_that_would_be_emptied_is_restored():
     The fixture must still satisfy the conjunction (source AND verb) on its
     own, or this test would pass because nothing matched at all — exercising
     the early `if not removed` return instead of the later would-be-emptied
-    restore. `DART` names a kept source, and `확인해 보`/`바랍니다` both name a
-    kept verb, so this single sentence is genuinely matched, and the only
-    reason it survives is the emptied-answer guard, confirmed by deleting that
-    guard and observing the output become the empty string."""
+    restore. `DART` names a kept source, and `확인해 보시` (the honorific
+    form, present in `확인해 보시기`) names a kept verb, so this single
+    sentence is genuinely matched, and the only reason it survives is the
+    emptied-answer guard, confirmed by deleting that guard and observing the
+    output become the empty string."""
     out, removed = safety.strip_external_referral(
         "DART 를 확인해 보시기 바랍니다.")
     assert out == "DART 를 확인해 보시기 바랍니다."
