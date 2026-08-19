@@ -107,16 +107,37 @@ _EXTERNAL_SOURCE = (
 #: The rule every term on this list must satisfy: it must be *reader-directed*.
 #: A referral is directed at the reader; a self-citation naming the same
 #: source is *descriptive* of what we did, and no descriptive term belongs
-#: here no matter how strongly it correlates with real referrals. Korean
-#: usually marks the directed/descriptive difference in the verb ending, not
-#: the stem: the honorific `-시-`/`-십-` puts the reader in the subject
-#: position (`참고하시기`, `참고하십시오`, `확인하실`), while the plain stem
-#: describes an action already taken (`참고하여`, `참고하였습니다`,
-#: `참조하였습니다`). Two measured sentences taught this — "본 답변은
+#: here no matter how strongly it correlates with real referrals.
+#:
+#: The honorific `-시-`/`-십-` is a *proxy* for that rule, not the rule
+#: itself, and the proxy is imperfect. It is not true that `-시-` marks the
+#: reader: Korean subject-honorification marks any honored grammatical
+#: subject, most often in disclosure prose a company officer, not the
+#: person the text is addressed to. The proxy holds for every register
+#: measured so far — `참고하시기`, `참고하십시오`, `확인하실` all honor the
+#: reader in the sentences we have seen — while the plain stem describes an
+#: action already taken (`참고하여`, `참고하였습니다`, `참조하였습니다`). Two
+#: measured sentences taught the directed/descriptive split — "본 답변은
 #: 전자공시시스템에 공시된 자료를 참고하여 작성되었습니다." and "위 수치는
 #: DART에 공시된 사업보고서를 참조하였습니다." — both name a kept source and
 #: use the bare stem, but both describe our own evidence use, and bare
 #: `참고하`/`참조하` swept them in.
+#:
+#: Known gap, parked on purpose: "대표이사께서는 관련 자료를 DART 공시에서
+#: 직접 참고하시어 결재하셨습니다." honors the *company officer*, not the
+#: reader, and is wrongly removed — the proxy cannot tell "the reader is
+#: honored" from "someone in the sentence is honored." This is not new:
+#: round 2's bare-stem list swept up the same inflections, and no round
+#: before this one found it. Not closed here because closing it needs a
+#: different axis than a verb-form list can supply — the discriminator would
+#: have to be the sentence-final directive ending (`~바랍니다`, `~하십시오`,
+#: `~드립니다`) rather than a mid-sentence verb form, which is a rewrite of
+#: this function, not a list edit. The register belongs to source disclosure
+#: documents narrating board action, not our QA answers, and the defect this
+#: module addresses measured at 1-2 cases in 112 questions; the failure
+#: direction here is a *deleted* sentence, visible in the measurement rather
+#: than silent. A later task closing open issue 1 in the project docs should
+#: pick this up.
 #:
 #: `참고하십시오` needs its own entry alongside `참고하시`: its fourth
 #: syllable is `십`, not `시`, so `참고하시` does not match it. Same for
@@ -132,18 +153,23 @@ _EXTERNAL_SOURCE = (
 #: 것으로 보아 인용하였습니다." — that names a kept source but describes our
 #: own citation reasoning, not a referral. Pure cost, no recall: removed.
 #:
-#: Bare `바랍니다` is gone too, but for a different reason than the stems
-#: above: it carries no stem at all to be directed or descriptive about, and
-#: every measured directed case that used to reach it also carries one of the
-#: honorific forms below in the same sentence (`...하시기 바랍니다.` always
-#: pairs a kept honorific stem with `바랍니다`), so dropping the bare form
-#: costs no recall.
+#: Bare `바랍니다` alone is gone (it carries no stem to be directed or
+#: descriptive about, and every directed case that used to reach it also
+#: carries a kept honorific stem in the same sentence). But the nominal
+#: construction that drops the `하` stem entirely is common in institutional
+#: Korean and was a real hole: "자세한 내용은 DART 전자공시시스템을 참고
+#: 바랍니다." was silently kept with no `하시`/`하십`-form anywhere in it.
+#: `참고 바랍니다`/`참조 바랍니다`/`확인 바랍니다`/`문의 바랍니다` are added
+#: as whole phrases to close that. Confirmed these four touch nothing else in
+#: this file: no false positive, self-citation, or the known-gap sentence
+#: above contains any of these literal strings.
 #: See docs/design-rationale.md#external-referral
 _REFERRAL_VERB = (
     "추천", "권장", "권해", "권합니다",
     "참고하시", "참고하십", "참조하시", "참조하십",
     "확인해 보시", "확인하시", "확인하실",
     "문의해 보시", "알아보시",
+    "참고 바랍니다", "참조 바랍니다", "확인 바랍니다", "문의 바랍니다",
 )
 
 #: Sentence boundary. A period followed by whitespace, or a line break. The

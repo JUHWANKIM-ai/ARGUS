@@ -82,6 +82,24 @@ def test_the_imperative_form_is_still_caught():
     assert "확인되지 않습니다" in out
 
 
+def test_nominal_referrals_without_a_stem_are_still_caught():
+    """`참고 바랍니다`/`확인 바랍니다` drop the `하` stem entirely — there is
+    no `하시`/`하십` form anywhere in the sentence for the honorific-based
+    entries to match, so these were silently kept until added as whole
+    phrases. The nominal construction is at least as common as `-하시기
+    바랍니다` in institutional Korean."""
+    lead = "해당 정보는 공시 자료에서 확인되지 않습니다. "
+    for closer, banned in (
+        ("자세한 내용은 DART 전자공시시스템을 참고 바랍니다.", "전자공시시스템"),
+        ("자세한 내용은 DART에서 확인 바랍니다.", "DART"),
+    ):
+        text = lead + closer
+        out, removed = safety.strip_external_referral(text)
+        assert removed, closer
+        assert banned not in out
+        assert "확인되지 않습니다" in out
+
+
 def test_descriptive_self_citations_survive():
     """A referral is directed at the reader; a self-citation naming the same
     source describes what *we* did. Korean marks the difference in the verb
