@@ -116,6 +116,57 @@ def test_only_the_top_ranked_reporter_is_laid_out():
     assert "9.0%" not in line
 
 
+def test_evidence_padded_with_another_issuer_does_not_win_the_length_race():
+    """R22 review (2026-08-19): filtering `evidence_chain` by `reporter`
+    alone let evidence padded with the *same reporter's* filings on a
+    *different* issuer out-length the true corpus chain for the pinned
+    issuer, and the old "prefer whichever side is longer" rule then chose
+    the mixed, padded evidence over the true single-issuer corpus chain -
+    a decisively-labelled false narrative splicing SK하이닉스 ratios under
+    a NAVER label, reachable from production with no test catching it.
+
+    Reproduces that shape: two real NAVER filings in evidence (enough to
+    clear the firing gate) plus four padding filings on SK하이닉스 by the
+    same reporter (inflating the evidence pool to 6, longer than the true
+    4-filing NAVER chain `chain_lookup` returns for NAVER alone). The line
+    must carry only the pinned issuer's ratios regardless of which side is
+    longer - `corp_name` has to pin `evidence_chain` the same way `reporter`
+    already did, so the padding records are never even candidates.
+    """
+    reporter = "국민연금공단"
+    naver_evidence = [
+        {"rcept_no": "n1", "rcept_dt": "20200101", "reporter": reporter,
+         "corp_name": "NAVER", "ratio_current": 10.0, "shares_current": "100"},
+        {"rcept_no": "n2", "rcept_dt": "20200201", "reporter": reporter,
+         "corp_name": "NAVER", "ratio_current": 9.0, "shares_current": "90"},
+    ]
+    naver_true_chain = naver_evidence + [
+        {"rcept_no": "n3", "rcept_dt": "20200301", "reporter": reporter,
+         "corp_name": "NAVER", "ratio_current": 8.0, "shares_current": "80"},
+        {"rcept_no": "n4", "rcept_dt": "20200401", "reporter": reporter,
+         "corp_name": "NAVER", "ratio_current": 7.0, "shares_current": "70"},
+    ]
+    padding = [dict(naver_evidence[0], rcept_no=f"sk{i}", corp_name="SK하이닉스",
+                    ratio_current=50.0 + i, shares_current="500")
+               for i in range(4)]
+    # 2 real + 4 padding = 6 evidence rows for this reporter, longer than the
+    # true 4-filing NAVER chain - the exact shape that won the old length race.
+    evidence = naver_evidence + padding
+
+    def lookup(rep, corp):
+        assert rep == reporter
+        return naver_true_chain if corp == "NAVER" else []
+
+    line = aggregate.holding_series(evidence, QUESTION, lookup)
+    assert line
+    assert "SK하이닉스" not in line
+    assert "500" not in line                      # no padding share count leaks in
+    for pct in ("50.00%", "51.00%", "52.00%", "53.00%"):
+        assert pct not in line                     # no padding ratio leaks in
+    for pct in ("10.00%", "9.00%", "8.00%", "7.00%"):
+        assert pct in line                         # the true NAVER chain, whole
+
+
 def test_a_single_filing_is_not_a_series():
     assert aggregate.holding_series(DOOSAN[:1], QUESTION, _must_not_be_called) == ""
 

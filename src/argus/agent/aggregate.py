@@ -283,12 +283,14 @@ def _ratio_of(record: dict):
 #: Filings shown verbatim before the line elides the middle of a chain.
 #:
 #: Chosen from the corpus-wide distribution of (reporter, issuer) filing
-#: counts (measured 2026-08-19): 174 pairs exist, and counts 2 through 10
-#: alone already cover 157 of them. The tail runs to 79
-#: (에코프로 -> 에코프로비엠, the single largest pair). A cap of 10 therefore
-#: shows every pair up to and including the 90th percentile in full — the
-#: elision path exists for the long tail alone, and it must say what it
-#: elided rather than look like the whole chain.
+#: counts (measured 2026-08-19): 174 pairs exist, 132 of them with two or
+#: more filings — a pair with exactly one can never reach this function at
+#: all, since the firing gate itself requires two. Counts 2 through 10 cover
+#: 115 of those 132 (87%). The tail runs to 79 (에코프로 -> 에코프로비엠, the
+#: single largest pair). A cap of 10 therefore shows the large majority of
+#: pairs that can ever fire this line in full — the elision path exists for
+#: the long tail alone, and it must say what it elided rather than look like
+#: the whole chain.
 #: See docs/design-rationale.md#holding-series
 HOLDING_SERIES_CAP = 10
 
@@ -306,31 +308,45 @@ def holding_series(records, question: str, chain_lookup=None) -> str:
     same issuer, and splicing them produces a series that never happened.
 
     `records` still decides *whether* the line fires and *which* reporter and
-    issuer it is about: the top-ranked evidence record's reporter, the same
-    rule `revision_series` uses for chains, and at least two of that
-    reporter's records have to be present in the evidence — that firing
-    condition is measured behaviour and does not change here.
+    issuer it is about: the top-ranked evidence record's reporter and issuer,
+    the same rule `revision_series` uses for chains, and at least two records
+    for that exact (reporter, issuer) pair have to be present in the evidence
+    — that firing condition is measured behaviour and does not change here.
+    Both fields pin `evidence_chain`, not the reporter alone: a reporter files
+    holding reports on several issuers, and a chain matched on reporter only
+    would count another issuer's filings toward the two-or-more gate and
+    (see below) could let them into the line itself.
 
     What changed (R22, 2026-08-18 measurement): the *values* the line reports
     no longer come from `records`. A run of Q-106 handed this function only 2
-    of the reporter's 6 real filings — retrieval's evidence window, not the
-    reporter's actual history — and the function computed a perfectly correct
-    three-filing series over them, stating a false cumulative with the same
-    confidence a correct one would carry. The judge scored it `grounded=True`,
-    because the false statement *was* grounded, in our own line. A confidently
-    wrong series is worse than the question going unanswered.
+    of the reporter's 6 real filings on the one issuer the question asked
+    about — retrieval's evidence window, not the reporter's actual history —
+    and the function computed a perfectly correct three-filing series over
+    them, stating a false cumulative with the same confidence a correct one
+    would carry. The judge scored it `grounded=True`, because the false
+    statement *was* grounded, in our own line. A confidently wrong series is
+    worse than the question going unanswered.
 
     `chain_lookup(reporter, corp_name) -> list[dict]` is the fix: when given,
-    it is asked for the reporter's whole history from the corpus, the same
-    move `tools.corp_number_line` makes for a registration-number row — read
-    the source directly rather than trust the evidence window to carry what
-    is needed. `pipeline.answer_question` always passes
-    `tools.holding_chain`; see `tests/test_evidence_line_wiring.py`. The
-    fetched chain is used in place of the evidence-derived one only when it is
-    at least as long, so a lookup that (for whatever reason) knows less than
-    the evidence already showed never shrinks the series. `chain_lookup=None`
-    keeps the pre-fix behaviour — reading only `records` — for a caller with
-    no corpus access; production is never such a caller.
+    it is asked for the reporter's whole history on that one issuer from the
+    corpus, the same move `tools.corp_number_line` makes for a
+    registration-number row — read the source directly rather than trust the
+    evidence window to carry what is needed. `pipeline.answer_question`
+    always passes `tools.holding_chain`; see
+    `tests/test_evidence_line_wiring.py`. The fetched chain is preferred
+    whenever it is non-empty, never by comparing lengths against
+    `evidence_chain`: an R22 follow-up review found that with both sides
+    pinned to reporter *and* issuer, `chain_lookup`'s result is a superset of
+    `evidence_chain` by construction (every evidence record survived
+    `tools._record_of` against the same corpus `chain_lookup` scans, matched
+    on the same two fields, so it must appear in what the scan returns too) —
+    the earlier length comparison was not protecting against a case that can
+    happen with correct pinning, it was quietly compensating for the missing
+    issuer pin, and kept as-is it would have reopened the identical
+    padded-evidence path as soon as anything else about the pinning changed.
+    `chain_lookup=None` keeps the pre-fix behaviour — reading only
+    `records` — for a caller with no corpus access; production is never such
+    a caller.
 
     The cumulative is computed from the true first and last of that chain, so
     it is correct regardless of how many intermediate filings restated the
@@ -348,16 +364,17 @@ def holding_series(records, question: str, chain_lookup=None) -> str:
     if len(rows) < 2:
         return ""
     reporter = str(rows[0].get("reporter") or "")
-    evidence_chain = [r for r in rows if str(r.get("reporter") or "") == reporter]
+    corp_name = str(rows[0].get("corp_name") or "")
+    evidence_chain = [r for r in rows if str(r.get("reporter") or "") == reporter
+                      and str(r.get("corp_name") or "") == corp_name]
     if len(evidence_chain) < 2:
         return ""
 
-    corp_name = str(rows[0].get("corp_name") or "")
     chain = evidence_chain
     if chain_lookup is not None and reporter and corp_name:
         fetched = [r for r in (chain_lookup(reporter, corp_name) or ())
                    if _ratio_of(r) is not None]
-        if len(fetched) >= len(evidence_chain):
+        if fetched:
             chain = fetched
     chain = sorted(chain, key=lambda r: (str(r.get("rcept_dt", "")), r.get("rcept_no", "")))
 
