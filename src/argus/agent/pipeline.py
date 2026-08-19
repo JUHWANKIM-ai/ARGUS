@@ -19,7 +19,7 @@ from argus.agent.query import (SPLIT_TOP_K, STRATEGIES, _ASK_CORP_NUMBER,
                                report_hints, time_points)
 from argus.agent import router as router_module
 from argus.agent.router import route
-from argus.agent.safety import mask_pii, sanitize_question
+from argus.agent.safety import mask_pii, sanitize_question, strip_external_referral
 from argus.clova import chat, no_cache
 from argus.corpus import markdown as markdown_module
 from argus.corpus.manifest import filter_docs
@@ -2787,6 +2787,13 @@ def answer_question(question_id: str, question: str) -> dict:
     answer, cited = ablation.attach_citation(answer, evidence, provenance=provenance)
     if cited:
         trace.append(f'citation attached={",".join(cited)}')
+    # Runs before masking, so a removed sentence is never masked first and
+    # then removed, which would double-count the change in the trace.
+    # See docs/design-rationale.md#external-referral
+    if ablation.enabled("external_referral_strip"):
+        answer, dropped = strip_external_referral(answer)
+        if dropped:
+            trace.append(f"external_referral dropped={len(dropped)}")
     return _respond(question_id, question, evidence, trace, mask_pii(answer), budget)
 
 

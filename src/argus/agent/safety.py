@@ -76,3 +76,71 @@ def sanitize_question(question: str) -> tuple[str, list[str]]:
     if detect_injection(question):
         warnings.append("프롬프트 인젝션 시도 감지 — 공시 질의로만 처리")
     return mask_pii(question or ""), warnings
+
+
+#: Names of paths outside the corpus we were given. Open issue 1 measured
+#: these four shapes; listing them in the system prompt made the model produce
+#: them more often (A27, 1 case -> 3), so the list lives here in post
+#: processing where it cannot reach the model.
+#: See docs/design-rationale.md#external-referral
+_EXTERNAL_SOURCE = (
+    "네이버", "구글", "증권사", "전자공시시스템", "DART", "다트",
+    "공식 웹사이트", "공식 홈페이지", "공식 발표 채널", "관련 기관",
+    "홈페이지", "언론", "뉴스",
+)
+
+#: Recommending verbs. Both halves have to be in the same sentence: the
+#: refusal sentences carry a source name at most, never a recommendation.
+_REFERRAL_VERB = (
+    "추천", "권장", "권해", "권합니다", "참고하", "참조하",
+    "확인해 보", "확인하실", "문의해 보", "알아보시", "바랍니다", "도움이 될",
+)
+
+#: Sentence boundary. A period followed by whitespace, or a line break. The
+#: separator is captured so the surviving text can be rebuilt with its
+#: original spacing: a refusal's two sentences share one paragraph, and
+#: rejoining survivors with a fixed separator would split it in two.
+_SENTENCE = re.compile(r"((?<=[.!?])\s+|\n+)")
+
+#: A citation the pipeline attached. Never removed: our own citation may name
+#: DART, and cutting it removes the evidence.
+_HAS_RECEIPT = re.compile(r"\d{14}")
+
+
+def strip_external_referral(answer: str) -> tuple[str, list[str]]:
+    """Remove sentences that recommend a path outside the corpus.
+
+    Returns (new answer, removed sentences). No LLM call.
+
+    A sentence goes only when it names an external source AND recommends
+    acting on it. Open issue 1 held that the referral could not be separated
+    from the refusal it trails, but the refusal sentences satisfy neither half
+    of that conjunction.
+
+    Two sentences are never removed: one carrying a receipt number, because
+    that is our own citation, and every sentence, because an emptied answer is
+    worse than the defect it fixes.
+    See docs/design-rationale.md#external-referral
+    """
+    if not answer:
+        return answer, []
+    # Alternating sentence / separator, because the pattern captures. Keeping
+    # the separators is what lets an untouched paragraph stay one paragraph.
+    parts = _SENTENCE.split(answer)
+    kept, removed = [], []
+    for index in range(0, len(parts), 2):
+        sentence = parts[index]
+        separator = parts[index + 1] if index + 1 < len(parts) else ""
+        names_source = any(s in sentence for s in _EXTERNAL_SOURCE)
+        recommends = any(v in sentence for v in _REFERRAL_VERB)
+        if (sentence.strip() and names_source and recommends
+                and not _HAS_RECEIPT.search(sentence)):
+            removed.append(sentence)
+        else:
+            kept.append(sentence + separator)
+    if not removed:
+        return answer, []
+    rebuilt = "".join(kept).rstrip()
+    if not rebuilt.strip():
+        return answer, []
+    return rebuilt, removed

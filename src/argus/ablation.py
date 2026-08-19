@@ -384,6 +384,12 @@ class Arm:
     #: operation; this reaches the narrative ones, which have none.
     #: See docs/design-rationale.md#gap-repair
     gap_repair: bool = False
+    #: True removes a sentence that recommends a path outside the corpus. The
+    #: refusal itself is accurate; the referral trailing it names sources we
+    #: were not given. Two prompt-side attempts were measured and rejected,
+    #: one of them backwards: naming the sources in the prompt tripled them.
+    #: See docs/design-rationale.md#external-referral
+    external_referral_strip: bool = False
     #: True separates which filing a date points at when two share that date.
     #: With both filings in the evidence the selection rather than the
     #: retrieval goes wrong. The rule is what the date means: a contract filed
