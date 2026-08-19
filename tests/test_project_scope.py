@@ -44,9 +44,19 @@ DUKOVANY = [
 
 #: A filing from an unrelated project by the same filer, the kind of record
 #: retrieval mixes in and the reason summing the whole evidence set overshoots.
+#:
+#: The counterparty is deliberately the *same* hub as `DUKOVANY`
+#: (한국수력원자력). An earlier draft gave this record a different
+#: counterparty (두산에너빌리티), which meant the always-on counterparty
+#: filter in `select` excluded it regardless of `project_scope` -- the
+#: filter this axis exists to work alongside never got exercised, and
+#: `test_an_off_project_filing_is_dropped` passed for the wrong reason (it
+#: still passed with `project_scope` off). Sharing the counterparty makes
+#: the project mismatch the *only* thing that can drop this record, which is
+#: also the real motivating case: one hub with several unrelated projects.
 SINHANUL = {
     "rcept_no": "20230330800844", "rcept_dt": "20230330", "related": [],
-    "amount": 181_608_900_000, "counterparty": "두산에너빌리티",
+    "amount": 181_608_900_000, "counterparty": "한국수력원자력(주)",
     "supply_region": "대한민국",
     "title": "단일판매ㆍ공급계약체결 — 신한울원자력발전소 3,4호기 원자로계통 설계용역",
 }
@@ -59,7 +69,17 @@ GOLDEN_TOTAL = 6_890_924_666_293
 
 @pytest.fixture
 def project_arm():
+    # `project_scope=True` alone is no longer constructible: measured on
+    # Q-107, it turns a silence into a total wrong by 711,106,288,572 without
+    # `counterparty_relevance` (see `ablation.FLAG_DEPENDENCIES`). This arm
+    # is what the module is actually shipped as, so the fixture now builds
+    # the configuration that can exist. `counterparty_relevance` is read
+    # only at retrieval time (`pipeline._spends_by_relevance`), which none
+    # of this file's tests exercise -- they call `aggregate.select`/`_total`
+    # directly over hand-built records -- so the subject under test here
+    # does not move.
     with ablation.use(ablation.replace(ablation.current(), name="T",
+                                       counterparty_relevance=True,
                                        project_scope=True)):
         yield
 

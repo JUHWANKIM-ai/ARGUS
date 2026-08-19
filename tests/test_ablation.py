@@ -3198,3 +3198,97 @@ def test_dry_point_count_reads_the_numbered_list_back_out_of_the_prompt():
     # stub array would be an odd, unused shape to emit.
     empty = prompts.build_open_judge_messages("질문", "근거", [], "답변")
     assert runner._dry_point_count({"messages": empty}) == 1
+
+
+# --- v8 arms: A46 and the five arms built on it ------------------------------
+# A prior campaign lost nine of eighteen measurement runs to arms that were
+# designed but never registered. This section is the guard that produced.
+
+def test_v8_arms_are_registered_and_each_is_one_flag_from_its_neighbour():
+    """Presence alone would still pass if an arm inherited a flag from the
+    wrong base or `replace()` carried along an extra one, so every arm below
+    is also checked against its neighbour by the *exact* set of flags that
+    differ, not just "is this flag True" (which a stray extra flag would
+    still satisfy).
+
+    `V8-1` and `A48` include `counterparty_relevance` alongside
+    `project_scope`, correcting the original plan: measured on Q-107 after
+    the index rebuild, `project_scope` alone turns a silence into a
+    confidently wrong total (see the comment on
+    `ablation.FLAG_DEPENDENCIES["counterparty_relevance"]`), so the plan that
+    dropped it was wrong and the spec that required both is the authority.
+    """
+    from argus import ablation as ab
+
+    for name in ("A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48"):
+        assert name in ab.ARMS, name
+        assert name in ab.RUN_ORDER, name
+
+    a43, a46 = ab.flags("A43"), ab.flags("A46")
+    assert {f for f in a46 if a46[f] != a43[f]} == {
+        "amount_coverage_gate", "counterparty_branch"}
+    assert a46["unit_line"] is True                     # inherited from A43, not set here
+
+    v81 = ab.flags("V8-1")
+    assert {f for f in v81 if v81[f] != a46[f]} == {
+        "counterparty_relevance", "project_scope"}, (
+        "V8-1 must add both flags together — project_scope alone is the "
+        "wrong-answer combination FLAG_DEPENDENCIES forbids")
+
+    v82 = ab.flags("V8-2")
+    assert {f for f in v82 if v82[f] != a46[f]} == {"holding_series"}
+
+    v83 = ab.flags("V8-3")
+    assert {f for f in v83 if v83[f] != v82[f]} == {"gap_repair"}, (
+        "V8-3 must be exactly one flag from V8-2 so the delta between them "
+        "reads as the repair's contribution alone")
+
+    v84 = ab.flags("V8-4")
+    assert {f for f in v84 if v84[f] != a46[f]} == {"external_referral_strip"}
+
+    a48 = ab.flags("A48")
+    assert {f for f in a48 if a48[f] != a46[f]} == {
+        "counterparty_relevance", "project_scope", "holding_series",
+        "gap_repair", "external_referral_strip"}
+
+
+def test_a47_is_not_registered():
+    """`A47` already labels a second draw of the `A46` configuration in
+    `artifacts/ablation/v7/` and `docs/open-issues.md`. Reusing it would
+    change what that record means."""
+    from argus import ablation as ab
+
+    assert "A47" not in ab.ARMS
+
+
+def test_the_operational_default_is_still_a43_until_the_measurement_lands():
+    from argus import ablation as ab
+
+    assert ab.current().name == "A43"
+
+
+def test_project_scope_cannot_be_enabled_without_counterparty_relevance():
+    """Measurement-established dependency, the second of its kind (see the
+    `FLAG_DEPENDENCIES` module docstring, and the comment on the
+    `counterparty_relevance` entry itself for the Q-107 numbers).
+
+    `project_scope` is not code-gated by `counterparty_relevance`: it runs
+    either way. What was measured is that without `counterparty_relevance`,
+    one of Q-107's three golden filings never reaches the evidence cap, so
+    `project_scope` narrows a set that is already missing a record and
+    reports a confidently wrong total instead of the silence `A43` alone
+    produces. `__post_init__` has to refuse to construct that arm at all, the
+    same way it already refuses `hop_ladder=False, counterparty_branch=True`.
+    """
+    from dataclasses import replace
+
+    from argus import ablation as ab
+
+    assert "project_scope" in ab.FLAG_DEPENDENCIES["counterparty_relevance"]
+
+    with pytest.raises(ValueError, match="counterparty_relevance"):
+        replace(ab.A46, name="V8-1-broken", project_scope=True)
+
+    # Turning both on together is fine — this is the actually-registered arm.
+    replace(ab.A46, name="V8-1-check", counterparty_relevance=True,
+            project_scope=True)

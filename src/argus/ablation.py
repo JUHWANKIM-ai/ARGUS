@@ -66,7 +66,25 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
                          "substitute_tool_results"),
     "verifier": ("substitute_verified", "provenance_gate", "regenerate_on_verify",
                  "counterparty_exempt", "amount_coverage_gate"),
-    "aggregate_line": ("substitute_aggregate",)}
+    "aggregate_line": ("substitute_aggregate",),
+    #: The second measurement-established entry (see the paragraph above:
+    #: `calc_values` -> `lean_rules` was the first). `project_scope` is not
+    #: code-gated by `counterparty_relevance` -- `aggregate.select` runs its
+    #: filter either way. What was measured is that without it, Q-107's
+    #: evidence cap drops one of the three golden filings before `select`
+    #: ever sees the record set, so `project_scope` narrows an
+    #: already-incomplete set and reports a confidently wrong total rather
+    #: than the silence the base arm produces. Measured end to end on Q-107
+    #: after the index rebuild:
+    #:   A43                     golden 2/3   total=None                (silent)
+    #:   A43 + project_scope     golden 2/3   total=6,179,818,377,721   (WRONG)
+    #:   V7-5                    golden 3/3   total=None                (silent)
+    #:   V7-5 + project_scope    golden 3/3   total=6,890,924,666,293   (correct)
+    #: (V7-5 = A42 + counterparty_relevance.) A confidently wrong total is
+    #: worse than the silence it replaces, since `substitute` writes it
+    #: straight into the answer, so the two flags have to move together or
+    #: not at all.
+    "counterparty_relevance": ("project_scope",)}
 
 #: Axes that go unread when the golden oracle is injected, because the whole
 #: retrieval lane is replaced and touching them changes no evidence.
@@ -862,6 +880,43 @@ A44 = replace(A43, name="A44", amount_coverage_gate=True)
 #: See docs/design-rationale.md#counterparty-branch
 A45 = replace(A43, name="A45", counterparty_branch=True)
 
+# --- v8: the two off-ladder checks combined ---------------------------------
+#: `A44` and `A45` measured as one configuration under the ad-hoc labels
+#: `A46` and `A47` (see `scratch/combo_run.py`, which sets both flags from one
+#: name argument). Those two runs are two draws of this arm, not two arms:
+#: 109/112 each with different wrong questions. Registered here under the
+#: earlier of the two labels so the stored artifacts keep their meaning.
+#: `A47` stays unregistered for the same reason.
+A46 = replace(A43, name="A46", amount_coverage_gate=True, counterparty_branch=True)
+
+# --- v8 single-flag arms, each one step from A46 ----------------------------
+#: The project axis on the aggregation set, together with the partner-quota
+#: relevance allocation it depends on. Needs the index built after the
+#: supply-region render. `project_scope` alone is not built or measured as an
+#: arm: without `counterparty_relevance` it turns a silence into a
+#: confidently wrong total (see `FLAG_DEPENDENCIES["counterparty_relevance"]`
+#: for the Q-107 numbers), so `__post_init__` refuses that combination and
+#: the two are one step together instead of two.
+V8PROJ = replace(A46, name="V8-1", counterparty_relevance=True, project_scope=True)
+
+#: The holding-ratio series line in the evidence, with no answer-side repair.
+#: Paired with `V8-3` below: the delta between them is the share of the line
+#: the model failed to copy.
+V8HOLD = replace(A46, name="V8-2", holding_series=True)
+
+#: The same line plus the repair. One flag from `V8-2`, so the delta reads as
+#: the repair's contribution alone rather than as the line's.
+V8REPAIR = replace(V8HOLD, name="V8-3", gap_repair=True)
+
+#: The out-of-corpus referral strip.
+V8REF = replace(A46, name="V8-4", external_referral_strip=True)
+
+# --- v8 adoption candidate ---------------------------------------------------
+#: Everything above at once. Measured against `A43` re-scored under the strict
+#: judge, since the judge change breaks comparison with every v1-v7 number.
+A48 = replace(A46, name="A48", counterparty_relevance=True, project_scope=True,
+              holding_series=True, gap_repair=True, external_referral_strip=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -909,7 +964,8 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48",
+             "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
 #: The ladder itself. The embedding arms and the leave-one-outs do not belong
@@ -954,7 +1010,8 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A24B, A24BS, A25, A26, A25_A26, A27B, A28, A31, A32, A33,
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
-                         V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45)}
+                         V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
