@@ -124,13 +124,21 @@ def test_the_point_count_reaches_the_prompt_as_a_literal():
     """The prompt used to state the length constraint only relationally
     ("배열의 길이는 요소 개수와 반드시 같아야 합니다") and never gave the actual
     number. The count now has to appear as a literal digit in the user
-    message, and the system prompt has to point the judge at it and at the
-    `n` field it must commit to."""
+    message, and the system prompt has to point the judge at the `n` field it
+    must commit to.
+
+    The concrete worked example (with its own literal `n`) lives in the user
+    message now, not the system prompt -- see the schema-example tests below
+    for why, and for what proves that placement is actually correct. This
+    test only checks that the system prompt still names the field
+    abstractly: it references `` `n` `` (backtick-quoted, as a field name)
+    rather than a JSON-literal `"n"`, since the system prompt no longer
+    embeds a concrete instance at all."""
     messages = prompts.build_open_judge_messages(
         "q", "evidence", ["첫째", "둘째", "셋째"], "a")
     system, user = messages[0]["content"], messages[1]["content"]
     assert "요소 개수: 3" in user
-    assert '"n"' in system
+    assert "`n`" in system
 
 
 def test_the_generation_prompt_is_untouched():
@@ -138,6 +146,63 @@ def test_the_generation_prompt_is_untouched():
     measures, so they stay frozen."""
     assert "공시 분석 전문가" in prompts._BASE_RULES
     assert "covered" not in prompts._BASE_RULES
+
+
+# --- The schema example is built per-call, not hardcoded ---------------------
+# A second-round measurement (round 1, 43 open-question calls) found 6
+# remaining length mismatches after the count-as-literal and commit-to-`n`
+# fix above, all shaped identically: `n=2` with a two-element `covered` array,
+# regardless of the question's real point count. That is the literal example
+# this prompt used to hardcode (`{"n":2,"covered":[0,1],...}`), copied
+# verbatim -- a few-shot echo distinct from the segmentation defect the first
+# round targeted, and it showed up on a different set of questions than the
+# nine that were systematically wrong before.
+#
+# The fix moves the worked example out of the frozen `SYSTEM_OPEN_JUDGE`
+# constant and builds it from the real point count in `build_open_judge_messages`
+# instead, so that copying it verbatim produces a correctly-shaped answer.
+
+def _extract_example(user: str) -> dict:
+    """Pull the `n`/`covered` schema example back out of a built user
+    message, the same way a test that isn't allowed to guess at internal
+    layout would: by looking for what the prompt actually says is there
+    ("예시 응답 형식: ") rather than re-deriving the JSON independently."""
+    marker = "예시 응답 형식: "
+    assert marker in user, "no schema example found in the user message"
+    line = user.split(marker, 1)[1].splitlines()[0]
+    return json.loads(line)
+
+
+def test_the_schema_example_carries_the_real_point_count():
+    """A hardcoded example -- the exact bug this test guards against, since
+    the prompt used to hardcode `n=2` in `SYSTEM_OPEN_JUDGE` -- cannot pass
+    this for two different point counts at once: whatever fixed number it
+    picks, one of the two calls below will disagree with it."""
+    for points in (["가", "나"], ["가", "나", "다", "라", "마", "바"]):
+        messages = prompts.build_open_judge_messages("q", "e", points, "a")
+        example = _extract_example(messages[1]["content"])
+        assert example["n"] == len(points)
+
+
+def test_the_schema_examples_covered_array_length_matches_n():
+    """The example's `covered` array is exactly as long as the `n` it states,
+    for a point count the old hardcoded example (`n=2`) does not share."""
+    points = ["가", "나", "다", "라", "마", "바"]
+    messages = prompts.build_open_judge_messages("q", "e", points, "a")
+    example = _extract_example(messages[1]["content"])
+    assert example["n"] == 6
+    assert len(example["covered"]) == 6
+
+
+def test_the_schema_examples_covered_values_are_not_uniform():
+    """A run of identical values invites a judge that echoes the example to
+    copy the values too, not just the array shape -- the observed echo
+    reproduced the whole instance verbatim. Both digits appearing rules out
+    the all-0 or all-1 array that would invite exactly that."""
+    points = ["가", "나", "다", "라", "마", "바"]
+    messages = prompts.build_open_judge_messages("q", "e", points, "a")
+    example = _extract_example(messages[1]["content"])
+    assert set(example["covered"]) == {0, 1}
 
 
 # --- Retry on a scoring failure ----------------------------------------------

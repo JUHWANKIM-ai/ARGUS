@@ -1,6 +1,7 @@
 """System prompts and few-shot exemplars."""
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Sequence
 
@@ -218,6 +219,29 @@ def needs_consolidated_rule(question: str, evidence: str) -> bool:
 #: where the array length lands on the right number by chance -- `n` is
 #: checked against the real count independently of the array length
 #: (`critic.judge_open`).
+#:
+#: A second-round measurement (round 1, 43 calls) found the length-mismatch
+#: rate had dropped from 25.6% to 14.0% -- the fix above worked -- but the six
+#: remaining mismatches were a *different* failure with the same signature:
+#: every one of them came back `n=2` with a two-element `covered` array,
+#: whatever the real point count actually was, on questions outside the nine
+#: that were systematically wrong before. That number is not a coincidence:
+#: it is the literal example this prompt used to hardcode
+#: (`{"n":2,"covered":[0,1],...}`), copied verbatim. A few-shot echo, not the
+#: segmentation defect the first round of this fix targeted.
+#:
+#: The schema description below -- field names, their meaning, the
+#: commit-`n`-before-`covered` ordering, the invariants `n` and `covered` must
+#: satisfy -- stays here, because it is genuinely call-invariant: every open
+#: question is judged against the identical contract, and keeping that
+#: contract in one frozen constant is what makes the judgment reproducible
+#: across calls. What is not call-invariant is the concrete instance, since
+#: its correct `n` and array length depend on how many golden points *this*
+#: question has -- information only `build_open_judge_messages` has. So the
+#: worked example moved there, built from the real count, with its `covered`
+#: values deliberately varied (not a run of one repeated digit) so that even
+#: an echo of it lands on a plausible, differently-shaped answer instead of
+#: repeating a giveaway constant.
 SYSTEM_OPEN_JUDGE = """당신은 공시 분석 서술형 답변을 채점하는 심사자입니다.
 
 [모범답안 요소]에는 번호가 매겨져 있고, 사용자 메시지가 그 개수를
@@ -235,8 +259,10 @@ SYSTEM_OPEN_JUDGE = """당신은 공시 분석 서술형 답변을 채점하는 
 - grounded: 모든 서술이 근거에서 확인되는가
 - no_fabrication: 근거에 없는 내용을 사실처럼 쓰지 않았는가
 
-반드시 아래 JSON 한 줄로만 답하십시오. 다른 말은 쓰지 마십시오.
-{"n":2,"covered":[0,1],"grounded":0,"no_fabrication":0,"reason":"한 문장"}"""
+반드시 JSON 한 줄로만 답하십시오. 다른 말은 쓰지 마십시오. 필드는 `n`·`covered`·
+`grounded`·`no_fabrication`·`reason` 다섯 개이고, 정확한 형식은 사용자 메시지의
+"예시 응답 형식" 에 이번 문항의 요소 개수로 채워져 주어집니다. **그 예시를 그대로
+베끼지 말고**, 이번 [제출답변]을 실제로 읽고 판정한 값으로 채우십시오."""
 
 SYSTEM_CRITIC = """당신은 공시 분석 답변의 근거를 검증하는 심사자입니다.
 
@@ -342,6 +368,37 @@ def build_critic_messages(evidence: str, answer: str) -> list[dict]:
 #: generation, and scoring compares elements, for which the opening suffices.
 MAX_JUDGE_EVIDENCE_CHARS = 6_000
 
+#: Repeating unit for the schema example's illustrative `covered` values,
+#: tiled out to whatever length the real point count needs (`_example_covered`
+#: below). A constant value -- an all-0 or all-1 array -- invites a judge that
+#: echoes the example to copy the *values* along with the shape; mixing the
+#: two digits means an echo still lands on a plausible, non-uniform verdict.
+_EXAMPLE_COVERED_UNIT = (0, 1, 1)
+
+
+def _example_covered(n: int) -> list[int]:
+    """A `covered` array of length `n` for the schema example, made of mixed
+    0s and 1s rather than one repeated digit. See `_EXAMPLE_COVERED_UNIT`."""
+    return [_EXAMPLE_COVERED_UNIT[i % len(_EXAMPLE_COVERED_UNIT)] for i in range(n)]
+
+
+def _judge_example(n: int) -> str:
+    """One line of JSON shaped exactly like the answer this call should
+    produce: `n` and `covered` both sized to the real golden point count.
+
+    A prior version of this prompt hardcoded a single instance
+    (`{"n":2,"covered":[0,1],...}`) directly in `SYSTEM_OPEN_JUDGE`. On a
+    measured 6 of 43 open-question calls the judge copied that instance
+    verbatim regardless of the real point count -- a few-shot echo, not the
+    segmentation defect the numbered list and the `n` field above already
+    address. Building the example from the real count here makes an echo
+    harmless: a copied instance is already shaped correctly, because it *is*
+    the correct shape for this call.
+    """
+    example = {"n": n, "covered": _example_covered(n),
+              "grounded": 0, "no_fabrication": 0, "reason": "한 문장"}
+    return json.dumps(example, ensure_ascii=False, separators=(",", ":"))
+
 
 def build_open_judge_messages(question: str, evidence: str,
                               key_points: list[str] | None, answer: str) -> list[dict]:
@@ -358,11 +415,25 @@ def build_open_judge_messages(question: str, evidence: str,
     counting its own segmentation instead of the one actually given. See
     `SYSTEM_OPEN_JUDGE`, which tells the judge to copy this number into its
     `n` field before scoring.
+
+    A worked JSON example sized to that same count sits right next to it
+    (`_judge_example`). It belongs here rather than in `SYSTEM_OPEN_JUDGE`
+    precisely because it is not call-invariant: the system prompt is one
+    constant shared byte-for-byte by every open question, so any concrete
+    instance embedded there necessarily hardcodes *some* count, and a judge
+    that echoes it back verbatim reproduces that hardcoded count regardless of
+    the question actually being scored. Only this function knows the real
+    count for a given call, so only here can the example's `n` and `covered`
+    length track it. The system prompt keeps the abstract, genuinely
+    call-invariant part of the contract -- field names, meaning, ordering,
+    invariants -- since that is what needs to stay identical and reproducible
+    across every call.
     """
     pts = list(key_points or [])
     points = "\n".join(f"{i}. {p}" for i, p in enumerate(pts, 1)) or "- (없음)"
+    example = _judge_example(len(pts))
     user = (f"[근거]\n{(evidence or '')[:MAX_JUDGE_EVIDENCE_CHARS]}\n\n"
-            f"[질문]\n{question}\n\n[모범답안 요소]\n요소 개수: {len(pts)}\n{points}\n\n"
-            f"[제출답변]\n{answer}")
+            f"[질문]\n{question}\n\n[모범답안 요소]\n요소 개수: {len(pts)}\n"
+            f"예시 응답 형식: {example}\n{points}\n\n[제출답변]\n{answer}")
     return [{"role": "system", "content": SYSTEM_OPEN_JUDGE},
             {"role": "user", "content": user}]
