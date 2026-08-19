@@ -49,6 +49,13 @@ EVIDENCE_LINES = (
     ("date_disambiguation", "aggregate.date_disambiguation("),
     ("revision_series", "aggregate.revision_series("),
     ("holding_series", "aggregate.holding_series("),
+    # R22 fixed `holding_series` to read its chain from the corpus rather
+    # than from the evidence window (docs/design-rationale.md#holding-series).
+    # A second entry for the same flag locks in that `tools.holding_chain` is
+    # the third argument: deleting it would silently restore the pre-fix
+    # evidence-only behaviour while leaving the entry above green, since that
+    # one only checks the call exists at all.
+    ("holding_series", "tools.holding_chain)"),
 )
 
 

@@ -2651,7 +2651,8 @@ def answer_question(question_id: str, question: str) -> dict:
     if ablation.enabled("holding_series"):
         from argus.agent import aggregate
 
-        holding = aggregate.holding_series(_evidence_records(evidence), clean)
+        holding = aggregate.holding_series(_evidence_records(evidence), clean,
+                                           tools.holding_chain)
         if holding:
             evidence = _prepend(evidence, holding)
             trace.append(f"holding_series line=1 chars={len(holding)}")

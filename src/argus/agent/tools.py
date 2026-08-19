@@ -327,6 +327,35 @@ def _by_rcept() -> dict[str, dict]:
     return _by_rcept_cached(arm.nary, arm.correction_fields)
 
 
+def holding_chain(reporter: str, corp_name: str) -> list[dict]:
+    """Every holding record filed by `reporter` about `corp_name`, across the
+    whole corpus, in filing order.
+
+    `aggregate.holding_series` used to read a reporter's ratio chain out of
+    the evidence records alone. The evidence carries only the receipts
+    retrieval chose for one question, and a chain missing a filing renders a
+    shorter history that computes correctly over what it was handed and is
+    still false — the collapse a question asks about can sit in exactly the
+    filing evidence dropped. The reporter and issuer are identified from the
+    evidence's top-ranked record, same as before, but the chain itself is
+    fetched from here. This is the same move `corp_number_line` makes for a
+    registration-number row: read the source directly instead of trusting the
+    evidence window to carry what is needed. No evidence slot is spent and no
+    additional retrieval step runs, because every holding record is already
+    parsed into memory by `_group_records`.
+
+    The population is every holding record rather than the receipt-keyed
+    mapping `_by_rcept()` builds, because the target here is the set of
+    records sharing one (reporter, issuer) pair, not a single record reached
+    by its own receipt number.
+    See docs/design-rationale.md#holding-series
+    """
+    rows = [r for r in _group_records("holding").values()
+            if r.get("reporter") == reporter and r.get("corp_name") == corp_name]
+    rows.sort(key=lambda r: (str(r.get("rcept_dt", "")), r.get("rcept_no", "")))
+    return rows
+
+
 @lru_cache(maxsize=1)
 def _followup_index() -> dict[str, tuple[str, ...]]:
     """Reverse index of the related-filings cell: filings that point back at

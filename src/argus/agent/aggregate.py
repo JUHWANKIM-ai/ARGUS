@@ -280,7 +280,20 @@ def _ratio_of(record: dict):
         return None
 
 
-def holding_series(records, question: str) -> str:
+#: Filings shown verbatim before the line elides the middle of a chain.
+#:
+#: Chosen from the corpus-wide distribution of (reporter, issuer) filing
+#: counts (measured 2026-08-19): 174 pairs exist, and counts 2 through 10
+#: alone already cover 157 of them. The tail runs to 79
+#: (에코프로 -> 에코프로비엠, the single largest pair). A cap of 10 therefore
+#: shows every pair up to and including the 90th percentile in full — the
+#: elision path exists for the long tail alone, and it must say what it
+#: elided rather than look like the whole chain.
+#: See docs/design-rationale.md#holding-series
+HOLDING_SERIES_CAP = 10
+
+
+def holding_series(records, question: str, chain_lookup=None) -> str:
     """Lay out one reporter's holding ratios in filing order, as one line.
 
     No LLM call and no retrieval. Returns "" when the question does not ask
@@ -292,8 +305,41 @@ def holding_series(records, question: str) -> str:
     is load-bearing — the same window holds other reporters' filings on the
     same issuer, and splicing them produces a series that never happened.
 
-    Only the reporter of the top-ranked record is laid out, the same rule
-    `revision_series` uses for chains.
+    `records` still decides *whether* the line fires and *which* reporter and
+    issuer it is about: the top-ranked evidence record's reporter, the same
+    rule `revision_series` uses for chains, and at least two of that
+    reporter's records have to be present in the evidence — that firing
+    condition is measured behaviour and does not change here.
+
+    What changed (R22, 2026-08-18 measurement): the *values* the line reports
+    no longer come from `records`. A run of Q-106 handed this function only 2
+    of the reporter's 6 real filings — retrieval's evidence window, not the
+    reporter's actual history — and the function computed a perfectly correct
+    three-filing series over them, stating a false cumulative with the same
+    confidence a correct one would carry. The judge scored it `grounded=True`,
+    because the false statement *was* grounded, in our own line. A confidently
+    wrong series is worse than the question going unanswered.
+
+    `chain_lookup(reporter, corp_name) -> list[dict]` is the fix: when given,
+    it is asked for the reporter's whole history from the corpus, the same
+    move `tools.corp_number_line` makes for a registration-number row — read
+    the source directly rather than trust the evidence window to carry what
+    is needed. `pipeline.answer_question` always passes
+    `tools.holding_chain`; see `tests/test_evidence_line_wiring.py`. The
+    fetched chain is used in place of the evidence-derived one only when it is
+    at least as long, so a lookup that (for whatever reason) knows less than
+    the evidence already showed never shrinks the series. `chain_lookup=None`
+    keeps the pre-fix behaviour — reading only `records` — for a caller with
+    no corpus access; production is never such a caller.
+
+    The cumulative is computed from the true first and last of that chain, so
+    it is correct regardless of how many intermediate filings restated the
+    same ratio unchanged (Q-106's corpus chain has two such steps the golden
+    answer itself does not narrate). The steps listed are capped at
+    `HOLDING_SERIES_CAP`: past it, the true ends are kept and the middle is
+    elided with a stated count, never silently dropped — sacrificing the
+    completeness of the *listing* is acceptable, implying a completeness the
+    line does not have is exactly the defect this fixes.
     See docs/design-rationale.md#holding-series
     """
     if not any(h in (question or "") for h in _HOLDING_ASK):
@@ -302,22 +348,46 @@ def holding_series(records, question: str) -> str:
     if len(rows) < 2:
         return ""
     reporter = str(rows[0].get("reporter") or "")
-    chain = [r for r in rows if str(r.get("reporter") or "") == reporter]
-    if len(chain) < 2:
+    evidence_chain = [r for r in rows if str(r.get("reporter") or "") == reporter]
+    if len(evidence_chain) < 2:
         return ""
-    chain.sort(key=lambda r: (str(r.get("rcept_dt", "")), r.get("rcept_no", "")))
+
+    corp_name = str(rows[0].get("corp_name") or "")
+    chain = evidence_chain
+    if chain_lookup is not None and reporter and corp_name:
+        fetched = [r for r in (chain_lookup(reporter, corp_name) or ())
+                   if _ratio_of(r) is not None]
+        if len(fetched) >= len(evidence_chain):
+            chain = fetched
+    chain = sorted(chain, key=lambda r: (str(r.get("rcept_dt", "")), r.get("rcept_no", "")))
+
+    total = len(chain)
+    if total > HOLDING_SERIES_CAP:
+        shown = chain[:HOLDING_SERIES_CAP - 1] + chain[-1:]
+        elided = total - len(shown)
+    else:
+        shown, elided = chain, 0
+    ends = {chain[0].get("rcept_no"), chain[-1].get("rcept_no")}
 
     steps = []
-    for index, record in enumerate(chain):
+    for record in shown:
         shares = str(record.get("shares_current") or "")
-        # Share counts only at the ends. Golden points 1 and 5 are the first
-        # and last counts; carrying all of them doubles the line length for
-        # values the question did not ask about.
-        tail = f" ({shares}주)" if shares and index in (0, len(chain) - 1) else ""
+        # Share counts only at the ends of the *true* chain (`ends`), not of
+        # `shown`, which is a truncated view once the chain exceeds the cap.
+        # Golden points 1 and 5 are the first and last counts; carrying every
+        # intermediate one doubles the line length for values the question
+        # did not ask about.
+        tail = f" ({shares}주)" if shares and record.get("rcept_no") in ends else ""
         steps.append(f"{_ymd(record)} {_ratio_of(record):.2f}%{tail}")
+    if elided:
+        # Inserted just before the final step, the position the elided
+        # filings actually occupy: between the last one shown and the true
+        # last one.
+        steps.insert(len(steps) - 1, f"(그 사이 {elided}건 생략)")
 
     moved = _ratio_of(chain[0]) - _ratio_of(chain[-1])
-    return (f"- [결정적 집계] {reporter} 보고 보유비율 추이 ({len(chain)}건): "
+    count_note = f"{total}건" if not elided else f"{total}건 중 {len(shown)}건 표시"
+    return (f"- [결정적 집계] {reporter} 보고 보유비율 추이 ({count_note}): "
             f"{' → '.join(steps)} · 누적 {-moved:+.2f}%p "
             f"(이 값은 시스템이 위 근거의 비율 필드에서 직접 읽은 것이다. "
             f"답변의 해당 수치는 이 값을 그대로 쓴다.)")
