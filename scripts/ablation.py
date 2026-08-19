@@ -232,8 +232,14 @@ def install_dry_stub() -> None:
                 if "critic" not in json.dumps(body)[:200] else
                 '{"supported":true,"has_citation":true,"hallucination":false,"reason":"dry"}')
         if "심사자" in json.dumps(body, ensure_ascii=False)[:2000]:
-            text = ('{"covered":%s,"grounded":1,"no_fabrication":1,"reason":"dry"}'
-                    % json.dumps([1] * _dry_point_count(body)))
+            # `critic.judge_open` now validates `n` against the golden point
+            # count independently of the `covered` array length (this task).
+            # Without `n` here the stub's response would fail that check on
+            # every open question in a rehearsal, which is exactly the
+            # all-judging-broken false alarm this stub exists to avoid.
+            n = _dry_point_count(body)
+            text = ('{"n":%d,"covered":%s,"grounded":1,"no_fabrication":1,"reason":"dry"}'
+                    % (n, json.dumps([1] * n)))
         return 200, {"result": {"message": {"content": text},
                                 "usage": {"promptTokens": 0, "completionTokens": 0},
                                 "finishReason": "stop"}}, 0.0

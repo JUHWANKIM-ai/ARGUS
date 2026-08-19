@@ -201,20 +201,42 @@ def needs_consolidated_rule(question: str, evidence: str) -> bool:
 #: modes below it are what the ablation measures and stay frozen; this string
 #: is what measures them. Changing it changes every reported score, which is
 #: why the change is recorded in docs/open-issues.md item 8.
+#:
+#: 33 of 129 re-scored A43 calls (25.6%, across 15 questions) failed on a
+#: `covered` length mismatch. The cause was the judge re-segmenting the
+#: numbered points instead of taking them as given -- a comma- or
+#: middle-dot-joined point split into several, or several sentence-length
+#: points folded into one. The prompt used to state the length constraint
+#: only relationally ("배열의 길이는 요소 개수와 반드시 같아야 합니다") and never
+#: gave the actual number, and a model follows a stated count far more
+#: reliably than a relational constraint on its own output.
+#:
+#: The fix has two parts here. The point count is now stated as a literal in
+#: the user message (`build_open_judge_messages`), not just described in
+#: words. And the judge is asked to commit to that count in its own `n` field
+#: before filling `covered`, so a miscount is visible even in the rare case
+#: where the array length lands on the right number by chance -- `n` is
+#: checked against the real count independently of the array length
+#: (`critic.judge_open`).
 SYSTEM_OPEN_JUDGE = """당신은 공시 분석 서술형 답변을 채점하는 심사자입니다.
 
-[모범답안 요소]에는 번호가 매겨져 있습니다. **요소 하나하나마다** 0 또는 1 로
-판정해 그 값을 `covered` 배열에 번호 순서대로 담으십시오.
+[모범답안 요소]에는 번호가 매겨져 있고, 사용자 메시지가 그 개수를
+"요소 개수: N" 으로 명시합니다. 요소를 다시 나누거나 합쳐서 세지 말고,
+번호가 매겨진 그대로 하나씩, 명시된 개수만큼 세십시오.
+
+먼저 `n` 필드에 그 개수를 그대로 옮겨 적으십시오. 그 다음 **요소 하나하나마다**
+0 또는 1 로 판정해 그 값을 `covered` 배열에 번호 순서대로 담으십시오.
 - covered[i]: i번 요소의 내용이 제출답변에 담겼는가
 
-배열의 길이는 요소 개수와 반드시 같아야 합니다.
+`n` 은 사용자 메시지가 명시한 개수와 같아야 하고, `covered` 배열의 길이는
+`n` 과 반드시 같아야 합니다.
 
 나머지 둘도 각각 0 또는 1 로 판정하십시오.
 - grounded: 모든 서술이 근거에서 확인되는가
 - no_fabrication: 근거에 없는 내용을 사실처럼 쓰지 않았는가
 
 반드시 아래 JSON 한 줄로만 답하십시오. 다른 말은 쓰지 마십시오.
-{"covered":[0,1],"grounded":0,"no_fabrication":0,"reason":"한 문장"}"""
+{"n":2,"covered":[0,1],"grounded":0,"no_fabrication":0,"reason":"한 문장"}"""
 
 SYSTEM_CRITIC = """당신은 공시 분석 답변의 근거를 검증하는 심사자입니다.
 
@@ -328,10 +350,19 @@ def build_open_judge_messages(question: str, evidence: str,
 
     The points are numbered because the judge returns one verdict per point in
     that order. An unnumbered list gives the array no anchor.
+
+    The point count is also stated as a literal ("요소 개수: N") immediately
+    above the numbered list, not merely implied by the numbering. Leaving the
+    count to be inferred is what let the judge re-segment a comma-joined point
+    into several, or fold several sentence-length points into one -- it was
+    counting its own segmentation instead of the one actually given. See
+    `SYSTEM_OPEN_JUDGE`, which tells the judge to copy this number into its
+    `n` field before scoring.
     """
-    points = "\n".join(f"{i}. {p}" for i, p in enumerate(key_points or [], 1)) \
-        or "- (없음)"
+    pts = list(key_points or [])
+    points = "\n".join(f"{i}. {p}" for i, p in enumerate(pts, 1)) or "- (없음)"
     user = (f"[근거]\n{(evidence or '')[:MAX_JUDGE_EVIDENCE_CHARS]}\n\n"
-            f"[질문]\n{question}\n\n[모범답안 요소]\n{points}\n\n[제출답변]\n{answer}")
+            f"[질문]\n{question}\n\n[모범답안 요소]\n요소 개수: {len(pts)}\n{points}\n\n"
+            f"[제출답변]\n{answer}")
     return [{"role": "system", "content": SYSTEM_OPEN_JUDGE},
             {"role": "user", "content": user}]

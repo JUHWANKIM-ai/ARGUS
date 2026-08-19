@@ -35,7 +35,7 @@ from argus.agent import compute
 from argus.agent.budget import Budget
 from argus.agent.prompts import (CITATION_RE, build_critic_messages,
                                  build_open_judge_messages)
-from argus.clova import chat
+from argus.clova import chat, no_cache
 
 _JSON = re.compile(r"\{.*\}", re.DOTALL)
 
@@ -1644,40 +1644,99 @@ def judge(evidence: str, answer: str, budget: Budget | None = None) -> Verdict:
     )
 
 
-def judge_open(question: str, evidence: str, key_points: list[str] | None,
-               answer: str, budget: Budget | None = None) -> OpenVerdict:
-    """Score an open-ended answer. One LLM call; closed questions are scored by
-    normalised exact match and never reach here.
+#: Max completion tokens for one judge call. Measured against the 129 stored
+#: A43 calls that exercised this prompt (three independently sampled rounds
+#: across 43 open questions, up to 7 golden points each): every one of them
+#: finished with `finish == "stop"`, none hit the cap, and the largest
+#: `completion_tokens` observed was 88 -- far under this ceiling even before
+#: the `n` field added a handful of tokens. The 25.6% failure rate this task
+#: fixes was never a truncation problem; it was the judge re-segmenting the
+#: points, which `build_open_judge_messages` and `SYSTEM_OPEN_JUDGE` now
+#: address directly. 300 is left unchanged.
+OPEN_JUDGE_MAX_TOKENS = 300
 
-    A parse failure is a scoring failure rather than a wrong answer: `covered`
-    is emptied, both remaining axes are set false, and the reason records what
-    happened. A `covered` array whose length differs from the point count is
-    the same kind of failure — the judge did not count the points — and
-    padding it would turn that into a wrong answer.
+
+def _open_judge_attempt(messages: list[dict], points: list[str],
+                        budget: Budget | None) -> tuple[OpenVerdict, bool]:
+    """One judge call, parsed and validated against the golden point count.
+
+    Returns `(verdict, ok)`. `ok` is False on a parse failure or a count
+    mismatch on either axis: a `covered` array of the wrong length, or an `n`
+    field that disagrees with the real count even when the array length
+    happens to land on the right number by chance. The judge is asked to
+    commit to `n` before filling `covered`, and a wrong commitment is the same
+    defect as a wrong array -- the judge did not count the points -- so it is
+    scored the same way, with `covered` emptied rather than padded.
+
+    `ok` is what `judge_open` uses to decide whether to retry; the verdict
+    itself already carries the same reason string regardless, so a caller that
+    ignores `ok` still gets a correctly-failed verdict on the last attempt.
     """
-    points = list(key_points or [])
-    result = chat(build_open_judge_messages(question, evidence, key_points, answer),
-                  max_tokens=300, temperature=0.0, tag="judge_open")
+    result = chat(messages, max_tokens=OPEN_JUDGE_MAX_TOKENS, temperature=0.0,
+                  tag="judge_open")
     if budget:
         budget.spend_llm(result.prompt_tokens, result.completion_tokens)
 
     match = _JSON.search(result.text or "")
     if not match:
-        return OpenVerdict((), False, False, "judge 응답 파싱 실패")
+        return OpenVerdict((), False, False, "judge 응답 파싱 실패"), False
     try:
         data = json.loads(match.group(0))
     except json.JSONDecodeError:
-        return OpenVerdict((), False, False, "judge 응답 파싱 실패")
+        return OpenVerdict((), False, False, "judge 응답 파싱 실패"), False
 
+    n = data.get("n")
     covered = data.get("covered")
-    if not isinstance(covered, list) or len(covered) != len(points):
-        got = len(covered) if isinstance(covered, list) else "없음"
-        return OpenVerdict((), False, False,
-                           f"judge 요점 판정 길이 불일치 (받은 것 {got} · 요점 {len(points)})")
+    n_ok = isinstance(n, int) and not isinstance(n, bool) and n == len(points)
+    length_ok = isinstance(covered, list) and len(covered) == len(points)
+    if not (n_ok and length_ok):
+        got_n = n if isinstance(n, int) and not isinstance(n, bool) else "없음"
+        got_len = len(covered) if isinstance(covered, list) else "없음"
+        return OpenVerdict(
+            (), False, False,
+            f"judge 요점 판정 길이 불일치 (n={got_n} · 배열 길이={got_len} · "
+            f"요점 {len(points)})"), False
 
     return OpenVerdict(
         covered=tuple(bool(c) for c in covered),
         grounded=bool(data.get("grounded")),
         no_fabrication=bool(data.get("no_fabrication")),
         reason=str(data.get("reason", "")),
-    )
+    ), True
+
+
+def judge_open(question: str, evidence: str, key_points: list[str] | None,
+               answer: str, budget: Budget | None = None) -> OpenVerdict:
+    """Score an open-ended answer. Up to two LLM calls; closed questions are
+    scored by normalised exact match and never reach here.
+
+    A parse failure or a count mismatch (the `covered` array length, or the
+    `n` field the judge commits to) is a scoring failure rather than a wrong
+    answer: `covered` is emptied, both remaining axes are set false, and the
+    reason records what happened. Padding a short array would turn that into a
+    wrong answer, which is deliberately never done.
+
+    A scoring failure on the first attempt is retried once, with the
+    identical messages. Measurement found two shapes of failure: 9 of 15
+    affected questions failed all three independently sampled rounds -- a
+    systematic segmentation defect a retry cannot fix, which is what the
+    literal point count and the `n` field above are for -- while the other 6
+    failed only one round of three, which reads as ordinary sampling noise
+    that one retry is cheap insurance against. A failure that survives the
+    retry is still returned as a failure.
+
+    The retry bypasses the request cache (`no_cache`). Both calls are
+    byte-identical at temperature 0, and outside tests a cache keyed on
+    (url, body) would otherwise hand the retry back the very same mismatched
+    response instead of a fresh draw -- the same reason
+    `pipeline._self_consistent` bypasses it for its own repeated calls.
+    """
+    points = list(key_points or [])
+    messages = build_open_judge_messages(question, evidence, key_points, answer)
+
+    verdict, ok = _open_judge_attempt(messages, points, budget)
+    if ok:
+        return verdict
+    with no_cache():
+        verdict, _ok = _open_judge_attempt(messages, points, budget)
+    return verdict
