@@ -20,7 +20,7 @@ import json
 import pathlib
 import sys
 
-OUT = pathlib.Path("artifacts/audit/preprocessing_manifest.json")
+OUT = pathlib.Path("deploy/preprocessing_manifest.json")
 
 #: 제출 대상 20개. 런타임이 여는 파일(deploy/RUNBOOK.md) 전부와, 그 파일들을 만든
 #: 전처리가 읽는 대장·기업목록을 더한 것이다. 🔴 이 목록이 제출물의 정의다 --

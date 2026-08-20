@@ -17,11 +17,11 @@ from pathlib import Path
 
 ROOT = Path("artifacts")
 PAYLOAD = ("exchange_records.jsonl", "exchange_bm25.json")
-STAGE = Path("artifacts/v7_index_stage")
+STAGE = Path("scratch/v7_index_stage")
 
 
 def backup_dir() -> Path:
-    return Path("artifacts/v7_index_backup")
+    return Path("scratch/v7_index_backup")
 
 
 def build() -> None:
@@ -63,7 +63,7 @@ def apply() -> None:
     if state == "partial":
         raise SystemExit(
             "backup directory is incomplete (neither clean nor a live swap); "
-            "inspect artifacts/v7_index_backup by hand before proceeding")
+            "inspect scratch/v7_index_backup by hand before proceeding")
     backup_dir().mkdir(parents=True, exist_ok=True)
     for name in PAYLOAD:
         shutil.copy2(ROOT / name, backup_dir() / name)
@@ -78,7 +78,7 @@ def restore() -> None:
     if state == "partial":
         raise SystemExit(
             "backup directory is incomplete (neither clean nor a live swap); "
-            "inspect artifacts/v7_index_backup by hand before proceeding")
+            "inspect scratch/v7_index_backup by hand before proceeding")
     for name in PAYLOAD:
         shutil.copy2(backup_dir() / name, ROOT / name)
     # Cleared on success so the tool returns to the "clean" state: otherwise

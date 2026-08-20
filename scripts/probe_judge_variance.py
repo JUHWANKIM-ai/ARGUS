@@ -34,7 +34,7 @@ REPEATS = 3
 INTERVAL = 8.0
 RETRIES = 4
 BACKOFF = 15.0
-OUT = "artifacts/audit/judge_variance.json"
+OUT = "scratch/audit/judge_variance.json"
 
 #: Questions chosen because the current judge already fails on them. Four of the
 #: seven closed-judge disagreements returned an empty reason, and four sit on the
@@ -47,7 +47,7 @@ _JSON = re.compile(r"\{[^{}]*\}", re.DOTALL)
 def load_answers() -> dict:
     out = {}
     for run in ("a42_full", "a42_valuechain", "a42_safety"):
-        for p in glob.glob(f"artifacts/ablation/v6/{run}/A42/responses/*.json"):
+        for p in glob.glob(f"scratch/ablation/v6/{run}/A42/responses/*.json"):
             qid = os.path.basename(p)[:-5]
             if qid not in TARGETS:
                 continue

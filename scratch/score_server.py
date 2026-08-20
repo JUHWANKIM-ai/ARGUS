@@ -34,7 +34,7 @@ from scripts import error_analysis as ea  # noqa: E402
 #: its own answers under its own arm subfolder (`a42_full/A42/`), so this
 #: comparison keeps reading `A42` even when `--arm` names something else.
 LOCAL = {"full": "a42_full", "safety": "a42_safety", "valuechain": "a42_valuechain"}
-BASE = Path("artifacts/ablation/v6")
+BASE = Path("scratch/ablation/v6")
 
 
 def judge(cases: list[dict]) -> int:

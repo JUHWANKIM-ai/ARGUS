@@ -208,45 +208,45 @@ def test_arithmetic_matches_the_other_verifiers_contract():
 #: (817,100 vs 817,900) 서술형 판정기가 통과시킨 것이라 검사가 옳다. 현 세대(v3)에는
 #: 그 답변이 없다. v3 에서는 거짓 경보가 0 건이다.
 ARITHMETIC_SNAPSHOTS = {
-    "phase_h(42)": ("artifacts/eval/responses",
-                    "artifacts/eval/error_analysis.json", {"Q-034"}),
-    "A6(42)": ("artifacts/ablation/A6/responses",
-               "artifacts/ablation/A6/report.json", {"Q-034", "Q-044"}),
-    "A7(42)": ("artifacts/ablation/A7/responses",
-               "artifacts/ablation/A7/report.json", {"Q-044"}),
-    "v2/A8(88)": ("artifacts/ablation/v2/A8/responses",
-                  "artifacts/ablation/v2/A8/report.json", {"Q-018", "Q-044"}),
-    "v2/vc(12)": ("artifacts/ablation/v2/vc/A8/responses",
-                  "artifacts/ablation/v2/vc/A8/report.json", {"Q-109", "Q-115"}),
+    "phase_h(42)": ("scratch/eval/responses",
+                    "scratch/eval/error_analysis.json", {"Q-034"}),
+    "A6(42)": ("scratch/ablation/A6/responses",
+               "scratch/ablation/A6/report.json", {"Q-034", "Q-044"}),
+    "A7(42)": ("scratch/ablation/A7/responses",
+               "scratch/ablation/A7/report.json", {"Q-044"}),
+    "v2/A8(88)": ("scratch/ablation/v2/A8/responses",
+                  "scratch/ablation/v2/A8/report.json", {"Q-018", "Q-044"}),
+    "v2/vc(12)": ("scratch/ablation/v2/vc/A8/responses",
+                  "scratch/ablation/v2/vc/A8/report.json", {"Q-109", "Q-115"}),
     # v6, `Q-047` 이 추가됐다. 답변은 바뀌지 않았고 검사가 `(즉, …)` 괄호와
     #    `조·억·만` 복합 표기를 읽게 되면서 발화한 것이다. 그 답변의 괄호 환산은
     #    실제로 10배 틀렸다 (`ea.JUDGED_CORRECT_ARITHMETIC_WRONG` 주석).
-    "v3/A8(88)": ("artifacts/ablation/v3/A8/responses",
-                  "artifacts/ablation/v3/A8/report.json",
+    "v3/A8(88)": ("scratch/ablation/v3/A8/responses",
+                  "scratch/ablation/v3/A8/report.json",
                   {"Q-018", "Q-044", "Q-047"}),
     # R2E 신설, `L1`·`L2`·`L3` 이 현 세대에 처음 측정됐다. 전수 집계를 이 표에
     #    넣지 않으면 "현 세대 전 arm" 이라는 말이 세 arm 을 빠뜨린 채로 굳는다.
     #    `L1` 만 `Q-018` 이 빠진다. 정정체인 hop 을 끄면 그 답변이 아예 달라진다.
-    "v3/L1(88)": ("artifacts/ablation/v3/L1/responses",
-                  "artifacts/ablation/v3/L1/report.json", {"Q-044", "Q-047"}),
-    "v3/L2(88)": ("artifacts/ablation/v3/L2/responses",
-                  "artifacts/ablation/v3/L2/report.json",
+    "v3/L1(88)": ("scratch/ablation/v3/L1/responses",
+                  "scratch/ablation/v3/L1/report.json", {"Q-044", "Q-047"}),
+    "v3/L2(88)": ("scratch/ablation/v3/L2/responses",
+                  "scratch/ablation/v3/L2/report.json",
                   {"Q-018", "Q-044", "Q-047"}),
-    "v3/L3(88)": ("artifacts/ablation/v3/L3/responses",
-                  "artifacts/ablation/v3/L3/report.json",
+    "v3/L3(88)": ("scratch/ablation/v3/L3/responses",
+                  "scratch/ablation/v3/L3/report.json",
                   {"Q-018", "Q-044", "Q-047"}),
-    "v3/L4(88)": ("artifacts/ablation/v3/L4/responses",
-                  "artifacts/ablation/v3/L4/report.json",
+    "v3/L4(88)": ("scratch/ablation/v3/L4/responses",
+                  "scratch/ablation/v3/L4/report.json",
                   {"Q-018", "Q-044", "Q-047"}),
-    "v3/ORACLE(88)": ("artifacts/ablation/v3/ORACLE/responses",
-                      "artifacts/ablation/v3/ORACLE/report.json", set()),
+    "v3/ORACLE(88)": ("scratch/ablation/v3/ORACLE/responses",
+                      "scratch/ablation/v3/ORACLE/report.json", set()),
     # R2G 신설, `A8-lean`(규칙 8·9 를 뺀 arm). 발화 집합이 `A8` 과 **같다**
     #    (`Q-018`·`Q-044`) 는 사실이 이 arm 의 판정에서 값을 한다: 답변 16건이 전부
     #    바뀌었는데도 산술 결함의 자리가 안 옮겨갔다. 다만 `Q-018` 은 **결함의 성질이
     #    바뀌었다**. `restatement`(13자리 중 한 자리) → `equation`+`amount`(10배 자릿수
     #    셋 + 뺄셈). 발화 집합만 보면 그 변화가 안 보인다.
-    "v3/A8-lean(88)": ("artifacts/ablation/v3/A8-lean/responses",
-                       "artifacts/ablation/v3/A8-lean/report.json",
+    "v3/A8-lean(88)": ("scratch/ablation/v3/A8-lean/responses",
+                       "scratch/ablation/v3/A8-lean/report.json",
                        {"Q-018", "Q-044", "Q-047"}),
     # 밸류체인은 발화가 **줄었다** (3 → 1). 개선이 아니다. `Q-110`·`Q-115` 의 새
     #    답변이 금액·계산식을 **아예 쓰지 않아** `checked` 가 빈 목록이 됐다. 오답
@@ -254,8 +254,8 @@ ARITHMETIC_SNAPSHOTS = {
     #    까닭이고, 그것을 성적 개선으로 읽으면 안 된다 (`A8lean-report.md` §4).
     #    v4 R1-1 Step 0a, `Q-107` 이 추가됐다. 굵게 감싼 등식 결과를 보게 되면서
     #    발화한 것이고 **답변은 바뀌지 않았다** (이미 오답).
-    "v3/vc/A8-lean(12)": ("artifacts/ablation/v3/vc/A8-lean/responses",
-                          "artifacts/ablation/v3/vc/A8-lean/report.json",
+    "v3/vc/A8-lean(12)": ("scratch/ablation/v3/vc/A8-lean/responses",
+                          "scratch/ablation/v3/vc/A8-lean/report.json",
                           {"Q-107", "Q-109"}),
     # R2D 재측정으로 `Q-110` 이 추가됐다. 새 답변이 `590,947,351,842원 (591억원)`
     #    이라는 10배 어긋난 재기술쌍을 만들었고 judge 는 통과시켰다
@@ -263,12 +263,12 @@ ARITHMETIC_SNAPSHOTS = {
     # v4 R1-1 Step 0a, `Q-107` 이 추가됐다. `- 1,250,850,298,678 + 2,081,254,239,072
     #    + 1,715,754,987,100 = **4,967,110,535,840원**` 의 좌변합은 5,047,859,524,850 이라
     #    **덧셈이 실제로 틀렸다.** 종전 정규식이 굵게 감싼 결과를 못 봐서 놓쳤다.
-    "v3/vc/A8(12)": ("artifacts/ablation/v3/vc/A8/responses",
-                     "artifacts/ablation/v3/vc/A8/report.json",
+    "v3/vc/A8(12)": ("scratch/ablation/v3/vc/A8/responses",
+                     "scratch/ablation/v3/vc/A8/report.json",
                      {"Q-107", "Q-109", "Q-110", "Q-115"}),
     #    v4 R1-1 Step 0a, `Q-115` 가 추가됐다 (같은 기전 · 이미 오답).
-    "v3/vc/OR(12)": ("artifacts/ablation/v3/vc/ORACLE/responses",
-                     "artifacts/ablation/v3/vc/ORACLE/report.json",
+    "v3/vc/OR(12)": ("scratch/ablation/v3/vc/ORACLE/responses",
+                     "scratch/ablation/v3/vc/ORACLE/report.json",
                      {"Q-109", "Q-115"}),
 }
 

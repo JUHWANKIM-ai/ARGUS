@@ -212,7 +212,7 @@ def test_the_enumeration_hop_fires_on_exactly_one_question_in_the_corpus():
     """
     import json
 
-    root = Path(__file__).resolve().parents[1] / "artifacts/ablation/v3"
+    root = Path(__file__).resolve().parents[1] / "scratch/ablation/v3"
     questions: dict[str, str] = {}
     for arm in ("A8", "vc/A8"):
         directory = root / arm / "responses"

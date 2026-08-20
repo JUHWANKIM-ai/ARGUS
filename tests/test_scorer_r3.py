@@ -274,7 +274,7 @@ def test_rescore_refuses_to_write_into_the_v1_root():
     from scripts import ablation
 
     with pytest.raises(SystemExit):
-        ablation.run_rescore(ablation.ROOT / "artifacts" / "ablation")
+        ablation.run_rescore(ablation.ROOT / "scratch" / "ablation")
 
 
 def test_rescore_render_marks_drops_in_red():

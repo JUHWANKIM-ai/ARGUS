@@ -17,7 +17,7 @@ alongside them; it does not touch what is requested from the API.
 
 Two outputs are written per cohort:
 
-    artifacts/ablation/v6/server_<cohort>/<arm>/responses/<qid>.json
+    scratch/ablation/v6/server_<cohort>/<arm>/responses/<qid>.json
         the runner's record format, so the runner scores these with its own
         code path instead of a reimplementation
 
@@ -97,7 +97,7 @@ def ask(host: str, case: dict) -> tuple[dict, float, int]:
 def sweep(host: str, cohort: str, round_no: int = 1, arm: str = "A42") -> tuple[int, int]:
     rows = cases(cohort)
     name = cohort if round_no == 1 else "%s_r%d" % (cohort, round_no)
-    out = Path("artifacts/ablation/v6/server_%s/%s/responses" % (name, arm))
+    out = Path("scratch/ablation/v6/server_%s/%s/responses" % (name, arm))
     out.mkdir(parents=True, exist_ok=True)
     tracked = Path("eval_server")
     tracked.mkdir(exist_ok=True)

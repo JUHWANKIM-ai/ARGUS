@@ -26,7 +26,7 @@ HyperGraphRAG 자신의 ablation 이 *"arity ≤ 2 면 하이퍼그래프의 이
 ## 단일 창구 · 이중 회계
 
 `argus.clova.chat` 만 부른다. 직접 HTTP 를 치면 요청 캐시와 비용 계정을 우회한다.
-캐시는 `scripts/ablation.RequestCache` 를 그대로 쓴다(같은 `artifacts/ablation/cache`).
+캐시는 `scripts/ablation.RequestCache` 를 그대로 쓴다(같은 `scratch/ablation/cache`).
 온도 0.0 이라 같은 원문은 같은 응답이고, 재실행이 크레딧을 두 번 쓰지 않는다.
 
 **`--budget-won` 정지선이 필수다.** 238콜이 한 번에 나가므로 프롬프트가 잘못 서면

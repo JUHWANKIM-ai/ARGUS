@@ -24,9 +24,9 @@ import json
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-REVIEW = ROOT / "artifacts/audit/goldenset_review_A42.json"
-REASONING = ROOT / "artifacts/audit/reasoning_score_A38_0817.json"
-OUT = ROOT / "artifacts/audit/submission_dossier.json"
+REVIEW = ROOT / "scratch/audit/goldenset_review_A42.json"
+REASONING = ROOT / "scratch/audit/reasoning_score_A38_0817.json"
+OUT = ROOT / "scratch/audit/submission_dossier.json"
 
 # --- 규약 §3 필수 R1~R7 (원문) -------------------------------------------------------
 #
@@ -165,7 +165,7 @@ dossier = {
     "생성": "scripts/build_submission_dossier.py",
     "베이스라인": "A42",
     "정본": {
-        "골든": "artifacts/ablation/v6/a42_{full,valuechain,safety}",
+        "골든": "scratch/ablation/v6/a42_{full,valuechain,safety}",
         "규약감사": "docs/compliance-audit-v5-A38-2026-08-17.md",
         "확정": "docs/baseline-final-2026-08-17.md",
         "주최측": "docs/organizer-qa.md",

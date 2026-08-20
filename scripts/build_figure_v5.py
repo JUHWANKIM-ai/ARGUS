@@ -18,10 +18,10 @@ import pathlib
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs/figures/argus-algorithm-v5.drawio"
 
-#: **성적은 여기 한 곳에만 적는다.** 정본은 `artifacts/ablation/v5/a38_*`.
+#: **성적은 여기 한 곳에만 적는다.** 정본은 `scratch/ablation/v5/a38_*`.
 SCORE = {"arm": "A38", "그리드": "72/72", "전체": "88/88", "밸류체인": "10/12",
          "안전성": "12/12", "정보한계": "6/6", "회귀": "10/10", "인용률": "0.988",
-         "합계": "110/112", "정본": "artifacts/ablation/v5/a38_*"}
+         "합계": "110/112", "정본": "scratch/ablation/v5/a38_*"}
 
 # **흰 바탕 · 검은 글씨.** 인쇄와 제안서 삽입을 위해 색을 뺐다.
 #

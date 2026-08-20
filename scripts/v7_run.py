@@ -23,7 +23,7 @@ from argus import ablation                                    # noqa: E402
 from scripts import error_analysis as ea                      # noqa: E402
 
 COHORTS = ("full", "safety", "valuechain")
-ROOT = Path("artifacts/ablation/v7")
+ROOT = Path("scratch/ablation/v7")
 
 #: Transport-level faults worth retrying: socket timeouts, connection resets
 #: and aborts, TLS failures, DNS resolution failures, and other urllib-level

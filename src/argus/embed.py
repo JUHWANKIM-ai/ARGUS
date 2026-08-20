@@ -378,7 +378,9 @@ def query_vector(text: str) -> np.ndarray:
 
 
 def cache_dir() -> Path:
-    path = settings().artifacts_root / EMBED_CACHE_DIRNAME
+    #: 임베딩은 재고 후 기각한 갈래이고 운영 경로가 열지 않는다. 제출물이 아니므로
+    #: `scratch_root` 아래에 둔다 (config.settings 의 두 루트 주석 참고).
+    path = settings().scratch_root / EMBED_CACHE_DIRNAME
     path.mkdir(parents=True, exist_ok=True)
     return path
 

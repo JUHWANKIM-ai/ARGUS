@@ -12,8 +12,8 @@ measure the generator and the scorer at once.
 Closed questions are skipped. They are scored by normalised exact match with
 no LLM call, and the judge change does not touch them.
 
-Source:  artifacts/ablation/v6/server_<cohort>[_r<n>]/A42/responses/
-Output:  artifacts/ablation/v8/rejudge_<cohort>_r<n>/A43/
+Source:  scratch/ablation/v6/server_<cohort>[_r<n>]/A42/responses/
+Output:  scratch/ablation/v8/rejudge_<cohort>_r<n>/A43/
 """
 import json
 import sys
@@ -29,11 +29,11 @@ COHORTS = ("full", "safety", "valuechain")
 
 def source_dir(cohort: str, round_no: int) -> Path:
     name = cohort if round_no == 1 else f"{cohort}_r{round_no}"
-    return Path(f"artifacts/ablation/v6/server_{name}/A42/responses")
+    return Path(f"scratch/ablation/v6/server_{name}/A42/responses")
 
 
 def out_dir(cohort: str, round_no: int) -> Path:
-    return Path(f"artifacts/ablation/v8/rejudge_{cohort}_r{round_no}/A43")
+    return Path(f"scratch/ablation/v8/rejudge_{cohort}_r{round_no}/A43")
 
 
 def stored_response(responses: Path, qid: str) -> dict:

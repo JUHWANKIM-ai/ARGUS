@@ -384,7 +384,7 @@ def test_verify_calculation_checks_amount_without_a_label():
 
 # --- G. verify_completeness, LLM 0회 -----------------------------------------
 # 지지(support)와 완전성(completeness)은 다른 축이다. 아래 근거는 전부 Phase H 가
-# 저장한 dev 42문항 실제 응답(artifacts/eval/responses)에서 그대로 따왔다.
+# 저장한 dev 42문항 실제 응답(scratch/eval/responses)에서 그대로 따왔다.
 
 #: Q-005 실측. 근거에 원본만 왔고 정정본이 없다.
 Q005_EVIDENCE = """## [공급계약 체결] 삼성중공업 – 단일판매ㆍ공급계약체결 — 원유운반선 2척
@@ -1053,7 +1053,7 @@ def test_no_false_alarm_on_stored_dev_responses(snapshot):
 # Q-097(`per_unit` 신설)이 잡히고, **Q-065 는 `aggregate_calculation` 이 있어야 잡힌다**.
 # 신한울 금액이 정확해서 레코드 단위 관용이 Dukovany 10배 오류를 지우고 있었다.
 
-A8_SNAPSHOT = "artifacts/ablation/v2/A8"
+A8_SNAPSHOT = "scratch/ablation/v2/A8"
 
 #: **W1 이 든 뒤 A8 스냅샷이 재생성되면서 이 집합이 바뀌었다.**
 #:
@@ -1074,7 +1074,7 @@ A8_CALC_HARD = {"Q-023"}
 
 #: W1 이전 Q-065 의 저장 응답, 유료 측정 산출물이라 옛 실패 양식을 원문 그대로
 #: 붙들고 있다(답변 "492,909억", 실제 4,928,968,079,043 → 10^+1 배).
-PRE_W1_Q065 = "artifacts/eval/responses_v2/Q-065.json"
+PRE_W1_Q065 = "scratch/eval/responses_v2/Q-065.json"
 
 
 def _a8_snapshot():
@@ -1121,7 +1121,7 @@ def test_the_digit_guard_still_fires_on_the_pre_w1_q065():
     종전에는 현행 A8 스냅샷의 Q-065 로 이 대조를 했다. W1 이 든 뒤 그 문항이 정답으로
     뒤집혀 스냅샷에서 10배 오류가 사라졌고, 그 자리에서 재면 "가드가 없어도 통과한다"와
     "가드가 있어서 안 잡는다"를 **구별할 수 없다.** 그래서 대조 대상을 W1 **이전에 저장된
-    유료 측정 응답**(`artifacts/eval/responses_v2/Q-065.json`)으로 옮긴다. 그 파일은
+    유료 측정 응답**(`scratch/eval/responses_v2/Q-065.json`)으로 옮긴다. 그 파일은
     옛 실패 양식(답변 "492,909억", 실제 4,928,968,079,043)을 원문 그대로 얼려 둔 것이라
     가드가 약해지는 순간 이 테스트가 먼저 깨진다.
     """
@@ -1223,7 +1223,7 @@ def test_completeness_audit_flags_a_premise_that_started_standing_far_more_often
 def test_completeness_snapshots_name_the_responses_they_were_measured_on():
     """수치만 적고 출처를 안 적으면 다음 사람이 또 같은 착각을 한다."""
     for name, spec in critic.COMPLETENESS_SNAPSHOTS.items():
-        assert spec["responses"].startswith("artifacts/"), name
+        assert spec["responses"].startswith("scratch/"), name
         assert spec["labels"].endswith(".json"), name
         assert spec["golden_evidence"], name
         assert set(spec["checked"]) == set(critic.COMPLETENESS_STAGES), name
@@ -1234,7 +1234,7 @@ def test_completeness_snapshots_name_the_responses_they_were_measured_on():
 #
 # 감사 32문항에서 각주 8건 중 **6건이 망가져 있었다.** critic 이 불리언과 산문을
 #    따로 내는데 우리가 판정은 불리언으로 하고 설명은 산문으로 실었기 때문이다.
-#    아래 두 입력은 지어낸 것이 아니라 `artifacts/audit/v5_reaudit_A38.jsonl` 의
+#    아래 두 입력은 지어낸 것이 아니라 `scratch/audit/v5_reaudit_A38.jsonl` 의
 #    AUD-11 · AUD2-06 에서 그대로 가져온 것이다.
 
 def _verdict(**kw):

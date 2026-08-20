@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-PROFILE_PATH = ROOT / "artifacts/eda/new_sector_profile.json"
+PROFILE_PATH = ROOT / "scratch/eda/new_sector_profile.json"
 NEW_SECTORS = {"게임", "로봇", "소비재·유통", "자동차·모빌리티", "철강", "통신"}
 
 
@@ -50,14 +50,14 @@ def ensure_profile():
 
 def test_all_new_sectors_are_profiled():
     prof = json.loads(
-        (ROOT / "artifacts/eda/new_sector_profile.json").read_text(encoding="utf-8"))
+        (ROOT / "scratch/eda/new_sector_profile.json").read_text(encoding="utf-8"))
     assert NEW_SECTORS <= set(prof["by_sector"])
 
 
 def test_profile_records_schema_matched_per_sector():
     """섹터별 파싱 커버리지가 기존 14섹터와 다르면 그게 다음 처방이다."""
     prof = json.loads(
-        (ROOT / "artifacts/eda/new_sector_profile.json").read_text(encoding="utf-8"))
+        (ROOT / "scratch/eda/new_sector_profile.json").read_text(encoding="utf-8"))
     for s, v in prof["by_sector"].items():
         assert "schema_matched_ratio" in v
         assert "n_docs" in v
@@ -67,6 +67,6 @@ def test_profile_records_schema_matched_per_sector():
 def test_known_defects_are_listed():
     """확장 트랙이 찾은 결함 4건이 기록돼 있어야 다음 트랙이 안 놓친다."""
     prof = json.loads(
-        (ROOT / "artifacts/eda/new_sector_profile.json").read_text(encoding="utf-8"))
+        (ROOT / "scratch/eda/new_sector_profile.json").read_text(encoding="utf-8"))
     corps = {d["corp_name"] for d in prof["known_defects"]}
     assert {"NAVER", "크래프톤", "이마트", "아모레퍼시픽"} <= corps

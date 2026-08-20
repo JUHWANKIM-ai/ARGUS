@@ -1,7 +1,7 @@
 """closed 문항에 judge 를 **진단으로** 건다. 규약 「근거 기반」·「추론 논리성」의 사각.
 
     PYTHONIOENCODING=utf-8 python scripts/judge_closed.py \
-        --arm A37 --run artifacts/ablation/v5/a37
+        --arm A37 --run scratch/ablation/v5/a37
 
 **채점을 바꾸지 않는다.** closed 는 EM 으로 판정하고 그 판정은 그대로 둔다. 여기서
 재는 것은 *"EM 이 맞다고 한 답을 judge 도 맞다고 하는가"* 뿐이다. 게이트로 만들면
@@ -52,8 +52,8 @@ def load_cases() -> dict[str, dict]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--arm", default="A37")
-    parser.add_argument("--run", default="artifacts/ablation/v5/a37")
-    parser.add_argument("--out", default="artifacts/audit/judge_closed_A37.json")
+    parser.add_argument("--run", default="scratch/ablation/v5/a37")
+    parser.add_argument("--out", default="scratch/audit/judge_closed_A37.json")
     args = parser.parse_args()
 
     from argus.agent.critic import judge_open

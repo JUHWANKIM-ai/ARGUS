@@ -5,8 +5,8 @@
 를 그대로 옮기고, 사람이 읽을 한 줄만 그 값에서 파생한다. 단계 이름의 뜻은
 `docs/pipeline/08-error-analysis.md` 의 정의를 옮긴 것이다.
 
-    python scripts/build_failures.py --arm A34 --run artifacts/ablation/v5/final2 \
-        --out artifacts/audit/baseline_failures_v5.json
+    python scripts/build_failures.py --arm A34 --run scratch/ablation/v5/final2 \
+        --out scratch/audit/baseline_failures_v5.json
 
 `--run` 은 코호트별 폴더의 **공통 접두**다 (`<run>_full` · `<run>_valuechain` ·
 `<run>_safety`). 러너가 같은 `--out` 에 두 코호트를 쓰면 뒤엣것이 앞엣것을 덮으므로
@@ -56,7 +56,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--arm", required=True)
     parser.add_argument("--run", required=True,
-                        help="코호트별 폴더의 공통 접두 (예: artifacts/ablation/v5/final2)")
+                        help="코호트별 폴더의 공통 접두 (예: scratch/ablation/v5/final2)")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 

@@ -1,8 +1,8 @@
 """골든셋 전수 리뷰, 문항마다 **답변·판정 근거·규약 지표 8종**을 한 파일로 모은다.
 
     PYTHONIOENCODING=utf-8 python scripts/build_goldenset_review.py \
-        --arm A34 --run artifacts/ablation/v5/final2 \
-        --out artifacts/audit/goldenset_review_A34.json
+        --arm A34 --run scratch/ablation/v5/final2 \
+        --out scratch/audit/goldenset_review_A34.json
 
 LLM 0회 · 0원. 러너가 이미 낸 `report.json`·`responses/` 를 읽어 재조립할 뿐이다.
 
@@ -123,8 +123,8 @@ def metric_view(row: dict, case: dict) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--arm", default="A34")
-    parser.add_argument("--run", default="artifacts/ablation/v5/final2")
-    parser.add_argument("--out", default="artifacts/audit/goldenset_review_A34.json")
+    parser.add_argument("--run", default="scratch/ablation/v5/final2")
+    parser.add_argument("--out", default="scratch/audit/goldenset_review_A34.json")
     args = parser.parse_args()
 
     cases = load_cases()

@@ -524,7 +524,7 @@ def test_merge_this_run_carries_forward_when_recompute_has_no_live_run(tmp_path)
 
     이전 버그: `if live: report["this_run"] = live` 는 `live` 가 없으면 아무것도 안 써서
     `this_run` 이 **키째로 사라졌다**. 0 원으로 덮이는 것보다 나쁘다. 실측:
-    `artifacts/eval/error_analysis.json` · `_v2.json` 둘 다 이미 이 사고를 겪었다.
+    `scratch/eval/error_analysis.json` · `_v2.json` 둘 다 이미 이 사고를 겪었다.
     """
     out_path = tmp_path / "report.json"
     out_path.write_text(json.dumps({"this_run": {"spent_won": 1505.1}}), encoding="utf-8")
@@ -798,7 +798,7 @@ def _latest_final_arm_report() -> Path | None:
     **최종 arm 이 `A8` 이 아니게 되면 이 glob 을 갱신해야 한다**. 그때는 매치가
     0건이 되어 아래 테스트가 skip 되고, skip 사유가 그 사실을 말한다.
     """
-    found = sorted(Path("artifacts/ablation").glob("v*/A8/report.json"))
+    found = sorted(Path("scratch/ablation").glob("v*/A8/report.json"))
     return found[-1] if found else None
 
 

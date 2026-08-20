@@ -26,11 +26,11 @@ def _args():
     import argparse
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("--review", default="artifacts/audit/goldenset_review_A38.json")
-    ap.add_argument("--run", default="artifacts/ablation/v5/a38",
-                    help="코호트 접미사 앞까지. 예: artifacts/ablation/v5/cn")
+    ap.add_argument("--review", default="scratch/audit/goldenset_review_A38.json")
+    ap.add_argument("--run", default="scratch/ablation/v5/a38",
+                    help="코호트 접미사 앞까지. 예: scratch/ablation/v5/cn")
     ap.add_argument("--arm", default="A38")
-    ap.add_argument("--out", default="artifacts/audit/reasoning_score_A38.json")
+    ap.add_argument("--out", default="scratch/audit/reasoning_score_A38.json")
     return ap.parse_args()
 
 

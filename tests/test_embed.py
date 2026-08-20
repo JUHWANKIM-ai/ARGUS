@@ -211,7 +211,7 @@ def test_dense_sidecar_path_lives_under_artifacts():
 
 def test_cost_ledger_records_measured_usage_only():
     """보고서의 비용은 **API 응답의 실측 usage** 여야 한다 (추정치 금지)."""
-    path = (embed.settings().repo_root / "artifacts" / "ablation" / "A2"
+    path = (embed.settings().repo_root / "scratch" / "ablation" / "A2"
             / "embedding_cost.json")
     if not path.exists():
         pytest.skip("1단계 미실행")
@@ -232,7 +232,7 @@ def test_records_then_warm_accumulates_spent_won_instead_of_overwriting(tmp_path
     프로세스로 `--records` 를 다시 돌리면(또는 그 뒤에 `--warm` 을 돌리면) 그 값이
     **이번 호출분뿐**인데 원장의 `spent_won` 을 통째로 대입해 앞선 지출을 지웠다.
 
-    실측 흔적: `artifacts/ablation/A2/embedding_cost.json` 의 `spent_won` 이
+    실측 흔적: `scratch/ablation/A2/embedding_cost.json` 의 `spent_won` 이
     110.82(records 단독 usage)로 남아 1단계 표본 2.64원이 빠져 있다. 올바른 누계는
     `embedding_spend_won` 113.44(그 필드는 이미 `+=` 로 고쳐져 있었다). 이 테스트는
     같은 사고가 `spent_won` 에도 다시 나지 않는지를 잰다: `--records` 로 0.1원 쓴 뒤
@@ -282,7 +282,7 @@ def test_evalset_snapshot_is_frozen_at_the_gate_d_cohort():
 
     root = embed.settings().repo_root
     snapshot = json.loads(
-        (root / "artifacts" / "ablation" / "A2" / "evalset_snapshot.json")
+        (root / "scratch" / "ablation" / "A2" / "evalset_snapshot.json")
         .read_text(encoding="utf-8"))
     assert snapshot["n"] == 42
     assert set(snapshot["question_ids"]) == set(V.measured_dev_cohort())

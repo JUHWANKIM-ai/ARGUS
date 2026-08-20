@@ -85,5 +85,5 @@ def test_a26_differs_from_baseline_by_one_flag():
 
 
 def test_baseline_adopted_it():
-    """재고 채택했다. 그리드 66/72 동률 (`artifacts/ablation/v4/repro_0816/`)."""
+    """재고 채택했다. 그리드 66/72 동률 (`scratch/ablation/v4/repro_0816/`)."""
     assert ablation.current().ambiguous_gate is True

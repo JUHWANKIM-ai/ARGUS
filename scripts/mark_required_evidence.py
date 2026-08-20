@@ -1,10 +1,10 @@
 """골든 근거를 **필수 / 참고**로 가른다. LLM 0회 · 0원.
 
     PYTHONIOENCODING=utf-8 python scripts/mark_required_evidence.py \
-        --arm A38 --run artifacts/ablation/v5/a38
+        --arm A38 --run scratch/ablation/v5/a38
 
 **평가셋 파일을 고치지 않는다.** 별도 주석 파일 하나만 낸다
-(`artifacts/audit/golden_evidence_required.json`). 골든의 `evidence` 목록을 건드리면
+(`scratch/audit/golden_evidence_required.json`). 골든의 `evidence` 목록을 건드리면
 `has_citation`(골든 접수번호 인용 여부)과 골든 회수의 v1~v5 시계열이 통째로 뜻이 바뀐다.
 
 ## 왜 필요한가
@@ -46,8 +46,8 @@ COHORTS = ("full", "valuechain", "safety")
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--arm", default="A38")
-    parser.add_argument("--run", default="artifacts/ablation/v5/a38")
-    parser.add_argument("--out", default="artifacts/audit/golden_evidence_required.json")
+    parser.add_argument("--run", default="scratch/ablation/v5/a38")
+    parser.add_argument("--out", default="scratch/audit/golden_evidence_required.json")
     args = parser.parse_args()
 
     cases: dict[str, dict] = {}

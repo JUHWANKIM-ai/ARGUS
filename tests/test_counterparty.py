@@ -17,7 +17,7 @@ from scripts.eda_counterparty import RECORDS_PATH, build_profile
 from scripts.build_counterparty_graph import BOILERPLATE_NOTE, build_graph, sentence_like
 
 ROOT = Path(__file__).resolve().parents[1]
-PROFILE_PATH = ROOT / "artifacts/eda/counterparty_profile.json"
+PROFILE_PATH = ROOT / "scratch/eda/counterparty_profile.json"
 GRAPH_PATH = ROOT / "artifacts/counterparty_graph.json"
 
 
@@ -206,7 +206,7 @@ def test_classify_public_matches_agency_name_as_prefix():
 
 def test_counterparty_profile_records_surface_form_variants():
     """같은 발주처의 표기 변이가 한 canonical 아래 묶여야 한다."""
-    p = ROOT / "artifacts/eda/counterparty_profile.json"
+    p = ROOT / "scratch/eda/counterparty_profile.json"
     prof = json.loads(p.read_text(encoding="utf-8"))
 
     by_canon = {v["canonical"]: v for v in prof["variants"]}

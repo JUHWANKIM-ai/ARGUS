@@ -22,8 +22,8 @@ import ablation as runner                              # noqa: E402
 from argus import ablation as flags                    # noqa: E402
 from argus.agent.pipeline import answer_question       # noqa: E402
 
-OUT = "artifacts/audit/v5_reaudit_A38.jsonl"
-PREV = "artifacts/audit/v5_reaudit.jsonl"
+OUT = "scratch/audit/v5_reaudit_A38.jsonl"
+PREV = "scratch/audit/v5_reaudit.jsonl"
 
 cache = runner.RequestCache(runner.CACHE_DIR)
 cache.install()

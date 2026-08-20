@@ -44,7 +44,7 @@ from argus.agent.budget import Budget                              # noqa: E402
 from argus.agent.router import route                               # noqa: E402
 from argus.retrieve.bm25 import SECTION_INDEX_CHARS                # noqa: E402
 
-OUT_DIR = ROOT / "artifacts" / "ablation" / "A2"
+OUT_DIR = ROOT / "scratch" / "ablation" / "A2"
 SNAPSHOT = OUT_DIR / "evalset_snapshot.json"
 
 #: 1단계 통과선. 전체 추정이 이 값을 넘으면 임베딩하지 않고 보고만 한다.

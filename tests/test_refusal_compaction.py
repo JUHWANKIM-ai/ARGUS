@@ -7,7 +7,7 @@ Unlike `strip_external_referral`, which removes a sentence that names a path
 outside the corpus, this drops whatever follows an opening refusal.
 
 The fixture below is a real, stored answer:
-`artifacts/ablation/v7/V7-4_safety_r3/V7-4/responses/S-010.json`.
+`scratch/ablation/v7/V7-4_safety_r3/V7-4/responses/S-010.json`.
 
 The trigger used to require *both* the first and the last sentence to
 independently match the scorer's refusal vocabulary
@@ -339,7 +339,7 @@ import json                                                        # noqa: E402
 import pathlib                                                     # noqa: E402
 
 _ARTIFACT_ROOT = (pathlib.Path(__file__).resolve().parents[1]
-                  / "artifacts" / "ablation" / "v7")
+                  / "scratch" / "ablation" / "v7")
 
 
 def _stored_a48_answers(cohort: str) -> list[str]:

@@ -190,11 +190,11 @@ def test_the_scored_rules_one_to_four_are_never_touched():
 
 #: (응답 디렉터리, 라벨 보고서, 단위 규칙 노출, 연결/별도 규칙 노출).
 RULE_EXPOSURE = {
-    "그리드 88": ("artifacts/ablation/v3/A8/responses",
-                  "artifacts/ablation/v3/A8/report.json",
+    "그리드 88": ("scratch/ablation/v3/A8/responses",
+                  "scratch/ablation/v3/A8/report.json",
                   {"Q-047", "Q-105"}, {"Q-098", "Q-100"}),
-    "밸류체인 12": ("artifacts/ablation/v3/vc/A8/responses",
-                    "artifacts/ablation/v3/vc/A8/report.json", set(), set()),
+    "밸류체인 12": ("scratch/ablation/v3/vc/A8/responses",
+                    "scratch/ablation/v3/vc/A8/report.json", set(), set()),
 }
 
 #: **규칙에 노출된 문항 중 현재 정답인 것.** 성적이 떨어지면 여기부터 되돌린다.
@@ -266,15 +266,15 @@ def test_the_hostage_is_a_subset_of_the_exposed_and_correct_set():
 #: 규칙 8·9 가 붙는 문항. `split_trillion_eok` 이 발화하는 문항과 정의상 같다.
 #: (응답 디렉터리, 라벨 보고서, 노출 문항, **그중 현재 정답**).
 MONEY_RULE_EXPOSURE = {
-    "전체 88": ("artifacts/ablation/v3/A8/responses",
-                "artifacts/ablation/v3/A8/report.json",
+    "전체 88": ("scratch/ablation/v3/A8/responses",
+                "scratch/ablation/v3/A8/report.json",
                 {"Q-007", "Q-014", "Q-018", "Q-022", "Q-023", "Q-025", "Q-030",
                  "Q-031", "Q-033", "Q-035", "Q-061", "Q-062", "Q-065", "Q-083",
                  "Q-087", "Q-097"},
                 {"Q-007", "Q-014", "Q-022", "Q-025", "Q-030", "Q-031", "Q-033",
                  "Q-035", "Q-061", "Q-062", "Q-065", "Q-083"}),
-    "밸류체인 12": ("artifacts/ablation/v3/vc/A8/responses",
-                    "artifacts/ablation/v3/vc/A8/report.json",
+    "밸류체인 12": ("scratch/ablation/v3/vc/A8/responses",
+                    "scratch/ablation/v3/vc/A8/report.json",
                     {"Q-107", "Q-108", "Q-109", "Q-110", "Q-111", "Q-112",
                      "Q-113", "Q-114", "Q-115", "Q-117"},
                     {"Q-108", "Q-110", "Q-111", "Q-112", "Q-114"}),

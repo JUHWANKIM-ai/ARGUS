@@ -363,7 +363,7 @@ def test_default_arm_is_the_submission_configuration():
     **v5 는 성적을 잰 세대다.** `A28` 이 틀리던 14문항 중 12건을 잡았다:
     그리드 66→72/72 · 전체 82→88/88 · 밸류체인 7→10/12 · 안전성 9→12/12 ·
     인용률 0.975→0.988 · 합계 98→**110/112** · 회귀 0.
-    정본: `artifacts/ablation/v5/final2_*`.
+    정본: `scratch/ablation/v5/final2_*`.
 
     여덟 플래그가 전부 **LLM 0회**다. 새 모델도 새 호출도 없다.
     남은 둘(`Q-107`·`Q-117`)은 검색이 막고 `A29c` 가 기각으로 그 사실을 붙든다.
@@ -371,7 +371,7 @@ def test_default_arm_is_the_submission_configuration():
     감사가 잰 것은 성적이 아니라 **규약 준수**다. `F-2`(근거 표시가 실질 답변 8건 중
     3건)·`F-3`(지시대상 불명을 '범위 밖' 으로 오진)을 닫는다. 같은 날 같은 캐시로 잰
     값에서 **그리드 66/72 동률**이고 인용률만 0.750 → 0.972 로 오른다. 둘 다 LLM 0회다.
-    정본: `artifacts/ablation/v4/repro_0816/`.
+    정본: `scratch/ablation/v4/repro_0816/`.
 
     이 값을 바꾸면 **평가 서버도 다시 배포해야 한다**. `api/server.py` 는 arm 을
     지정하지 않으므로 이것이 곧 주최측이 받는 답변의 구성이다.
@@ -730,9 +730,20 @@ def test_retrieval_metrics_never_calls_the_llm():
 
 
 def test_retrieval_metrics_reproduces_the_v1_a6_baseline():
-    """게이트 회귀. 얼려 둔 42문항에서 A6 은 v1 과 같은 수를 내야 한다.
-    골든 근거 **59/60** · Recall@5 **58/60** (04-retriever 게이트 D).
-    이게 어긋나면 A2 의 Δ 는 dense 가 아니라 파이프라인 변화의 것이다."""
+    """게이트 회귀. 얼려 둔 42문항에서 A6 은 같은 수를 내야 한다.
+    골든 근거 **64/66** · Recall@5 **63/66** (04-retriever 게이트 D).
+    이게 어긋나면 A2 의 Δ 는 dense 가 아니라 파이프라인 변화의 것이다.
+
+    🔴 **2026-08-21 에 (60, 59, 58) 에서 옮겼다.** 검색이 바뀐 것이 아니라 평가셋이
+    바뀌었다 — 골든이 정정 체인의 최신본을 안 담은 다섯 문항에 6건을 덧붙였다
+    (`scripts/refresh_golden_chain_evidence.py`). 문항 수 42 는 그대로이고 스냅샷도
+    같다. 새로 들어온 6건 중 5건은 이미 @5 안에 있었고, 하나(`Q-014` 의
+    `20241114000001`)만 순위에 안 잡혀 미적중이 2건에서 3건이 됐다.
+
+    이 시험이 못 박는 것은 "v1 이 보고한 수" 가 아니라 **지금 코드가 얼려 둔 42문항에서
+    내는 수**다. 평가셋을 고치면 여기도 같이 움직이고, 그때 04-retriever 의 세 표를
+    함께 다시 재야 한다.
+    """
     import json
 
     from scripts import ablation as runner
@@ -741,7 +752,7 @@ def test_retrieval_metrics_reproduces_the_v1_a6_baseline():
         pytest.skip("스냅샷 없음")
     cases = runner.load_dev(runner.SNAPSHOT_PATH)
     totals = runner.retrieval_metrics("A6", cases)["totals"]
-    assert (totals["golden"], totals["evidence_hit"], totals["recall5"]) == (60, 59, 58)
+    assert (totals["golden"], totals["evidence_hit"], totals["recall5"]) == (66, 64, 63)
     assert json.loads(runner.SNAPSHOT_PATH.read_text(encoding="utf-8"))["n"] == 42
 
 
@@ -920,7 +931,7 @@ def test_the_request_cache_is_shared_across_out_directories():
     """`--out` 이 요청 캐시를 함께 가르면 v1·T7 이 이미 산 응답을 다시 산다."""
     from scripts import ablation as runner
 
-    assert runner.CACHE_DIR == runner.ROOT / "artifacts" / "ablation" / "cache"
+    assert runner.CACHE_DIR == runner.ROOT / "scratch" / "ablation" / "cache"
 
 
 #: `ea.build_report` 가 요구하는 최소 필드. 값은 집계에 안 쓰이는 것만 채운다.
@@ -1024,7 +1035,7 @@ def test_a_second_paid_heldout_run_is_refused(fake_root):
 
 def test_changing_out_does_not_unlock_the_heldout_brake(fake_root):
     """**가장 중요한 제동 테스트.** 제동이 `--out` 아래 원장 하나만 봤을 때는
-    `--out artifacts/ablation/v3/heldout` 으로 **무방비로 통과**했다. 되돌릴 수 없는
+    `--out scratch/ablation/v3/heldout` 으로 **무방비로 통과**했다. 되돌릴 수 없는
     조작에서 "인자를 바꾸면 풀리는 제동" 은 제동이 아니다.
 
     v2 원장만 있고 v3 폴더는 비어 있는 상태, 그래도 거부돼야 한다.
@@ -1032,7 +1043,7 @@ def test_changing_out_does_not_unlock_the_heldout_brake(fake_root):
     from scripts import ablation as runner
 
     _put_ledger(fake_root, "ablation/v2/heldout")
-    (fake_root / "artifacts" / "ablation" / "v3" / "heldout").mkdir(parents=True)
+    (fake_root / "scratch" / "ablation" / "v3" / "heldout").mkdir(parents=True)
     with pytest.raises(SystemExit, match="`--out` 을 바꿔도"):
         runner.assert_heldout_unused(offline=False)
 
@@ -1117,7 +1128,7 @@ def test_the_brake_also_accepts_the_scored_report_as_evidence(fake_root):
     `"split": "heldout"` 이 남아 유료 재실행을 막는다. 그 파일들은 커밋되어 있다."""
     from scripts import ablation as runner
 
-    report = (fake_root / "artifacts" / "ablation" / "v9" / "heldout"
+    report = (fake_root / "scratch" / "ablation" / "v9" / "heldout"
               / "A8_heldout_run" / "report.json")
     report.parent.mkdir(parents=True)
     report.write_text(json.dumps({"arm": "A8", "split": "heldout"}), encoding="utf-8")
@@ -1166,7 +1177,7 @@ def test_the_verdict_is_undecidable_when_the_worst_axis_is_missing(fake_root, mo
     from scripts import ablation as runner
 
     monkeypatch.setattr(runner, "_load_report", lambda *a, **k: None)
-    out = fake_root / "artifacts" / "ablation" / "v2" / "heldout"
+    out = fake_root / "scratch" / "ablation" / "v2" / "heldout"
     out.mkdir(parents=True)
     ids = [f"Q-{i:03d}" for i in range(1, 19)]
     ledger = runner.write_heldout_ledger(
@@ -1200,7 +1211,7 @@ def test_the_verdict_uses_the_worst_axis_not_the_kindest(fake_root, monkeypatch)
          "rows": []} if arm == "A8" else None))
     monkeypatch.setattr(runner, "_grid_rate", lambda rows, wanted=None: {
         "correct": 33, "n_scored": 36, "rate": 0.917})
-    out = fake_root / "artifacts" / "ablation" / "v2" / "heldout"
+    out = fake_root / "scratch" / "ablation" / "v2" / "heldout"
     out.mkdir(parents=True)
     ledger = runner.write_heldout_ledger(
         out, "A8", _heldout_report(set(ids[:15]), ids))
@@ -1221,7 +1232,7 @@ def test_the_gap_is_computed_from_the_raw_fraction_not_the_rounded_rate(fake_roo
     낙폭이 분자/분모에서 나와야 한다. `rate` 를 읽으면 이 테스트가 깨진다."""
     from scripts import ablation as runner
 
-    out = fake_root / "artifacts" / "ablation" / "v2" / "heldout"
+    out = fake_root / "scratch" / "ablation" / "v2" / "heldout"
     out.mkdir(parents=True)
     ids = [f"Q-{i:03d}" for i in range(1, 19)]
     report = _heldout_report(set(ids[:15]), ids)
@@ -1237,7 +1248,7 @@ def test_a_rescore_does_not_overwrite_the_paid_spend_record(fake_root, monkeypat
     (`_spend_meta` 가 같은 사고로 한 번 덮인 적이 있다)."""
     from scripts import ablation as runner
 
-    out = fake_root / "artifacts" / "ablation" / "v2" / "heldout"
+    out = fake_root / "scratch" / "ablation" / "v2" / "heldout"
     # `monkeypatch` 로 바꾼다. 직접 대입은 테스트가 끝나도 **모듈 전역이 그대로 남아**
     #    뒤에 오는 테스트의 조용한 오염원이 된다 (지금은 피해 0 이지만 순서에 의존한다).
     monkeypatch.setattr(runner, "OUT_DIR", out)
@@ -1272,7 +1283,7 @@ def test_a_rescore_does_not_bump_the_use_count(fake_root, monkeypatch):
     from scripts import ablation as runner
 
     monkeypatch.setattr(runner, "_load_report", lambda *a, **k: None)
-    out = fake_root / "artifacts" / "ablation" / "v2" / "heldout"
+    out = fake_root / "scratch" / "ablation" / "v2" / "heldout"
     out.mkdir(parents=True)
     ids = [f"Q-{i:03d}" for i in range(1, 19)]
     report = _heldout_report(set(ids[:15]), ids)
@@ -1296,7 +1307,7 @@ def test_the_ladder_rescore_does_not_zero_the_paid_spend_record(fake_root, monke
     """
     from scripts import ablation as runner
 
-    out = fake_root / "artifacts" / "ablation" / "v2"
+    out = fake_root / "scratch" / "ablation" / "v2"
     monkeypatch.setattr(runner, "OUT_DIR", out)
     run_dir = out / "A0"
     run_dir.mkdir(parents=True)
@@ -1333,7 +1344,7 @@ def test_a_second_paid_run_keeps_the_earlier_amount_visible(fake_root, monkeypat
     않지만 지워진 사실은 남아야 누계를 다시 셀 수 있다."""
     from scripts import ablation as runner
 
-    out = fake_root / "artifacts" / "ablation" / "v2"
+    out = fake_root / "scratch" / "ablation" / "v2"
     monkeypatch.setattr(runner, "OUT_DIR", out)
     (out / "A0").mkdir(parents=True)
     (out / "A0" / "run.json").write_text(json.dumps({"spent_won": 1901.0}),
@@ -1355,7 +1366,7 @@ def test_a_rescore_does_not_wipe_the_inherited_slot(fake_root, monkeypatch):
     """
     from scripts import ablation as runner
 
-    out = fake_root / "artifacts" / "ablation" / "v3"
+    out = fake_root / "scratch" / "ablation" / "v3"
     monkeypatch.setattr(runner, "OUT_DIR", out)
     (out / "ORACLE").mkdir(parents=True)
     (out / "ORACLE" / "run.json").write_text(
@@ -1384,7 +1395,7 @@ def test_a_paid_subcohort_run_flags_the_parent_summary_as_stale(fake_root):
     """
     from scripts import ablation as runner
 
-    v3 = fake_root / "artifacts" / "ablation" / "v3"
+    v3 = fake_root / "scratch" / "ablation" / "v3"
     (v3 / "A8").mkdir(parents=True)
     (v3 / "A8" / "run.json").write_text(json.dumps({"spent_won": 553.2}),
                                         encoding="utf-8")
@@ -1419,13 +1430,13 @@ def test_a_paid_subcohort_run_flags_the_parent_summary_as_stale(fake_root):
 def test_the_v1_root_summary_is_never_compared_as_a_parent(fake_root):
     """v1 자리에서 멈춘다. 안 멈추면 이 검사가 **모든 실행에서** 거짓 경보를 낸다.
 
-    `artifacts/ablation/summary.json` 의 `spent_won` 은 **v1 만**의 값인데 그 폴더를
+    `scratch/ablation/summary.json` 의 `spent_won` 은 **v1 만**의 값인데 그 폴더를
     재귀로 세면 `v2`·`v3` 가 통째로 더해진다(`assert_not_v1_root` ①: 3,144.7 →
     8,211.3원). 그 자리는 낡은 것이 아니라 애초에 재귀 합이 아닌 파일이다.
     """
     from scripts import ablation as runner
 
-    v1 = fake_root / "artifacts" / "ablation"
+    v1 = fake_root / "scratch" / "ablation"
     (v1 / "A6").mkdir(parents=True)
     (v1 / "A6" / "run.json").write_text(json.dumps({"spent_won": 3144.7}),
                                         encoding="utf-8")
@@ -1510,13 +1521,13 @@ def test_the_embedding_usage_field_is_counted_in_the_budget(tmp_path):
 # --- v1 자리 덮어쓰기 거부 (I-3) ------------------------------------------------
 
 def test_writing_into_the_v1_root_is_refused_while_a_version_folder_lives_there(fake_root):
-    """**I-3.** `artifacts/ablation/v2/` 는 `artifacts/ablation/` **안**에 있다.
+    """**I-3.** `scratch/ablation/v2/` 는 `scratch/ablation/` **안**에 있다.
     `--out` 없이 돌리는 재집계는 ① v1 지출에 v2 를 합산하고(3,144.7 → 8,211.3)
     ② v1 의 42문항 `report.json` 을 현재 88문항 기준으로 재작성하고
     ③ `--report` 로는 v2 렌더러가 v1 `gate_I.md` 를 덮는다."""
     from scripts import ablation as runner
 
-    v1 = fake_root / "artifacts" / "ablation"
+    v1 = fake_root / "scratch" / "ablation"
     (v1 / "v2").mkdir(parents=True)
     (v1 / "v2" / "summary.json").write_text("{}", encoding="utf-8")
     with pytest.raises(SystemExit, match="v1 자리"):
@@ -1531,13 +1542,13 @@ def test_the_v1_root_refusal_names_the_way_out(fake_root):
     """거부 메시지가 **무엇을 대신 치라는지** 말해야 한다. 아니면 다음 사람이 가드를 지운다."""
     from scripts import ablation as runner
 
-    v1 = fake_root / "artifacts" / "ablation"
+    v1 = fake_root / "scratch" / "ablation"
     (v1 / "v2").mkdir(parents=True)
     (v1 / "v2" / "summary.json").write_text("{}", encoding="utf-8")
     with pytest.raises(SystemExit) as caught:
         runner.assert_not_v1_root(v1, "게이트 보고서")
     message = str(caught.value)
-    assert "--out artifacts/ablation/v2" in message
+    assert "--out scratch/ablation/v2" in message
     assert "ablation_report.py" in message
 
 
@@ -1593,7 +1604,7 @@ def test_the_regenerated_v2_gate_reads_the_way_the_documents_quote_it():
     산출물이 없으면(신규 클론·CI) 사유를 밝히고 스킵한다. 하드 실패가 아니다."""
     from scripts import ablation as runner
 
-    root = _Path(__file__).resolve().parents[1] / "artifacts" / "ablation" / "v2"
+    root = _Path(__file__).resolve().parents[1] / "scratch" / "ablation" / "v2"
     if not (root / "summary.json").exists():
         pytest.skip(f"{root}/summary.json 이 없다 (gitignore 산출물) — 렌더 대조를 건너뛴다.")
     text = runner.render_gate(root, budget_cap=runner.BUDGET_WON)
@@ -1621,7 +1632,7 @@ def test_the_regenerated_v2_gate_reads_the_way_the_documents_quote_it():
 # --- v1 게이트(ablation_report.py), 공용 캐시를 v1 지출로 읽지 않는다 (I-2) --------
 
 def test_the_v1_gate_does_not_read_the_shared_cache_as_its_own_spend():
-    """**I-2.** `spend_from_cache()` 는 `artifacts/ablation/cache/` **전부**를 더한다.
+    """**I-2.** `spend_from_cache()` 는 `scratch/ablation/cache/` **전부**를 더한다.
     그 캐시는 `--out` 으로 갈리지 않는 공용 캐시라 v1 게이트를 쓴 시점엔 309건이었고
     지금은 985건이다. v1 게이트를 지금 재생성하면 실제 결제 **3,708원이 11,524.2원**으로,
     "상한 대비 30.9%" 가 **"96.0%"** 로 뛴다. 문서가 인용하는 값이라(`total_plan`)
@@ -1644,7 +1655,7 @@ def test_the_v1_gate_does_not_read_the_shared_cache_as_its_own_spend():
     assert shared["requests"] >= rep.V1_PAID_REQUESTS
     assert "공용 캐시 전체" in rep.spend_from_cache.__doc__
 
-    root = _Path(__file__).resolve().parents[1] / "artifacts" / "ablation"
+    root = _Path(__file__).resolve().parents[1] / "scratch" / "ablation"
     if not (root / "A6" / "report.json").exists():
         pytest.skip(f"{root}/A6/report.json 이 없다 (gitignore 산출물) — 렌더 대조를 건너뛴다.")
     text = rep.render()                                  # 파일을 쓰지 않는다
@@ -1691,7 +1702,7 @@ def test_a_refused_heldout_run_leaves_no_trace_on_disk(fake_root, monkeypatch):
 
     with pytest.raises(SystemExit, match="최종 구성 1회용"):
         runner.main(["--heldout", "--arm", "A8",
-                     "--out", "artifacts/ablation/v3/heldout", "--budget", "1000"])
+                     "--out", "scratch/ablation/v3/heldout", "--budget", "1000"])
 
     after = sorted(str(p.relative_to(fake_root)) for p in fake_root.rglob("*"))
     assert after == before, f"거부된 실행이 흔적을 남겼다: {sorted(set(after) - set(before))}"
@@ -1711,7 +1722,7 @@ def test_the_refusal_happens_before_any_directory_is_created(fake_root, monkeypa
                                               real_mkdir(self, *a, **k))[1])
     with pytest.raises(SystemExit):
         runner.main(["--heldout", "--arm", "A8",
-                     "--out", "artifacts/ablation/v3/heldout"])
+                     "--out", "scratch/ablation/v3/heldout"])
     assert made == [], f"제동 앞에서 디렉터리를 만들었다: {made}"
 
 
@@ -2486,7 +2497,7 @@ def test_shaping_for_a_calc_values_off_arm_leaves_no_trillion_bracket(tmp_path):
     `lean_rules` 가 실효를 갖고, 그때는 의존 선언이 과잉 제동이 된다."""
     from argus.agent import prompts
 
-    root = _Path(__file__).resolve().parents[1] / "artifacts/ablation/v3/A8/responses"
+    root = _Path(__file__).resolve().parents[1] / "scratch/ablation/v3/A8/responses"
     if not root.is_dir():
         pytest.skip(f"{root} 이 없다 (gitignore 산출물)")
     stripped = replace(ablation.A8, name="probe", calc_values=False)
@@ -3163,7 +3174,7 @@ def test_every_gate_section_is_reachable_from_the_real_v2_artifacts():
     """실물로 한 번 관통시킨다. 절 목록이 맞아도 인자가 어긋나면 여기서 죽는다."""
     from scripts import ablation as runner
 
-    root = _Path(__file__).resolve().parents[1] / "artifacts" / "ablation" / "v2"
+    root = _Path(__file__).resolve().parents[1] / "scratch" / "ablation" / "v2"
     if not (root / "summary.json").exists():
         pytest.skip(f"{root}/summary.json 이 없다 (gitignore 산출물)")
     text = runner.render_gate(root, budget_cap=runner.BUDGET_WON)
@@ -3291,7 +3302,7 @@ def test_v8_arms_are_registered_and_each_is_one_flag_from_its_neighbour():
 
 def test_a47_is_not_registered():
     """`A47` already labels a second draw of the `A46` configuration in
-    `artifacts/ablation/v7/` and `docs/open-issues.md`. Reusing it would
+    `scratch/ablation/v7/` and `docs/open-issues.md`. Reusing it would
     change what that record means."""
     from argus import ablation as ab
 

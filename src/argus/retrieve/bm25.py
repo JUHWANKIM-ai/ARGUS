@@ -78,7 +78,8 @@ DENSE_DIRNAME = embed.EMBED_CACHE_DIRNAME
 
 def dense_path(name: str):
     from argus.config import settings
-    return settings().artifacts_root / DENSE_DIRNAME / f"{name}_dense"
+    #: 제출물이 아니라 작업 산출물이다 -- `embed.cache_dir` 과 같은 루트를 쓴다.
+    return settings().scratch_root / DENSE_DIRNAME / f"{name}_dense"
 
 
 class DenseSide:

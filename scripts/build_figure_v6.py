@@ -29,7 +29,7 @@ import pathlib
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs/figures/argus-algorithm-v6.drawio"
 
-#: **성적은 여기 한 곳에만 적는다.** 정본은 `artifacts/ablation/v5/cite_*`.
+#: **성적은 여기 한 곳에만 적는다.** 정본은 `scratch/ablation/v5/cite_*`.
 #:
 #: **두 수를 함께 싣는다.** 112문항 성적은 `RequestCache` 재생으로 나온 값이라
 #: 실전보다 낙관적이다. 처음 보는 문항 셋(newset 17/20 · heldout_v2 17/18 ·
@@ -38,7 +38,7 @@ OUT = ROOT / "docs/figures/argus-algorithm-v6.drawio"
 SCORE = {
     "arm": "A42", "그리드": "72/72", "전체": "88/88", "밸류체인": "10/12",
     "안전성": "12/12", "정보한계": "6/6", "회귀": "10/10", "인용률": "0.986",
-    "합계": "110/112", "정본": "artifacts/ablation/v6/a42_*",
+    "합계": "110/112", "정본": "scratch/ablation/v6/a42_*",
     "실전": "49/54 (90.7%)", "실전정본": "newset 17/20 · heldout_v2 17/18 · heldout_v3 15/16",
     "잔여": "처음 보는 문항 오답 5건 전부 해결 (서버 실측 6/6)",
 }

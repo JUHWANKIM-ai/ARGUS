@@ -1534,8 +1534,8 @@ PREMISE_DRIFT_FACTOR = 2.0
 #: `COMPLETENESS_STAGES`.
 COMPLETENESS_SNAPSHOTS = {
     "phase_h": {
-        "responses": "artifacts/eval/responses",
-        "labels": "artifacts/eval/error_analysis.json",
+        "responses": "scratch/eval/responses",
+        "labels": "scratch/eval/error_analysis.json",
         "golden_evidence": "38/60",
         "n": 42, "correct": 25,
         "checked": {"evidence_gap": 7, "stale_value": 1,
@@ -1544,8 +1544,8 @@ COMPLETENESS_SNAPSHOTS = {
                   "interim_source": 1, "missing_corp": 0, "amount_gap": 0},
     },
     "ablation_a6": {
-        "responses": "artifacts/ablation/A6/responses",
-        "labels": "artifacts/ablation/A6/report.json",
+        "responses": "scratch/ablation/A6/responses",
+        "labels": "scratch/ablation/A6/report.json",
         "golden_evidence": "59/60",
         "n": 42, "correct": 36,
         "checked": {"evidence_gap": 7, "stale_value": 7,
@@ -1561,8 +1561,8 @@ COMPLETENESS_SNAPSHOTS = {
     # warning is raised, but the numbers are recorded afresh because they only
     # mean something alongside their snapshot. Precision is unchanged.
     "ablation_a7": {
-        "responses": "artifacts/ablation/A7/responses",
-        "labels": "artifacts/ablation/A7/report.json",
+        "responses": "scratch/ablation/A7/responses",
+        "labels": "scratch/ablation/A7/report.json",
         "golden_evidence": "59/60",
         "n": 42, "correct": 38,
         "checked": {"evidence_gap": 7, "stale_value": 6,

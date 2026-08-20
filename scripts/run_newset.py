@@ -16,7 +16,7 @@ sys.path.insert(0, BASE + r"\src")
 
 from argus.agent.pipeline import answer_question  # noqa: E402
 
-OUT = "artifacts/audit/newset_20260816_responses.jsonl"
+OUT = "scratch/audit/newset_20260816_responses.jsonl"
 rows = [json.loads(l) for l in io.open("evalset/newset_20260816.jsonl",
                                        encoding="utf-8")]
 

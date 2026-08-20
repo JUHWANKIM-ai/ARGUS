@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from argus.corpus.counterparty import ANON_COUNTERPARTY, canonical  # noqa: E402
 
 
-DEFAULT_OUT = ROOT / "artifacts/eda/counterparty_profile.json"
+DEFAULT_OUT = ROOT / "scratch/eda/counterparty_profile.json"
 RECORDS_PATH = ROOT / "artifacts/exchange_records.jsonl"
 
 

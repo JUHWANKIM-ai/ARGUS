@@ -4,22 +4,22 @@
     python scripts/ablation.py --arm A8              # arm 하나 실행 (크레딧 지출)
     python scripts/ablation.py --run                 # RUN_ORDER 전부 (A8 -> A0)
     python scripts/ablation.py --heldout --arm A8 \
-        --out artifacts/ablation/v2/heldout --budget 1000    # 최종 구성 1회만
-    python scripts/ablation.py --offline --out artifacts/ablation/v2 --cohort full
+        --out scratch/ablation/v2/heldout --budget 1000    # 최종 구성 1회만
+    python scripts/ablation.py --offline --out scratch/ablation/v2 --cohort full
                                                      # 캐시만으로 재집계 (LLM 0회)
     python scripts/ablation.py --arm A8 --cohort valuechain \
-        --out artifacts/ablation/v3/vc --judge-repeat 3 --budget-won 600
+        --out scratch/ablation/v3/vc --judge-repeat 3 --budget-won 600
                                                      # judge 재현 편차 σ (생성은 재사용)
     python scripts/ablation.py --arm A8 --cohort valuechain \
-        --out artifacts/ablation/v3/vc --judge-sigma  # σ 재집계만 (LLM 0회)
+        --out scratch/ablation/v3/vc --judge-sigma  # σ 재집계만 (LLM 0회)
     python scripts/ablation.py --arm A8 --cohort safety \
-        --out artifacts/ablation/v4/safety --budget-won 1000
+        --out scratch/ablation/v4/safety --budget-won 1000
                                                      # v4 R1-7 안전성 12문항.
                                                      # 거절이 정답이라 judge 호출이 없다
                                                      # (`answer_mode` 가 전부 null)
 
 **재집계에 `--out` 을 빼지 마라.** `--out` 없이 돌리면 `OUT_DIR` 이 v1 자리
-(`artifacts/ablation`)가 되고, 그 폴더는 **v2 를 자기 하위에 품고 있다**. v1 `summary.json`
+(`scratch/ablation`)가 되고, 그 폴더는 **v2 를 자기 하위에 품고 있다**. v1 `summary.json`
 의 지출이 v2 몫까지 흡수하고(3,144.7 → 8,211.3) v1 의 42문항 `report.json` 이 현재
 78문항 기준으로 재작성돼 **기준선의 출처 추적이 끊긴다.** 그래서 v2 가 존재하는 동안
 v1 자리 쓰기는 `assert_not_v1_root` 가 **거부**한다 (경고가 아니라 거부다. v1 산출물은
@@ -28,13 +28,13 @@ v1 자리 쓰기는 `assert_not_v1_root` 가 **거부**한다 (경고가 아니�
 v2 (88문항 · A8 추가):
 
     python scripts/ablation.py --cohort full \\
-        --arms A8,L1,L2,L3,A7,A6,A5,A4,A1b,A1,A0 --out artifacts/ablation/v2 --budget 20000
-    python scripts/ablation.py --cohort valuechain --arms A8,L3 --out artifacts/ablation/v2/vc
-    python scripts/ablation.py --report --out artifacts/ablation/v2   # 게이트 I, LLM 0회
+        --arms A8,L1,L2,L3,A7,A6,A5,A4,A1b,A1,A0 --out scratch/ablation/v2 --budget 20000
+    python scripts/ablation.py --cohort valuechain --arms A8,L3 --out scratch/ablation/v2/vc
+    python scripts/ablation.py --report --out scratch/ablation/v2   # 게이트 I, LLM 0회
 
 ## 코호트와 산출 폴더를 인자로 뺀 이유
 
-v1 은 dev 42문항을 `artifacts/ablation/<arm>/` 에 남겼고 그것이 비교 기준선이다.
+v1 은 dev 42문항을 `scratch/ablation/<arm>/` 에 남겼고 그것이 비교 기준선이다.
 v2 는 88문항을 재면서 **같은 이름을 덮지 않아야** 한다. 덮으면 v1 과 대조할 축이 사라진다.
 그래서 `--out` 이 arm 폴더의 부모를 갈고, `--cohort` 가 무엇을 재는지 고른다.
 **요청 캐시(`CACHE_DIR`)는 갈지 않는다**. 프롬프트가 같은 요청을 두 번 사지 않는 것이
@@ -47,7 +47,7 @@ v2 는 88문항을 재면서 **같은 이름을 덮지 않아야** 한다. 덮�
    (`assert_heldout_unused`, `artifacts/` 전체를 훑으므로 **`--out` 으로 우회되지 않는다**).
    문서에 "1회만" 을 적어 두는 것으로는 두 번째 실행을 못 막는다.
 2. **두 겹으로 캐시한다.**
-   ① 응답 파일, arm 별 `artifacts/ablation/<arm>/responses/Q-xxx.json`.
+   ① 응답 파일, arm 별 `scratch/ablation/<arm>/responses/Q-xxx.json`.
    ② **요청 캐시**, 요청 본문 해시로 CLOVA 응답 원문을 저장한다. 온도 0.0 이라
       같은 프롬프트는 같은 답이 나오는데 크레딧은 두 번 나간다. arm 8개 중 다수가
       **정기공시 18문항에서 프롬프트가 글자 하나 안 바뀌므로** 이 캐시가 없으면
@@ -86,10 +86,10 @@ sys.path.insert(0, str(ROOT))
 from argus import ablation                                        # noqa: E402
 from scripts import error_analysis as ea                          # noqa: E402
 
-OUT_DIR = ROOT / "artifacts" / "ablation"
+OUT_DIR = ROOT / "scratch" / "ablation"
 #: **`--out` 으로 갈리지 않는다.** 요청 캐시는 프롬프트 해시 -> 응답이라 실행 사이에
 #: 공유돼야 값을 한다. v2 폴더에 새 캐시를 파면 v1·T7 이 이미 산 응답을 다시 산다.
-CACHE_DIR = ROOT / "artifacts" / "ablation" / "cache"
+CACHE_DIR = ROOT / "scratch" / "ablation" / "cache"
 
 #: 인덱스 스냅샷. §I-3, "중간에 재빌드하면 비교가 깨진다." 해시를 arm 시작 전에 찍는다.
 INDEX_FILES = (
@@ -331,7 +331,7 @@ HELDOUT_HISTORY = (
     {"use": 1, "date": "2026-08-09", "arm": "A6", "track": "Ablation v1",
      "correct": 15, "n_scored": 18, "rate": 0.833,
      "dev_grid": "31/36 (86.1%)", "gap_pp": -2.8,
-     "artifact": "artifacts/ablation/A6_heldout_run"},
+     "artifact": "scratch/ablation/A6_heldout_run"},
     #: 2회째. 이 항목이 없던 동안 **코드 쪽 원장이 사실과 어긋나 있었다**. 소스만 읽는
     #: 사람은 "heldout 은 1회 썼다" 로 읽고, 디스크 원장이 사라진 상태에서
     #: `heldout_next_use()` 가 3회째 실행을 "2회째" 로 기록했다.
@@ -340,41 +340,57 @@ HELDOUT_HISTORY = (
      "correct": 15, "n_scored": 18, "rate": 0.833,
      "dev_grid": "61/72 (84.7%)", "gap_pp": -1.4,
      "dev_grid_measured36": "33/36 (91.7%)", "gap_pp_measured36": -8.3,
-     "artifact": "artifacts/ablation/v2/heldout"},
+     "artifact": "scratch/ablation/v2/heldout"},
 )
+
+
+#: 제동이 훑는 트리. 🔴 **둘 다 훑는다.** 측정 산출물이 `artifacts/` 에서 `scratch/`
+#: 로 옮겨졌으므로(2026-08-21) 새 자리를 봐야 하고, 옛 자리도 계속 봐야 한다 — 되돌릴
+#: 수 없는 조작의 제동에서 훑는 범위를 좁히는 것은 그 자체로 위험이다. 한쪽이 없는
+#: 기계에서도 나머지 한쪽은 그대로 훑인다.
+BRAKE_ROOTS = ("scratch", "artifacts")
 
 
 def heldout_ledgers() -> list[Path]:
     """저장소 안의 **모든** heldout 원장. `--out` 과 무관하게 찾는다.
 
     처음엔 `root / HELDOUT_LEDGER` 하나만 봤다. 그것은 **`--out` 으로 우회된다**.
-    `--out artifacts/ablation/v3/heldout` 으로 돌리면 그 디렉터리에 원장이 없어 제동이
+    `--out scratch/ablation/v3/heldout` 으로 돌리면 그 디렉터리에 원장이 없어 제동이
     무방비로 통과하고, `v2` 전례가 있으니 `v3` 경로는 충분히 있을 수 있다. 되돌릴 수 없는
-    조작에서 "인자를 바꾸면 풀리는 제동" 은 제동이 아니다. 그래서 `artifacts/` 전체를 훑는다.
+    조작에서 "인자를 바꾸면 풀리는 제동" 은 제동이 아니다. 그래서 트리 전체를 훑는다.
     """
-    base = ROOT / "artifacts"
-    return sorted(base.rglob(HELDOUT_LEDGER)) if base.exists() else []
+    found: list[Path] = []
+    for name in BRAKE_ROOTS:
+        base = ROOT / name
+        if base.exists():
+            found += base.rglob(HELDOUT_LEDGER)
+    return sorted(found)
 
 
 def heldout_reports() -> list[Path]:
     """**제동의 세 번째 겹.** 원장(`heldout_run.json`)이 지워져도 `report.json` 이 남는다.
 
     `run_heldout` 은 `report["split"] = "heldout"` 을 박으므로, `*_heldout_run/report.json`
-    은 그 자체로 "heldout 을 열었다" 는 증거다. 원장 파일과 달리 이 파일들은 **커밋되어
-    있다**(`artifacts/` 가 gitignore 인데도 강제 추적된 33개 중 하나). 원장 하나를 지우면
-    풀리는 제동은 제동이 아니다.
+    은 그 자체로 "heldout 을 열었다" 는 증거다. 원장 하나를 지우면 풀리는 제동은 제동이
+    아니므로 두 증거를 따로 본다.
+
+    🔴 종전 판의 이 자리에 *"이 파일들은 커밋되어 있다 — 강제 추적된 33개 중 하나"* 라고
+    적혀 있었다. **사실이 아니다.** `git ls-files artifacts/` 는 0개다(2026-08-21 확인).
+    제동의 이 겹은 작업 트리에만 있는 파일에 의지하므로, 트리를 지우면 이 겹도 사라진다.
+    그것이 이 겹을 유일한 제동으로 쓰지 않는 이유다.
     """
-    base = ROOT / "artifacts"
-    if not base.exists():
-        return []
     found = []
-    for path in sorted(base.rglob("*_heldout_run/report.json")):
-        try:
-            if json.loads(path.read_text(encoding="utf-8")).get("split") == "heldout":
-                found.append(path)
-        except (OSError, ValueError):
-            found.append(path)          # 못 읽으면 '있다' 쪽으로 본다
-    return found
+    for name in BRAKE_ROOTS:
+        base = ROOT / name
+        if not base.exists():
+            continue
+        for path in sorted(base.rglob("*_heldout_run/report.json")):
+            try:
+                if json.loads(path.read_text(encoding="utf-8")).get("split") == "heldout":
+                    found.append(path)
+            except (OSError, ValueError):
+                found.append(path)      # 못 읽으면 '있다' 쪽으로 본다
+    return sorted(found)
 
 
 def heldout_next_use() -> int:
@@ -607,7 +623,7 @@ def _write_run(folder: str, live: dict) -> dict:
 
     이 사고는 **이 저장소에서 세 번 서식지가 나왔다.**
       ① `_spend_meta`, v1 재집계가 `summary.json` 의 `spent_won` 을 0.0 으로 덮었다
-         (`artifacts/ablation/summary.json` 에 그 흔적이 남아 있다). `live` 가 비면
+         (`scratch/ablation/summary.json` 에 그 흔적이 남아 있다). `live` 가 비면
          `run.json` 합을 쓰는 것으로 고쳤다.
       ② `run_heldout`, T9 가 673.8원을 지키는 가드를 넣었다.
       ③ **사다리 루프**, 가드가 없었다. `--arms A0` 재집계 한 번으로 1,901.0 → 0.0,
@@ -700,7 +716,7 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
     분모만은 유일하게 안 바뀐 값이다.
     """
     held = _grid_overall(report) or {}
-    v1_root = ROOT / "artifacts" / "ablation"
+    v1_root = ROOT / "scratch" / "ablation"
     v1_held = _grid_overall(_load_report(v1_root, "A6_heldout_run")) or {}
     v1_dev = _grid_overall(_load_report(v1_root, "A6")) or {}
     # dev 쪽 기준선은 **부모 폴더**의 같은 arm 이다 (`v2/heldout` -> `v2/A8`).
@@ -744,7 +760,7 @@ def write_heldout_ledger(root: Path, final_arm: str, report: dict) -> dict:
     #    하나만 적으면 그것이 "그 낙폭" 으로 굳고, 가장 유리한 축이 뽑히기 쉽다.
     #
     #    **실패를 삼키지 않는다.** `measured_dev_cohort()` 는 gitignore 대상인
-    #    `artifacts/eval/error_analysis.json` 을 읽으므로, 그 파일이 없는 환경(신규 클론 ·
+    #    `scratch/eval/error_analysis.json` 을 읽으므로, 그 파일이 없는 환경(신규 클론 ·
     #    격리 워크트리 · CI)에서는 이 축이 안 나온다. 예전 코드는 `except: dev_m36 = None`
     #    으로 조용히 넘겼는데, 그러면 `gap_pp_worst` 가 **남은 유리한 축(−1.4%p)으로 조용히
     #    떨어지고** "과적합 아님" 이 찍힌다. 그것이 과적합 검사를 검사이기를 그만두게 하는
@@ -1764,7 +1780,7 @@ def stale_parent_summaries(out_dir: Path) -> list[dict]:
     `if held_report:` 안에 있어 v3 에서 한 번도 안 돌았다)을 고쳤지만, 그 검산이 잡아야
     했던 **사건이 만들어지는 자리**는 여기다.
 
-        v3/vc/L3 를 `--out artifacts/ablation/v3/vc` 로 유료 실행한다
+        v3/vc/L3 를 `--out scratch/ablation/v3/vc` 로 유료 실행한다
           -> v3/vc/summary.json 은 갱신된다 (그 폴더가 `--out` 이다)
           -> v3/summary.json 은 **손대지 않는다**. 그런데 그 파일의 `spent_won` 은
              `spend_from_runs(recursive=True)` 라서 하위 폴더를 **포함하는** 수다
@@ -1778,7 +1794,7 @@ def stale_parent_summaries(out_dir: Path) -> list[dict]:
     것과 같은 이유다. 렌더된 문서에만 있는 경고는 그 파일을 직접 읽는 도구를 아무것도
     막지 못한다. 호출부가 이 반환값을 `summary.json` 의 `stale_parents` 에 싣는다.
 
-    **v1 자리에서 멈춘다.** `artifacts/ablation/summary.json` 은 v1 의 산출물이고 그
+    **v1 자리에서 멈춘다.** `scratch/ablation/summary.json` 은 v1 의 산출물이고 그
     `spent_won` 은 **v1 만**의 값인데, 그 폴더를 재귀로 세면 `v2`·`v3` 가 통째로 더해져
     3,144.7 → 8,211.3원이 된다(`assert_not_v1_root` ①). 즉 그 자리는 "낡은" 것이 아니라
     **애초에 재귀 합이 아닌** 파일이므로 대조 대상이 아니다. 여기서 안 멈추면 이 검사가
@@ -1787,7 +1803,7 @@ def stale_parent_summaries(out_dir: Path) -> list[dict]:
     반환: 낡은 부모마다 `{path, stored_won, actual_won, gap_won, prescription}`.
     부모에 `summary.json` 이 없으면(독립 실행) 빈 목록이다.
     """
-    v1_root = (ROOT / "artifacts" / "ablation").resolve()
+    v1_root = (ROOT / "scratch" / "ablation").resolve()
     out: list[dict] = []
     for parent in out_dir.resolve().parents:
         if parent == v1_root or v1_root not in parent.parents:
@@ -1825,15 +1841,15 @@ def report_stale_parents(out_dir: Path) -> list[dict]:
 
 
 def version_dirs() -> list[Path]:
-    """v1 폴더 **안에** 들어앉은 판 폴더들 (`artifacts/ablation/v2` 등)."""
-    v1 = ROOT / "artifacts" / "ablation"
+    """v1 폴더 **안에** 들어앉은 판 폴더들 (`scratch/ablation/v2` 등)."""
+    v1 = ROOT / "scratch" / "ablation"
     return sorted(p.parent for p in v1.glob("*/summary.json")) if v1.exists() else []
 
 
 def assert_not_v1_root(out_dir: Path, what: str) -> None:
     """v2 가 존재하는 동안 **v1 자리에 쓰지 않는다.** 경고가 아니라 거부다.
 
-    `artifacts/ablation/v2/` 는 `artifacts/ablation/` **안**에 있다. 그래서 `--out` 없이
+    `scratch/ablation/v2/` 는 `scratch/ablation/` **안**에 있다. 그래서 `--out` 없이
     돌리는 재집계·`--report` 는 세 가지를 조용히 망친다:
 
       ① `_spend_meta` 가 `spend_from_runs(recursive=True)` 로 세므로 v1 `summary.json` 의
@@ -1847,7 +1863,7 @@ def assert_not_v1_root(out_dir: Path, what: str) -> None:
     거부하는 이유: `artifacts/` 는 gitignore 라 v1 산출물에 **백업이 없다.** 되돌릴 수
     없는 덮어쓰기는 프로세스가 아니라 코드로 막는다.
     """
-    if out_dir.resolve() != (ROOT / "artifacts" / "ablation").resolve():
+    if out_dir.resolve() != (ROOT / "scratch" / "ablation").resolve():
         return
     nested = version_dirs()
     if not nested:
@@ -1861,7 +1877,7 @@ def assert_not_v1_root(out_dir: Path, what: str) -> None:
         "끊깁니다.\n"
         "   · `--report` 는 v2 렌더러로 v1 `gate_I.md`(ablation_report.py 산출물)를 "
         "덮습니다.\n"
-        f"   👉 `--out artifacts/ablation/{nested[-1].name}` 을 붙이세요. "
+        f"   👉 `--out scratch/ablation/{nested[-1].name}` 을 붙이세요. "
         "v1 `gate_I.md` 를 다시 만들려면 `python scripts/ablation_report.py` 입니다.")
 
 
@@ -1876,7 +1892,7 @@ def assert_not_v1_root(out_dir: Path, what: str) -> None:
 #: 재채점에서 제외한다. heldout 응답 폴더는 **열지 않는다**. 2회 소진된 자산이다.
 RESCORE_SKIP_DIRS = frozenset({"A6_heldout_run", "A8_heldout_run", "heldout", "cache"})
 
-#: (판 이름, 폴더). `v1` 은 `artifacts/ablation` 자신이다.
+#: (판 이름, 폴더). `v1` 은 `scratch/ablation` 자신이다.
 RESCORE_GENERATIONS = ("v1", "v2", "v3", "v4")
 
 #: 하위 코호트 폴더 -> 코호트 이름. 빈 문자열은 판 폴더 자신(= `full`)이다.
@@ -1885,7 +1901,7 @@ RESCORE_SUBDIRS = (("", "full"), ("vc", "valuechain"), ("safety", "safety"))
 
 def rescore_targets() -> list[tuple[str, Path, str]]:
     """재채점할 `(판, arm 폴더, 코호트)`. 응답 폴더가 있는 것만 센다."""
-    base_v1 = ROOT / "artifacts" / "ablation"
+    base_v1 = ROOT / "scratch" / "ablation"
     out: list[tuple[str, Path, str]] = []
     for gen in RESCORE_GENERATIONS:
         base = base_v1 if gen == "v1" else base_v1 / gen
@@ -2878,17 +2894,17 @@ def _gate_measured42(c: _GateContext) -> list[str]:
     out.append("🔴 **'v1 42문항' 이라는 이름의 기준선이 둘 있다 — 섞으면 Δ 가 2배로 부푼다.**\n")
     out.append("| 출처 | 무엇 | grid | 이 표에서 |")
     out.append("|---|---|---|---|")
-    ph_path = ROOT / "artifacts" / "eval" / "error_analysis.json"
+    ph_path = ROOT / "scratch" / "eval" / "error_analysis.json"
     if ph_path.exists():
         ph = json.loads(ph_path.read_text(encoding="utf-8"))
         g = ph["crosstab"]["grid_overall"]
-        out.append(f'| `artifacts/eval/error_analysis.json` | **Phase H v1** — 체인 hop · '
+        out.append(f'| `scratch/eval/error_analysis.json` | **Phase H v1** — 체인 hop · '
                  f'스키마 필드가 붙기 **전** | {g["correct"]}/{g["n_scored"]} '
                  f'({_pct(g["rate"])}) | 쓰지 않는다 |')
-    v1 = _load_report(ROOT / "artifacts" / "ablation", "A6")
+    v1 = _load_report(ROOT / "scratch" / "ablation", "A6")
     if v1:
         g = v1["crosstab"]["grid_overall"]
-        out.append(f'| `artifacts/ablation/A6/report.json` | **Ablation v1 A6** — 사다리의 '
+        out.append(f'| `scratch/ablation/A6/report.json` | **Ablation v1 A6** — 사다리의 '
                  f'그때 완성 구성 | {g["correct"]}/{g["n_scored"]} ({_pct(g["rate"])}) '
                  f'| ✅ **이것과 비교한다** |')
     out.append("\nT7 이 보고한 `+38.9%p` 는 위쪽(Phase H v1, 19/36)과의 차이다 — 그것은 "
@@ -2920,7 +2936,7 @@ def _gate_measured42(c: _GateContext) -> list[str]:
                  "**동일 코호트가 이미 뒤집혀 있다.**\n")
         out.append("| 구간 | A0 | A1 | Δ(A0→A1) |")
         out.append("|---|---|---|---|")
-        v1_a0, v1_a1 = (_load_report(ROOT / "artifacts" / "ablation", a)
+        v1_a0, v1_a1 = (_load_report(ROOT / "scratch" / "ablation", a)
                         for a in ("A0", "A1"))
         if v1_a0 and v1_a1:
             g0 = v1_a0["crosstab"]["grid_overall"]
@@ -2929,7 +2945,7 @@ def _gate_measured42(c: _GateContext) -> list[str]:
                      f'| {g1["correct"]}/{g1["n_scored"]} '
                      f'| {_pp(_exact_rate(g0), _exact_rate(g1))} |')
         # 이 분해는 `A0`·`A1` 산출물이 **이 세대 폴더 안에** 있을 때만 성립한다.
-        #    부분 세대(`--out artifacts/ablation/v3` 처럼 LOO·진단 arm 만 담긴 폴더)에서
+        #    부분 세대(`--out scratch/ablation/v3` 처럼 LOO·진단 arm 만 담긴 폴더)에서
         #    무방비로 색인하면 `KeyError: 'A0'` 으로 보고서 전체가 죽는다. 실제로 죽었다.
         #    다른 세대의 A0/A1 을 끌어와 채우지 않는다. 그것이야말로 이 절이 경고하는
         #    **세대 혼합**이고, 그렇게 만든 Δ 는 어느 시스템의 것도 아니다.
@@ -2951,7 +2967,7 @@ def _gate_measured42(c: _GateContext) -> list[str]:
                      "다른 세대의 값을 끌어와 채우지 않는다 — 이 절의 요지가 **세대를 "
                      "섞지 말라**는 것이므로, 섞어서 채운 표는 이 절의 결론을 거짓으로 "
                      "만든다. 분해가 필요하면 그 세대 폴더에 `--report` 를 돌린다 "
-                     "(`artifacts/ablation/v2`).\n")
+                     "(`scratch/ablation/v2`).\n")
         if all(a in reports for a in ("A0", "A1")):
             out.append("\n**두 성분이 같은 방향이고 크기가 다르다.** 동일 36문항에서 v1 은 "
                      "`+2.8%p` 였는데 v2 는 음수다 — 그 몫은 **문항 증설이 아니라 v1→v2 코드 "
@@ -3308,7 +3324,7 @@ def main(argv: list[str] | None = None) -> None:
                         help="measured=v1 이 잰 42문항 · full=dev 78+회귀 10 · "
                              "valuechain=12 · safety=12(v4 R1-7 · 거절이 정답)")
     parser.add_argument("--out", default="",
-                        help="arm 폴더의 부모. 비면 artifacts/ablation (v1 자리)")
+                        help="arm 폴더의 부모. 비면 scratch/ablation (v1 자리)")
     parser.add_argument("--report", action="store_true",
                         help="게이트 I 보고서만 생성한다 (LLM 0회 · 크레딧 0원)")
     parser.add_argument("--rescore", action="store_true",
@@ -3388,7 +3404,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.dry:
         # 리허설 응답을 본 실행 캐시에 섞으면 가짜 답이 영원히 굳는다. 폴더부터 가른다.
-        OUT_DIR = ROOT / "artifacts" / "ablation_dry"
+        OUT_DIR = ROOT / "scratch" / "ablation_dry"
     # v1 자리 쓰기 거부도 **디렉터리를 만들기 전에** 건다 (heldout 제동과 같은 이유).
     assert_not_v1_root(OUT_DIR, "arm 산출물·summary.json")
     OUT_DIR.mkdir(parents=True, exist_ok=True)

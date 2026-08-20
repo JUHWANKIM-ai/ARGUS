@@ -88,7 +88,7 @@ def main() -> int:
     print("커버리지 %d/%d 양식" % (hit, len(rows)))
     print("🔴 못 잡는 양식:", [n for n, _w, c in rows if not c] or "없음")
 
-    out = ROOT / "artifacts/audit/reasoning_metric_probe.json"
+    out = ROOT / "scratch/audit/reasoning_metric_probe.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     io.open(out, "w", encoding="utf-8").write(json.dumps(
         {"지표": "추론 논리성", "성격": "검사기 시험 — 결함을 심어 잡히는지 본다",

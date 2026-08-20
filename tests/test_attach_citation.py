@@ -1,7 +1,7 @@
 """A25, 근거 표기 결정적 부착 (규약 감사 F-2).
 
 여기 쓰는 답변·근거는 **지어낸 것이 아니라** 2026-08-16 규약 감사에서 실서버가 실제로
-낸 것이다 (`artifacts/audit/audit_responses.jsonl`). 지어낸 입력으로 통과하는 테스트는
+낸 것이다 (`scratch/audit/audit_responses.jsonl`). 지어낸 입력으로 통과하는 테스트는
 "우리 정규식이 우리 예시를 먹는다" 만 증명한다.
 """
 import pytest
@@ -235,7 +235,7 @@ def test_a25_is_registered_and_differs_from_baseline_by_one_flag():
 
 def test_baseline_adopted_it():
     """재고 채택했다 (2026-08-16). 같은 날 같은 캐시로 잰 값에서 그리드 66/72 동률이고
-    인용률만 0.750 → 0.972 다. 정본: `artifacts/ablation/v4/repro_0816/`."""
+    인용률만 0.750 → 0.972 다. 정본: `scratch/ablation/v4/repro_0816/`."""
     assert ablation.current().attach_citation is True
 
 

@@ -14,7 +14,7 @@ import pytest
 from scripts import ablation as ab
 from scripts import error_analysis as ea
 
-V3 = Path(ea.ROOT) / "artifacts" / "ablation" / "v3"
+V3 = Path(ea.ROOT) / "scratch" / "ablation" / "v3"
 #: 오라클은 골든을 주입하므로 '도달 가능의 증거' 에서 뺀다.
 #: R2E 에서 `L1`·`L2`·`L3` 이 측정됐으므로 증거에 **더한다.** 증거가 늘면 관문 G2 가
 #: 더 많이 걸러 표시는 **줄어들 수만 있다**. 실측 결과는 3건 불변이었다(감도 곡선 ⑤).

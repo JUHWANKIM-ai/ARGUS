@@ -24,11 +24,11 @@ from scripts import error_analysis as ea                          # noqa: E402
 #: 그것을 서로 빼서 Δ 를 만들었다.
 from scripts.ablation import _exact_rate as exact_rate            # noqa: E402
 
-OUT = ROOT / "artifacts" / "ablation"
+OUT = ROOT / "scratch" / "ablation"
 
 #: **v1 세션의 실제 결제액. 재현 불가라서 상수로 박는다.**
 #:
-#: `spend_from_cache()` 는 `artifacts/ablation/cache/` **전부**를 더한다. 그 캐시는
+#: `spend_from_cache()` 는 `scratch/ablation/cache/` **전부**를 더한다. 그 캐시는
 #: `--out` 으로 갈리지 않는 **공용 캐시**이고(설계 의도대로, 같은 프롬프트를 두 번 사지
 #: 않으려면 공유돼야 한다), v1 게이트를 쓴 시점엔 309건이었으나 지금은 985건이다
 #: (v2 · vc · heldout · T7 이 함께 들어 있다). 즉 **같은 함수가 시간이 지나면 다른 수를
@@ -175,7 +175,7 @@ def render() -> str:
                f'{spend["won"]:,.1f}원(= 상한의 {spend["won"] / 12000 * 100:.1f}%)이 나온다 '
                "— 그 안에 v2·vc·heldout·T7 이 섞여 있다. **v1 의 지출은 재계산으로 "
                "되살릴 수 없다**(그때의 캐시 상태가 이제 없다). "
-               "v2 판의 지출은 `artifacts/ablation/v2/gate_I.md` §1 이 arm 별 "
+               "v2 판의 지출은 `scratch/ablation/v2/gate_I.md` §1 이 arm 별 "
                "`run.json` 합으로 따로 낸다.\n")
 
     # --- 2. 누적 곡선 ---

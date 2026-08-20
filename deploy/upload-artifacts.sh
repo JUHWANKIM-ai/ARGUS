@@ -38,7 +38,7 @@ echo "== ③ 원본 공시 raw (5.57 GB · 4,902개) =="
 $S3 cp data/dart-disclosures/raw/ "s3://$NCP_BUCKET/data/dart-disclosures/raw/" --recursive
 
 echo "== ④ 무결성 대조표 =="
-$S3 cp artifacts/audit/preprocessing_manifest.json "s3://$NCP_BUCKET/preprocessing_manifest.json"
+$S3 cp deploy/preprocessing_manifest.json "s3://$NCP_BUCKET/preprocessing_manifest.json"
 
 echo
 echo "완료. 확인:"

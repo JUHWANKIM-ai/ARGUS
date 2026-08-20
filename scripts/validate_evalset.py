@@ -158,7 +158,7 @@ def load_tool_names() -> set[str]:
 
 #: Phase H 가 실제로 관통시킨 dev 문항의 실행 산출물. 게이트 D·H·I 의 기준선은
 #: **이 코호트**에서 나왔지 `questions.jsonl` 전체에서 나온 것이 아니다.
-EVAL_RUN_PATH = ROOT / "artifacts" / "eval" / "error_analysis.json"
+EVAL_RUN_PATH = ROOT / "scratch" / "eval" / "error_analysis.json"
 
 
 def measured_dev_cohort() -> set[str]:

@@ -81,18 +81,28 @@ def test_grid_file_lengths_follow_the_grid_spec(dev, heldout):
     assert {r["track"] for r in dev} == {"grid", "info_limit"}
 
 
-def test_gate_d_cohort_evidence_count_is_untouched(dev):
-    """게이트 D 를 실제로 잰 문항 42건의 골든 근거 60건은 **그대로여야 한다**.
+def test_gate_d_cohort_evidence_count_is_pinned(dev):
+    """게이트 D 를 실제로 잰 문항 42건의 골든 근거 수를 못 박는다.
 
-    04-retriever 게이트 D 의 Recall@5 분모가 이 값이다. 골든셋이 늘어도(B-9)
-    이미 잰 코호트의 근거 수가 변하지 않으면 그 게이트는 유효하다.
-    코호트는 `artifacts/eval/error_analysis.json` 의 실행 산출물이 정의한다.
-    즉 "왜 60인가" 가 파일에서 자동으로 따라온다.
+    04-retriever 게이트 D 의 Recall@5 분모가 이 값이므로, 이 수가 조용히 움직이면
+    게이트가 무효가 된다. 코호트 자체는 `scratch/eval/error_analysis.json` 의 실행
+    산출물이 정의한다 — "어느 42문항인가" 는 파일에서 자동으로 따라온다.
+
+    🔴 **2026-08-21 에 60 -> 66 으로 올렸다.** 종전 판은 이 시험을
+    `..._is_untouched` 라 부르며 "골든셋이 늘어도 이미 잰 코호트의 근거 수는 변하지
+    않는다" 를 전제했는데, 그 전제가 깨졌다. 다섯 문항(`Q-010`·`Q-014`·`Q-022`·
+    `Q-025`·`Q-030`)의 골든이 정정 체인의 **최신본을 담지 않아**, 최신본을 인용한
+    답변이 채점상 누락으로 기록되고 있었다. `scripts/refresh_golden_chain_evidence.py`
+    가 6건을 덧붙였고(지운 것은 없다) 게이트 D 를 다시 재서 63/66 (0.955) 로 갱신했다.
+
+    이름을 `pinned` 로 바꾼 이유. 이 수는 **불변량이 아니라 고정점**이다. 평가셋을
+    의도적으로 고칠 때는 같이 움직이고, 그때 04-retriever 의 세 표도 함께 다시 재야
+    한다. `untouched` 라는 이름은 "절대 안 바뀐다" 로 읽혀 그 절차를 가린다.
     """
     cohort = V.measured_dev_cohort()
     measured = [r for r in dev if r["question_id"] in cohort]
     assert len(measured) == len(cohort), "측정 코호트 문항이 questions.jsonl 에서 사라졌다"
-    assert sum(len(r["evidence"]) for r in measured) == 60
+    assert sum(len(r["evidence"]) for r in measured) == 66
 
 
 def test_schema_complete(rows):

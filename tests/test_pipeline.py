@@ -1173,7 +1173,7 @@ def _dev_rows() -> list[dict]:
 def _require_eval_artifact(path: Path) -> None:
     """gitignore 된 실행 산출물에 의존하는 게이트 D 테스트의 관문.
 
-    `artifacts/eval/error_analysis*.json` 은 `.gitignore` 에 걸려 커밋되지 않는다.
+    `scratch/eval/error_analysis*.json` 은 `.gitignore` 에 걸려 커밋되지 않는다.
     가드 없이 `read_text` 하면 **클린 클론·CI 에서 `FileNotFoundError` 로 하드 실패**한다.
     스킵이 아니라 에러라서 "게이트 D 문서 정합성" 과 무관한 빨간불이 뜬다. 같은 파일의
     `ensure_counterparty_graph` 와 `test_ablation.py` 의 `SNAPSHOT_PATH` 가드가 쓰는
@@ -1197,7 +1197,7 @@ def _dev_golden_total() -> int:
          새 문항은 아직 리트리버를 통과시킨 적이 없으므로 분모에 넣으면
          **재지도 않은 것을 잰 척**하게 된다.
 
-    그래서 코호트를 리터럴로 적지 않고 `artifacts/eval/` 실행 산출물에서 읽는다.
+    그래서 코호트를 리터럴로 적지 않고 `scratch/eval/` 실행 산출물에서 읽는다.
     다시 재야만 코호트가 움직이고, 그때 문서의 게이트 수치도 함께 갱신된다.
     """
     _require_eval_artifact(V.EVAL_RUN_PATH)
@@ -1289,7 +1289,7 @@ def test_gate_d_full_cohort_recall_matches_the_v2_artifact():
     손으로 적은 숫자가 실측 산출물과 갈리면 다음 사람이 어느 쪽을 믿어야 할지 모른다.
     v1 의 `측정 후 채택` 원칙을 이 코호트에도 그대로 적용한다.
     """
-    artifact = ROOT / "artifacts" / "eval" / "error_analysis_v2.json"
+    artifact = ROOT / "scratch" / "eval" / "error_analysis_v2.json"
     _require_eval_artifact(artifact)
     data = json.loads(artifact.read_text(encoding="utf-8"))
     assert data["cohort"] == "full"
@@ -1417,7 +1417,7 @@ def test_counterparty_note_never_carries_a_per_company_disclosure_count():
     공시까지 포함한 공시 건수**다 (삼성E&A 47 중 최신본 12 · 대체 35 = 74%).
 
     실제로 답변으로 새어 나간 것이 산출물에 남아 있다
-    (`artifacts/ablation/v2/vc/A8/responses/Q-114.json`):
+    (`scratch/ablation/v2/vc/A8/responses/Q-114.json`):
 
         근거   `- 발주처 관계: … 삼성E&A 47건 · 삼성중공업 19건`
         답변   `- 삼성E&A: 총 47건의 계약을 통해 설계 및 마감공사 담당`

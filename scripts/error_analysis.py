@@ -10,7 +10,7 @@
    split 을 검사한다. heldout 은 최종 구성에서 딱 1회만 쓴다.
 2. **모든 응답을 디스크에 캐시한다.** 온도 0.0 이라 재실행해도 같은 답이 나오는데
    크레딧은 두 번 나간다. `--force` 없이는 캐시를 다시 쓴다. 응답 파일이 없어도
-   **요청 캐시**(`artifacts/ablation/cache`)에 같은 프롬프트가 있으면 호출하지 않는다.
+   **요청 캐시**(`scratch/ablation/cache`)에 같은 프롬프트가 있으면 호출하지 않는다.
 3. **예산 상한에서 멈춘다.** 실측 usage 를 누적해 `--budget-won` 을 넘으면 그 자리에서
    중단하고 부분 결과를 남긴다. 추정치가 아니라 API 응답의 usage 필드다.
 4. **v1 산출물을 덮지 않는다.** `error_analysis.json` 은 42문항 시절의 비교 기준선이고
@@ -51,7 +51,7 @@ VALUECHAIN_PATH = ROOT / "evalset" / "valuechain.jsonl"
 #: `first_failure` 는 실패 시 `HALLUCINATION` 으로 귀속된다 (`_classify` 의 첫 분기).
 SAFETY_PATH = ROOT / "evalset" / "safety.jsonl"
 
-OUT_DIR = ROOT / "artifacts" / "eval"
+OUT_DIR = ROOT / "scratch" / "eval"
 #: v1(Phase H, 42문항) 캐시. **읽기 전용으로 남긴다.** `scripts/ablation.py` 가
 #: 이 두 이름을 arm 폴더로 돌려 쓰므로 기본값은 옛 자리 그대로 둔다.
 RESPONSE_DIR = OUT_DIR / "responses"
@@ -67,7 +67,7 @@ V2_REPORT_NAME = "error_analysis_v2.json"
 #: `scripts/ablation.py` 가 쓰는 요청 캐시. 요청 본문 해시 -> 응답 원문이라
 #: **프롬프트가 한 글자도 안 바뀐 문항은 다시 결제되지 않는다.** dev42 는 발주처 hop
 #: 발화가 0건이라(T5 실측) A7 실행 때와 프롬프트가 같고, 그만큼이 그대로 캐시 적중이다.
-REQUEST_CACHE_DIR = ROOT / "artifacts" / "ablation" / "cache"
+REQUEST_CACHE_DIR = ROOT / "scratch" / "ablation" / "cache"
 
 #: 01-eda 재실행이 새로 넣은 6섹터. 여기서 `RETRIEVAL` 실패가 이 문턱 이상이면
 #: 보류 중인 리랭커(Phase E)의 재검토 조건이 발동한다. 08 §H-8.
@@ -818,7 +818,7 @@ UNREACHABLE_GOLDEN: dict[str, tuple[str, ...]] = {
 #: 분포이고, 그 상수는 **`Q-110` 형(괄호 재진술 10×)만 겨냥**한다. `Q-034` 는
 #: `provenance` 형(합계가 근거 어디에도 없다)이라 이 상수의 세는 방식으로는 현 세대에서
 #: 안 잡혔던 것이다. **`A19` 는 그것을 잡는다**. 정본은
-#: `artifacts/ablation/v4/rescore_r3b/rescore.md` 다.
+#: `scratch/ablation/v4/rescore_r3b/rescore.md` 다.
 #: 두 건의 성질도 다르다. `Q-034` 는 합계 자체가 틀렸고(817,100 vs 817,900),
 #: `Q-110` 은 `answer_key_points` 를 전부 충족하는데 덤으로 붙인 괄호 환산이 10배
 #: 틀렸다(`590,947,351,842원 (591억원)`, 실제 5,909억원). 상세는
@@ -1913,10 +1913,10 @@ ARM_BY_ROOT_CAUSE = {
 #: 근거 어디에도 없다). 즉 그리드 오답은 6 → **7** 이 된다.
 #:
 #: **상수만 먼저 고치면 `test_manual_targeting_matches_the_current_wrong_set` 이
-#: 그 자리에서 깨진다.** 그 테스트는 `artifacts/ablation/v*/A8/report.json` 의 오답
+#: 그 자리에서 깨진다.** 그 테스트는 `scratch/ablation/v*/A8/report.json` 의 오답
 #: 집합과 이 상수를 대조하는데, 그 보고서는 `R2` 의 물증이라 `R3` 이 덮지 않았다
-#: (재채점 결과는 `artifacts/ablation/v4/rescore.json` 에 따로 냈다. **그 뒤 `R3b` 가
-#: `artifacts/ablation/v4/rescore_r3b/rescore.json` 을 냈고 그쪽이 정본이다.** 두 파일은
+#: (재채점 결과는 `scratch/ablation/v4/rescore.json` 에 따로 냈다. **그 뒤 `R3b` 가
+#: `scratch/ablation/v4/rescore_r3b/rescore.json` 을 냈고 그쪽이 정본이다.** 두 파일은
 #: 얼린 세대 6칸이 다르고 **v4 네 arm 은 같다**).
 #: **상수와 arm 보고서는 함께 움직여야 한다**. `score_arm` 을 다시 도는 라운드(`R4`)에서
 #: `Q-034` 를 `A5`(계산·단위) 쪽에 넣고 같은 커밋에서 보고서를 다시 낸다.
@@ -2255,7 +2255,7 @@ def _merge_this_run(out_path: Path, live: dict | None) -> dict | None:
     나왔다. `_spend_meta` · `run_heldout` · 사다리 루프 · **이 함수가 고치는 지점** ·
     `build_embeddings.py`. 이전에는 `if live: report["this_run"] = live` 였는데, `--run` 없이
     재집계(`live` 가 `None`)하면 `this_run` 이 **키째로 사라졌다**. 0 으로 덮이는 것보다
-    나쁘다(필드 자체가 없어져 추적이 끊긴다). 실측: `artifacts/eval/error_analysis.json` 과
+    나쁘다(필드 자체가 없어져 추적이 끊긴다). 실측: `scratch/eval/error_analysis.json` 과
     `error_analysis_v2.json` 둘 다 이미 `this_run` 이 없다. 이 사고는 **이미 일어났고**,
     그 실행의 신규 지출은 이 함수로도 복구되지 않는다(백업에도 없다. 유실 확정).
 
@@ -2339,7 +2339,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--cohort", default="measured", choices=COHORTS,
                         help="measured=v1 이 잰 42문항 · full=dev 78+회귀 10 · valuechain=12")
     parser.add_argument("--out", default="",
-                        help=f"산출물 경로 (기본 artifacts/eval/{V2_REPORT_NAME})")
+                        help=f"산출물 경로 (기본 scratch/eval/{V2_REPORT_NAME})")
     parser.add_argument("--run", action="store_true", help="코호트 전수 실행 (크레딧 지출)")
     parser.add_argument("--smoke", action="store_true", help="스모크 5문항만 실행")
     parser.add_argument("--limit", type=int, default=0,

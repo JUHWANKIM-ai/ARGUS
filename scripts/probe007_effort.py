@@ -33,7 +33,7 @@ EFFORTS = ("none", "low", "medium")
 INTERVAL = 8.0
 RETRIES = 4
 BACKOFF = 15.0
-OUT = "artifacts/audit/hcx007_effort.json"
+OUT = "scratch/audit/hcx007_effort.json"
 
 _orig_post = clova._post
 STAT: dict = {}

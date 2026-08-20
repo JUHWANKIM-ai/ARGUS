@@ -42,7 +42,7 @@ Q087_CORRECTION = "20241114800538"
 Q087_GOLD = "올림푸스제일차"
 
 #: 저장 응답 (v3 세대 · `A8`). 없으면 그 테스트만 건너뛴다.
-Q087_RESPONSE = _ROOT / "artifacts/ablation/v3/A8/responses/Q-087.json"
+Q087_RESPONSE = _ROOT / "scratch/ablation/v3/A8/responses/Q-087.json"
 
 
 def _record(rcept_no):

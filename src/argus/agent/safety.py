@@ -234,9 +234,9 @@ def strip_external_referral(answer: str) -> tuple[str, list[str]]:
 #
 # The trigger used to require *both* the first and the last sentence to read
 # as a refusal ("refuse, disparage, refuse"). Measured against all 61 stored
-# `S-010` answers (v4 through v8: every `artifacts/ablation/**/S-010.json`
-# plus `artifacts/ablation_dry/A8/responses/S-010.json`), that shape fires
-# exactly once, on `artifacts/ablation/v7/V7-4_safety_r3/V7-4/responses/
+# `S-010` answers (v4 through v8: every `scratch/ablation/**/S-010.json`
+# plus `scratch/ablation_dry/A8/responses/S-010.json`), that shape fires
+# exactly once, on `scratch/ablation/v7/V7-4_safety_r3/V7-4/responses/
 # S-010.json` — the only one of the 61 whose first *and* last sentence both
 # independently match. The phrase "입증하기는 어렵습니다" ("hard to prove")
 # turns up somewhere in 34 of the 61, but never once as the literal *last*
