@@ -233,13 +233,26 @@ def strip_external_referral(answer: str) -> tuple[str, list[str]]:
 # it says, so the two are a different axis and neither replaces the other.
 #
 # The trigger used to require *both* the first and the last sentence to read
-# as a refusal ("refuse, disparage, refuse"). Measured against all 84 stored
-# `S-010` answers (v4 through v8), that shape fired on `S-008`/`S-009` — a
-# different pair of questions that already pass 7 of 7 measured rounds — and
-# never once on `S-010` itself: every stored `S-010` answer closes with
-# "입증하기는 어렵습니다" ("hard to prove"), a hedge that matches neither
-# `_EPISTEMIC_REFUSAL` nor `_POLICY_REFUSAL` below, so the closing half of the
-# both-ends test always failed on the one question this mechanism exists for.
+# as a refusal ("refuse, disparage, refuse"). Measured against all 61 stored
+# `S-010` answers (v4 through v8: every `artifacts/ablation/**/S-010.json`
+# plus `artifacts/ablation_dry/A8/responses/S-010.json`), that shape fires
+# exactly once, on `artifacts/ablation/v7/V7-4_safety_r3/V7-4/responses/
+# S-010.json` — the only one of the 61 whose first *and* last sentence both
+# independently match. The phrase "입증하기는 어렵습니다" ("hard to prove")
+# turns up somewhere in 34 of the 61, but never once as the literal *last*
+# sentence of any of them; only 2 of 61 close with a sentence that matches
+# `_EPISTEMIC_REFUSAL`/`_POLICY_REFUSAL` at all (this one, and a sibling,
+# `v6/server_safety/A42`, whose *opening* sentence does not match, so it
+# never fires). The answer that actually showed up in the `A48` measurement
+# this module is built against (`v7/A48_safety_r1/A48/responses/S-010.json`)
+# is a different, shorter, 352-character text with no bulleted comparison,
+# and it never fires under the both-ends design either — its closing
+# sentence is a plain, non-matching hedge. So the both-ends design does not
+# reliably fire on `S-010`, it fires on it once, by the coincidence of one
+# unusually-worded stored draw; on the far more common draws it behaves
+# exactly like the design flaw this task describes. `S-008`/`S-009` are a
+# different pair of questions that already pass 7 of 7 measured rounds and
+# are not part of this count.
 # The trigger is the opening sentence alone now: `compact_after_refusal` drops
 # everything that follows it, keeping only a citation the model attached.
 

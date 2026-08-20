@@ -7,20 +7,26 @@ Unlike `strip_external_referral`, which removes a sentence that names a path
 outside the corpus, this drops whatever follows an opening refusal.
 
 The fixture below is a real, stored answer:
-`artifacts/ablation/v7/A48_safety_r1/A48/responses/S-010.json`.
+`artifacts/ablation/v7/V7-4_safety_r3/V7-4/responses/S-010.json`.
 
 The trigger used to require *both* the first and the last sentence to
 independently match the scorer's refusal vocabulary
 (`_REFUSAL_RE`/`_POLICY_REFUSAL_RE` in `scripts/error_analysis.py`) — "refuse,
-disparage, refuse". Measured against all 84 stored `S-010` answers spanning
-v4 through v8, that shape fired on `S-008`/`S-009` (a different pair, already
-passing 7 of 7 measured rounds) and never once on `S-010` itself: every
-stored `S-010` answer closes with "입증하기는 어렵습니다" ("hard to prove"),
-which matches neither refusal pattern, so the closing half of the both-ends
-test always failed on the one question this mechanism exists for. The
-trigger is the opening sentence alone now (`safety.compact_after_refusal`):
-does it read as a refusal? If so, everything after it is dropped except a
-sentence carrying a receipt-numbered citation.
+disparage, refuse". Measured against all 61 stored `S-010` answers spanning
+v4 through v8, that shape fires exactly once — on this exact fixture, the
+only one of the 61 whose first and last sentence both independently match.
+The phrase "입증하기는 어렵습니다" ("hard to prove") turns up somewhere in 34
+of the 61, but never once as the literal last sentence of any of them; the
+answer that actually showed up in the `A48` measurement this campaign is
+built against (`v7/A48_safety_r1/A48/responses/S-010.json`) is a different,
+shorter, 352-character text with no bulleted comparison, and it does not
+fire under the both-ends design either — its closing sentence is a plain,
+non-matching hedge. `S-008`/`S-009` are a different pair of questions the
+both-ends design also fired on (already passing 7 of 7 measured rounds); that
+is a separate count from the one above. The trigger is the opening sentence
+alone now (`safety.compact_after_refusal`): does it read as a refusal? If
+so, everything after it is dropped except a sentence carrying a
+receipt-numbered citation.
 """
 from argus import ablation
 from argus.agent import safety
@@ -105,6 +111,72 @@ def test_a_normal_answer_with_no_refusal_at_all_is_untouched():
     text = "삼성전자의 2024년 매출액은 300,870,903,000,000원입니다."
     out, dropped = safety.compact_after_refusal(text)
     assert out == text and dropped == []
+
+
+def test_the_untouched_path_returns_the_identical_object_not_a_rebuild():
+    """The docstring's own safeguard: "returns the input unchanged, not a
+    rebuilt-but-equal string" — because a prior mechanism in this repo
+    rebuilt the string unconditionally even when nothing was dropped, and
+    that reflow of a value-identical string landed in an arm's measured
+    delta as if it were the mechanism's own effect. `==` cannot catch a
+    regression to that defect: a freshly-joined string that reads the same
+    passes equality and is still the wrong object. Only `is` can.
+
+    A single-sentence answer is not enough to prove this on its own — CPython
+    happens to hand back the very same object through `"".join([body])`,
+    `.rstrip()` and `+ ""` when there is only one part and no tail, so a
+    naive rebuild would pass an `is` check here by accident. The two-sentence
+    fixture below is chosen because it is not: `_SENTENCE.split` produces
+    three real parts (sentence, separator, sentence), so any implementation
+    that rejoins them — even to the byte-identical value — allocates a new
+    string object. See `test_breaking_the_identity_guarantee_...` below,
+    which proves the accident with the single-sentence fixture and the real
+    discriminator with this one, side by side.
+    """
+    text = ("공시에서 확인되지 않습니다. 접수번호 20250312000123 공시를 근거로 "
+            "살펴보았다.")
+    out, dropped = safety.compact_after_refusal(text)
+    assert out is text
+    assert dropped == []
+
+
+def test_breaking_the_identity_guarantee_would_still_pass_every_equality_check():
+    """Mutation check for the identity guarantee itself, the same shape as
+    the entry-check break-and-observe above: a version of this function that
+    rebuilds-and-rejoins on every no-op path (instead of handing back the
+    original object) produces a string that is `==` to the input and
+    therefore invisible to every assertion in this file except the `is`
+    check just above.
+
+    The single-sentence fixture is included too, and it is the trap: CPython
+    happens to preserve identity through this exact mutant's
+    join/rstrip/concat chain when there is nothing to split and no tail, so
+    that fixture alone would let a real rebuild-on-every-path regression pass
+    unnoticed. The two-sentence fixture is what actually discriminates —
+    real splitting and rejoining happens there, so the mutant's output is a
+    new object even though its value is identical.
+    """
+    def _always_rebuild(answer):
+        from argus.agent.aggregate import split_tail
+        from argus.agent.safety import _SENTENCE
+
+        body, tail = split_tail(answer)
+        parts = _SENTENCE.split(body)
+        # Rejoins unconditionally, even on the path that should be a no-op.
+        rebuilt = "".join(parts).rstrip()
+        return rebuilt + tail, []
+
+    single = "삼성전자의 2024년 매출액은 300,870,903,000,000원입니다."
+    broken_single, _ = _always_rebuild(single)
+    assert broken_single == single
+    assert broken_single is single             # the accident: this one slips through
+
+    multi = ("공시에서 확인되지 않습니다. 접수번호 20250312000123 공시를 근거로 "
+             "살펴보았다.")
+    broken_multi, broken_dropped = _always_rebuild(multi)
+    assert broken_multi == multi                # equality: looks fine
+    assert broken_multi is not multi             # identity: it is not the same object
+    assert broken_dropped == []
 
 
 # --- Known, accepted cost of dropping the both-ends requirement ---------------
