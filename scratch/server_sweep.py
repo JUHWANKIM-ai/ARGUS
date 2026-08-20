@@ -46,6 +46,13 @@ COHORTS = {
     "full": ("evalset/questions.jsonl", "evalset/regression.jsonl"),
     "safety": ("evalset/safety.jsonl",),
     "valuechain": ("evalset/valuechain.jsonl",),
+    #: 처음 보는 문항 54개. 세 벌을 따로 두는 이유는 각각 서로 다른 코드판에서 한 번
+    #: 측정된 기록(17/20 · 17/18 · 15/16)이 있어, 벌 단위로 대조할 수 있어야 하기
+    #: 때문이다. 🔴 이 셋은 재는 데만 쓴다 -- 여기서 드러난 실패를 고치면 그 순간
+    #: 처음 보는 문항이 아니게 된다.
+    "heldout_v2": ("evalset/heldout_v2.jsonl",),
+    "heldout_v3": ("evalset/heldout_v3.jsonl",),
+    "newset": ("evalset/newset_20260816.jsonl",),
 }
 TIMEOUT_S = 300
 #: Pause between requests. The upstream limit is per minute, and a question can
