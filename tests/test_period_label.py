@@ -68,10 +68,10 @@ def test_flag_off_keeps_the_header_byte_identical(records):
     """꺼진 팔의 표지는 글자 하나 달라지면 안 된다. `A49`~`A52` 산출물 대조가 깨진다."""
     with ablation.use(OFF):
         got = {rc: tools._period_label(r) for rc, r in records.items()}
-    assert got["20250515002428"] == "분기보고서"
-    assert got["20251114002201"] == "분기보고서"
-    assert got["20250814003695"] == "반기보고서"
-    assert got["20250321001834"] == "사업보고서"
+    assert got["20250515002428"] == "분기보고서 2025"
+    assert got["20251114002201"] == "분기보고서 2025"
+    assert got["20250814003695"] == "반기보고서 2025"
+    assert got["20250321001834"] == "사업보고서 2024"
 
 
 def test_two_quarterlies_of_one_year_stop_colliding(records):
@@ -79,8 +79,8 @@ def test_two_quarterlies_of_one_year_stop_colliding(records):
     with ablation.use(ON):
         first = tools._period_label(records["20250515002428"])
         third = tools._period_label(records["20251114002201"])
-    assert first == "분기보고서 1분기"
-    assert third == "분기보고서 3분기"
+    assert first == "분기보고서 2025 1분기"
+    assert third == "분기보고서 2025 3분기"
     assert first != third
 
 
@@ -88,8 +88,8 @@ def test_annual_and_half_are_left_alone(records):
     """분기만 토큰을 얻는다. 연·반기는 한 해에 하나뿐이라 붙일 이유가 없고,
     붙이면 모든 정기공시 문항의 근거 문면이 바뀐다."""
     with ablation.use(ON):
-        assert tools._period_label(records["20250814003695"]) == "반기보고서"
-        assert tools._period_label(records["20250321001834"]) == "사업보고서"
+        assert tools._period_label(records["20250814003695"]) == "반기보고서 2025"
+        assert tools._period_label(records["20250321001834"]) == "사업보고서 2024"
 
 
 def test_the_quarter_map_covers_the_whole_corpus():
@@ -99,6 +99,14 @@ def test_the_quarter_map_covers_the_whole_corpus():
     떨어지고, 그러면 P4 가 겨냥한 충돌이 되살아난다.
     """
     assert set(tools._QUARTER_NAME) == {"3", "9"}
+
+
+def test_the_header_puts_the_quarter_after_the_year(records):
+    """어순. 첫 판은 `[분기보고서 1분기 2025]` 를 냈다 — 표지가 연도를 뒤에 붙이는데
+    분기를 종류에 붙였기 때문이다. 근거 머리글은 모델이 읽는 문면이라 어순이 장식이 아니다."""
+    with ablation.use(ON):
+        head = tools._section_markdown(records["20251114002201"]).splitlines()[0]
+    assert "[분기보고서 2025 3분기]" in head, head
 
 
 def test_the_quarter_is_looked_up_from_the_ledger():
@@ -117,7 +125,8 @@ def test_unknown_base_month_falls_back_instead_of_guessing():
     """모르는 기준월은 이름을 지어내지 않고 종류만 적는다."""
     with ablation.use(ON):
         assert tools._period_label(
-            {"doc_subtype": "quarter", "base_month": "6"}) == "분기보고서"
+            {"doc_subtype": "quarter", "base_month": "6",
+             "base_year": "2025"}) == "분기보고서 2025"
 
 
 def test_flag_is_off_in_the_operational_default():

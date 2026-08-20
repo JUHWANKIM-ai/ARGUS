@@ -507,7 +507,16 @@ def _base_month_by_rcept() -> dict[str, str]:
 
 
 def _period_label(record: dict) -> str:
-    """Report kind, and for quarterlies the quarter as well.
+    """Report kind and period, as it appears inside the evidence header brackets.
+
+    🔴 Returns the year too, so the quarter can follow it. The first version
+    returned only the kind and let `_section_markdown` append the year, which
+    put the tokens in the wrong order -- `[분기보고서 1분기 2025]`. The natural
+    reading is `[분기보고서 2025 1분기]`, and the evidence header is text the model
+    reads, so the order is not cosmetic.
+
+    With the flag off the string is byte-identical to what the old
+    `f"{kind} {base_year}"` produced, for every report kind.
 
     Two quarterly filings of one year rendered an identical header --
     `[분기보고서 2025] 케이티 – IV. 이사의 경영진단 및 분석의견` for both the first and
@@ -524,14 +533,15 @@ def _period_label(record: dict) -> str:
     from argus import ablation       # 함수 안에서 — 이 모듈의 다른 두 곳과 같은 이유(순환)
     kind = {"annual": "사업보고서", "half": "반기보고서",
             "quarter": "분기보고서"}.get(record.get("doc_subtype", ""), "정기보고서")
+    stem = "%s %s" % (kind, record.get("base_year", ""))
     if not ablation.enabled("period_label") or record.get("doc_subtype") != "quarter":
-        return kind
+        return stem
     month = record.get("base_month")
     if month in (None, ""):
         rcept = str(record.get("doc_id", "")).split("_")[-1]
         month = _base_month_by_rcept().get(rcept)
     quarter = _QUARTER_NAME.get(str(month))
-    return "%s %s" % (kind, quarter) if quarter else kind
+    return "%s %s" % (stem, quarter) if quarter else stem
 
 
 def _section_markdown(record: dict) -> str:
@@ -543,7 +553,7 @@ def _section_markdown(record: dict) -> str:
     if record.get("n_parts", 1) > 1:
         part = f" [{record['part'] + 1}/{record['n_parts']} 조각]"
     body = _section_body(record)
-    return (f"## [{label} {record.get('base_year', '')}] "
+    return (f"## [{label}] "
             f"{record.get('corp_name', '')} – {record.get('path', '')}{part}\n"
             f"- 출처: 접수번호 {rcept_no} (공시일 {record.get('rcept_dt', '')})\n\n{body}")
 
