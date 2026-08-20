@@ -447,6 +447,28 @@ class Arm:
     #: one — it can only refuse before generation runs at all.
     #: See `argus.agent.safety.compact_after_refusal`.
     refusal_compaction: bool = False
+    #: True cites **every** evidence block the answer demonstrably used, not
+    #: just enough to make one citation exist.
+    #:
+    #: `attach_citation` short-circuits on `quick_check(answer)["has_citation"]`,
+    #: which asks only whether *some* `근거: …14자리` is present. So an answer
+    #: that cites one filing -- or the wrong filing -- satisfies it and nothing
+    #: is attached. Measured on the `A49` local run: 10 golden key points across
+    #: 9 questions name a receipt number the answer never writes
+    #: (`Q-023` `Q-035` `Q-054` `Q-068` `Q-082` `Q-093` `Q-094` `Q-105`
+    #: `Q-106`x2), and `Q-110` cites three filings that are not golden at all
+    #: while five golden filings sit in its evidence.
+    #:
+    #: 🔴 The rule reads the evidence, never the golden set. A unit counts as
+    #: used when one of its own figures appears in the answer body -- the same
+    #: `used` set `attach_citation` already computes to decide false
+    #: attribution. Citing what the answer used is defensible at inference
+    #: time; citing what the golden set names would not be.
+    #:
+    #: README section 4.4 says receipt numbers are attached by the system
+    #: rather than copied by the model. That held only for answers carrying no
+    #: citation at all; this closes the rest.
+    cite_used: bool = False
     #: True separates which filing a date points at when two share that date.
     #: With both filings in the evidence the selection rather than the
     #: retrieval goes wrong. The rule is what the date means: a contract filed
@@ -976,6 +998,14 @@ A49 = replace(A48, name="A49", false_premise_gate=True)
 #: two this campaign targets.
 A50 = replace(A49, name="A50", refusal_compaction=True)
 
+# --- W2 · P3 : 답변이 쓴 근거를 다 인용한다 --------------------------------
+#: `A49` 에 `cite_used` 하나만 켠 팔. 계획서 `docs/superpowers/plans/
+#: 2026-08-21-eight-defects.md` 의 P3.
+#:
+#: 겨냥: 골든이 접수번호를 요점으로 요구하는데 답변이 안 적는 9문항 10요점, 그리고
+#: 근거에 실린 골든 다섯을 두고 골든 아닌 문서 셋을 가리킨 `Q-110`.
+A51 = replace(A49, name="A51", cite_used=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1023,7 +1053,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1070,7 +1100,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
@@ -1335,6 +1365,10 @@ def shape_evidence(evidence: str, arm: Arm | None = None) -> str:
 #: hyphen, this pattern matches no header at all.
 _CITE_HEAD = re.compile(r"^(?:\[기재정정\]\s*)?\[([^\]]+)\]\s*(.*?)\s*–\s*(.*)$")
 _CITE_RCEPT = re.compile(r"접수번호\s*(\d{14})")
+#: 답변이 이미 가리킨 접수번호를 셀 때 쓴다. 위 것과 달리 `접수번호` 라는 낱말을
+#: 요구하지 않는다 — 답변은 `(근거: …, 20230131800162)` 처럼 낱말 없이 적는 일이 많고,
+#: 그것도 이미 가리킨 것으로 세어야 같은 번호를 두 번 붙이지 않는다.
+_CITE_RCEPT_ANY = re.compile(r"\d{14}")
 _CITE_DATE = re.compile(r"공시일[:\s]*(\d{4})-?(\d{2})-?(\d{2})")
 #: Numeric fingerprint linking an answer to a piece of evidence. A figure with
 #: thousands separators counts even when short, because periodic financials
@@ -1497,8 +1531,14 @@ def attach_citation(answer: str, evidence: str, arm: Arm | None = None,
     if not (named or used) and any(k in bare for k in _CITE_REFUSAL):
         return bare, []
 
-    if quick_check(answer)["has_citation"] or not units:
+    if not units:
         return answer, []
+
+    #: 이미 표기가 있으면 종전 판은 여기서 끝났다. `cite_used` 는 거기서 한 걸음 더 간다 —
+    #: **답변이 쓴 근거가 실제로 인용됐는지**를 본다. 표기가 하나 있다는 것과 옳은 것을
+    #: 가리킨다는 것은 다른 문제이고, `Q-110` 이 그 차이다.
+    if quick_check(answer)["has_citation"]:
+        return _cite_missing_used(answer, units, bare_numbers, arm)
 
     # Nothing is attached when the answer links to nothing. This rule changed
     # three times: attaching every candidate cost a question its
@@ -1512,7 +1552,83 @@ def attach_citation(answer: str, evidence: str, arm: Arm | None = None,
     picked = (named or used or titled)[:MAX_CITATIONS]
     if not picked:
         return answer, []
-    citation = "\n\n" + " ".join(_render_citation(u) for u in picked)
+    answer, attached = _insert_citation(answer, picked)
+    #: 종전 상한(3)이 고른 것 밖에 답변이 쓴 근거가 더 있으면 그것도 붙인다. 열거형
+    #: 답변은 여섯 갈래를 세는 일이 있어 3 으로는 담기지 않는다.
+    answer, more = _cite_missing_used(answer, units, bare_numbers, arm)
+    return answer, attached + more
 
+
+def _insert_citation(answer: str, picked: list[dict]) -> tuple[str, list[str]]:
+    """Append citations for `picked`, before the verification note.
+
+    The note matters: the scorer strips everything from it onward, so a citation
+    placed after it would disappear before scoring.
+    """
+    citation = "\n\n" + " ".join(_render_citation(u) for u in picked)
     head, sep, tail = answer.partition("\n\n(주의:")
     return head + citation + sep + tail, [u["rcept_no"] for u in picked]
+
+
+#: `cite_used` 의 상한. 종전 `MAX_CITATIONS`(3)보다 크다 — 열거형 답변은 계약상대
+#: 여섯 갈래를 세는 일이 있고(`Q-110`), 3 으로 자르면 그 답변의 근거를 절반도 못 싣는다.
+#: 8 은 관측된 최대 열거 폭(6)에 여유 둘을 더한 값이다. 무한이 아닌 이유는 근거 칸이
+#: 10건까지 담기므로 상한이 없으면 표기가 답변보다 길어질 수 있기 때문이다.
+MAX_CITATIONS_USED = 8
+
+
+def _cite_missing_used(answer: str, units: list[dict], numbers: set[str],
+                       arm: Arm) -> tuple[str, list[str]]:
+    """Cite the evidence the answer used but did not point at.
+
+    🔴 Reads the evidence only. The golden set is never consulted; this runs at
+    inference time, where it does not exist.
+
+    The link is a figure the answer wrote that **only this block carries.**
+    Sharing a figure with another block is not a link, because then nothing says
+    which of them the answer used -- the same rule the aggregation follows
+    (README section 4.3: nothing is stated when the condition is not uniquely
+    determined).
+
+    Four criteria were measured on the `A49` local run before this one was
+    picked (`scratch/compare_cite_criteria.py`, 2026-08-21). Columns are new
+    golden receipts cited / receipts attached that the golden set does not name.
+
+        figure shared or not          13 / 23     Q-102 gets a November filing
+                                                  cited for a May question:
+                                                  both happen to say 50 billion
+        + company named, 2 terms      17 / 33
+        + company named               33 / 161    fires on every block of every
+                                                  answer, as the note above
+                                                  `_CITE_TERM` predicted
+        **figure unique to the block   8 /  4**   adopted
+        (this one)
+
+    The adopted rule keeps 8 of the 13 golden gains while cutting the
+    unnamed-by-golden attachments from 23 to 4, and those four were read by hand:
+    each is a contract the answer discusses whose figure only that filing
+    carries, so the answer did use it and the golden list simply does not name
+    every contract the answer covers -- the `Q-030` situation. A false citation
+    is a fabrication-shaped defect on an axis the organisers score; a citation
+    not gained is only a gain not made. That asymmetry decided it.
+
+    🔴 What this does not fix. `Q-110` states no figure at all -- it enumerates
+    roles -- so no figure can be unique to a block and nothing is attached. Its
+    citation defect needs the evidence to carry per-item receipts (the roster
+    route), not this pass.
+    """
+    if not arm.cite_used or not units:
+        return answer, []
+    #: 답변이 쓴 수를 어느 블록들이 갖고 있는가. 둘 이상이면 그 수로는 어느 것을 썼는지
+    #: 못 가린다.
+    owner: dict[str, int] = {}
+    for unit in units:
+        for number in unit["numbers"] & numbers:
+            owner[number] = owner.get(number, 0) + 1
+    present = set(_CITE_RCEPT_ANY.findall(answer or ""))
+    missing = [u for u in units
+               if u["rcept_no"] not in present
+               and any(owner[n] == 1 for n in (u["numbers"] & numbers))]
+    if not missing:
+        return answer, []
+    return _insert_citation(answer, missing[:MAX_CITATIONS_USED])
