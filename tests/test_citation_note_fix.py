@@ -73,8 +73,13 @@ def test_the_reason_text_is_read_from_one_place():
                for _f, _b, text in pipeline._VERDICT_REASONS)
 
 
-def test_flag_is_off_in_the_operational_default():
-    assert ablation.current().citation_note_fix is False
+def test_flag_is_on_in_the_operational_default():
+    """2026-08-21 채택. 측정을 통과해 기본값에 들어갔다.
+
+    시험 이름을 `..._is_off_...` 에서 바꿔 적는다 — 채택 뒤에도 옛 이름을 두면 참이 아닌
+    문장이 시험 이름으로 남는다.
+    """
+    assert ablation.current().citation_note_fix is True
 
 
 def test_the_fix_cannot_change_any_measurement():

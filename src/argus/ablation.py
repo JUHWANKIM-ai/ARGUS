@@ -1111,6 +1111,30 @@ A54 = replace(A53, name="A54", contrast_line=True)
 #: `A51` 위에 `citation_note_fix` 하나. P3 을 조사하다 나온 결함이라 계획서에 없다.
 A55 = replace(A51, name="A55", citation_note_fix=True)
 
+# --- 2026-08-21 캠페인의 채택본 ---------------------------------------------
+#: `A49` 에 이번 캠페인이 채택한 넷을 얹은 팔. 운영 기본값이다.
+#:
+#:     cite_used         답변이 쓴 근거를 다 인용한다 (P3)
+#:     period_label      분기보고서 표지에 분기를 적는다 (P4)
+#:     contrast_line     스텁과 본문의 범주 차이를 결정적으로 적는다 (P5)
+#:     citation_note_fix 검증 꼬리가 자기를 반박하지 않게 한다
+#:
+#: `period_label` 과 `contrast_line` 은 **따로 채택할 수 없다.** `A53`(표지만)은 `Q-105` 를
+#: 못 고쳤고 `A54`(둘 다)가 고쳤다. `contrast_line` 이 문서 종류별로 분량을 접으므로 표지가
+#: 두 분기를 가르지 않으면 구분이 사라진다.
+#:
+#: 측정 — `A54` 로컬 3회 **110 · 111 · 110**. `Q-105` 는 3회 모두 정답이고 3회 모두 골든이
+#: 지목한 3분기(20251114002201)를 인용한다. 남은 오답은 `Q-110`(오픈이슈 2) 하나이고,
+#: `Q-094` 는 근거가 `A49` 와 글자 그대로 같은데 회차마다 뒤집히는 뽑기다.
+#:
+#: `citation_note_fix` 는 측정값을 바꿀 수 없다 — 채점기와 판정기가 둘 다
+#: `strip_verify_tail` 을 거친 답변을 받는다. 저장 답변 726개로 전수 확인했으므로 `A54` 의
+#: 수가 곧 이 팔의 수다.
+#:
+#: 🔴 **기각한 것도 함께 적는다.** `latest_pin`(P2)은 퇴행 2건으로 기각했다 — 상한이 있는
+#: 근거 창에 더하는 것은 밀어내는 것이었다. `docs/superpowers/plans/2026-08-21-eight-defects.md`
+A56 = replace(A54, name="A56", citation_note_fix=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1158,7 +1182,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1205,7 +1229,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
@@ -1286,7 +1310,9 @@ FLAG_NAMES: tuple[str, ...] = tuple(
 #: The history of what this default has been, with the measurements behind each
 #: change, is recorded separately.
 #: See docs/design-rationale.md#operational-default-history
-_current: Arm = A49
+#: 운영 기본값. 2026-08-21 캠페인의 채택본으로 전환했다 (종전 `A49`).
+#: 🔴 서버 배포는 별도 승인 사안이다 — 이 상수를 바꾸는 것과 배포는 다른 일이다.
+_current: Arm = A56
 
 
 def current() -> Arm:

@@ -176,6 +176,10 @@ def test_a_figure_only_one_block_carries_is_a_link():
     assert attached == ["20251112000393"], attached
 
 
-def test_flag_is_off_in_the_operational_default():
-    """스위치는 켠 팔에서만 돈다. 기본값을 바꾸는 것은 측정 뒤의 별도 결정이다."""
-    assert ablation.current().cite_used is False
+def test_flag_is_on_in_the_operational_default():
+    """2026-08-21 채택. 측정을 통과해 기본값에 들어갔다.
+
+    시험 이름을 `..._is_off_...` 에서 바꿔 적는다 — 채택 뒤에도 옛 이름을 두면 참이 아닌
+    문장이 시험 이름으로 남는다.
+    """
+    assert ablation.current().cite_used is True

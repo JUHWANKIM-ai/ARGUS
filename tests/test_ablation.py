@@ -388,9 +388,28 @@ def test_default_arm_is_the_submission_configuration():
     was rejected -- the gate already refuses both target questions before
     generation runs, so the compaction never gets a chance to fire on
     them. See docs/design-rationale.md#operational-default-history
+
+    **2026-08-21: A49 -> A56.** 네 스위치를 얹었다 — `cite_used`(P3) ·
+    `period_label`(P4) · `contrast_line`(P5) · `citation_note_fix`.
+    로컬 3회 **110 · 111 · 110** 이고 `Q-105` 가 3회 모두 정답이며 3회 모두 골든이
+    지목한 3분기(20251114002201)를 인용한다. 남은 오답은 `Q-110`(오픈이슈 2) 하나다.
+
+    🔴 `period_label` 과 `contrast_line` 은 따로 채택할 수 없다. `A53`(표지만)은 `Q-105`
+    를 못 고쳤고 `A54`(둘 다)가 고쳤다 — `contrast_line` 이 문서 종류별로 분량을 접으므로
+    표지가 두 분기를 가르지 않으면 구분이 사라진다.
+
+    🔴 `latest_pin`(P2)은 퇴행 2건으로 **기각**했다. `Q-112` 의 근거가 상한(10)에 밀려
+    골든 2/2 → 1/2 가 됐다 — 상한이 있는 창에 더하는 것은 밀어내는 것이다.
+    계획서: `docs/superpowers/plans/2026-08-21-eight-defects.md`
     """
-    assert ablation.current() == ablation.A49
-    assert ablation.current().name == "A49"
+    assert ablation.current() == ablation.A56
+    assert ablation.current().name == "A56"
+    # 2026-08-21 채택 넷. 기각한 `latest_pin` 은 꺼져 있어야 한다.
+    assert ablation.current().cite_used is True
+    assert ablation.current().period_label is True
+    assert ablation.current().contrast_line is True
+    assert ablation.current().citation_note_fix is True
+    assert ablation.current().latest_pin is False, "기각한 스위치가 기본값에 들어갔다"
     # v5 정확성 개선 둘. 성적은 안 움직이고 규약 「정확성」 축만 움직인다.
     assert ablation.current().fix_unit_parens is True
     assert ablation.current().counterparty_exempt is True
@@ -3309,16 +3328,16 @@ def test_a47_is_not_registered():
     assert "A47" not in ab.ARMS
 
 
-def test_the_operational_default_has_moved_to_a49():
-    """The measurement landed 2026-08-20 (see
-    docs/design-rationale.md#operational-default-history): `A49` replaces
-    `A43`. This test used to pin the pre-promotion value under a name that
-    said so (`..._is_still_a43_until_the_measurement_lands`) -- renamed
-    rather than left to read as still true once it wasn't.
+def test_the_operational_default_has_moved_to_a56():
+    """운영 기본값의 이름을 한 자리에서 못 박는다.
+
+    2026-08-20 에 `A43` -> `A49`, 2026-08-21 에 `A49` -> `A56` 으로 옮겼다. 이 시험은
+    이름을 바꿔 가며 따라간다 — 종전 이름(`..._has_moved_to_a49`)을 그대로 두면 참이
+    아닌 문장이 시험 이름으로 남는다.
     """
     from argus import ablation as ab
 
-    assert ab.current().name == "A49"
+    assert ab.current().name == "A56"
 
 
 def test_project_scope_cannot_be_enabled_without_counterparty_relevance():

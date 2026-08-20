@@ -130,8 +130,13 @@ def test_fires_on_exactly_one_question_in_the_corpus():
     assert fired == ["Q-105"], fired
 
 
-def test_flag_is_off_in_the_operational_default():
-    assert ablation.current().contrast_line is False
+def test_flag_is_on_in_the_operational_default():
+    """2026-08-21 채택. 측정을 통과해 기본값에 들어갔다.
+
+    시험 이름을 `..._is_off_...` 에서 바꿔 적는다 — 채택 뒤에도 옛 이름을 두면 참이 아닌
+    문장이 시험 이름으로 남는다.
+    """
+    assert ablation.current().contrast_line is True
 
 
 def test_a54_is_a53_plus_one_flag():
