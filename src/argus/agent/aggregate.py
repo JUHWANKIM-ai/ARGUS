@@ -1124,6 +1124,72 @@ def state_total(answer: str, records, question: str, route) -> tuple[str, str]:
 #: second copy would drift from the writers.
 DECISIVE_MARK = "- [결정적 집계]"
 
+#: 스텁의 경계. 골든셋 자신이 쓰는 개념이다 — `Q-105` 요점 4 가 *"100자 미만 스텁"* 이라
+#: 적었다. 분량이 아니라 **범주**를 가르는 선이므로 이 값이 규칙의 전부다.
+STUB_CHARS = 100
+
+#: 정기공시 근거 블록의 머리글. `tools._section_markdown` 이 쓰는 모양과 짝이다.
+_PERIODIC_HEAD = re.compile(
+    r"^\[(사업보고서|반기보고서|분기보고서(?:\s*[13]분기)?)\s*([0-9]{4})\]\s*"
+    r"(.+?)\s+–\s+(.+?)(?:\s+\[\d+/\d+ 조각\])?$")
+
+
+def contrast_line(evidence: str) -> str:
+    """One decisive line when the same section arrived from filings that differ
+    **in kind**: a stub in one, a body in another.
+
+    Returns "" when nothing applies.
+
+    Why this exists. `Q-105` asks how one section reads across three filings.
+    The evidence held 88 / 88 / 88 characters of stub and 7,846 characters of
+    body, and the answer said *"세 문서 간 차이점은 없으며"* -- flatly contradicting
+    what it was given. README section 4.3 forbids stating a wrong value with
+    confidence; the same rule has to hold for a wrong comparison.
+
+    🔴 Only a **categorical** split speaks. Measured across 112 questions
+    (2026-08-21), the same-path premise holds for 14 question-paths, and in
+    almost all of them the sizes are within a tenth of each other -- the same
+    section across years. Stating extents there is noise. What `Q-105` has and
+    they do not is one filing saying nothing at all while another says
+    everything, and *that* is what "no difference" gets wrong.
+    """
+    groups: dict[tuple[str, str], list[tuple[str, int]]] = {}
+    for block in re.split(r"(?m)^##\s+", evidence or ""):
+        if not block.strip():
+            continue
+        head, _, rest = block.partition("\n")
+        matched = _PERIODIC_HEAD.match(head.strip())
+        if not matched:
+            continue
+        #: 🔴 머리글 다음의 `- 출처: 접수번호 …` 메타 줄은 본문이 아니다. 그 줄이
+        #: 40자쯤 되므로 함께 세면 88자 스텁이 128자가 되어 `STUB_CHARS` 를 넘어가고,
+        #: 규칙이 조용히 발화하지 않는다. 첫 판이 정확히 그렇게 틀렸다.
+        body = "\n".join(line for line in rest.splitlines()
+                         if not line.strip().startswith("- "))
+        kind = "%s %s" % (matched.group(1), matched.group(2))
+        key = (matched.group(3), matched.group(4))
+        groups.setdefault(key, []).append((kind, len(body.strip())))
+
+    for (_corp, path), items in groups.items():
+        if len({k for k, _ in items}) < 2:
+            continue
+        stubs = [n for _, n in items if n < STUB_CHARS]
+        bodies = [n for _, n in items if n >= STUB_CHARS]
+        if not (stubs and bodies):
+            continue
+        #: 같은 종류가 여러 조각으로 실릴 수 있으므로 종류별 최대 분량으로 접는다.
+        best: dict[str, int] = {}
+        for kind, size in items:
+            best[kind] = max(best.get(kind, 0), size)
+        parts = " · ".join(
+            "%s %s자(%s)" % (kind, format(size, ","),
+                             "스텁" if size < STUB_CHARS else "본문")
+            for kind, size in sorted(best.items()))
+        return ("%s '%s' 의 문서별 기재 상태: %s. "
+                "스텁은 해당 항목을 그 보고서에 기재하지 않는다는 뜻이고, 본문이 실린 "
+                "보고서와 같지 않다." % (DECISIVE_MARK, path, parts))
+    return ""
+
 #: Figures a decisive line has to carry before the repair considers it. Below
 #: this the line is a single value, which `substitute` and `state_total`
 #: already place without appending a sentence.

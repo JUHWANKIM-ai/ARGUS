@@ -512,6 +512,25 @@ class Arm:
     #: and half-year filings are unique within a year already, and adding a token
     #: there would change evidence text for every periodic question to no purpose.
     period_label: bool = False
+    #: True states, as one decisive line, that the same section arrived as a
+    #: stub in one filing and as a body in another.
+    #:
+    #: `Q-105` was given 88 / 88 / 88 characters of stub and 7,846 of body for
+    #: one section and answered *"세 문서 간 차이점은 없으며"*. README section 4.3
+    #: forbids stating a wrong value with confidence; a wrong comparison is the
+    #: same defect on the narrative axis.
+    #:
+    #: 🔴 Only a categorical split speaks, and that is deliberate. The same-path
+    #: premise holds for 14 question-paths across the 112 (measured
+    #: 2026-08-21), but in almost all of them the extents are within a tenth of
+    #: each other -- the same section across years -- and stating extents there
+    #: is noise. Requiring one stub and one body narrows it to a single
+    #: question in this corpus. The rule generalises; the corpus has one
+    #: instance of it.
+    #:
+    #: `STUB_CHARS = 100` is the golden set's own notion: `Q-105` key point 4
+    #: reads "100자 미만 스텁".
+    contrast_line: bool = False
     #: True separates which filing a date points at when two share that date.
     #: With both filings in the evidence the selection rather than the
     #: retrieval goes wrong. The rule is what the date means: a contract filed
@@ -1057,6 +1076,10 @@ A52 = replace(A51, name="A52", latest_pin=True)
 #: `A52` 위에 `period_label` 을 얹은 팔. 계획서의 P4.
 A53 = replace(A52, name="A53", period_label=True)
 
+# --- W4 · P5 : 스텁과 본문의 범주 차이를 결정적으로 적는다 ---------------------
+#: `A53` 위에 `contrast_line` 을 얹은 팔. 계획서의 P5.
+A54 = replace(A53, name="A54", contrast_line=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1104,7 +1127,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1151,7 +1174,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

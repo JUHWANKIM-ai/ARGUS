@@ -2689,6 +2689,17 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, holding)
             trace.append(f"holding_series line=1 chars={len(holding)}")
 
+    # A stub in one filing and a body in another is a categorical difference,
+    # and an answer calling them the same is wrong with confidence. The line
+    # states it; it does not edit the answer.
+    if ablation.enabled("contrast_line"):
+        from argus.agent import aggregate
+
+        contrast = aggregate.contrast_line(evidence)
+        if contrast:
+            evidence = _prepend(evidence, contrast)
+            trace.append(f"contrast_line line=1 chars={len(contrast)}")
+
     try:
         # Read through `enabled()` so that a misspelled flag raises instead of
         # silently evaluating false. At the default the two lines below are
