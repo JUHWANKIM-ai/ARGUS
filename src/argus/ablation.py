@@ -469,6 +469,49 @@ class Arm:
     #: rather than copied by the model. That held only for answers carrying no
     #: citation at all; this closes the rest.
     cite_used: bool = False
+    #: True widens the chain-seed window so a superseded filing anywhere in the
+    #: evidence pulls its latest revision in, not only one in the top two.
+    #:
+    #: `Q-116` states 581,790,000,000 for the 함안복합 파워블록 contract and
+    #: cites the original filing. The revision says 583,874,002,800 -- the
+    #: answer quotes a **superseded figure**, on the axis README sections 2.1
+    #: and 4.2 name as the system's first difficulty and headline feature.
+    #:
+    #: 🔴 The first diagnosis was wrong and is recorded so it is not repeated.
+    #: `scratch/audit/failure_dossier_A49.json` called it a selection failure --
+    #: "the revision is in the corpus, the answer did not pick it". Measurement
+    #: says otherwise: the revision never reached the evidence.
+    #: `query_by_counterparty` does return it (`is_latest=True`, with the
+    #: amount), `tools.chain_probe` knows the link, and `_expand_chain` exists
+    #: to walk it. What blocked it was `CHAIN_SEED_WINDOW = 2`: the superseded
+    #: filing sat fifth in the evidence, outside the window, so no seed was
+    #: ever made. It is a retrieval gap with a one-constant cause.
+    #:
+    #: Measured on the `A49` local run: 18 places in 17 questions hold a
+    #: superseded filing whose latest sibling is absent, all at ranks 3-10.
+    #:
+    #: 🔴 Additive only. Widening the window adds seeds; it removes nothing, so
+    #: questions that need the superseded value in evidence keep it -- `Q-054`
+    #: (what was corrected) and `Q-111` (a termination and its replacement)
+    #: both do. `MAX_CHAIN_DOCS` still caps how many documents a chain adds.
+    latest_pin: bool = False
+    #: True names the quarter in a quarterly filing's evidence header.
+    #:
+    #: Two quarterly filings of one year rendered a **byte-identical** header:
+    #: `[분기보고서 2025] 케이티 – IV. 이사의 경영진단 및 분석의견` for both the first
+    #: and the third quarter. `Q-105` names the third quarter (20251114002201);
+    #: the answer cited the first (20250515002428). Both were in the evidence,
+    #: so this is neither retrieval nor ranking -- nothing in the evidence told
+    #: them apart.
+    #:
+    #: `_section_markdown`'s own docstring says the header carries "report and
+    #: period". It carried the year only. This makes that true.
+    #:
+    #: Only quarterlies gain a token. `base_month` is 3 or 9 for every quarterly
+    #: in the corpus (30,125 / 21,503 sections), so the mapping is total. Annual
+    #: and half-year filings are unique within a year already, and adding a token
+    #: there would change evidence text for every periodic question to no purpose.
+    period_label: bool = False
     #: True separates which filing a date points at when two share that date.
     #: With both filings in the evidence the selection rather than the
     #: retrieval goes wrong. The rule is what the date means: a contract filed
@@ -1006,6 +1049,14 @@ A50 = replace(A49, name="A50", refusal_compaction=True)
 #: 근거에 실린 골든 다섯을 두고 골든 아닌 문서 셋을 가리킨 `Q-110`.
 A51 = replace(A49, name="A51", cite_used=True)
 
+# --- W2 · P2 : 대체본이 있으면 최신본을 근거로 끌어온다 -----------------------
+#: `A51` 위에 `latest_pin` 을 얹은 팔. 계획서의 P2.
+A52 = replace(A51, name="A52", latest_pin=True)
+
+# --- W3 · P4 : 분기보고서 표지에 분기를 적는다 --------------------------------
+#: `A52` 위에 `period_label` 을 얹은 팔. 계획서의 P4.
+A53 = replace(A52, name="A53", period_label=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1053,7 +1104,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1100,7 +1151,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

@@ -475,12 +475,37 @@ def _section_body(record: dict) -> str:
     return parts[index] if index < len(parts) else text
 
 
+#: 분기보고서의 분기 이름. `base_month` 는 코퍼스 전체에서 3 또는 9 두 값뿐이라
+#: (실측 2026-08-21: quarter/3 30,125건 · quarter/9 21,503건) 사상이 유일하다.
+_QUARTER_NAME = {"3": "1분기", "9": "3분기"}
+
+
+def _period_label(record: dict) -> str:
+    """Report kind, and for quarterlies the quarter as well.
+
+    Two quarterly filings of one year rendered an identical header --
+    `[분기보고서 2025] 케이티 – IV. 이사의 경영진단 및 분석의견` for both the first and
+    the third quarter. With both in the evidence nothing distinguished them, and
+    `Q-105` answered a question naming the third quarter by citing the first.
+
+    Only quarterlies gain a token. Annual and half-year filings are already
+    unique within a year, so adding one there would change evidence text for
+    every periodic question to no purpose.
+    """
+    from argus import ablation       # 함수 안에서 — 이 모듈의 다른 두 곳과 같은 이유(순환)
+    kind = {"annual": "사업보고서", "half": "반기보고서",
+            "quarter": "분기보고서"}.get(record.get("doc_subtype", ""), "정기보고서")
+    if not ablation.enabled("period_label") or record.get("doc_subtype") != "quarter":
+        return kind
+    quarter = _QUARTER_NAME.get(str(record.get("base_month", "")))
+    return "%s %s" % (kind, quarter) if quarter else kind
+
+
 def _section_markdown(record: dict) -> str:
     """Evidence block. The citation format is the one the convention requires:
     report and period, receipt number, section path."""
     rcept_no = str(record["doc_id"]).split("_")[-1]
-    label = {"annual": "사업보고서", "half": "반기보고서",
-             "quarter": "분기보고서"}.get(record.get("doc_subtype", ""), "정기보고서")
+    label = _period_label(record)
     part = ""
     if record.get("n_parts", 1) > 1:
         part = f" [{record['part'] + 1}/{record['n_parts']} 조각]"

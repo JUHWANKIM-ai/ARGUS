@@ -136,6 +136,11 @@ COUNTERPARTY_HOP = CHAIN_HOP + 1
 
 #: Rank window within which a candidate may seed a chain walk.
 CHAIN_SEED_WINDOW = 2
+#: `latest_pin` 이 쓰는 씨앗 창. 근거 칸 상한과 같게 두어 **근거에 실린 대체본은
+#: 전부** 씨앗이 된다. 실측(2026-08-21): 대체본의 최신 형제가 빠진 자리 18곳이 순위
+#: 3~10 에 흩어져 있어 2 로는 하나도 닿지 않는다. 창을 넓혀도 `MAX_CHAIN_DOCS` 가
+#: 한 문항의 체인 추가를 6건으로 묶으므로 상한은 그대로다.
+LATEST_PIN_SEED_WINDOW = 10
 
 #: Cap on documents pulled in through chains for one question.
 MAX_CHAIN_DOCS = 6
@@ -515,6 +520,10 @@ def _chain_seeds(picked: list[dict], question: str = "") -> list[dict]:
     # identical to the prior behaviour.
     wants_prior = ablation.enabled("reverse_chain") and _asks_original(question)
     window = REVERSE_SEED_WINDOW if wants_prior else CHAIN_SEED_WINDOW
+    #: 대체본이 근거 어디에 있든 최신 형제를 끌어온다. 종전 창 2 는 순위 3 이하의
+    #: 대체본을 전부 놓쳤다 (`Q-116` 은 5번째였다).
+    if ablation.enabled("latest_pin"):
+        window = max(window, LATEST_PIN_SEED_WINDOW)
     seeds = []
     for item in picked[:window]:
         probe = tools.chain_probe(item.get("doc_id"))
