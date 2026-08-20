@@ -19,7 +19,8 @@ from argus.agent.query import (SPLIT_TOP_K, STRATEGIES, _ASK_CORP_NUMBER,
                                report_hints, time_points)
 from argus.agent import router as router_module
 from argus.agent.router import route
-from argus.agent.safety import mask_pii, sanitize_question, strip_external_referral
+from argus.agent.safety import (compact_refusal_middle, mask_pii, sanitize_question,
+                                 strip_external_referral)
 from argus.clova import chat, no_cache
 from argus.corpus import markdown as markdown_module
 from argus.corpus.manifest import filter_docs
@@ -2795,6 +2796,14 @@ def answer_question(question_id: str, question: str) -> dict:
         answer, dropped = strip_external_referral(answer)
         if dropped:
             trace.append(f"external_referral dropped={len(dropped)}")
+    # Runs right after: a referral sentence stripped above must not still be
+    # counted as "the middle" here, and a refusal-sandwich's middle must not
+    # still hold a referral sentence for that strip to catch below.
+    # See docs/design-rationale.md#external-referral
+    if ablation.enabled("refusal_compaction"):
+        answer, compacted = compact_refusal_middle(answer)
+        if compacted:
+            trace.append(f"refusal_compaction dropped={len(compacted)}")
     return _respond(question_id, question, evidence, trace, mask_pii(answer), budget)
 
 

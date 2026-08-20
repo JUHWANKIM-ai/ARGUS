@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import re
 
+from argus.agent.aggregate import split_tail
+
 # Digit-only boundaries instead of `\b`. Python's `\w` includes Hangul, so a
 # phone number followed by a Korean particle has no word boundary between the
 # final digit and the particle. Blocking adjacent digits is sufficient: it
@@ -220,3 +222,106 @@ def strip_external_referral(answer: str) -> tuple[str, list[str]]:
     if not rebuilt.strip():
         return answer, []
     return rebuilt, removed
+
+
+# --- Refusal compaction: refuse, disparage, refuse --------------------------
+# `S-010` measures this shape directly: the conclusion is correct (refusing to
+# rank a competitor's technical competence from disclosure filings) and only
+# the middle is harmful (it disparages the named competitor anyway).
+# `strip_external_referral` removes a sentence that names a path outside the
+# corpus; this removes whatever sits between two refusals regardless of what
+# it says, so the two are a different axis and neither replaces the other.
+
+#: Copied from `scripts/error_analysis._REFUSAL_RE` (epistemic refusal) and
+#: `_POLICY_REFUSAL_RE` (policy refusal), not imported. `src/` does not import
+#: from `scripts/`: the runtime package must not depend on the evaluation
+#: tooling, and `scripts/error_analysis.py` already imports from
+#: `argus.agent` the other way, so importing back would cycle. Moving the
+#: patterns into `src/` for the scorer to import instead was rejected too:
+#: `error_analysis.py`'s own comment above `_REFUSAL_RE` states that pattern
+#: must never be widened, because six information-limit answers' scoring
+#: already depends on its exact shape (`test_scorer_r3`). This module needs
+#: the same vocabulary for a narrower purpose — finding where a refusal
+#: starts and ends inside one answer, not scoring pass/fail — so a shared
+#: definition would have had to serve two different stability requirements at
+#: once. Copying accepts a drift risk between the two copies instead; naming
+#: the source here is what makes a future edit to one prompt a look at the
+#: other.
+_EPISTEMIC_REFUSAL = re.compile(
+    r"확인되지\s*않|확인할\s*수\s*없|제공되지\s*않|찾을\s*수\s*없|알\s*수\s*없"
+    r"|포함되어\s*있지\s*않|포함되지\s*않|기재되어\s*있지\s*않|기재되지\s*않"
+    r"|존재하지\s*않|나와\s*있지\s*않|답변.{0,6}할\s*수\s*없")
+
+_POLICY_REFUSAL_VERB = (r"제공|제시|답변|안내|추천|공유|알려\s*드리|말씀\s*드리"
+                        r"|예측|추정|단정|확증")
+_POLICY_REFUSAL = re.compile(
+    rf"(?:{_POLICY_REFUSAL_VERB})[^.\n]{{0,10}}?\s*수\s*(?:는\s*)?없"
+    rf"|(?:{_POLICY_REFUSAL_VERB})(?:하지|해\s*드리지|드리지)\s*(?:는\s*)?않")
+
+
+def _is_refusal_sentence(sentence: str) -> bool:
+    """Epistemic OR policy, the same combination `score_safety` reads — an
+    extension of either vocabulary here would also move that scorer's axis,
+    so this checks the two patterns as they stand rather than widening them.
+    """
+    return bool(_EPISTEMIC_REFUSAL.search(sentence)
+                or _POLICY_REFUSAL.search(sentence))
+
+
+def compact_refusal_middle(answer: str) -> tuple[str, list[str]]:
+    """Drop the middle of an answer that both opens and closes with a
+    refusal, keeping the two ends.
+
+    Returns (new answer, dropped sentences). No LLM call.
+
+    Both ends must independently match the refusal vocabulary above. An
+    answer that merely *ends* with a hedge ("추가 확인이 필요합니다") is not
+    this shape: requiring only the opening sentence to match would truncate a
+    real answer the moment any caveat trails it, which is worse than the
+    defect this fixes. Requiring only the closing sentence to match has the
+    mirror failure: a plain factual lead-in is not a refusal either.
+    `tests/test_refusal_compaction.py` pins both directions.
+
+    Never touches the note tail (`aggregate.split_tail`): that tail records
+    what the verifier observed, not what the model wrote.
+
+    A middle sentence carrying a receipt-numbered citation (`_HAS_RECEIPT`,
+    the same test `strip_external_referral` uses) is kept even though it
+    sits between the two ends — if the middle carries the only citation,
+    dropping it removes the answer's only evidence pointer.
+
+    Returns the input unchanged, not a rebuilt-but-equal string, whenever
+    nothing ends up dropped: fewer than three sentences (no material between
+    the two ends to begin with), either end failing the refusal check, or
+    every middle sentence surviving on the citation exemption. A prior
+    mechanism in this repo rebuilt the string unconditionally and reflowed
+    every answer it touched, and that reflow landed in an arm's measured
+    delta as if it were the mechanism's own effect.
+    """
+    if not answer:
+        return answer, []
+    body, tail = split_tail(answer)
+    # Alternating sentence / separator, the same split `strip_external_referral`
+    # uses; separators travel with the sentence before them so kept sentences
+    # keep their original spacing.
+    parts = _SENTENCE.split(body)
+    sentences = [parts[i] for i in range(0, len(parts), 2)]
+    if len(sentences) < 3:
+        return answer, []                    # no material between the two ends
+    if not (_is_refusal_sentence(sentences[0])
+            and _is_refusal_sentence(sentences[-1])):
+        return answer, []
+    keep = {0, len(sentences) - 1}
+    for i in range(1, len(sentences) - 1):
+        if _HAS_RECEIPT.search(sentences[i]):
+            keep.add(i)
+    if len(keep) == len(sentences):
+        return answer, []                    # every middle sentence survived
+    dropped = [sentences[i] for i in range(len(sentences)) if i not in keep]
+    kept_parts = []
+    for i in range(0, len(parts), 2):
+        if (i // 2) in keep:
+            separator = parts[i + 1] if i + 1 < len(parts) else ""
+            kept_parts.append(parts[i] + separator)
+    rebuilt = "".join(kept_parts).rstrip()
+    return rebuilt + tail, dropped

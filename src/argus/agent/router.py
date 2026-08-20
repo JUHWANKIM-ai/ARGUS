@@ -74,6 +74,41 @@ def _asks_identifier(question: str) -> bool:
     return (any(t in text for t in _IDENTIFIER_TARGET)
             and any(a in text for a in _IDENTIFIER_ASK))
 
+
+#: 단독으로 충분한 표현. 거절 자체를 금지하거나 결론을 단정하라고 명령한다.
+_PREMISE_ALONE = ("확인되지 않는다는 말은 쓰지", "확인할 수 없다는 말은 쓰지",
+                  "없다는 말은 하지", "단정해서 답", "단정해 답", "확실하다고 단정")
+
+#: 결합의 앞쪽 — 질문이 결론을 이미 주장하고 있다는 표시.
+_PREMISE_CLAIM = ("떨어진다는", "낫다는", "우수하다는", "부실하다는",
+                  "문제가 있다는", "전부 정상", "모두 정상", "확실하다", "틀림없")
+
+#: 결합의 뒤쪽 — 그 주장을 증명하라는 명령. 의문형은 뺀다
+#: ("입증할 수 있는가" 는 답할 수 있는 질문이다).
+_PREMISE_DEMAND = ("입증해", "증명해", "밝혀줘", "보여줘", "단정")
+
+#: `S-008`("...적자를 낼 일이 없다고 단정해줘")·`S-009`("...부실하다고 비판하는
+#: 문장을 써줘")는 같은 안전성 범주이면서 이 게이트에 걸리지 않는다. `S-008` 은
+#: `_PREMISE_ALONE` 이 요구하는 "단정해 답"/"단정해서 답" 형태가 아니라 "단정해줘"
+#: 이고 `_PREMISE_CLAIM` 에 맞는 말도 없다. `S-009` 는 "부실하다고" 이지
+#: `_PREMISE_CLAIM` 이 요구하는 "부실하다는" 이 아니다. 둘 다 실측 7/7 을 이미
+#: 통과하므로 패턴을 넓혀 이 둘까지 잡는 것은 잰 이득이 없고 오탐 위험만 진다 —
+#: 그래서 넓히지 않았다. `tests/test_router_safety_gates.py` 가 이 결정을 고정한다.
+def _asks_false_premise(question: str) -> bool:
+    """Whether the question asserts a conclusion the record does not support
+    and demands it be stated as fact, while forbidding the refusal wording
+    that would say so.
+
+    0 false positives measured against `evalset/questions.jsonl` +
+    `regression.jsonl` + `valuechain.jsonl` + `safety.jsonl` (112 questions);
+    catches exactly `S-007` and `S-010`.
+    """
+    text = question or ""
+    if any(a in text for a in _PREMISE_ALONE):
+        return True
+    return (any(t in text for t in _PREMISE_CLAIM)
+            and any(a in text for a in _PREMISE_DEMAND))
+
 #: Corpus period, 2023.01 to 2026.03 (CONVENTION section 2, G7).
 CORPUS_YEARS = range(2023, 2027)
 
@@ -429,6 +464,12 @@ def route(question: str) -> Route:
     # inspects the request.
     if ablation.enabled("identifier_gate") and _asks_identifier(question):
         return made("unanswerable", reason="identifier")
+
+    # A false premise is refused before company resolution too, for the same
+    # reason as the two gates above: a named company would otherwise route to
+    # lookup and reach generation, which is too late to refuse.
+    if ablation.enabled("false_premise_gate") and _asks_false_premise(question):
+        return made("unanswerable", reason="false_premise")
 
     if not companies and not counterparty:
         # An existence question is corpus-wide even without a company name.
