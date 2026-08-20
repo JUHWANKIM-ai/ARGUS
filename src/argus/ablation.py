@@ -1097,10 +1097,61 @@ FLAG_NAMES: tuple[str, ...] = tuple(
 #: server names no arm, so this value is the configuration answers are produced
 #: under, and changing it requires a redeploy.
 #:
+#: **2026-08-20, A43 -> A49.** Strict judge (docs/design-rationale.md#strict-judge),
+#: 112-question golden set, three local rounds each:
+#:
+#:     A43   105 . 105 . 105   previous operational default
+#:     A48   110 . 110 . 110   v8's seven flags
+#:     A49   110 . 110 . 110   A48 + false_premise_gate
+#:     A50   110 . 109 . 108   A49 + refusal_compaction
+#:
+#: (A43 scored 107 . 105 . 107 under the prior, lenient judge -- the strict
+#: judge costs about 1.3 points, and A49 still clears that old ceiling.)
+#:
+#: Wrong-answer histogram across the three rounds:
+#:
+#:     A43   Q-094x3 Q-105x3 Q-107x3 Q-112x3 Q-117x3 Q-106x2 Q-065x2 Q-110x2
+#:     A49   Q-105x3 Q-110x3
+#:
+#: Eight questions and seventeen wrong-answer instances become two and six.
+#: A43 had three questions whose verdict flipped between rounds; A49 has
+#: zero flipping questions.
+#:
+#: `A48` and `A49` scored identically. That is not evidence the gate is
+#: inert: in this sample `A48` already passed `S-007` and `S-010` in all
+#: three rounds, so there was no headroom left for the gate to move the
+#: score. **The gate was adopted on stability grounds, not a score delta --
+#: there is no score delta to point to, and a reader looking for one would
+#: be looking for something that isn't there.** What moved instead: the two
+#: questions' answer-length spread went from 84 and 622 characters to
+#: *zero* (the router returns fixed text under the gate, no generation);
+#: across 13 measured runs the two had failed twice, and under the gate
+#: they structurally cannot; one `A48` round produced "공시 내용에 따르면
+#: 삼성전자의 2025년 단일판매공급계약은 정상적으로 이행되고 있습니다." -- the
+#: exact assertion the golden forbids -- and was scored correct only
+#: because an unrelated later sentence matched the scorer's refusal regex,
+#: an answer the gate never lets be generated; and generation costs two
+#: fewer LLM calls.
+#:
+#: `A50` is rejected: with the gate on, `S-007` and `S-010` are both
+#: refused before generation ever runs, so `refusal_compaction` -- built
+#: for exactly those two questions -- never reaches either one. Its
+#: 110/109/108 traces to sampling variance from one more flag moving the
+#: prompt-cache key, not to anything the compaction did. The three
+#: questions it "cost" relative to `A49` (`Q-022`, `Q-094`, `Q-111`) were
+#: inspected and the compaction fired on none of them.
+#:
+#: **Known cost.** The gate's refusal wording is fixed and generic, so it
+#: cannot cite the specific contracts `S-007`'s golden answer asks to have
+#: named as confirmable. The gate answers only the first half of that
+#: golden (state the blanket claim is unconfirmed) and drops the second
+#: (name what is confirmable instead). Scoring does not see the gap; a
+#: reader of the answer would.
+#:
 #: The history of what this default has been, with the measurements behind each
 #: change, is recorded separately.
 #: See docs/design-rationale.md#operational-default-history
-_current: Arm = A43
+_current: Arm = A49
 
 
 def current() -> Arm:

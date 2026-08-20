@@ -375,9 +375,22 @@ def test_default_arm_is_the_submission_configuration():
 
     이 값을 바꾸면 **평가 서버도 다시 배포해야 한다**. `api/server.py` 는 arm 을
     지정하지 않으므로 이것이 곧 주최측이 받는 답변의 구성이다.
+
+    **2026-08-20, v8: A43 -> A49.** Strict judge, 112 questions, three local
+    rounds: A43 105.105.105 -> A48 (v8's seven flags) 110.110.110 -> A49
+    (+ `false_premise_gate`) 110.110.110. `A48` and `A49` tie -- in this
+    sample `A48` already passed `S-007`/`S-010` in all three rounds, so the
+    gate had no room to move the score. **The adoption rests on stability,
+    not score**: `A43` had three questions whose verdict flipped between
+    rounds, `A49` has zero, and the two targeted questions' answer-length
+    spread collapses from 84/622 characters to zero (the gate returns fixed
+    text, no generation). `A50` (+ `refusal_compaction`) dropped to 108 and
+    was rejected -- the gate already refuses both target questions before
+    generation runs, so the compaction never gets a chance to fire on
+    them. See docs/design-rationale.md#operational-default-history
     """
-    assert ablation.current() == ablation.A43
-    assert ablation.current().name == "A43"
+    assert ablation.current() == ablation.A49
+    assert ablation.current().name == "A49"
     # v5 정확성 개선 둘. 성적은 안 움직이고 규약 「정확성」 축만 움직인다.
     assert ablation.current().fix_unit_parens is True
     assert ablation.current().counterparty_exempt is True
@@ -399,6 +412,18 @@ def test_default_arm_is_the_submission_configuration():
     # v7 promotion, A42 -> A43. Three-round minimum 102 -> 107, flipping
     #    questions 9 -> 3. See docs/design-rationale.md#operational-default-history
     assert ablation.current().unit_line is True
+    # v8 promotion, A43 -> A49 (2026-08-20). Strict-judge three-round minimum
+    #    105 -> 110, flipping questions 3 -> 0. The eight flags below are
+    #    everything A49 turns on that A43 did not -- six inherited from A48
+    #    (measured together as v8's adoption candidate) plus
+    #    `false_premise_gate` (A49's own addition, adopted on stability
+    #    grounds: A48 already tied A49's score, so there is no score delta
+    #    behind this one -- see the module docstring above `ablation._current`).
+    #    See docs/design-rationale.md#operational-default-history
+    for flag in ("amount_coverage_gate", "counterparty_branch",
+                 "counterparty_relevance", "project_scope", "holding_series",
+                 "gap_repair", "external_referral_strip", "false_premise_gate"):
+        assert getattr(ablation.current(), flag) is True, flag
     # v5 가 켠 여덟 스위치. 하나라도 빠지면 잰 성적이 아니다.
     for flag in ("speculation_gate", "identifier_gate", "reverse_chain",
                  "aggregate_line", "substitute_aggregate", "substitute_verified",
@@ -2732,7 +2757,10 @@ def test_v7_4_turns_on_only_the_unit_line():
 
 
 def test_a44_turns_on_only_the_amount_coverage_gate():
-    """`A44` = `A43`(운영 기본값) + `amount_coverage_gate` 하나. 기본값은 그대로 `A43`이다.
+    """`A44` = `A43` + `amount_coverage_gate` alone, measured relative to
+    `A43` specifically (not the live operational default, which moved past
+    `A43` in the v8 promotion -- `amount_coverage_gate` is in fact one of
+    the flags the v8 arm turns on, inherited from `A46`).
     See docs/design-rationale.md#amount-coverage
     """
     diff = [f for f in FLAGS
@@ -2743,10 +2771,13 @@ def test_a44_turns_on_only_the_amount_coverage_gate():
     assert "A44" in ablation.SIDE_ARMS
     assert "A44" not in ablation.LADDER and "A44" not in ablation.LOO_REMOVED
     assert "A44" in ablation.RUN_ORDER
-    # The default arm is untouched: resetting the switches still reproduces
-    # `A43` exactly, not `A44`.
-    assert ablation.current() == ablation.A43
-    assert ablation.current().amount_coverage_gate is False
+    # The operational default moved past `A43` (see
+    # `test_default_arm_is_the_submission_configuration`), and the v8 arm it
+    # moved to carries `amount_coverage_gate` on -- inherited from `A46`, not
+    # set by `A44` itself. `A44` stays a side arm measured against `A43`; it
+    # is not, and was never meant to be, the operational default.
+    assert ablation.current() != ablation.A43
+    assert ablation.current().amount_coverage_gate is True
 
 
 def test_amount_coverage_gate_is_unreachable_without_the_verifier():
@@ -2759,7 +2790,10 @@ def test_amount_coverage_gate_is_unreachable_without_the_verifier():
 
 
 def test_a45_turns_on_only_the_counterparty_branch():
-    """`A45` = `A43`(운영 기본값) + `counterparty_branch` 하나. 기본값은 그대로 `A43`이다.
+    """`A45` = `A43` + `counterparty_branch` alone, measured relative to `A43`
+    specifically (not the live operational default, which moved past `A43` in
+    the v8 promotion -- `counterparty_branch` is in fact one of the flags the
+    v8 arm turns on, inherited from `A46`).
     See docs/design-rationale.md#counterparty-branch
     """
     diff = [f for f in FLAGS
@@ -2770,10 +2804,13 @@ def test_a45_turns_on_only_the_counterparty_branch():
     assert "A45" in ablation.SIDE_ARMS
     assert "A45" not in ablation.LADDER and "A45" not in ablation.LOO_REMOVED
     assert "A45" in ablation.RUN_ORDER
-    # The default arm is untouched: resetting the switches still reproduces
-    # `A43` exactly, not `A45`.
-    assert ablation.current() == ablation.A43
-    assert ablation.current().counterparty_branch is False
+    # The operational default moved past `A43` (see
+    # `test_default_arm_is_the_submission_configuration`), and the v8 arm it
+    # moved to carries `counterparty_branch` on -- inherited from `A46`, not
+    # set by `A45` itself. `A45` stays a side arm measured against `A43`; it
+    # is not, and was never meant to be, the operational default.
+    assert ablation.current() != ablation.A43
+    assert ablation.current().counterparty_branch is True
 
 
 def test_counterparty_branch_is_unreachable_without_the_hop_ladder():
@@ -3261,10 +3298,16 @@ def test_a47_is_not_registered():
     assert "A47" not in ab.ARMS
 
 
-def test_the_operational_default_is_still_a43_until_the_measurement_lands():
+def test_the_operational_default_has_moved_to_a49():
+    """The measurement landed 2026-08-20 (see
+    docs/design-rationale.md#operational-default-history): `A49` replaces
+    `A43`. This test used to pin the pre-promotion value under a name that
+    said so (`..._is_still_a43_until_the_measurement_lands`) -- renamed
+    rather than left to read as still true once it wasn't.
+    """
     from argus import ablation as ab
 
-    assert ab.current().name == "A43"
+    assert ab.current().name == "A49"
 
 
 def test_project_scope_cannot_be_enabled_without_counterparty_relevance():

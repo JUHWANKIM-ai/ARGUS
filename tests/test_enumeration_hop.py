@@ -563,19 +563,47 @@ def test_q117_branch_line_reaches_the_head_of_the_evidence_under_a45():
 
 
 @pytest.mark.skipif(not _VC.exists(), reason="evalset/valuechain.jsonl 없음")
-def test_q117_branch_line_is_absent_under_the_untouched_default_arm():
-    """The new flag defaults to False. An untouched operational arm (the
-    module default, not `A45`) behaves exactly as before."""
+def test_q117_branch_line_is_absent_when_the_flag_is_off():
+    """The flag's own default is False (`ablation.Arm.counterparty_branch`
+    itself, not the module's live operational default -- the v8 promotion
+    turned this flag on there, see the test below). Pinned against `A43`
+    explicitly rather than `ablation.current()`, since the latter moved past
+    `A43` in that promotion and would make this assertion about the flag's
+    default silently depend on the ambient global instead.
+    """
     from argus import ablation
     from argus.agent.budget import Budget
 
-    assert ablation.current().counterparty_branch is False
+    assert ablation.A43.counterparty_branch is False
     row = _rows()["Q-117"]
     r = route(row["question"])
-    evidence, trace = pipeline._gather_evidence(r, row["question"], Budget())
+    with ablation.use("A43"):
+        evidence, trace = pipeline._gather_evidence(r, row["question"], Budget())
     if not evidence:
         pytest.skip("artifacts/exchange_records.jsonl 없음")
     assert not any("counterparty_branch" in line for line in trace)
     # `공급사 재수주` is a phrase distinctive to this line's own wording, unlike
     # `발주처`, which also appears in `_counterparty_note`'s unrelated line.
     assert "공급사 재수주" not in evidence
+
+
+@pytest.mark.skipif(not _VC.exists(), reason="evalset/valuechain.jsonl 없음")
+def test_q117_branch_line_is_present_under_the_operational_default_since_a49():
+    """The v8 promotion (2026-08-20, `A43` -> `A49`) carries
+    `counterparty_branch` on by default -- inherited from `A46` through
+    `A48`. The untouched operational arm now behaves like `A45` for this
+    question, not like `A43`; see
+    `test_q117_branch_line_reaches_the_head_of_the_evidence_under_a45` above
+    for the same assertions made explicitly under `A45`.
+    """
+    from argus import ablation
+    from argus.agent.budget import Budget
+
+    assert ablation.current().counterparty_branch is True
+    row = _rows()["Q-117"]
+    r = route(row["question"])
+    evidence, trace = pipeline._gather_evidence(r, row["question"], Budget())
+    if not evidence:
+        pytest.skip("artifacts/exchange_records.jsonl 없음")
+    assert any("counterparty_branch" in line for line in trace)
+    assert "공급사 재수주" in evidence

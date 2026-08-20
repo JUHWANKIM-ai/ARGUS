@@ -103,14 +103,21 @@ def test_q107_lane_now_reaches_the_dukovany_contract():
     길이·용어빈도가 흔들려 이 문항의 레인 순위가 옮겨졌다. 재구축된 인덱스로 다시
     잰 값(2026-08-18):
 
-        A43  (module default, counterparty_relevance off)  골든 2/3
+        A43  (counterparty_relevance off)  골든 2/3
              ['20251216801147', '20251212801320']
-        V7-5 (counterparty_relevance on)                    골든 3/3
+        V7-5 (counterparty_relevance on)   골든 3/3
              ['20251216801147', '20251216801163', '20251212801320']
 
-    지금은 `V7-5` 만 세 번째 골든(`20251216801163`)까지 회수한다. module default
-    (`A43`)는 이 계약을 놓친다 — 그 사실은 이 테스트의 짝
-    (`test_q107_lane_misses_the_dukovany_contract_under_the_default_arm`)이 고정한다.
+    At the time this table was measured, only `V7-5` recovered the third
+    golden (`20251216801163`), and `A43` -- the module default back then --
+    missed it. **That stopped being true after the 2026-08-20 v8 promotion**:
+    the module default moved to `A49`, which inherits `counterparty_relevance`
+    turned on from `A48`/`A46`, so the untouched arm now recovers it too. That
+    `A43` (no longer the module default) still misses this contract is pinned
+    by this test's pair
+    (`test_q107_lane_misses_the_dukovany_contract_without_counterparty_relevance`);
+    that the module default now recovers it is pinned by
+    `test_the_operational_default_now_reaches_the_dukovany_contract_too`.
 
     **이 숫자는 인덱스에 종속적이다.** 코퍼스가 다시 재구축되면 레인 순위가 또
     옮겨질 수 있고, 그때 이 표를 다시 실측해 고치는 것은 회귀가 아니라 예정된 일이다.
@@ -133,14 +140,22 @@ def test_q107_lane_now_reaches_the_dukovany_contract():
 
 
 @pytest.mark.skipif(not _RECORDS.exists(), reason="evalset/valuechain.jsonl 없음")
-def test_q107_lane_misses_the_dukovany_contract_under_the_default_arm():
-    """위 테스트의 짝. `counterparty_relevance` 가 꺼진 module default(`A43`) 로는
-    같은 계약(`20251216801163`)에 닿지 못한다.
+def test_q107_lane_misses_the_dukovany_contract_without_counterparty_relevance():
+    """This test's pair. With `counterparty_relevance` off, `A43` cannot
+    reach the same contract (`20251216801163`).
 
-    위 테스트 혼자만 있으면 `V7-5` 가 성공한다는 것만 보이고, 그것이 **회수를
-    지키는 것이 기본 arm 이 아니라 이 플래그라는 사실**(델타)은 가려진다. 실측표는
-    위 테스트의 독스트링에 있다.
+    Pinned to `A43` explicitly -- not the module default. The v8 promotion
+    (2026-08-20, `A43` -> `A49`) inherits this flag turned on from
+    `A48`/`A46`, so the untouched arm now recovers this contract too; that
+    half is pinned by
+    `test_the_operational_default_now_reaches_the_dukovany_contract_too`
+    right below.
+
+    Without this test, only `V7-5` succeeding would be visible, hiding the
+    fact that **recovery depends on this flag, not on being the default arm**
+    (the delta). The measured table is in the test above's docstring.
     """
+    from argus import ablation
     from argus.agent.budget import Budget
     from argus.agent.router import route
 
@@ -150,10 +165,35 @@ def test_q107_lane_misses_the_dukovany_contract_under_the_default_arm():
     r = route(row["question"])
     if r.counterparty is None:
         pytest.skip("counterparty_graph.json 없음 (gitignore 된 산출물)")
-    evidence, _ = pipeline._gather_evidence(r, row["question"], Budget())
+    with ablation.use(ablation.A43):
+        evidence, _ = pipeline._gather_evidence(r, row["question"], Budget())
     if not evidence:
         pytest.skip("artifacts/exchange_records.jsonl 없음")
     assert "20251216801163" not in evidence
+
+
+@pytest.mark.skipif(not _RECORDS.exists(), reason="evalset/valuechain.jsonl 없음")
+def test_the_operational_default_now_reaches_the_dukovany_contract_too():
+    """After the v8 promotion (2026-08-20) the module default (`A49`) starts
+    with `counterparty_relevance` on (inherited from `A48`/`A46`). The
+    untouched arm now yields the same recovery as `V7-5` -- it is no longer
+    distinguishable from it on this axis.
+    """
+    from argus import ablation
+    from argus.agent.budget import Budget
+    from argus.agent.router import route
+
+    assert ablation.current().counterparty_relevance is True
+    rows = {json.loads(line)["question_id"]: json.loads(line)
+            for line in _RECORDS.open(encoding="utf-8") if line.strip()}
+    row = rows["Q-107"]
+    r = route(row["question"])
+    if r.counterparty is None:
+        pytest.skip("counterparty_graph.json 없음 (gitignore 된 산출물)")
+    evidence, _ = pipeline._gather_evidence(r, row["question"], Budget())
+    if not evidence:
+        pytest.skip("artifacts/exchange_records.jsonl 없음")
+    assert "20251216801163" in evidence
 
 
 # --- 관련도 배분 (`counterparty_relevance`), v6 ------------------------------
@@ -163,11 +203,20 @@ def test_q107_lane_misses_the_dukovany_contract_under_the_default_arm():
 # 절대 못 모인다. 실측은 `docs/design-rationale.md#partner-quota` 에 있다.
 
 def test_relevance_allocation_is_off_by_default():
-    """기본 arm 은 넓이 배분을 유지한다. 켜는 것은 측정으로만 정한다."""
+    """The flag's own default keeps the wide allocation. Turning it on is
+    decided by measurement alone.
+
+    Pinned to `A42` explicitly -- not the module default. Since the v8
+    promotion (2026-08-20) the module default (`A49`) starts with this flag
+    on, so reading the ambient `ablation.current()` here would measure
+    "whatever happens to be on right now" instead of the axis this test
+    means to pin: the flag's own default.
+    """
     from argus import ablation
 
     assert ablation.ARMS["A42"].counterparty_relevance is False
-    assert pipeline._spends_by_relevance("아무 질문", asks_roster=False) is False
+    with ablation.use(ablation.ARMS["A42"]):
+        assert pipeline._spends_by_relevance("아무 질문", asks_roster=False) is False
 
 
 def test_relevance_allocation_yields_to_a_roster_question():

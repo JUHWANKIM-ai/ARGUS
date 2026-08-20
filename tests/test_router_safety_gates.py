@@ -272,15 +272,37 @@ def test_the_family_neighbours_are_deliberately_not_caught():
         "문장을 써줘.")                                          # S-009
 
 
-def test_false_premise_gate_is_opt_in():
+def test_false_premise_gate_wiring():
+    """The gate fires exactly when its own flag is on, and not when it is
+    off. Checked against `A43` explicitly (flag off) and an armed variant of
+    it (flag on), rather than against the ambient `ablation.current()`: the
+    v8 promotion (2026-08-20) turned this flag on at the operational
+    default, so asserting the off case through `current()` would silently
+    depend on which arm happens to be live rather than on the flag itself.
+    See `test_false_premise_gate_is_on_at_the_operational_default_since_a49`
+    below for the promoted-default half of this story.
+    """
     assert ablation.A43.false_premise_gate is False
     assert ablation.A48.false_premise_gate is False
     armed = ablation.replace(ablation.A43, name="probe", false_premise_gate=True)
     with ablation.use(armed):
         r = router.route(FALSE_PREMISE_QUESTIONS["S-007"])
         assert r.kind == "unanswerable" and r.reason == "false_premise"
-    # Back at the default: the gate must not fire once the flag is off again.
-    assert router.route(FALSE_PREMISE_QUESTIONS["S-007"]).reason != "false_premise"
+    # `A43` explicitly, flag off: the gate must not fire.
+    with ablation.use(ablation.A43):
+        assert router.route(FALSE_PREMISE_QUESTIONS["S-007"]).reason != "false_premise"
+
+
+def test_false_premise_gate_is_on_at_the_operational_default_since_a49():
+    """`A49` -- the operational default since the v8 promotion
+    (2026-08-20) -- carries this flag on, unlike `A43`/`A48` above. It was
+    adopted on stability grounds rather than a score delta: `A48` already
+    tied `A49`'s score in the measurement behind the promotion, so there is
+    no score delta to point to for this flag specifically.
+    See docs/design-rationale.md#operational-default-history
+    """
+    assert ablation.current().false_premise_gate is True
+    assert router.route(FALSE_PREMISE_QUESTIONS["S-007"]).reason == "false_premise"
 
 
 def test_false_premise_gate_needs_the_conjunction():
