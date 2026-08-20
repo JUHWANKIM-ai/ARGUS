@@ -1,0 +1,115 @@
+{
+ "생성": "제출용 전처리 산출물 목록",
+ "기준일": "2026-08-20",
+ "파일수": 20,
+ "총바이트": 1219562890,
+ "🔴 제외": "data/dart-disclosures/raw (5.2G) — 주최측이 제공한 원본 공시이지 우리 전처리 산출물이 아니다",
+ "파일": [
+  {
+   "path": "artifacts/counterparty_graph.json",
+   "bytes": 50053,
+   "sha256": "a0ebfc2dd2893d4622c4c9c39cb19f42835072b713e61bad708ad7cc52d42e92"
+  },
+  {
+   "path": "artifacts/eval_report.json",
+   "bytes": 785,
+   "sha256": "4830c63b0d10b5cd13e11e67cfdf649b8c2f2535a70dff58ff040fc60e3ce5dc"
+  },
+  {
+   "path": "artifacts/exchange_bm25.json",
+   "bytes": 1086346,
+   "sha256": "a6dfb2abec655a07dcbbf66c4ee4824f8a63057e907fedcf1bca4bc18d46f090"
+  },
+  {
+   "path": "artifacts/exchange_records.jsonl",
+   "bytes": 4851941,
+   "sha256": "351f05248eff5917f8f22c6e46d1897591ddcad2e9acfdbee957241482d3785f"
+  },
+  {
+   "path": "artifacts/holding_bm25.json",
+   "bytes": 943447,
+   "sha256": "6915045cf1b792520c4959846abb4e8dc8391623c1904073d6f57c2c20770b63"
+  },
+  {
+   "path": "artifacts/holding_records.jsonl",
+   "bytes": 6075638,
+   "sha256": "ebbf4c2c99ef75d603007d9ccf446aef58590d94424496ae7ca8d16713049b03"
+  },
+  {
+   "path": "artifacts/major_bm25.json",
+   "bytes": 492187,
+   "sha256": "e0c036e9cd782871832acd7d5291d9890661505dde211de8c7f3f22836205356"
+  },
+  {
+   "path": "artifacts/major_records.jsonl",
+   "bytes": 4357936,
+   "sha256": "695d6ea42a57a899d25fc2fb7a3dcf4c4ebcb66eda9c2e357e15920d29709e67"
+  },
+  {
+   "path": "artifacts/nary_records.jsonl",
+   "bytes": 100327,
+   "sha256": "f92f64b6f7723ffa86f1c664d4f15a4b458271f7cf8e6d32a89d688d6b8fcd58"
+  },
+  {
+   "path": "artifacts/nary_records.meta.json",
+   "bytes": 1079,
+   "sha256": "3142e4c2c1e47c02c2531df19e8c059236946083f230a6740642d596fab31d7a"
+  },
+  {
+   "path": "artifacts/periodic_sections.jsonl",
+   "bytes": 55150457,
+   "sha256": "7d83a7d54b7f1b7df40e0c44cef94c49b3d236710e9e7da16bf8dc91f65d3e9d"
+  },
+  {
+   "path": "artifacts/periodic_sections.txt",
+   "bytes": 926428627,
+   "sha256": "3ad5db8f6244bfba3d16bd08e4c253f25550b386a1a4110caba30cfb23ddf4e8"
+  },
+  {
+   "path": "artifacts/references.jsonl",
+   "bytes": 594560,
+   "sha256": "ef97e32720e4a49537a63c43b72f91bb7cc1f11d4310398554f2b3c0b2aae6cf"
+  },
+  {
+   "path": "artifacts/section_index.json",
+   "bytes": 19194287,
+   "sha256": "d69679c75e9322cfd14b8e5af98d8b3e3d6de460aef74537174f7a1a074d65e2"
+  },
+  {
+   "path": "artifacts/section_index.npz",
+   "bytes": 197781168,
+   "sha256": "bd1ab274b9d82084244998a4efd7e791cb21b6e91eb37e82722f2beea86fd712"
+  },
+  {
+   "path": "data/dart-disclosures/manifest.jsonl",
+   "bytes": 2419214,
+   "sha256": "04750795e1a2d5c35f73e4bb7766ebede02ff3512d33c382bd4c3a51daba3364"
+  },
+  {
+   "path": "data/dart-disclosures/universe.csv",
+   "bytes": 10674,
+   "sha256": "96560165c836b10e315cb253ab96a99b369478c3f71a0415d16b7b6fadbfa1dc"
+  },
+  {
+   "path": "data/dart-disclosures/universe.xlsx",
+   "bytes": 14074,
+   "sha256": "87ed0050069ecaa62743032612b3320d8666c958a4705b39817d38d7249e7cca"
+  },
+  {
+   "path": "data/dart-disclosures/README.md",
+   "bytes": 6229,
+   "sha256": "0bc77faa94cf0959a6050530a10ad85fba9b40c47e7682ac18262fa5b4aa2935"
+  },
+  {
+   "path": "data/dart-disclosures/data_filter.md",
+   "bytes": 3861,
+   "sha256": "c6cb0473f28f101e8ace26437fd0bb1b7ca54f9496081212349bfd2f032d4229"
+  }
+ ],
+ "🔴 raw 포함 시": {
+  "파일수": 4902,
+  "바이트": 5565545297,
+  "설명": "data/dart-disclosures/raw — 주최측 제공 원본. 전처리 산출물은 아니나 백업·재현용으로 함께 올린다"
+ },
+ "총계(raw 포함)": "6.79 GB"
+}

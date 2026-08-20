@@ -339,11 +339,11 @@ pip install -r requirements.txt
 
 | 묶음 | 용량 | 내용 |
 |---|---|---|
-| artifacts | 1.3GB | 색인, 정형 레코드, 계약상대 그래프 |
+| artifacts | 1.2GB | 색인, 정형 레코드, 계약상대 그래프 |
 | data | 5.2GB | 원본 공시, 문서 대장, 기업 목록 |
 
 ```
-artifacts   https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=drive_link
+artifacts   https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=sharing
 data        https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEOZIsJ?usp=sharing
 ```
 
@@ -351,7 +351,12 @@ data        https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEO
 70곳을 읽지 못해 모든 질의가 범위 밖으로 처리된다. 반드시 함께 배치한다.
 
 무결성 대조표는 `artifacts/audit/preprocessing_manifest.json` 에 있다. 파일 20개의
-SHA256과 바이트 수를 담고 있다.
+SHA256과 바이트 수를 담고 있고 기준일은 2026-08-20이다. 내려받은 묶음이 그 대조표와
+맞는지는 다음으로 확인한다.
+
+```bash
+python scripts/build_preprocessing_manifest.py --check
+```
 
 ### 7.3 실행
 
@@ -394,7 +399,7 @@ python scripts/build_nary.py                     # 규칙이 놓친 관계 보�
 전처리 산출물 스토리지
 
 ```
-artifacts (1.3GB)   https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=drive_link
+artifacts (1.2GB)   https://drive.google.com/file/d/12NBmEUjV1t5o3BbJK16z6rptESr9gbUH/view?usp=sharing
 data      (5.2GB)   https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEOZIsJ?usp=sharing
 ```
 
