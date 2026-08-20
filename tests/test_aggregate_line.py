@@ -16,6 +16,7 @@ import pathlib
 
 import pytest
 
+from argus import ablation
 from argus.agent import aggregate, router, tools
 
 EVALSET = pathlib.Path(__file__).resolve().parents[1] / "evalset"
@@ -76,10 +77,20 @@ Q107 = ("체코 두코바니 5·6호기 원자력발전소 사업과 관련해 �
 
 
 def test_a_counterparty_filter_alone_is_not_a_pin():
-    """허브는 계약을 여럿 가진다. 계약상대만으로는 집합이 안 정해진다."""
+    """허브는 계약을 여럿 가진다. 계약상대만으로는 집합이 안 정해진다.
+
+    Pinned to `A43` explicitly (`project_scope` off), not the ambient
+    operational default: the v8 promotion (2026-08-20, `A43` -> `A49`) turns
+    `project_scope` on there, and `project_scope` is exactly the axis that
+    pins this record set the counterparty filter alone cannot -- see
+    `tests/test_project_scope.py::test_the_total_matches_the_golden_answer`,
+    which measures this same question with the axis on and gets the golden
+    total rather than silence.
+    """
     question, rcepts = Q107
-    assert aggregate.line(_recs(*rcepts), question, router.route(question)) == ""
-    assert aggregate._total(_recs(*rcepts), question, router.route(question)) is None
+    with ablation.use(ablation.A43):
+        assert aggregate.line(_recs(*rcepts), question, router.route(question)) == ""
+        assert aggregate._total(_recs(*rcepts), question, router.route(question)) is None
 
 
 def test_the_filter_is_named_in_the_line():

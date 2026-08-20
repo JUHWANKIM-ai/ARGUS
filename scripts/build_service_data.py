@@ -115,14 +115,22 @@ def gate(row: dict, allowed: frozenset[str], where: str) -> dict:
     return row
 
 
-#: 원본이 들고 있는 필드 전량(2026-08-16 실측). **원본이 늘어나면 여기가 먼저 깨진다.**
-#: 늘어난 필드를 화면에 실을지는 사람이 판단한다. 조용히 통과시키지 않는다.
+#: 원본이 들고 있는 필드 전량(2026-08-16 실측, 2026-08-18 인덱스 재구축으로 `supply_region`
+#: 추가). **원본이 늘어나면 여기가 먼저 깨진다.** 늘어난 필드를 화면에 실을지는 사람이
+#: 판단한다. 조용히 통과시키지 않는다.
+#: `supply_region` 은 DART 원문 「4. 판매ㆍ공급지역」행이다 — 개인정보가 아니라
+#: `체코`·`경북 울진군 일대` 같은 지명이고, 이미 `markdown` 에 `- 공급지역: …` 로
+#: 렌더링돼 사용자가 챗 파이프라인에서 이미 보고 있다. **실어도 되는 필드다.**
+#: 그런데도 `CONTRACT_FIELDS` 에는 넣지 않았다 — 민감해서가 아니라, 화면에 새
+#: 열로 낼지는 **사이트 쪽의 별개 판단**이기 때문이다(어느 템플릿도 아직 이
+#: 필드를 그리지 않는다). 여기 있는 것은 "원본이 가진 필드를 안다"이고,
+#: `CONTRACT_FIELDS` 는 "화면에 낸다"다. 이 필드는 앞엣것만 통과했다.
 SOURCE_EXCHANGE = frozenset({
     "doc_id", "rcept_no", "rcept_dt", "corp_code", "corp_name", "sector", "doc_subtype",
     "is_correction", "amount", "amount_type", "ratio", "ratio_base", "counterparty",
     "period_start", "period_end", "event_date", "reserved_reason", "note", "related",
     "form", "fields", "corrections", "schema_matched", "withheld", "raw_rows", "title",
-    "is_latest", "terminates", "markdown",
+    "is_latest", "terminates", "markdown", "supply_region",
 })
 SOURCE_REFERENCE = frozenset({
     "source_rcept_no", "source_doc_id", "corp_name", "target_date", "form_name",

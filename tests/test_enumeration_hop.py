@@ -299,6 +299,230 @@ def test_counterparty_branch_is_silent_when_one_side_is_empty():
     assert aggregate.counterparty_branch({}) == ""
 
 
+#: The same eleven counterparties, but with the records the line now reads:
+#: a contract title and an amount. Golden points 2, 3 and 4 of `Q-117` are
+#: contract names and amounts, which the name-only line could not carry.
+#:
+#: 두산에너빌리티's six records are `Q-117`'s real, measured filings against
+#: this counterparty (newest first, as `_enumerate_events` passes them),
+#: not a simplified stand-in: 신고리 was filed four times, 두코바니 once, and
+#: 신한울 (golden point 3, 181,608,900,000원) sits fifth by recency — behind
+#: three of the four 신고리 repeats. A cap that merely slices the newest N
+#: records, with no dedupe, cannot reach it no matter how high the cap goes
+#: as long as it is below 5; this fixture is what makes that failure and its
+#: fix observable here rather than only in `artifacts/exchange_records.jsonl`.
+def _rich_groups() -> dict[str, list[dict]]:
+    def _row(no, title, amount):
+        return {"rcept_no": no,
+                "title": f"단일판매ㆍ공급계약체결 — {title}",
+                "amount": amount}
+
+    groups = {name: [{"rcept_no": f"{name}-{i}"} for i in range(n)]
+              for name, n in _Q117_COUNTERPARTIES}
+    groups["두산에너빌리티"] = [
+        _row("20260109800243", "신고리원자력발전소 5,6호기 원자로계통설계",
+             214_781_736_017),
+        _row("20251224800396", "체코 두코바니 5&6호기 원자로계통설계용역",
+             373_449_426_066),
+        _row("20251027800516", "신고리원자력발전소 5,6호기 원자로계통설계",
+             203_201_827_017),
+        _row("20231229800432", "신고리원자력발전소 5,6호기 원자로계통설계",
+             203_201_827_017),
+        _row("20230330800844", "신한울원자력발전소 3,4호기 원자로계통 설계용역",
+             181_608_900_000),
+        _row("20230105800282", "신고리원자력발전소 5,6호기 원자로계통설계",
+             196_248_837_017),
+    ]
+    groups["한국수력원자력"] = [
+        _row("20251212801320", "체코 두코바니 5&6호기 종합설계용역",
+             1_250_850_298_678),
+    ]
+    return groups
+
+
+def test_the_branch_line_carries_contract_names_and_amounts():
+    """Golden points 2 and 3: the re-order branch's contracts are all
+    원자로계통설계, and 신한울 3,4호기 is 181,608,900,000원.
+
+    181,608,900,000 is fifth by recency among 두산에너빌리티's six real
+    records, behind three repeats of a different project (신고리). It only
+    reaches the line because `_branch_entry` dedupes by contract subject
+    before applying the cap — a plain newest-N slice, however wide, would
+    have to reach depth 5 to find it, and the cap is 3."""
+    line = aggregate.counterparty_branch(_rich_groups())
+    assert "원자로계통설계" in line or "원자로계통 설계" in line
+    assert "181,608,900,000" in line
+
+
+def test_the_re_order_branch_carries_two_contracts():
+    """Golden point 4 needs both Dukovany contracts visible at once, so the
+    supplier branch carries three (see docstring on `_rich_groups` for why
+    three, not two) while the orderer branch carries one each."""
+    line = aggregate.counterparty_branch(_rich_groups())
+    assert "신한울" in line and "두코바니" in line
+
+
+def test_the_orderer_branch_carries_one_contract_each():
+    line = aggregate.counterparty_branch(_rich_groups())
+    assert "1,250,850,298,678" in line
+
+
+#: Three priced records whose titles share no token with each other, with the
+#: 두코바니/신한울 fixtures above, or with any other string in this file. A
+#: prior version of the tests below asserted "신한울" and "두코바니" both
+#: appear in the line, which passed even when the branch caps were made equal
+#: or removed entirely: 두코바니 reaches the line through 한국수력원자력's own
+#: one contract regardless of what 두산에너빌리티's cap allows through. These
+#: unique tokens close that gap — a title's presence or absence can only be
+#: explained by the cap that gates it, never by another counterparty's
+#: contract supplying the same word by coincidence.
+def _distinct_priced_records() -> list[dict]:
+    return [
+        {"rcept_no": "distinct-1",
+         "title": "단일판매ㆍ공급계약체결 — 톈진프로젝트설비공급", "amount": 111_111_111},
+        {"rcept_no": "distinct-2",
+         "title": "단일판매ㆍ공급계약체결 — 오슬로항만증설공사", "amount": 222_222_222},
+        {"rcept_no": "distinct-3",
+         "title": "단일판매ㆍ공급계약체결 — 나이로비수처리설비", "amount": 333_333_333},
+    ]
+
+
+#: `_distinct_priced_records` plus a fourth record whose title shares no
+#: token with the other three, or with any other string in this file. Pins
+#: MAX_BRANCH_CONTRACTS_SUPPLIER's cap of three the same way
+#: `_distinct_priced_records` pinned the old cap of two: four distinct
+#: subjects mean dedupe passes all four through unchanged, so only the
+#: `[:limit]` slice can be responsible for the fourth one's absence.
+def _four_distinct_priced_records() -> list[dict]:
+    return _distinct_priced_records() + [
+        {"rcept_no": "distinct-4",
+         "title": "단일판매ㆍ공급계약체결 — 자카르타발전소보수공사", "amount": 444_444_444},
+    ]
+
+
+def test_the_supplier_branch_truncates_a_fourth_contract():
+    """MAX_BRANCH_CONTRACTS_SUPPLIER caps the supplier branch at three. The
+    sibling (orderer) counterparty here is bare, so every priced title in the
+    line comes from the supplier side alone: the fourth record's absence can
+    only be explained by the cap. All four subjects are distinct, so dedupe
+    passes every one of them through unchanged — widening the cap to four,
+    or removing the `[:limit]` slice, would make 자카르타발전소보수공사 appear
+    and this test would fail, which is the point of the assertion."""
+    groups = {"두산에너빌리티": _four_distinct_priced_records(),
+              "한국수력원자력": [{"rcept_no": "hk-0"}]}          # bare: contributes nothing
+    line = aggregate.counterparty_branch(groups)
+    assert "톈진프로젝트설비공급" in line and "111,111,111" in line
+    assert "오슬로항만증설공사" in line and "222,222,222" in line
+    assert "나이로비수처리설비" in line and "333,333,333" in line
+    assert "자카르타발전소보수공사" not in line and "444,444,444" not in line
+
+
+def test_the_orderer_branch_truncates_a_second_contract():
+    """MAX_BRANCH_CONTRACTS_ORDERER caps the orderer branch at one. The
+    sibling (supplier) counterparty here is bare, so the second record's
+    absence can only be explained by this branch's own cap, not by anything
+    the supplier side contributes."""
+    groups = {"한국수력원자력": _distinct_priced_records()[:2],
+              "두산에너빌리티": [{"rcept_no": "de-0"}]}          # bare: contributes nothing
+    line = aggregate.counterparty_branch(groups)
+    assert "톈진프로젝트설비공급" in line and "111,111,111" in line
+    assert "오슬로항만증설공사" not in line and "222,222,222" not in line
+
+
+def test_the_two_branch_caps_are_not_equal():
+    """Pins the asymmetry directly, rather than each cap in isolation. The
+    identical three-record list sits on both a universe and a non-universe
+    counterparty at once, so the second record can only reach the rendered
+    line through the supplier branch (cap 3) — the orderer branch (cap 1)
+    never gets past its first record. It must therefore appear exactly once
+    in the whole line: zero times if both caps collapsed to 1, twice if the
+    orderer cap were also widened past 1. Equalising the caps at 1 breaks
+    this count, which is what makes this assertion a test of the asymmetry
+    and not of either cap alone."""
+    records = _distinct_priced_records()
+    groups = {"두산에너빌리티": records, "한국수력원자력": records}
+    line = aggregate.counterparty_branch(groups)
+    assert line.count("오슬로항만증설공사") == 1
+    assert line.count("222,222,222") == 1
+
+
+#: Seven priced records, newest first: one subject repeated four times
+#: (positions 1, 3, 4, 7) and three further subjects that each appear once
+#: (positions 2, 5, 6). Shaped like the real Q-117 defect (두산에너빌리티's
+#: six real records, four of them the same 신고리 filing) but with unique
+#: amounts per record so each one's presence in the rendered line can be
+#: checked independently of the others.
+def _repeated_and_distinct_priced_records() -> list[dict]:
+    def _row(no, title, amount):
+        return {"rcept_no": no,
+                "title": f"단일판매ㆍ공급계약체결 — {title}", "amount": amount}
+
+    return [
+        _row("rep-1", "가상프로젝트일", 111_000),
+        _row("rep-2", "가상프로젝트이", 222_000),
+        _row("rep-3", "가상프로젝트일", 333_000),   # repeat of rep-1's subject
+        _row("rep-4", "가상프로젝트일", 444_000),   # repeat of rep-1's subject
+        _row("rep-5", "가상프로젝트삼", 555_000),
+        _row("rep-6", "가상프로젝트사", 666_000),
+        _row("rep-7", "가상프로젝트일", 777_000),   # repeat of rep-1's subject
+    ]
+
+
+def test_dedupe_and_cap_act_independently():
+    """Separates the two effects the fix combines, the way the audit for
+    this change demanded: a fixture with more records than the cap *and*
+    repeated subjects, so a broken dedupe and a broken cap fail on different
+    assertions rather than both failing (or both passing) together.
+
+    Correct behaviour (dedupe by subject, then cap at three) keeps the first
+    occurrence of each distinct subject up to the cap: 111,000 (1st), 222,000
+    (2nd), 555,000 (3rd distinct subject — the repeats at 333,000/444,000
+    collapse into 111,000's slot and do not consume it). 666,000 is the 4th
+    distinct subject and is excluded by the cap.
+
+    Break dedupe alone (cap the raw list without deduping first): the third
+    slot becomes 333,000, a repeat, and 555,000 never reaches the line — the
+    assertion on 555,000 fails while 666,000 is still correctly absent, so a
+    cap-only test would not catch this.
+
+    Break the cap alone (dedupe, then keep all distinct subjects instead of
+    slicing to three): 666,000 appears — that assertion fails while 555,000
+    is still correctly present, so a dedupe-only test would not catch this.
+    """
+    groups = {"두산에너빌리티": _repeated_and_distinct_priced_records(),
+              "한국수력원자력": [{"rcept_no": "hk-0"}]}          # bare: contributes nothing
+    line = aggregate.counterparty_branch(groups)
+    assert "111,000" in line
+    assert "222,000" in line
+    assert "555,000" in line
+    assert "333,000" not in line
+    assert "444,000" not in line
+    assert "777,000" not in line
+    assert "666,000" not in line
+
+
+def test_a_counterparty_with_no_amount_is_named_only():
+    """Nine of the eleven groups hold bare records in this fixture. They must
+    still be named, because golden point 1 is the list of orderers."""
+    line = aggregate.counterparty_branch(_rich_groups())
+    for name in ("한국중부발전", "한국남부발전", "한국동서발전", "한국남동발전"):
+        assert name in line
+
+
+def test_the_enriched_line_still_carries_no_internal_vocabulary():
+    """The leak this line already caused once. Contract names and amounts are
+    source values and are meant to be copied; our predicate is not."""
+    line = aggregate.counterparty_branch(_rich_groups())
+    for leaked in ("70개사", "평가 대상", "유니버스", "universe"):
+        assert leaked not in line
+
+
+def test_the_enriched_line_still_carries_no_receipt_numbers():
+    line = aggregate.counterparty_branch(_rich_groups())
+    assert not re.search(r"\d{14}", line)
+    assert not re.search(r"\d+건", line)
+
+
 def test_asks_structure_predicate():
     assert pipeline._asks_structure(
         "한전기술이 공시한 계약의 발주 구조가 두 갈래로 나뉜다") is True
@@ -339,19 +563,47 @@ def test_q117_branch_line_reaches_the_head_of_the_evidence_under_a45():
 
 
 @pytest.mark.skipif(not _VC.exists(), reason="evalset/valuechain.jsonl 없음")
-def test_q117_branch_line_is_absent_under_the_untouched_default_arm():
-    """The new flag defaults to False. An untouched operational arm (the
-    module default, not `A45`) behaves exactly as before."""
+def test_q117_branch_line_is_absent_when_the_flag_is_off():
+    """The flag's own default is False (`ablation.Arm.counterparty_branch`
+    itself, not the module's live operational default -- the v8 promotion
+    turned this flag on there, see the test below). Pinned against `A43`
+    explicitly rather than `ablation.current()`, since the latter moved past
+    `A43` in that promotion and would make this assertion about the flag's
+    default silently depend on the ambient global instead.
+    """
     from argus import ablation
     from argus.agent.budget import Budget
 
-    assert ablation.current().counterparty_branch is False
+    assert ablation.A43.counterparty_branch is False
     row = _rows()["Q-117"]
     r = route(row["question"])
-    evidence, trace = pipeline._gather_evidence(r, row["question"], Budget())
+    with ablation.use("A43"):
+        evidence, trace = pipeline._gather_evidence(r, row["question"], Budget())
     if not evidence:
         pytest.skip("artifacts/exchange_records.jsonl 없음")
     assert not any("counterparty_branch" in line for line in trace)
     # `공급사 재수주` is a phrase distinctive to this line's own wording, unlike
     # `발주처`, which also appears in `_counterparty_note`'s unrelated line.
     assert "공급사 재수주" not in evidence
+
+
+@pytest.mark.skipif(not _VC.exists(), reason="evalset/valuechain.jsonl 없음")
+def test_q117_branch_line_is_present_under_the_operational_default_since_a49():
+    """The v8 promotion (2026-08-20, `A43` -> `A49`) carries
+    `counterparty_branch` on by default -- inherited from `A46` through
+    `A48`. The untouched operational arm now behaves like `A45` for this
+    question, not like `A43`; see
+    `test_q117_branch_line_reaches_the_head_of_the_evidence_under_a45` above
+    for the same assertions made explicitly under `A45`.
+    """
+    from argus import ablation
+    from argus.agent.budget import Budget
+
+    assert ablation.current().counterparty_branch is True
+    row = _rows()["Q-117"]
+    r = route(row["question"])
+    evidence, trace = pipeline._gather_evidence(r, row["question"], Budget())
+    if not evidence:
+        pytest.skip("artifacts/exchange_records.jsonl 없음")
+    assert any("counterparty_branch" in line for line in trace)
+    assert "공급사 재수주" in evidence

@@ -734,6 +734,173 @@ def test_verify_completeness_amount_gap_counts_the_whole_evidence_not_only_block
     assert out["failed_kinds"] == ["amount_gap"]
 
 
+# The ratio branch of the same check. `money_values` never sees a percentage,
+# so a question answered entirely in ratios was outside the check's reach and
+# Q-106 dropped an 18.05%p collapse with nothing recorded.
+# See docs/open-issues.md item 9.
+
+RATIO_GAP_EVIDENCE = """## [대량보유상황보고서] 두산로보틱스 · 보고자 (주)두산
+- 보유비율: 이번 68.19%
+
+## [대량보유상황보고서] 두산로보틱스 · 보고자 (주)두산
+- 보유비율: 직전 68.19% → 이번 68.15%
+
+## [대량보유상황보고서] 두산로보틱스 · 보고자 (주)두산
+- 보유비율: 직전 68.15% → 이번 68.11%
+
+## [대량보유상황보고서] 두산로보틱스 · 보고자 (주)두산
+- 보유비율: 직전 68.11% → 이번 50.06%"""
+
+RATIO_GAP_QUESTION = "(주)두산이 보고한 보유비율이 어떻게 변해 왔는지 설명해줘."
+RATIO_GAP_THIN_ANSWER = "보유비율은 68.19% 에서 시작해 소폭 줄었습니다."
+
+
+def test_amount_gap_fires_on_a_ratio_answer_that_covers_less_than_half():
+    """Four distinct ratios in the evidence, one in the answer. The question
+    asks how the value changed and names a ratio, so both extra premises hold.
+    """
+    out = critic.verify_completeness(
+        RATIO_GAP_QUESTION, RATIO_GAP_THIN_ANSWER, RATIO_GAP_EVIDENCE,
+        amount_coverage=True)
+    assert out["ok"] is False
+    assert out["failed_kinds"] == ["amount_gap"]
+    assert "비율" in out["reason"]
+
+
+def test_amount_gap_is_silent_when_the_answer_covers_the_ratios():
+    answer = "보유비율은 68.19% → 68.15% → 68.11% → 50.06% 로 줄었습니다."
+    out = critic.verify_completeness(
+        RATIO_GAP_QUESTION, answer, RATIO_GAP_EVIDENCE, amount_coverage=True)
+    assert out["ok"] is True
+
+
+def test_amount_gap_ratio_branch_needs_the_question_to_name_a_ratio():
+    """Evidence carries ratios on almost every contract filing (매출액대비).
+    Without this premise the branch would fire across the corpus."""
+    out = critic.verify_completeness(
+        "계약 상황을 각각 정리해줘.", RATIO_GAP_THIN_ANSWER, RATIO_GAP_EVIDENCE,
+        amount_coverage=True)
+    assert "amount_gap" not in out["failed_kinds"]
+
+
+def test_amount_gap_ratio_branch_needs_enough_evidence_ratios():
+    thin = "## [보고서] 두산\n- 보유비율: 이번 68.19%\n\n## [보고서] 두산\n- 보유비율: 이번 68.15%"
+    out = critic.verify_completeness(
+        RATIO_GAP_QUESTION, "보유비율은 68.19% 입니다.", thin, amount_coverage=True)
+    assert "amount_gap" not in out["failed_kinds"]
+
+
+def test_amount_gap_ratio_branch_stays_silent_on_a_refusal():
+    out = critic.verify_completeness(
+        RATIO_GAP_QUESTION, "공시 근거에는 해당 내용이 포함되어 있지 않습니다.",
+        RATIO_GAP_EVIDENCE, amount_coverage=True)
+    assert "amount_gap" not in out["failed_kinds"]
+
+
+# The under-coverage boundary itself: `len(covered) * 2 < len(evidence)`.
+# Nothing above pins which side of it the rule falls on, so a future edit
+# that flips `<` to `<=` (or the reverse) would still pass every test. Each
+# fixture below uses distinct ratio literals throughout, since `_ratios`
+# dedupes by the literal string and a repeated value would silently shrink
+# the evidence count the boundary is computed against.
+
+def test_amount_gap_ratio_branch_is_silent_at_exactly_half_covered():
+    """2 of 4 is exactly half: `2 * 2 < 4` is false, so this is the silent
+    side of the boundary, not the fired one."""
+    evidence = ("## [보고서] 두산\n- 보유비율: 10.00%\n\n"
+                "## [보고서] 두산\n- 보유비율: 20.00%\n\n"
+                "## [보고서] 두산\n- 보유비율: 30.00%\n\n"
+                "## [보고서] 두산\n- 보유비율: 40.00%")
+    answer = "보유비율은 10.00% 와 20.00% 입니다."
+    out = critic.verify_completeness(
+        RATIO_GAP_QUESTION, answer, evidence, amount_coverage=True)
+    assert "amount_gap" not in out["failed_kinds"]
+
+
+def test_amount_gap_ratio_branch_fires_just_under_half_covered():
+    """2 of 5 is one short of half: `2 * 2 < 5` is true, the fired side of
+    the same boundary the previous test pins silent."""
+    evidence = ("## [보고서] 두산\n- 보유비율: 10.00%\n\n"
+                "## [보고서] 두산\n- 보유비율: 20.00%\n\n"
+                "## [보고서] 두산\n- 보유비율: 30.00%\n\n"
+                "## [보고서] 두산\n- 보유비율: 40.00%\n\n"
+                "## [보고서] 두산\n- 보유비율: 50.00%")
+    answer = "보유비율은 10.00% 와 20.00% 입니다."
+    out = critic.verify_completeness(
+        RATIO_GAP_QUESTION, answer, evidence, amount_coverage=True)
+    assert out["ok"] is False
+    assert out["failed_kinds"] == ["amount_gap"]
+
+
+# The compound-premise case: a question where the amount premise AND the
+# ratio premise both hold at once. Nothing above exercises this combination,
+# and it is where the composite check's firing surface can go past what the
+# amount branch's 9/63 -> 9/8 calibration measured, because `amount_premise
+# or ratio_premise` only gates entry into the branch — once inside, each side
+# fires independently of whether the other's premise happened to hold too.
+
+COMPOUND_QUESTION = "삼성중공업과 한화오션의 계약금액은 각각 얼마이며, 두산의 보유비율은 어떻게 변해 왔는가?"
+
+COMPOUND_EVIDENCE = """## [공급계약 체결] 삼성중공업 – 단일판매ㆍ공급계약체결 — 원유운반선 2척
+- 계약금액: 100,000,000,000원
+
+## [공급계약 체결] 한화오션 – 단일판매ㆍ공급계약체결 — 잠수함 1척
+- 계약금액: 200,000,000,000원
+
+## [대량보유상황보고서] 두산로보틱스 · 보고자 (주)두산
+- 보유비율: 이번 10.00%
+
+## [대량보유상황보고서] 두산로보틱스 · 보고자 (주)두산
+- 보유비율: 직전 10.00% → 이번 20.00%
+
+## [대량보유상황보고서] 두산로보틱스 · 보고자 (주)두산
+- 보유비율: 직전 20.00% → 이번 30.00%"""
+
+
+def test_amount_gap_compound_premise_ratio_alone_fires_when_amounts_are_stated():
+    """Both premises hold (2 amounts, 3 ratios) and the answer states every
+    amount, so `amount_fires` is false — the pre-widening amount-only branch
+    would have stayed silent on this input. It fires anyway, on the ratio
+    branch alone, because only one of the three ratios is covered. This is
+    the exact surface the widening adds: the amount premise being satisfied
+    no longer protects a ratio under-coverage from firing.
+    """
+    answer = ("삼성중공업 계약금액은 100,000,000,000원, 한화오션 계약금액은 "
+              "200,000,000,000원입니다. 보유비율은 10.00% 입니다.")
+    out = critic.verify_completeness(
+        COMPOUND_QUESTION, answer, COMPOUND_EVIDENCE, amount_coverage=True)
+    assert out["ok"] is False
+    assert out["failed_kinds"] == ["amount_gap"]
+    assert "비율" in out["reason"]
+    assert "금액" not in out["reason"]
+
+
+def test_amount_gap_compound_premise_prefers_the_amount_detail_when_both_fire():
+    """When the answer states no amount at all *and* under-covers the
+    ratios, both `amount_fires` and `ratio_fires` are true at once. The
+    `if fires and amount_fires: ... elif fires: ...` order in the code picks
+    the amount detail first; this pins that precedence.
+    """
+    answer = "보유비율은 10.00% 입니다."
+    out = critic.verify_completeness(
+        COMPOUND_QUESTION, answer, COMPOUND_EVIDENCE, amount_coverage=True)
+    assert out["ok"] is False
+    assert out["failed_kinds"] == ["amount_gap"]
+    assert "금액" in out["reason"]
+    assert "비율" not in out["reason"]
+
+
+def test_amount_gap_compound_premise_is_silent_when_both_are_covered():
+    """Complement of the two tests above: the answer states the amounts and
+    covers all three ratios, so neither side fires."""
+    answer = ("삼성중공업 계약금액은 100,000,000,000원, 한화오션 계약금액은 "
+              "200,000,000,000원입니다. 보유비율은 10.00% → 20.00% → 30.00% 로 "
+              "늘었습니다.")
+    out = critic.verify_completeness(
+        COMPOUND_QUESTION, answer, COMPOUND_EVIDENCE, amount_coverage=True)
+    assert out["ok"] is True
+
+
 def test_verify_completeness_is_noop_without_evidence():
     out = critic.verify_completeness("계약금액은?", "97,000,000,000원입니다.", "")
     assert out["ok"] is True and out["failed_kinds"] == [] and out["failure_stage"] is None

@@ -19,7 +19,8 @@ from argus.agent.query import (SPLIT_TOP_K, STRATEGIES, _ASK_CORP_NUMBER,
                                report_hints, time_points)
 from argus.agent import router as router_module
 from argus.agent.router import route
-from argus.agent.safety import mask_pii, sanitize_question
+from argus.agent.safety import (compact_after_refusal, mask_pii, sanitize_question,
+                                 strip_external_referral)
 from argus.clova import chat, no_cache
 from argus.corpus import markdown as markdown_module
 from argus.corpus.manifest import filter_docs
@@ -69,6 +70,22 @@ IDENTIFIER_WITHHELD = (
     "공시 원문에 기재된 연락처·등록번호는 확인되지 않는 형태로만 다루며, "
     "질문에 적어 주신 번호도 마스킹되어 처리됩니다. "
     "공시의 다른 기재사항으로 질문해 주시면 근거와 함께 답변드리겠습니다."
+)
+
+#: The question asserts a conclusion the filings do not confirm and demands
+#: it be stated as fact (`router._asks_false_premise`). Company and period may
+#: both be in range; what is absent is the premise itself, so the
+#: out-of-range wording of `UNANSWERABLE` would be false here. One fixed text
+#: serves every question this gate reaches: it states that the asserted
+#: premise is not confirmed, and that this notice neither asserts nor
+#: disproves it — the pair golden answers `S-007`/`S-010` both state.
+#: Matches the scorer's epistemic refusal pattern
+#: (`scripts/error_analysis._REFUSAL_RE`) on "확인되지 않습니다".
+#: See docs/design-rationale.md#refusal-notices
+FALSE_PREMISE = (
+    "질문이 전제한 내용은 공시에서 확인되지 않습니다. "
+    "공시로 확인되는 사실만 답변드리며, 질문이 주장하는 결론을 단정하거나 반박하지 않습니다. "
+    "공시에 실제로 기재된 내용으로 질문해 주시면 근거와 함께 답변드리겠습니다."
 )
 
 MAX_EVIDENCE = 10                       # evidence truncation cap
@@ -2551,6 +2568,12 @@ def answer_question(question_id: str, question: str) -> dict:
         if r.reason == "ambiguous_reference":
             trace.append("지시대상 불명 — LLM 호출 없이 역질문")
             return _respond(question_id, question, "", trace, AMBIGUOUS_REFERENCE, budget)
+        # Not out of range: the question asserts a conclusion the filings do
+        # not confirm, and the premise is what is missing, not the company or
+        # period.
+        if r.reason == "false_premise":
+            trace.append("거짓 전제 — LLM 호출 없이 한계 고지")
+            return _respond(question_id, question, "", trace, FALSE_PREMISE, budget)
         trace.append("범위 밖 — LLM 호출 없이 한계 고지")
         return _respond(question_id, question, "", trace, UNANSWERABLE, budget)
 
@@ -2643,6 +2666,20 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, series)
             trace.append(f"series line=1 chars={len(series)}")
 
+    # The same shape for a reporting series rather than a revision chain. Kept
+    # as its own block rather than folded into the one above, because the two
+    # read different fields and fire on different questions, and merging them
+    # would make one flag move the other's behaviour.
+    # See docs/design-rationale.md#holding-series
+    if ablation.enabled("holding_series"):
+        from argus.agent import aggregate
+
+        holding = aggregate.holding_series(_evidence_records(evidence), clean,
+                                           tools.holding_chain)
+        if holding:
+            evidence = _prepend(evidence, holding)
+            trace.append(f"holding_series line=1 chars={len(holding)}")
+
     try:
         # Read through `enabled()` so that a misspelled flag raises instead of
         # silently evaluating false. At the default the two lines below are
@@ -2727,6 +2764,18 @@ def answer_question(question_id: str, question: str) -> dict:
         if stated:
             trace.append(f"aggregate {stated}")
 
+    # Same family as the two above and the last of them, so an answer the
+    # model wrote correctly, or that substitution already fixed, is left
+    # alone. Reads the evidence rather than recomputing, because the lines it
+    # repairs were written into the evidence earlier in this same call.
+    # See docs/design-rationale.md#gap-repair
+    if ablation.enabled("gap_repair"):
+        from argus.agent import aggregate
+
+        answer, repaired = aggregate.repair_gap(answer, evidence)
+        if repaired:
+            trace.append(f"gap_repair {repaired}")
+
     # Rewrite the parenthesised unit conversion. Runs after substitution:
     # replacing the body figure alone leaves behind the parenthesised value the
     # model derived from its own wrong figure.
@@ -2762,6 +2811,21 @@ def answer_question(question_id: str, question: str) -> dict:
     answer, cited = ablation.attach_citation(answer, evidence, provenance=provenance)
     if cited:
         trace.append(f'citation attached={",".join(cited)}')
+    # Runs before masking, so a removed sentence is never masked first and
+    # then removed, which would double-count the change in the trace.
+    # See docs/design-rationale.md#external-referral
+    if ablation.enabled("external_referral_strip"):
+        answer, dropped = strip_external_referral(answer)
+        if dropped:
+            trace.append(f"external_referral dropped={len(dropped)}")
+    # Runs right after: a referral sentence stripped above must not still be
+    # counted as "the middle" here, and a refusal-sandwich's middle must not
+    # still hold a referral sentence for that strip to catch below.
+    # See docs/design-rationale.md#external-referral
+    if ablation.enabled("refusal_compaction"):
+        answer, compacted = compact_after_refusal(answer)
+        if compacted:
+            trace.append(f"refusal_compaction dropped={len(compacted)}")
     return _respond(question_id, question, evidence, trace, mask_pii(answer), budget)
 
 

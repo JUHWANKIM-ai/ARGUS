@@ -831,3 +831,32 @@ def test_manual_targeting_has_no_duplicate_or_empty_groups():
     for arm, group, label in ea.TARGETED_BY_MANUAL_REVIEW:
         assert group, f"{arm} 행이 비었다 — 겨냥이 0 이면 행을 지워라 (A3 가 그랬다)"
         assert label, f"{arm} 행에 사유가 없다"
+
+
+def test_stored_judge_records_carry_the_per_point_array(tmp_path, monkeypatch):
+    """Which point was missed is half the value of the strict judge. Storing
+    only the rolled-up boolean throws that away."""
+    import json as _json
+
+    from argus.agent import critic
+    from scripts import error_analysis as ea
+
+    monkeypatch.setattr(
+        ea, "judge_open",
+        lambda *a, **k: critic.OpenVerdict((True, False, True), True, True, "r"))
+    monkeypatch.setattr(ea, "_call_rows", lambda *a, **k: [])
+    ea.JUDGE_DIR = tmp_path
+    case = {"question_id": "Q-901", "question": "q",
+            "answer_key_points": ["a", "b", "c"]}
+    ea.run_judge(case, {"answer": "x", "retrieved_context": "e"}, force=True)
+
+    stored = _json.loads((tmp_path / "Q-901.json").read_text(encoding="utf-8"))
+    assert stored["covered"] == [True, False, True]
+    assert stored["covers_key_points"] is True
+    assert stored["correct"] is True
+
+
+def test_judge_fields_includes_the_array():
+    from scripts import ablation as ab
+
+    assert "covered" in ab.JUDGE_FIELDS

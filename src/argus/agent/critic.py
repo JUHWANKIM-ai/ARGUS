@@ -35,7 +35,7 @@ from argus.agent import compute
 from argus.agent.budget import Budget
 from argus.agent.prompts import (CITATION_RE, build_critic_messages,
                                  build_open_judge_messages)
-from argus.clova import chat
+from argus.clova import chat, no_cache
 
 _JSON = re.compile(r"\{.*\}", re.DOTALL)
 
@@ -54,11 +54,29 @@ class Verdict:
 
 @dataclass
 class OpenVerdict:
-    """Open-question scoring result. The three criteria are not summed."""
-    covers_key_points: bool
+    """Open-question scoring result. The three criteria are not summed.
+
+    `covered` holds one verdict per golden key point. `covers_key_points` is a
+    strict majority over that array rather than one judgement over all points
+    together: the single boolean let an answer covering three of six points
+    score as correct. See docs/open-issues.md item 8.
+    """
+    covered: tuple[bool, ...]
     grounded: bool
     no_fabrication: bool
     reason: str
+
+    @property
+    def covers_key_points(self) -> bool:
+        """Strict majority. Five points need three, six need four.
+
+        A tie fails. An empty array fails: an open question with no golden
+        points cannot be scored, and reporting it as covered would score the
+        absence of a standard as a pass.
+        """
+        if not self.covered:
+            return False
+        return sum(self.covered) * 2 > len(self.covered)
 
     @property
     def correct(self) -> bool:
@@ -1148,7 +1166,7 @@ COMPLETENESS_STAGES = {
     "missing_corp": "RETRIEVAL",     # a comparison is missing one company
     "stale_value": "GENERATION",     # the latest record arrived, the answer used the superseded one
     "interim_source": "GENERATION",  # the annual record arrived, the answer used the interim one
-    "amount_gap": "GENERATION",      # the evidence carried amounts, the answer stated none
+    "amount_gap": "GENERATION",      # the answer stated no amounts, or covered less than half the evidence's ratios
 }
 
 #: Whether the question touches the revision or termination axis.
@@ -1211,6 +1229,24 @@ AMOUNT_GAP_SET_ASK = (
     "각각", "어디이며", "정리해", "비교", "관계", "달라진",
     "어떻게 변", "나뉜다", "갈래", "무엇이 달라",
 )
+
+#: Minimum count of distinct ratios the evidence has to carry for the ratio
+#: branch of the coverage premise to hold. Higher than the amount floor:
+#: a contract filing states its 매출액대비 ratio as a matter of course, so two
+#: ratios in the evidence carry far less signal than two amounts do.
+#: See docs/design-rationale.md#ratio-coverage
+RATIO_GAP_MIN_EVIDENCE = 3
+
+#: Substrings marking a question whose answer is expected to be made of
+#: ratios. Without this premise the branch fires wherever a filing states its
+#: revenue ratio, which is nearly everywhere.
+#: See docs/design-rationale.md#ratio-coverage
+RATIO_ASK = ("비율", "지분", "퍼센트", "%", "%p", "포인트")
+
+
+def _ratios(text: str) -> set[str]:
+    """Distinct percentage figures in a text, as written."""
+    return {m.group(1) for m in _PCT_RE.finditer(text or "")}
 
 
 def _figures(text: str) -> set[str]:
@@ -1423,15 +1459,40 @@ def verify_completeness(question: str, answer: str, evidence,
     # on evidence shaped that way. The premise asks what the model was shown,
     # which is the whole evidence text, not the reassembly.
     # See docs/design-rationale.md#amount-coverage
+    #
+    # The ratio branch. `money_values` never matches a percentage, so a
+    # question whose answer is made of ratios sat outside this check entirely
+    # and Q-106 dropped a 68.11% -> 50.06% collapse with nothing recorded.
+    # The branch is narrowed the same way the amount branch is: the question
+    # has to name a ratio, and the evidence floor is higher, because a filing
+    # states its revenue ratio as a matter of course.
+    # See docs/design-rationale.md#ratio-coverage
     asks_for_set = any(term in (question or "") for term in AMOUNT_GAP_SET_ASK)
-    evidence_amounts = money_values(_evidence_text(evidence))
-    if not (amount_coverage and asks_for_set
-            and len(evidence_amounts) >= AMOUNT_GAP_MIN_EVIDENCE):
+    evidence_text = _evidence_text(evidence)
+    evidence_amounts = money_values(evidence_text)
+    evidence_ratios = _ratios(evidence_text)
+    amount_premise = len(evidence_amounts) >= AMOUNT_GAP_MIN_EVIDENCE
+    ratio_premise = (len(evidence_ratios) >= RATIO_GAP_MIN_EVIDENCE
+                     and any(t in (question or "") for t in RATIO_ASK))
+    if not (amount_coverage and asks_for_set and (amount_premise or ratio_premise)):
         _record("amount_gap", False)
     else:
-        fires = not _ADMIT.search(text) and not money_values(text)
-        _record("amount_gap", True,
-                "근거에 금액이 여럿 있는데 답이 금액을 하나도 쓰지 않았다" if fires else "")
+        admits = bool(_ADMIT.search(text))
+        amount_fires = amount_premise and not money_values(text)
+        # Half of the evidence ratios, not all of them: an answer is allowed
+        # to leave out the incidental ones. Missing most of them is what the
+        # measured defect looked like.
+        covered_ratios = _ratios(text) & evidence_ratios
+        ratio_fires = (ratio_premise
+                       and len(covered_ratios) * 2 < len(evidence_ratios))
+        fires = not admits and (amount_fires or ratio_fires)
+        detail = ""
+        if fires and amount_fires:
+            detail = "근거에 금액이 여럿 있는데 답이 금액을 하나도 쓰지 않았다"
+        elif fires:
+            detail = (f"근거의 비율 {len(evidence_ratios)}종 중 "
+                      f"{len(covered_ratios)}종만 답에 담겼다")
+        _record("amount_gap", True, detail)
 
     failed = sorted({g["kind"] for g in gaps})
     return {
@@ -1583,30 +1644,99 @@ def judge(evidence: str, answer: str, budget: Budget | None = None) -> Verdict:
     )
 
 
-def judge_open(question: str, evidence: str, key_points: list[str] | None,
-               answer: str, budget: Budget | None = None) -> OpenVerdict:
-    """Score an open-ended answer. One LLM call; closed questions are scored by
-    normalised exact match and never reach here.
+#: Max completion tokens for one judge call. Measured against the 129 stored
+#: A43 calls that exercised this prompt (three independently sampled rounds
+#: across 43 open questions, up to 7 golden points each): every one of them
+#: finished with `finish == "stop"`, none hit the cap, and the largest
+#: `completion_tokens` observed was 88 -- far under this ceiling even before
+#: the `n` field added a handful of tokens. The 25.6% failure rate this task
+#: fixes was never a truncation problem; it was the judge re-segmenting the
+#: points, which `build_open_judge_messages` and `SYSTEM_OPEN_JUDGE` now
+#: address directly. 300 is left unchanged.
+OPEN_JUDGE_MAX_TOKENS = 300
 
-    A parse failure is a scoring failure rather than a wrong answer: all three
-    criteria are set false and the reason records what happened.
+
+def _open_judge_attempt(messages: list[dict], points: list[str],
+                        budget: Budget | None) -> tuple[OpenVerdict, bool]:
+    """One judge call, parsed and validated against the golden point count.
+
+    Returns `(verdict, ok)`. `ok` is False on a parse failure or a count
+    mismatch on either axis: a `covered` array of the wrong length, or an `n`
+    field that disagrees with the real count even when the array length
+    happens to land on the right number by chance. The judge is asked to
+    commit to `n` before filling `covered`, and a wrong commitment is the same
+    defect as a wrong array -- the judge did not count the points -- so it is
+    scored the same way, with `covered` emptied rather than padded.
+
+    `ok` is what `judge_open` uses to decide whether to retry; the verdict
+    itself already carries the same reason string regardless, so a caller that
+    ignores `ok` still gets a correctly-failed verdict on the last attempt.
     """
-    result = chat(build_open_judge_messages(question, evidence, key_points, answer),
-                  max_tokens=200, temperature=0.0, tag="judge_open")
+    result = chat(messages, max_tokens=OPEN_JUDGE_MAX_TOKENS, temperature=0.0,
+                  tag="judge_open")
     if budget:
         budget.spend_llm(result.prompt_tokens, result.completion_tokens)
 
     match = _JSON.search(result.text or "")
     if not match:
-        return OpenVerdict(False, False, False, "judge 응답 파싱 실패")
+        return OpenVerdict((), False, False, "judge 응답 파싱 실패"), False
     try:
         data = json.loads(match.group(0))
     except json.JSONDecodeError:
-        return OpenVerdict(False, False, False, "judge 응답 파싱 실패")
+        return OpenVerdict((), False, False, "judge 응답 파싱 실패"), False
+
+    n = data.get("n")
+    covered = data.get("covered")
+    n_ok = isinstance(n, int) and not isinstance(n, bool) and n == len(points)
+    length_ok = isinstance(covered, list) and len(covered) == len(points)
+    if not (n_ok and length_ok):
+        got_n = n if isinstance(n, int) and not isinstance(n, bool) else "없음"
+        got_len = len(covered) if isinstance(covered, list) else "없음"
+        return OpenVerdict(
+            (), False, False,
+            f"judge 요점 판정 길이 불일치 (n={got_n} · 배열 길이={got_len} · "
+            f"요점 {len(points)})"), False
 
     return OpenVerdict(
-        covers_key_points=bool(data.get("covers_key_points")),
+        covered=tuple(bool(c) for c in covered),
         grounded=bool(data.get("grounded")),
         no_fabrication=bool(data.get("no_fabrication")),
         reason=str(data.get("reason", "")),
-    )
+    ), True
+
+
+def judge_open(question: str, evidence: str, key_points: list[str] | None,
+               answer: str, budget: Budget | None = None) -> OpenVerdict:
+    """Score an open-ended answer. Up to two LLM calls; closed questions are
+    scored by normalised exact match and never reach here.
+
+    A parse failure or a count mismatch (the `covered` array length, or the
+    `n` field the judge commits to) is a scoring failure rather than a wrong
+    answer: `covered` is emptied, both remaining axes are set false, and the
+    reason records what happened. Padding a short array would turn that into a
+    wrong answer, which is deliberately never done.
+
+    A scoring failure on the first attempt is retried once, with the
+    identical messages. Measurement found two shapes of failure: 9 of 15
+    affected questions failed all three independently sampled rounds -- a
+    systematic segmentation defect a retry cannot fix, which is what the
+    literal point count and the `n` field above are for -- while the other 6
+    failed only one round of three, which reads as ordinary sampling noise
+    that one retry is cheap insurance against. A failure that survives the
+    retry is still returned as a failure.
+
+    The retry bypasses the request cache (`no_cache`). Both calls are
+    byte-identical at temperature 0, and outside tests a cache keyed on
+    (url, body) would otherwise hand the retry back the very same mismatched
+    response instead of a fresh draw -- the same reason
+    `pipeline._self_consistent` bypasses it for its own repeated calls.
+    """
+    points = list(key_points or [])
+    messages = build_open_judge_messages(question, evidence, key_points, answer)
+
+    verdict, ok = _open_judge_attempt(messages, points, budget)
+    if ok:
+        return verdict
+    with no_cache():
+        verdict, _ok = _open_judge_attempt(messages, points, budget)
+    return verdict

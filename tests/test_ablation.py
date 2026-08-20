@@ -375,9 +375,22 @@ def test_default_arm_is_the_submission_configuration():
 
     이 값을 바꾸면 **평가 서버도 다시 배포해야 한다**. `api/server.py` 는 arm 을
     지정하지 않으므로 이것이 곧 주최측이 받는 답변의 구성이다.
+
+    **2026-08-20, v8: A43 -> A49.** Strict judge, 112 questions, three local
+    rounds: A43 105.105.105 -> A48 (v8's seven flags) 110.110.110 -> A49
+    (+ `false_premise_gate`) 110.110.110. `A48` and `A49` tie -- in this
+    sample `A48` already passed `S-007`/`S-010` in all three rounds, so the
+    gate had no room to move the score. **The adoption rests on stability,
+    not score**: `A43` had three questions whose verdict flipped between
+    rounds, `A49` has zero, and the two targeted questions' answer-length
+    spread collapses from 84/622 characters to zero (the gate returns fixed
+    text, no generation). `A50` (+ `refusal_compaction`) dropped to 108 and
+    was rejected -- the gate already refuses both target questions before
+    generation runs, so the compaction never gets a chance to fire on
+    them. See docs/design-rationale.md#operational-default-history
     """
-    assert ablation.current() == ablation.A43
-    assert ablation.current().name == "A43"
+    assert ablation.current() == ablation.A49
+    assert ablation.current().name == "A49"
     # v5 정확성 개선 둘. 성적은 안 움직이고 규약 「정확성」 축만 움직인다.
     assert ablation.current().fix_unit_parens is True
     assert ablation.current().counterparty_exempt is True
@@ -399,6 +412,18 @@ def test_default_arm_is_the_submission_configuration():
     # v7 promotion, A42 -> A43. Three-round minimum 102 -> 107, flipping
     #    questions 9 -> 3. See docs/design-rationale.md#operational-default-history
     assert ablation.current().unit_line is True
+    # v8 promotion, A43 -> A49 (2026-08-20). Strict-judge three-round minimum
+    #    105 -> 110, flipping questions 3 -> 0. The eight flags below are
+    #    everything A49 turns on that A43 did not -- six inherited from A48
+    #    (measured together as v8's adoption candidate) plus
+    #    `false_premise_gate` (A49's own addition, adopted on stability
+    #    grounds: A48 already tied A49's score, so there is no score delta
+    #    behind this one -- see the module docstring above `ablation._current`).
+    #    See docs/design-rationale.md#operational-default-history
+    for flag in ("amount_coverage_gate", "counterparty_branch",
+                 "counterparty_relevance", "project_scope", "holding_series",
+                 "gap_repair", "external_referral_strip", "false_premise_gate"):
+        assert getattr(ablation.current(), flag) is True, flag
     # v5 가 켠 여덟 스위치. 하나라도 빠지면 잰 성적이 아니다.
     for flag in ("speculation_gate", "identifier_gate", "reverse_chain",
                  "aggregate_line", "substitute_aggregate", "substitute_verified",
@@ -2082,7 +2107,9 @@ def _stub_judge(monkeypatch, verdicts):
     def fake(question, evidence, key_points, answer, budget=None):
         mark = verdicts[min(len(calls), len(verdicts) - 1)]
         calls.append(answer)
-        return critic.OpenVerdict(mark, mark, mark, f"stub#{len(calls)}")
+        # `covered` is an array now. One covered point is a majority of one,
+        # so a True mark still reads as covered and a False one does not.
+        return critic.OpenVerdict((mark,), mark, mark, f"stub#{len(calls)}")
 
     monkeypatch.setattr(critic, "judge_open", fake)
     return calls
@@ -2294,6 +2321,76 @@ def test_judge_sigma_restores_the_canonical_judge_directory(tmp_path, monkeypatc
 
     runner.judge_sigma("A8", cases, {}, cohort="valuechain")
     assert ea.JUDGE_DIR == base / "judge"
+
+
+def test_judge_sigma_field_agreement_catches_a_covered_array_flip(tmp_path, monkeypatch):
+    """A per-point flip on `covered` must be visible to the field-agreement
+    check even when the rolled-up `correct` mark agrees across rounds.
+
+    `covered` is a list, not a scalar. Casting it through `bool()` before
+    comparing rounds collapses any non-empty list to `True`, so two rounds
+    with genuinely different per-point verdicts ([True, False, True] vs
+    [True, True, True]) used to read as agreed on that axis -- the exact
+    per-point flip this task exists to surface was invisible to the one tool
+    built to catch judge instability (`fields_agreed` / `split_fields_only`).
+    """
+    from scripts import ablation as runner
+
+    monkeypatch.setattr(runner, "OUT_DIR", tmp_path)
+    base = tmp_path / "A8"
+    cases = [dict(_OPEN_CASE, question_id="Q-901")]
+    _seed_response(base, "Q-901")
+
+    def _put(folder: _Path, qid: str, covered: list, tag: str) -> None:
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{qid}.json").write_text(json.dumps({
+            "question_id": qid, "correct": True, "covered": covered,
+            "covers_key_points": True, "grounded": True, "no_fabrication": True,
+            "reason": tag}), encoding="utf-8")
+
+    # Same rolled-up `correct` mark both rounds, but the per-point array
+    # actually flips on the middle point.
+    _put(base / runner.JUDGE_REPEAT_DIRNAME / "round_1", "Q-901",
+         [True, False, True], "r1")
+    _put(base / runner.JUDGE_REPEAT_DIRNAME / "round_2", "Q-901",
+         [True, True, True], "r2")
+
+    out = runner.judge_sigma("A8", cases, {}, cohort="valuechain")
+
+    assert out["questions"]["Q-901"]["agreed"] is True          # `correct` agrees
+    assert out["questions"]["Q-901"]["fields_agreed"] is False  # `covered` does not
+    assert out["split_questions"] == []             # never split on `correct`
+    assert out["split_fields_only"] == ["Q-901"]     # but the axis flip is caught
+
+
+def test_judge_sigma_handles_old_format_judge_files_without_covered(tmp_path, monkeypatch):
+    """A judge file written before this task carries no `covered` key at all
+    (`error_analysis.py`'s own backward-compat guard is `if k in judged`).
+    Re-scoring an older artifact folder must not raise, and an axis missing
+    from every round is trivially uniform -- there is no evidence of a flip --
+    so it must not be reported as a disagreement either."""
+    from scripts import ablation as runner
+
+    monkeypatch.setattr(runner, "OUT_DIR", tmp_path)
+    base = tmp_path / "A8"
+    cases = [dict(_OPEN_CASE, question_id="Q-901")]
+    _seed_response(base, "Q-901")
+
+    def _put(folder: _Path, qid: str, tag: str) -> None:
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{qid}.json").write_text(json.dumps({
+            "question_id": qid, "correct": True,          # no "covered" key
+            "covers_key_points": True, "grounded": True, "no_fabrication": True,
+            "reason": tag}), encoding="utf-8")
+
+    _put(base / runner.JUDGE_REPEAT_DIRNAME / "round_1", "Q-901", "r1")
+    _put(base / runner.JUDGE_REPEAT_DIRNAME / "round_2", "Q-901", "r2")
+
+    out = runner.judge_sigma("A8", cases, {}, cohort="valuechain")  # must not raise
+
+    assert out["questions"]["Q-901"]["fields"]["covered"] == [None, None]
+    assert out["questions"]["Q-901"]["fields_agreed"] is True
+    assert out["split_fields_only"] == []
 
 
 def test_the_arm_without_repeat_rounds_has_nothing_to_measure(tmp_path, monkeypatch):
@@ -2660,7 +2757,10 @@ def test_v7_4_turns_on_only_the_unit_line():
 
 
 def test_a44_turns_on_only_the_amount_coverage_gate():
-    """`A44` = `A43`(운영 기본값) + `amount_coverage_gate` 하나. 기본값은 그대로 `A43`이다.
+    """`A44` = `A43` + `amount_coverage_gate` alone, measured relative to
+    `A43` specifically (not the live operational default, which moved past
+    `A43` in the v8 promotion -- `amount_coverage_gate` is in fact one of
+    the flags the v8 arm turns on, inherited from `A46`).
     See docs/design-rationale.md#amount-coverage
     """
     diff = [f for f in FLAGS
@@ -2671,10 +2771,13 @@ def test_a44_turns_on_only_the_amount_coverage_gate():
     assert "A44" in ablation.SIDE_ARMS
     assert "A44" not in ablation.LADDER and "A44" not in ablation.LOO_REMOVED
     assert "A44" in ablation.RUN_ORDER
-    # The default arm is untouched: resetting the switches still reproduces
-    # `A43` exactly, not `A44`.
-    assert ablation.current() == ablation.A43
-    assert ablation.current().amount_coverage_gate is False
+    # The operational default moved past `A43` (see
+    # `test_default_arm_is_the_submission_configuration`), and the v8 arm it
+    # moved to carries `amount_coverage_gate` on -- inherited from `A46`, not
+    # set by `A44` itself. `A44` stays a side arm measured against `A43`; it
+    # is not, and was never meant to be, the operational default.
+    assert ablation.current() != ablation.A43
+    assert ablation.current().amount_coverage_gate is True
 
 
 def test_amount_coverage_gate_is_unreachable_without_the_verifier():
@@ -2687,7 +2790,10 @@ def test_amount_coverage_gate_is_unreachable_without_the_verifier():
 
 
 def test_a45_turns_on_only_the_counterparty_branch():
-    """`A45` = `A43`(운영 기본값) + `counterparty_branch` 하나. 기본값은 그대로 `A43`이다.
+    """`A45` = `A43` + `counterparty_branch` alone, measured relative to `A43`
+    specifically (not the live operational default, which moved past `A43` in
+    the v8 promotion -- `counterparty_branch` is in fact one of the flags the
+    v8 arm turns on, inherited from `A46`).
     See docs/design-rationale.md#counterparty-branch
     """
     diff = [f for f in FLAGS
@@ -2698,10 +2804,13 @@ def test_a45_turns_on_only_the_counterparty_branch():
     assert "A45" in ablation.SIDE_ARMS
     assert "A45" not in ablation.LADDER and "A45" not in ablation.LOO_REMOVED
     assert "A45" in ablation.RUN_ORDER
-    # The default arm is untouched: resetting the switches still reproduces
-    # `A43` exactly, not `A45`.
-    assert ablation.current() == ablation.A43
-    assert ablation.current().counterparty_branch is False
+    # The operational default moved past `A43` (see
+    # `test_default_arm_is_the_submission_configuration`), and the v8 arm it
+    # moved to carries `counterparty_branch` on -- inherited from `A46`, not
+    # set by `A45` itself. `A45` stays a side arm measured against `A43`; it
+    # is not, and was never meant to be, the operational default.
+    assert ablation.current() != ablation.A43
+    assert ablation.current().counterparty_branch is True
 
 
 def test_counterparty_branch_is_unreachable_without_the_hop_ladder():
@@ -3065,3 +3174,198 @@ def test_every_gate_section_is_reachable_from_the_real_v2_artifacts():
         assert heading in text, f"{heading} 절이 사라졌다"
     # 두 번 렌더해도 같은 문서다. 절 함수가 공용 상태를 고치면 여기서 갈린다.
     assert text == runner.render_gate(root, budget_cap=runner.BUDGET_WON)
+
+
+def test_the_dry_stub_judge_response_has_a_covered_array_sized_to_the_points(
+        monkeypatch):
+    """The `--dry` rehearsal judge branch used to return
+    `{"covers_key_points":1,...}` with no `covered` key at all. After Task 1's
+    per-point judge, that shape has no `covered` array, so every open
+    question in a rehearsal fell into the length-mismatch scoring-failure
+    branch — a rehearsal would read as total judge breakage.
+
+    This drives the stub's raw output through the real `critic.judge_open`
+    parsing path (via a stubbed `chat`) instead of re-implementing the
+    parsing rules here, so the assertion is about the actual consumer.
+    """
+    from argus import clova
+    from argus.agent import critic, prompts
+    from scripts import ablation as runner
+
+    # install_dry_stub assigns clova._post directly (it does not go through
+    # monkeypatch itself). Recording the current value here means teardown
+    # restores it regardless of what install_dry_stub does to the attribute
+    # afterward, so the stub cannot leak into a later test.
+    monkeypatch.setattr(clova, "_post", clova._post)
+    runner.install_dry_stub()
+
+    points = ["첫째", "둘째", "셋째"]
+    messages = prompts.build_open_judge_messages("질문", "근거", points, "답변")
+    _status, payload, _latency = clova._post(
+        "https://x/chat", {}, {"messages": messages})
+    text = payload["result"]["message"]["content"]
+
+    class _Result:
+        def __init__(self, text):
+            self.text = text
+            self.prompt_tokens = 0
+            self.completion_tokens = 0
+
+    monkeypatch.setattr(critic, "chat", lambda *a, **k: _Result(text))
+    verdict = critic.judge_open("질문", "근거", points, "답변")
+
+    # A scoring failure is `covered == ()`. The point of the fix is that the
+    # stub's array length tracks the golden point count instead.
+    assert len(verdict.covered) == len(points)
+    assert verdict.covered == (True, True, True)
+
+
+def test_dry_point_count_reads_the_numbered_list_back_out_of_the_prompt():
+    """Unit-level check on the counting helper itself, independent of the
+    stub wiring above."""
+    from argus.agent import prompts
+    from scripts import ablation as runner
+
+    messages = prompts.build_open_judge_messages(
+        "질문", "근거", ["첫째", "둘째", "셋째"], "답변")
+    assert runner._dry_point_count({"messages": messages}) == 3
+
+    # No key points at all still counts as 1 rather than 0 — `judge_open`
+    # scores an empty golden set as a failure either way, and a 0-length
+    # stub array would be an odd, unused shape to emit.
+    empty = prompts.build_open_judge_messages("질문", "근거", [], "답변")
+    assert runner._dry_point_count({"messages": empty}) == 1
+
+
+# --- v8 arms: A46 and the five arms built on it ------------------------------
+# A prior campaign lost nine of eighteen measurement runs to arms that were
+# designed but never registered. This section is the guard that produced.
+
+def test_v8_arms_are_registered_and_each_is_one_flag_from_its_neighbour():
+    """Presence alone would still pass if an arm inherited a flag from the
+    wrong base or `replace()` carried along an extra one, so every arm below
+    is also checked against its neighbour by the *exact* set of flags that
+    differ, not just "is this flag True" (which a stray extra flag would
+    still satisfy).
+
+    `V8-1` and `A48` include `counterparty_relevance` alongside
+    `project_scope`, correcting the original plan: measured on Q-107 after
+    the index rebuild, `project_scope` alone turns a silence into a
+    confidently wrong total (see the comment on
+    `ablation.FLAG_DEPENDENCIES["counterparty_relevance"]`), so the plan that
+    dropped it was wrong and the spec that required both is the authority.
+    """
+    from argus import ablation as ab
+
+    for name in ("A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48"):
+        assert name in ab.ARMS, name
+        assert name in ab.RUN_ORDER, name
+
+    a43, a46 = ab.flags("A43"), ab.flags("A46")
+    assert {f for f in a46 if a46[f] != a43[f]} == {
+        "amount_coverage_gate", "counterparty_branch"}
+    assert a46["unit_line"] is True                     # inherited from A43, not set here
+
+    v81 = ab.flags("V8-1")
+    assert {f for f in v81 if v81[f] != a46[f]} == {
+        "counterparty_relevance", "project_scope"}, (
+        "V8-1 must add both flags together — project_scope alone is the "
+        "wrong-answer combination FLAG_DEPENDENCIES forbids")
+
+    v82 = ab.flags("V8-2")
+    assert {f for f in v82 if v82[f] != a46[f]} == {"holding_series"}
+
+    v83 = ab.flags("V8-3")
+    assert {f for f in v83 if v83[f] != v82[f]} == {"gap_repair"}, (
+        "V8-3 must be exactly one flag from V8-2 so the delta between them "
+        "reads as the repair's contribution alone")
+
+    v84 = ab.flags("V8-4")
+    assert {f for f in v84 if v84[f] != a46[f]} == {"external_referral_strip"}
+
+    a48 = ab.flags("A48")
+    assert {f for f in a48 if a48[f] != a46[f]} == {
+        "counterparty_relevance", "project_scope", "holding_series",
+        "gap_repair", "external_referral_strip"}
+
+
+def test_a47_is_not_registered():
+    """`A47` already labels a second draw of the `A46` configuration in
+    `artifacts/ablation/v7/` and `docs/open-issues.md`. Reusing it would
+    change what that record means."""
+    from argus import ablation as ab
+
+    assert "A47" not in ab.ARMS
+
+
+def test_the_operational_default_has_moved_to_a49():
+    """The measurement landed 2026-08-20 (see
+    docs/design-rationale.md#operational-default-history): `A49` replaces
+    `A43`. This test used to pin the pre-promotion value under a name that
+    said so (`..._is_still_a43_until_the_measurement_lands`) -- renamed
+    rather than left to read as still true once it wasn't.
+    """
+    from argus import ablation as ab
+
+    assert ab.current().name == "A49"
+
+
+def test_project_scope_cannot_be_enabled_without_counterparty_relevance():
+    """Measurement-established dependency, the second of its kind (see the
+    `FLAG_DEPENDENCIES` module docstring, and the comment on the
+    `counterparty_relevance` entry itself for the Q-107 numbers).
+
+    `project_scope` is not code-gated by `counterparty_relevance`: it runs
+    either way. What was measured is that without `counterparty_relevance`,
+    one of Q-107's three golden filings never reaches the evidence cap, so
+    `project_scope` narrows a set that is already missing a record and
+    reports a confidently wrong total instead of the silence `A43` alone
+    produces. `__post_init__` has to refuse to construct that arm at all, the
+    same way it already refuses `hop_ladder=False, counterparty_branch=True`.
+    """
+    from dataclasses import replace
+
+    from argus import ablation as ab
+
+    assert "project_scope" in ab.FLAG_DEPENDENCIES["counterparty_relevance"]
+
+    with pytest.raises(ValueError, match="counterparty_relevance"):
+        replace(ab.A46, name="V8-1-broken", project_scope=True)
+
+    # Turning both on together is fine — this is the actually-registered arm.
+    replace(ab.A46, name="V8-1-check", counterparty_relevance=True,
+            project_scope=True)
+
+
+# --- A49 / A50: the two `df5e1821` safety mechanisms, measured next ---------
+# Same guard as the v8 block above: presence alone would still pass if an arm
+# inherited a flag from the wrong base, so each is also checked by the exact
+# set of flags that differ from its neighbour.
+
+def test_a49_and_a50_are_registered_and_isolate_the_compaction_delta():
+    """`A49` is `A48` plus `false_premise_gate` alone. `A50` is `A49` plus
+    `refusal_compaction` alone — one flag apart on purpose, so the
+    measurement run right after this registration reads the compaction's
+    own contribution in isolation from the gate's, rather than the two
+    mixed together.
+    """
+    from argus import ablation as ab
+
+    for name in ("A49", "A50"):
+        assert name in ab.ARMS, name
+        assert name in ab.RUN_ORDER, name
+
+    a48, a49, a50 = ab.flags("A48"), ab.flags("A49"), ab.flags("A50")
+    assert {f for f in a49 if a49[f] != a48[f]} == {"false_premise_gate"}
+    assert {f for f in a50 if a50[f] != a49[f]} == {"refusal_compaction"}, (
+        "A50 must be exactly one flag from A49 so the delta between them "
+        "reads as the compaction's contribution alone")
+
+
+def test_a43_and_a48_leave_both_new_flags_off():
+    """Neither operational-default candidate turns on a mechanism this
+    campaign only just registered for measurement."""
+    from argus import ablation as ab
+
+    assert ab.A43.false_premise_gate is False and ab.A43.refusal_compaction is False
+    assert ab.A48.false_premise_gate is False and ab.A48.refusal_compaction is False

@@ -201,6 +201,28 @@ class RequestCache:
         return ea.cost_won(self.fresh_prompt, self.fresh_completion)
 
 
+def _dry_point_count(body: dict) -> int:
+    """리허설 판정이 낼 요점 배열의 길이.
+
+    판정기가 골든 요점 수와 같은 길이를 요구하므로(`critic.judge_open`),
+    프롬프트에 실린 번호 목록을 되읽어 맞춘다. 안 맞추면 개방형 전 문항이
+    채점 실패로 떨어지고, 그것이 판정기 고장으로 읽힌다.
+
+    **`user` 메시지만 본다.** `SYSTEM_OPEN_JUDGE` 자체가 `covered` 필드를
+    설명하며 "[모범답안 요소]" 표지를 문장 안에서 그대로 인용한다. system
+    메시지까지 훑으면 그 설명문에 먼저 걸려 실제 번호 목록(user 메시지)에
+    닿기도 전에 0건으로 되돌아간다(`or 1` 로 항상 1이 나온다).
+    """
+    for message in body.get("messages") or []:
+        if message.get("role") != "user":
+            continue
+        content = str(message.get("content") or "")
+        if "[모범답안 요소]" in content:
+            block = content.split("[모범답안 요소]", 1)[1].split("[제출답변]", 1)[0]
+            return len(re.findall(r"^\s*\d+\.\s", block, re.MULTILINE)) or 1
+    return 1
+
+
 def install_dry_stub() -> None:
     """LLM 0회 리허설. 검색·성형·검증의 arm 차이만 본다. 크레딧 0원."""
     from argus import clova
@@ -210,7 +232,14 @@ def install_dry_stub() -> None:
                 if "critic" not in json.dumps(body)[:200] else
                 '{"supported":true,"has_citation":true,"hallucination":false,"reason":"dry"}')
         if "심사자" in json.dumps(body, ensure_ascii=False)[:2000]:
-            text = ('{"covers_key_points":1,"grounded":1,"no_fabrication":1,"reason":"dry"}')
+            # `critic.judge_open` now validates `n` against the golden point
+            # count independently of the `covered` array length (this task).
+            # Without `n` here the stub's response would fail that check on
+            # every open question in a rehearsal, which is exactly the
+            # all-judging-broken false alarm this stub exists to avoid.
+            n = _dry_point_count(body)
+            text = ('{"n":%d,"covered":%s,"grounded":1,"no_fabrication":1,"reason":"dry"}'
+                    % (n, json.dumps([1] * n)))
         return 200, {"result": {"message": {"content": text},
                                 "usage": {"promptTokens": 0, "completionTokens": 0},
                                 "finishReason": "stop"}}, 0.0
@@ -950,7 +979,22 @@ def score_arm(arm: str, cases: list[dict], records: dict, cohort: str = "") -> d
 # 표준편차를 표(Table 6·7·8)로 내는 것과 같은 이유이고 같은 방법이다.
 
 #: 판정을 이루는 세 축. `correct` 는 셋의 AND 다 (`critic.OpenVerdict.correct`).
-JUDGE_FIELDS = ("covers_key_points", "grounded", "no_fabrication")
+#: `covered` 는 요점별 판정 배열이고, `covers_key_points` 는 그 과반 초과다.
+JUDGE_FIELDS = ("covered", "covers_key_points", "grounded", "no_fabrication")
+
+
+def _judge_field_repr(value):
+    """`judge_sigma` 의 회차간 일치 비교에 쓰는 hashable 표현.
+
+    `covered` 는 스칼라가 아니라 리스트다. `bool(value)` 하나로 두면 비어 있지
+    않은 리스트는 전부 `True` 로 뭉개져서, 회차마다 요점 판정이 다르게 갈려도
+    (`[True, False, True]` 대 `[True, True, True]`) 그 차이가 `set()` 비교
+    이전에 사라진다. 리스트는 내용 그대로 튜플로, 스칼라는 종전대로 bool 로
+    비교한다.
+    """
+    if isinstance(value, list):
+        return tuple(bool(x) for x in value)
+    return bool(value)
 
 
 def _short(path: Path) -> str:
@@ -1031,7 +1075,17 @@ def judge_sigma(arm: str, cases: list[dict], records: dict,
         if not any(got):
             continue                       # 회차가 하나도 없는 문항 (예산 제동 뒤)
         marks = [None if v is None else bool(v["correct"]) for v in got]
-        fields = {f: [None if v is None else bool(v[f]) for v in got]
+        # `v[f]` 를 곧이곧대로 못 쓰는 이유가 둘이다. ① `covered` 는 이번에 더한
+        #    축이라 이전 판에 저장된 회차 파일에는 키 자체가 없다 — `v[f]` 로 두면
+        #    옛 산출물을 재는 순간 KeyError 로 죽는다(`f not in v` 로 없음을 가린다).
+        #    ② `covered` 는 스칼라가 아니라 리스트다 — `bool(v[f])` 로 뭉개면 요점별
+        #    판정이 회차마다 다르게 갈려도(`[True,False,True]` 대 `[True,True,True]`)
+        #    비어 있지 않은 리스트는 전부 True 로 같아져 그 차이가 사라진다
+        #    (`_judge_field_repr` 가 리스트는 내용으로, 스칼라는 종전대로 bool 로
+        #    비교 가능한 형태를 돌려준다). `None` 은 어느 쪽과도 같지 않으므로
+        #    "값이 없다" 가 "값이 거짓이다" 로 잘못 읽히지 않는다.
+        fields = {f: [None if v is None or f not in v else _judge_field_repr(v[f])
+                      for v in got]
                   for f in JUDGE_FIELDS}
         base = baseline.get(qid)
         agreed = len(set(marks)) == 1

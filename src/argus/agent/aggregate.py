@@ -102,6 +102,47 @@ MIN_SUBSTITUTE_AMOUNT = 100_000_000
 #: counterparty axis, which does not.
 _DATE_NOTE = "공시분"
 
+#: Marker recording that a project filter applied. Read by `_sum_rows` the
+#: same way `_DATE_NOTE` is: both pin the set, where the counterparty axis on
+#: its own does not.
+_PROJECT_NOTE = "사업분"
+
+#: Separators inside a supply-region field: `체코 남부 Dukovany Site`.
+_REGION_SPLIT = re.compile(r"[\s,·/]+")
+
+#: Shortest usable project token. One character matches far too much; two is
+#: the length of `체코`, the token Q-107 turns on.
+MIN_PROJECT_TOKEN = 2
+
+
+def _project_token(picked: list[dict], question: str) -> str:
+    """The project the question names, read from the evidence, or "".
+
+    The vocabulary is not guessed. A token counts only when it appears in a
+    `supply_region` the evidence actually carries AND in the question, so the
+    corpus supplies the terms and the question selects among them. This is why
+    the axis needs the rebuilt index: before it, no record carries the field
+    and this function has nothing to read.
+
+    The longest hit wins, because a more specific place name is a tighter
+    filter than the country containing it. Ties are broken by codepoint
+    order rather than left to `max`'s first-seen behaviour: `tokens` is
+    built from a `set`, whose iteration order depends on `PYTHONHASHSEED`,
+    so two equal-length hits without a secondary key would make the winner
+    (and therefore the total downstream) change across process restarts with
+    no error raised. A measurement pipeline cannot tolerate that.
+    See docs/design-rationale.md#project-scope
+    """
+    tokens: set[str] = set()
+    for record in picked or []:
+        for token in _REGION_SPLIT.split(str(record.get("supply_region") or "")):
+            if len(token) >= MIN_PROJECT_TOKEN:
+                tokens.add(token)
+    hits = [t for t in tokens if t in (question or "")]
+    if not hits:
+        return ""
+    return sorted(hits, key=lambda t: (-len(t), t))[0]
+
 
 def substitute(answer: str, records, question: str, route) -> tuple[str, str]:
     """Replace a single incorrect total in the answer with the computed value.
@@ -220,6 +261,155 @@ def _ymd(record: dict) -> str:
     return f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}" if len(raw) >= 8 else raw
 
 
+#: Firing words for the holding-ratio series. A separate tuple from
+#: `_SERIES_ASK`: widening that one to catch Q-106's "어떻게 변해 왔는지" would
+#: move `revision_series`'s firing range too, and that function's behaviour is
+#: already measured. This tuple can stay loose because the record condition
+#: below — two or more holding filings by one reporter — is the strong half of
+#: the premise.
+#: See docs/design-rationale.md#holding-series
+_HOLDING_ASK = ("추이", "변해", "변화", "변동", "바뀌", "시간순", "시계열", "어떻게 변")
+
+
+def _ratio_of(record: dict):
+    """This filing's holding ratio as a float, or None."""
+    value = record.get("ratio_current")
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+#: Filings shown verbatim before the line elides the middle of a chain.
+#:
+#: Chosen from the corpus-wide distribution of (reporter, issuer) filing
+#: counts (measured 2026-08-19): 174 pairs exist, 132 of them with two or
+#: more filings — a pair with exactly one can never reach this function at
+#: all, since the firing gate itself requires two. Counts 2 through 10 cover
+#: 115 of those 132 (87%). The tail runs to 79 (에코프로 -> 에코프로비엠, the
+#: single largest pair). A cap of 10 therefore shows the large majority of
+#: pairs that can ever fire this line in full — the elision path exists for
+#: the long tail alone, and it must say what it elided rather than look like
+#: the whole chain.
+#: See docs/design-rationale.md#holding-series
+HOLDING_SERIES_CAP = 10
+
+
+def holding_series(records, question: str, chain_lookup=None) -> str:
+    """Lay out one reporter's holding ratios in filing order, as one line.
+
+    No LLM call and no retrieval. Returns "" when the question does not ask
+    for a history or the records do not carry a series.
+
+    The same move `revision_series` makes for a revision chain's amounts, with
+    two differences: the grouping axis is the reporter rather than the chain,
+    and the value is `ratio_current` rather than `amount`. The reporter filter
+    is load-bearing — the same window holds other reporters' filings on the
+    same issuer, and splicing them produces a series that never happened.
+
+    `records` still decides *whether* the line fires and *which* reporter and
+    issuer it is about: the top-ranked evidence record's reporter and issuer,
+    the same rule `revision_series` uses for chains, and at least two records
+    for that exact (reporter, issuer) pair have to be present in the evidence
+    — that firing condition is measured behaviour and does not change here.
+    Both fields pin `evidence_chain`, not the reporter alone: a reporter files
+    holding reports on several issuers, and a chain matched on reporter only
+    would count another issuer's filings toward the two-or-more gate and
+    (see below) could let them into the line itself.
+
+    What changed (R22, 2026-08-18 measurement): the *values* the line reports
+    no longer come from `records`. A run of Q-106 handed this function only 2
+    of the reporter's 6 real filings on the one issuer the question asked
+    about — retrieval's evidence window, not the reporter's actual history —
+    and the function computed a perfectly correct three-filing series over
+    them, stating a false cumulative with the same confidence a correct one
+    would carry. The judge scored it `grounded=True`, because the false
+    statement *was* grounded, in our own line. A confidently wrong series is
+    worse than the question going unanswered.
+
+    `chain_lookup(reporter, corp_name) -> list[dict]` is the fix: when given,
+    it is asked for the reporter's whole history on that one issuer from the
+    corpus, the same move `tools.corp_number_line` makes for a
+    registration-number row — read the source directly rather than trust the
+    evidence window to carry what is needed. `pipeline.answer_question`
+    always passes `tools.holding_chain`; see
+    `tests/test_evidence_line_wiring.py`. The fetched chain is preferred
+    whenever it is non-empty, never by comparing lengths against
+    `evidence_chain`: an R22 follow-up review found that with both sides
+    pinned to reporter *and* issuer, `chain_lookup`'s result is a superset of
+    `evidence_chain` by construction (every evidence record survived
+    `tools._record_of` against the same corpus `chain_lookup` scans, matched
+    on the same two fields, so it must appear in what the scan returns too) —
+    the earlier length comparison was not protecting against a case that can
+    happen with correct pinning, it was quietly compensating for the missing
+    issuer pin, and kept as-is it would have reopened the identical
+    padded-evidence path as soon as anything else about the pinning changed.
+    `chain_lookup=None` keeps the pre-fix behaviour — reading only
+    `records` — for a caller with no corpus access; production is never such
+    a caller.
+
+    The cumulative is computed from the true first and last of that chain, so
+    it is correct regardless of how many intermediate filings restated the
+    same ratio unchanged (Q-106's corpus chain has two such steps the golden
+    answer itself does not narrate). The steps listed are capped at
+    `HOLDING_SERIES_CAP`: past it, the true ends are kept and the middle is
+    elided with a stated count, never silently dropped — sacrificing the
+    completeness of the *listing* is acceptable, implying a completeness the
+    line does not have is exactly the defect this fixes.
+    See docs/design-rationale.md#holding-series
+    """
+    if not any(h in (question or "") for h in _HOLDING_ASK):
+        return ""
+    rows = [r for r in (records or []) if _ratio_of(r) is not None]
+    if len(rows) < 2:
+        return ""
+    reporter = str(rows[0].get("reporter") or "")
+    corp_name = str(rows[0].get("corp_name") or "")
+    evidence_chain = [r for r in rows if str(r.get("reporter") or "") == reporter
+                      and str(r.get("corp_name") or "") == corp_name]
+    if len(evidence_chain) < 2:
+        return ""
+
+    chain = evidence_chain
+    if chain_lookup is not None and reporter and corp_name:
+        fetched = [r for r in (chain_lookup(reporter, corp_name) or ())
+                   if _ratio_of(r) is not None]
+        if fetched:
+            chain = fetched
+    chain = sorted(chain, key=lambda r: (str(r.get("rcept_dt", "")), r.get("rcept_no", "")))
+
+    total = len(chain)
+    if total > HOLDING_SERIES_CAP:
+        shown = chain[:HOLDING_SERIES_CAP - 1] + chain[-1:]
+        elided = total - len(shown)
+    else:
+        shown, elided = chain, 0
+    ends = {chain[0].get("rcept_no"), chain[-1].get("rcept_no")}
+
+    steps = []
+    for record in shown:
+        shares = str(record.get("shares_current") or "")
+        # Share counts only at the ends of the *true* chain (`ends`), not of
+        # `shown`, which is a truncated view once the chain exceeds the cap.
+        # Golden points 1 and 5 are the first and last counts; carrying every
+        # intermediate one doubles the line length for values the question
+        # did not ask about.
+        tail = f" ({shares}주)" if shares and record.get("rcept_no") in ends else ""
+        steps.append(f"{_ymd(record)} {_ratio_of(record):.2f}%{tail}")
+    if elided:
+        # Inserted just before the final step, the position the elided
+        # filings actually occupy: between the last one shown and the true
+        # last one.
+        steps.insert(len(steps) - 1, f"(그 사이 {elided}건 생략)")
+
+    moved = _ratio_of(chain[0]) - _ratio_of(chain[-1])
+    count_note = f"{total}건" if not elided else f"{total}건 중 {len(shown)}건 표시"
+    return (f"- [결정적 집계] {reporter} 보고 보유비율 추이 ({count_note}): "
+            f"{' → '.join(steps)} · 누적 {-moved:+.2f}%p "
+            f"(이 값은 시스템이 위 근거의 비율 필드에서 직접 읽은 것이다. "
+            f"답변의 해당 수치는 이 값을 그대로 쓴다.)")
+
+
 #: Upper bound on counterparties carried in the distribution line. A separate
 #: axis from `MAX_ENUM_EVIDENCE`, which counts evidence blocks; this counts
 #: items inside one line. Eleven groups fit in roughly 120 characters.
@@ -266,6 +456,51 @@ def _subject(event: dict) -> str:
 MAX_SUBJECT_CHARS = 44
 
 
+#: Representative contracts carried per counterparty. The supplier branch
+#: carries three: one golden point needs the two contracts of a single
+#: project (Dukovany) visible together, and a second needs a project that is
+#: distinct but not most recent — measured on Q-117, 두산에너빌리티 filed one
+#: project (신고리) four times and another (신한울) once, with 신한울 fifth by
+#: recency. `_branch_entry` dedupes by subject before this cap is applied, so
+#: the cap only has to reach as many *distinct* projects as a counterparty
+#: has, not as many filings; three is what it takes to reach 신고리, 두코바니
+#: and 신한울 among 두산에너빌리티's real filings. The orderer branch carries
+#: one each, because there the point is the list of names.
+#: See docs/design-rationale.md#counterparty-branch
+MAX_BRANCH_CONTRACTS_SUPPLIER = 3
+MAX_BRANCH_CONTRACTS_ORDERER = 1
+
+
+def _branch_entry(name: str, events: list[dict], limit: int) -> str:
+    """One counterparty rendered as `name(contract amount · contract amount)`.
+
+    Falls back to the bare name when no record carries an amount. Nine of
+    Q-117's eleven counterparties are named for the list alone, and dropping
+    them because they lack a figure would lose the first golden point.
+
+    Priced records are deduplicated by contract subject (`_subject`) before
+    the cap is applied, keeping the first occurrence of each distinct
+    subject in the order `events` arrives in (newest first, per caller). A
+    repeated subject carries no information the first instance did not, and
+    left alone it can crowd a distinct, once-filed project out of the cap
+    entirely — the defect measured on Q-117's 두산에너빌리티 records.
+    """
+    priced = [e for e in (events or []) if _amount(e) is not None]
+    deduped: list[dict] = []
+    seen_subjects: set[str] = set()
+    for event in priced:
+        subject = _subject(event)
+        if subject in seen_subjects:
+            continue
+        seen_subjects.add(subject)
+        deduped.append(event)
+    priced = deduped[:limit]
+    if not priced:
+        return name
+    parts = [f"{_subject(e)} {_amount(e):,}원" for e in priced]
+    return f"{name}({' · '.join(parts)})"
+
+
 def counterparty_branch(groups: dict) -> str:
     """Emit a counterparty set split into two industry-term groups, as one
     line.
@@ -284,6 +519,15 @@ def counterparty_branch(groups: dict) -> str:
     groups in industry terms (an ordering client versus a supplier that
     re-ordered) rather than in terms of that predicate: naming the predicate
     itself leaked into an answer once. See docs/design-rationale.md#counterparty-branch
+
+    Each counterparty also carries its representative contract(s): a question
+    asking what the two branches *are* is answered by the contracts, not by
+    the company names alone. Contract titles and amounts are source values
+    copied out of the evidence, so carrying them into this line is the
+    intended behaviour — unlike the predicate name above, which leaked
+    verbatim into an answer once and stays out of this string. A counterparty
+    whose records carry no amount still renders as its bare name, so the
+    fallback used by every pre-existing caller of this function is preserved.
     """
     from argus.corpus.counterparty import classify
 
@@ -295,10 +539,17 @@ def counterparty_branch(groups: dict) -> str:
     outside = [n for n in order if n not in inside]
     if not inside or not outside:
         return ""
+    # Rationale for carrying contract content here (not just names) is in the
+    # docstring above; the two branches use different caps, see
+    # MAX_BRANCH_CONTRACTS_SUPPLIER / MAX_BRANCH_CONTRACTS_ORDERER.
+    outside_text = " · ".join(
+        _branch_entry(n, groups[n], MAX_BRANCH_CONTRACTS_ORDERER) for n in outside)
+    inside_text = " · ".join(
+        _branch_entry(n, groups[n], MAX_BRANCH_CONTRACTS_SUPPLIER) for n in inside)
     return (
         f"- [결정적 집계] 계약상대 {len(order)}곳이 두 갈래로 나뉜다: "
-        f"발주처 {len(outside)}곳 — {' · '.join(outside)} · "
-        f"공급사 재수주 {len(inside)}곳 — {' · '.join(inside)} "
+        f"발주처 {len(outside)}곳 — {outside_text} · "
+        f"공급사 재수주 {len(inside)}곳 — {inside_text} "
         f"(공급사 쪽도 스스로 공시 대상 상장사다)\n"
         f"  답변은 이 두 갈래로만 나누고 다른 축으로 다시 나누지 않는다."
     )
@@ -559,9 +810,9 @@ def select(records, question: str, route, op: str = "") -> tuple[list[dict], str
 
     Returns ([], "") when there is no target.
 
-    Two filter axes exist: filing year and counterparty. These are the two the
-    measured wrong answers required. Adding axes breaks uniqueness, and without
-    uniqueness this module has to stay silent.
+    Three filter axes exist: filing year, project and counterparty. These are
+    the ones the measured wrong answers required. Adding axes breaks
+    uniqueness, and without uniqueness this module has to stay silent.
     """
     picked = [r for r in (records or []) if _amount(r) is not None]
     if not picked:
@@ -585,6 +836,35 @@ def select(records, question: str, route, op: str = "") -> tuple[list[dict], str
         want = year.group(1)
         picked = [r for r in picked if str(r.get("rcept_dt", ""))[:4] == want]
         notes.append(f"{want}년 공시분")
+
+    # Project axis. `_sum_rows` recorded why this had to exist: a counterparty
+    # filter on its own does not pin the set, because a hub holds several
+    # contracts, and what such a question narrows is the project. Applied
+    # before the counterparty filter so that the note ordering reads
+    # project-then-party, which is the order the question states them in.
+    #
+    # A filter matching nothing is not applied, the same defence the
+    # counterparty axis carries: uniqueness is what lets this module speak,
+    # and an empty set is not uniqueness.
+    # See docs/design-rationale.md#project-scope
+    if ablation.enabled("project_scope"):
+        token = _project_token(picked, question)
+        if token:
+            narrowed = [r for r in picked
+                        if token in f"{r.get('title') or ''} "
+                                    f"{r.get('supply_region') or ''}"]
+            # `narrowed` cannot be empty today: `token` only ever comes from
+            # some record's own `supply_region` (that is `_project_token`'s
+            # sole vocabulary source), and the check just above re-tests that
+            # same `supply_region`, so that record always survives. The
+            # guard is kept anyway so that if the vocabulary source and this
+            # check ever diverge -- for instance if a token is later also
+            # drawn from `title` while this check still requires
+            # `supply_region` to carry it too -- the filter fails safe by
+            # reverting instead of silently emptying the set.
+            if narrowed:
+                picked = narrowed
+                notes.append(f"{token} {_PROJECT_NOTE}")
 
     party = getattr(route, "counterparty", None)
     if party:
@@ -637,8 +917,11 @@ def _sum_rows(picked: list[dict], question: str, note: str = ""):
         return rows[:stated] if len(rows) >= stated else None
     # A counterparty filter on its own does not pin the set, because a hub
     # holds several contracts and summing them all overshoots. What such a
-    # question narrows is the project, and that axis is not available here.
-    return rows if _DATE_NOTE in note else None
+    # question narrows is the project, and that axis now exists: with it
+    # applied the set is the one project's contracts, which is what the
+    # question asked for.
+    # See docs/design-rationale.md#project-scope
+    return rows if (_DATE_NOTE in note or _PROJECT_NOTE in note) else None
 
 
 def _latest_per_chain(records: list[dict]) -> list[dict]:
@@ -834,6 +1117,178 @@ def state_total(answer: str, records, question: str, route) -> tuple[str, str]:
     sentence = (f"\n\n따라서 질문이 물은 값은 {total:,}원이다. "
                 f"(이 값은 시스템이 위 근거의 금액 필드에서 직접 계산한 것이다.)")
     return body + sentence + tail, f"stated {total:,}"
+
+
+#: The decisive-line marker, written by every function in this module that
+#: places one. Single definition: the repair below finds lines by it, and a
+#: second copy would drift from the writers.
+DECISIVE_MARK = "- [결정적 집계]"
+
+#: Figures a decisive line has to carry before the repair considers it. Below
+#: this the line is a single value, which `substitute` and `state_total`
+#: already place without appending a sentence.
+GAP_REPAIR_MIN_FIGURES = 3
+
+#: Comma-grouped integers and percentages, the two figure shapes the decisive
+#: lines carry.
+_LINE_FIGURE = re.compile(r"\d{1,3}(?:,\d{3})+|\d+\.\d+\s*%")
+
+#: Trailing directives inside a decisive line. They instruct the model about
+#: the evidence; carried into an answer they are a leak of our own prompt.
+_LINE_DIRECTIVE = re.compile(
+    r"\((?:이 값은 시스템이|이는 시스템이)[^)]*\)|^\s+답변은 .*$", re.MULTILINE)
+
+#: Digit-only adjacency checks instead of `\b`, the same idiom `safety.py`
+#: uses and for the same reason: `\w` in Python `re` includes Hangul, so a
+#: figure followed by a Korean particle has no word boundary between its
+#: last digit and the particle.
+#:
+#: These are no longer regex lookarounds. Python `re` requires a fixed-width
+#: lookbehind, and the left boundary is not fixed width: a continuing comma
+#: may sit past any amount of whitespace (`1, 500,000,000` versus
+#: `1,500,000,000`), so `_figure_present` walks each match and inspects the
+#: text on both sides directly instead of embedding the rule in the pattern.
+#:
+#: A comma blocks only when exactly three digits follow it, with any amount
+#: of whitespace tolerated around the comma itself: that shape is a
+#: thousands group continuing the same longer number, as in
+#: `44,200,027,500` read while looking for `44,200,027`, or `1, 500,000,000`
+#: read while looking for `500,000,000`. A comma does not block when it
+#: separates list items instead -- `20,000,000, 30,000,000` -- because a
+#: list item never continues with exactly three more digits and nothing
+#: else. The leading group of the figure being searched for also has to be
+#: exactly three digits for a preceding comma to plausibly continue a
+#: larger number: `44` is not, so `44,200,027` can never be read as the
+#: tail of some other number no matter what precedes it.
+#:
+#: A period blocks only when a digit follows it immediately, with no
+#: whitespace tolerated: `20,000,000.50` is a decimal tail. This is a
+#: deliberate, asymmetric choice, not an oversight: `20,000,000. 50` and
+#: `700,000,000. 2024년에` are the identical shape -- number, period, space,
+#: digits -- and nothing in the text distinguishes a decimal written with a
+#: stray space after the point from an ordinary Korean sentence ending
+#: before the next one opens with a year or a count. The second shape is far
+#: more common in this corpus than the first, so the tie goes to reading the
+#: figure as present. The cost is real and accepted rather than missed:
+#: `20,000,000. 50` reads as present even though it names a different, more
+#: precise value.
+_GROUP = re.compile(r"\d{3}")
+_AFTER_GROUP = re.compile(r"\s*,\s*\d{3}(?!\d)")
+_AFTER_DECIMAL = re.compile(r"\.\d")
+
+
+def _figure_present(figure: str, body: str) -> bool:
+    r"""Whether `figure` occurs in `body` as a complete number.
+
+    Plain substring containment would count a figure as present inside a
+    longer, different one. The body is searched as written, never modified:
+    an earlier version stripped every space from the body to tolerate a
+    figure written with stray spaces (`44, 200, 027`), and every boundary
+    rule built on that stripped copy was fighting adjacency the stripping
+    itself had manufactured.
+
+    Whitespace tolerance now lives only around the commas inside the figure
+    being searched for (`\s*,\s*` between each comma-separated group), not
+    between every character of the figure: tolerating whitespace everywhere
+    let four scattered, unrelated digits on separate lines read as present,
+    because nothing then required them to actually sit next to each other.
+    See docs/design-rationale.md#gap-repair
+    """
+    body = body or ""
+    chars = figure.replace(" ", "")
+    pattern = r"\s*,\s*".join(re.escape(part) for part in chars.split(","))
+    head = chars.split(",")[0].lstrip("-")
+    for match in re.finditer(pattern, body):
+        before, after = body[:match.start()], body[match.end():]
+        if before[-1:].isdigit():
+            continue                              # inside a longer number
+        left = before.rstrip()
+        if (left.endswith(",") and _GROUP.fullmatch(head)
+                and left[:-1].rstrip()[-1:].isdigit()):
+            continue                              # a thousands group of a longer number
+        if after[:1].isdigit():
+            continue
+        if _AFTER_GROUP.match(after) or _AFTER_DECIMAL.match(after):
+            continue
+        return True
+    return False
+
+
+def decisive_lines(evidence: str) -> list[str]:
+    """The decisive lines placed at the head of the evidence, cleaned.
+
+    The marker and the model-facing directives are removed, leaving the
+    computed content alone.
+    """
+    out = []
+    for block in (evidence or "").split("\n\n"):
+        if not block.lstrip().startswith(DECISIVE_MARK):
+            continue
+        text = _LINE_DIRECTIVE.sub("", block)
+        text = text.replace(DECISIVE_MARK, "").strip()
+        text = re.sub(r"\s*\n\s*", " ", text)
+        text = re.sub(r"\s{2,}", " ", text).strip(" ·")
+        if text:
+            out.append(text)
+    return out
+
+
+def repair_gap(answer: str, evidence: str) -> tuple[str, str]:
+    """Append a decisive line's content when the answer dropped most of it.
+
+    No LLM call. Returns (new answer, reason), or (original, "") when nothing
+    applies.
+
+    `substitute` and `state_total` reach only questions with a pinned
+    operation, because both read `_total`. Q-106 and Q-117 have none, so the
+    lines they depend on had no answer-side path at all and the model had to
+    copy them. It did not, twice, in measured runs.
+
+    The trigger is the line's own figures: fewer than half of them present in
+    the answer. Reading only what we ourselves wrote bounds the false-alarm
+    rate structurally, and it catches the case `amount_gap` cannot, where the
+    answer states one figure and drops the rest.
+    See docs/design-rationale.md#gap-repair
+
+    This reaches more than the narrative questions (Q-106, Q-117) that
+    motivated it, deliberately:
+
+    - `_total` returns None for the "비교" (comparison) and "몫" (quotient)
+      operations, so `substitute`/`state_total` never fire for them even
+      though `line()` still writes a DECISIVE_MARK'd block for both, gated by
+      its own flag. For those two operations this is the only answer-side
+      path back to a dropped line.
+    - A single-chain "차" (difference) line carries three figures — older,
+      newer, delta — while `state_total` inserts only the delta. That is 1/3
+      coverage, under the threshold, so this reaches what `state_total` left
+      behind there too.
+
+    Narrowing this to only the narrative writers would require it to know
+    which function produced a line, which is exactly the coupling reading by
+    `DECISIVE_MARK` alone is meant to avoid. The behaviour is the same
+    regardless of the writer: append deterministic content computed from the
+    evidence where the answer dropped it.
+
+    `partner_profile`'s line is permanently exempt, not by a special case but
+    structurally: it carries only bare filing counts, never a comma-grouped
+    amount or a percentage, so it can never reach `GAP_REPAIR_MIN_FIGURES`.
+    """
+    body, tail = split_tail(answer or "")
+    if not body:
+        return answer, ""
+    additions = []
+    for line in decisive_lines(evidence):
+        figures = set(_LINE_FIGURE.findall(line))
+        if len(figures) < GAP_REPAIR_MIN_FIGURES:
+            continue
+        present = {f for f in figures if _figure_present(f, body)}
+        if len(present) * 2 >= len(figures):
+            continue
+        additions.append(line)
+    if not additions:
+        return answer, ""
+    stated = "\n\n" + "\n".join(f"정리하면 {a}" for a in additions)
+    return body + stated + tail, f"repaired {len(additions)}"
 
 
 def date_disambiguation(records, question: str) -> str:
