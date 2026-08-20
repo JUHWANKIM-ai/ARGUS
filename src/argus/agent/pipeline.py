@@ -2537,6 +2537,45 @@ _VERDICT_REASONS = (
 )
 
 
+#: 검증 꼬리의 모양. `_verdict_reason` 이 만든 사유를 ` · ` 로 잇는다.
+_VERDICT_NOTE = re.compile(
+    r"\n\n\(주의: 근거 검증을 통과하지 못했습니다 — ([^)]*)\)")
+#: 표기 사유의 문면. `_VERDICT_REASONS` 에서 읽어 두 곳에 같은 문자열을 적지 않는다.
+_CITATION_REASON = next(text for field, _bad, text in _VERDICT_REASONS
+                        if field == "has_citation")
+
+
+def drop_citation_warning(answer: str) -> tuple[str, bool]:
+    """Remove the "no citation" reason once a citation has been attached.
+
+    Returns (answer, changed).
+
+    🔴 순서 때문에 생기는 자기 모순이다. `_verify` 가 꼬리를 만들고 **그 뒤에**
+    `attach_citation` 이 표기를 붙이므로, 표기가 붙은 답변이 "근거 표기가 없습니다" 를
+    달고 나간다. 실측(2026-08-21): 로컬 336개 중 **28건**, 서버 112개 중 6건이 그 모양이다
+    (`Q-012` `Q-018` `Q-034` `Q-065` `Q-105` `Q-107` `Q-108` `Q-109` `Q-112` `Q-113`
+    `Q-114` `Q-118`).
+
+    붙이기를 검증보다 앞으로 옮기는 것으로는 못 고친다 — `attach_citation` 은 모든 LLM
+    호출 **뒤에** 돌아야 생성·비평·재생성 프롬프트가 글자 그대로 유지되고 요청 캐시가
+    맞는다 (그 함수의 독스트링). 그래서 사유를 지우는 쪽으로 고친다.
+
+    사유가 그것 하나뿐이면 꼬리 전체를 지운다. 다른 사유가 남아 있으면 그것만 뺀다 —
+    남은 사유는 여전히 참이므로 꼬리를 통째로 지우면 관측을 잃는다.
+    """
+    matched = _VERDICT_NOTE.search(answer or "")
+    if not matched:
+        return answer, False
+    reasons = [r.strip() for r in matched.group(1).split(" · ") if r.strip()]
+    kept = [r for r in reasons if r != _CITATION_REASON]
+    if len(kept) == len(reasons):
+        return answer, False
+    if not kept:
+        return answer[:matched.start()] + answer[matched.end():], True
+    note = ("\n\n(주의: 근거 검증을 통과하지 못했습니다 — %s)" % " · ".join(kept))
+    return answer[:matched.start()] + note + answer[matched.end():], True
+
+
 def _verdict_reason(verdict) -> str:
     """Build the reason from the booleans of a `Verdict`. Never empty.
 
@@ -2831,6 +2870,12 @@ def answer_question(question_id: str, question: str) -> dict:
     answer, cited = ablation.attach_citation(answer, evidence, provenance=provenance)
     if cited:
         trace.append(f'citation attached={",".join(cited)}')
+    # The note was built before the citation existed. Leaving it makes the
+    # answer argue with itself in the text a judge reads.
+    if cited and ablation.enabled("citation_note_fix"):
+        answer, cleared = drop_citation_warning(answer)
+        if cleared:
+            trace.append("citation_note cleared=1")
     # Runs before masking, so a removed sentence is never masked first and
     # then removed, which would double-count the change in the trace.
     # See docs/design-rationale.md#external-referral
