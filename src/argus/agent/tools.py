@@ -480,6 +480,32 @@ def _section_body(record: dict) -> str:
 _QUARTER_NAME = {"3": "1분기", "9": "3분기"}
 
 
+@lru_cache(maxsize=1)
+def _base_month_by_rcept() -> dict[str, str]:
+    """접수번호 -> 기준월. 대장에서 읽는다.
+
+    🔴 **섹션 색인의 chunk 레코드에는 `base_month` 가 없다.** `record_at` 이 내는 필드는
+    `base_year` · `doc_subtype` · `rcept_dt` 까지이고 기준월은 색인에 담기지 않았다. 첫
+    구현이 `record.get("base_month")` 를 읽어 **112문항 전수에서 표지가 하나도 바뀌지
+    않았다** — 조용한 무동작이었다.
+
+    접수일로 유도하는 길은 막혀 있다. 실측(2026-08-21): 분기보고서의 접수월은 05월이
+    `base_month` 3 이 28,983건이면서 9 도 66건, 02월도 양쪽에 걸린다(정정본이 늦게 접수된
+    다). 유일하게 결정되지 않으므로 README §4.3 의 규칙대로 유도하지 않는다.
+
+    대장에는 `base_month` 가 있고 `load_manifest` 가 이미 `lru_cache` 로 한 번만 읽는다.
+    색인을 다시 만드는 것(제출 산출물 변경)보다 이쪽이 싸고 안전하다.
+    """
+    from argus.corpus.manifest import load_manifest
+
+    out: dict[str, str] = {}
+    for row in load_manifest():
+        rcept, month = row.get("rcept_no"), row.get("base_month")
+        if rcept and month not in (None, ""):
+            out[str(rcept)] = str(month)
+    return out
+
+
 def _period_label(record: dict) -> str:
     """Report kind, and for quarterlies the quarter as well.
 
@@ -491,13 +517,20 @@ def _period_label(record: dict) -> str:
     Only quarterlies gain a token. Annual and half-year filings are already
     unique within a year, so adding one there would change evidence text for
     every periodic question to no purpose.
+
+    The quarter comes from the ledger rather than the record: the section index
+    does not carry `base_month`. See `_base_month_by_rcept`.
     """
     from argus import ablation       # 함수 안에서 — 이 모듈의 다른 두 곳과 같은 이유(순환)
     kind = {"annual": "사업보고서", "half": "반기보고서",
             "quarter": "분기보고서"}.get(record.get("doc_subtype", ""), "정기보고서")
     if not ablation.enabled("period_label") or record.get("doc_subtype") != "quarter":
         return kind
-    quarter = _QUARTER_NAME.get(str(record.get("base_month", "")))
+    month = record.get("base_month")
+    if month in (None, ""):
+        rcept = str(record.get("doc_id", "")).split("_")[-1]
+        month = _base_month_by_rcept().get(rcept)
+    quarter = _QUARTER_NAME.get(str(month))
     return "%s %s" % (kind, quarter) if quarter else kind
 
 

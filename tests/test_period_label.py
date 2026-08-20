@@ -35,24 +35,32 @@ WANT = ("20251114002201", "20250515002428", "20250814003695", "20250321001834")
 
 @pytest.fixture(scope="module")
 def records():
+    """🔴 **런타임이 쓰는 딕트 모양으로 시험한다.**
+
+    첫 판은 `artifacts/periodic_sections.jsonl` 의 줄을 읽어 시험했고 통과했다. 그런데
+    근거를 만드는 경로는 그 파일이 아니라 **섹션 색인**이고, 색인의 `record_at` 은
+    `base_month` 를 담지 않는다. 그래서 시험은 초록인데 112문항 전수에서 표지가 하나도
+    바뀌지 않았다 — 조용한 무동작이었다.
+
+    시험이 통과한 이유가 처방이 아니라 **다른 딕트 모양**이었던 것이다. 이 저장소가
+    스무 번 겪은 실패 양식의 한 판이다.
+    """
+    from argus.agent import tools
+
+    index = tools._section_index()
+    if index is None:                              # pragma: no cover
+        pytest.skip("섹션 색인이 없는 기계")
     out = {}
-    path = "artifacts/periodic_sections.jsonl"
-    try:
-        handle = io.open(path, encoding="utf-8")
-    except FileNotFoundError:                      # pragma: no cover
-        pytest.skip("전처리 산출물이 없는 기계")
-    with handle:
-        for line in handle:
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            rcept = str(row.get("doc_id", "")).split("_")[-1]
-            if rcept in WANT and rcept not in out:
-                out[rcept] = row
-            if len(out) == len(WANT):
-                break
+    for rcept in WANT:
+        rows = tools._sections_of(index, "periodic_%s" % rcept)
+        if rows:
+            out[rcept] = rows[0]
     if len(out) != len(WANT):                      # pragma: no cover
-        pytest.skip("실측 레코드를 다 못 찾았다: %s" % sorted(set(WANT) - set(out)))
+        pytest.skip("색인에서 실측 레코드를 다 못 찾았다: %s"
+                    % sorted(set(WANT) - set(out)))
+    #: 전제를 못 박는다 — 색인 레코드에 기준월이 없다는 것이 이 처방의 난점이다.
+    assert "base_month" not in out[WANT[0]], (
+        "색인이 base_month 를 담게 됐다면 `_base_month_by_rcept` 우회가 필요 없어졌다")
     return out
 
 
@@ -91,6 +99,18 @@ def test_the_quarter_map_covers_the_whole_corpus():
     떨어지고, 그러면 P4 가 겨냥한 충돌이 되살아난다.
     """
     assert set(tools._QUARTER_NAME) == {"3", "9"}
+
+
+def test_the_quarter_is_looked_up_from_the_ledger():
+    """색인에 없는 기준월을 대장에서 찾는다. 그 우회가 이 처방의 전부다.
+
+    접수일로 유도하지 않는다 — 실측(2026-08-21)에서 분기보고서의 접수월 05·02 가 두
+    분기에 걸쳐(정정본이 늦게 접수된다) 유일하게 결정되지 않는다.
+    """
+    table = tools._base_month_by_rcept()
+    assert table, "대장 조회 표가 비었다"
+    assert table.get("20251114002201") == "9"
+    assert table.get("20250515002428") == "3"
 
 
 def test_unknown_base_month_falls_back_instead_of_guessing():
