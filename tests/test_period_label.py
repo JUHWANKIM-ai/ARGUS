@@ -24,7 +24,9 @@ from argus import ablation
 from argus.agent import tools
 
 ON = "A53"
-OFF = "A52"
+#: 🔴 `A52` 가 아니라 `A51` 이다. `A52`(`latest_pin`)는 2026-08-21 측정에서 퇴행 2건으로
+#: 기각됐고, 기각된 스위치 위에 쌓으면 그 퇴행을 물려받는다.
+OFF = "A51"
 
 #: 실측 레코드 넷 (케이티 · `Q-105` 의 근거). 지어내지 않는다 — 지어낸 입력으로 통과하는
 #: 시험은 "우리 사전이 우리 예시를 먹는다" 만 증명한다.
@@ -102,9 +104,11 @@ def test_flag_is_off_in_the_operational_default():
     assert ablation.current().period_label is False
 
 
-def test_a53_is_a52_plus_one_flag():
+def test_a53_is_a51_plus_one_flag():
+    """팔 하나에 스위치 하나. 그리고 **기각된 팔 위에 쌓지 않는다.**"""
     import dataclasses
-    a53, a52 = ablation.ARMS["A53"], ablation.ARMS["A52"]
+    a53, a51 = ablation.ARMS["A53"], ablation.ARMS["A51"]
     differ = [f.name for f in dataclasses.fields(a53)
-              if getattr(a53, f.name) != getattr(a52, f.name)]
+              if getattr(a53, f.name) != getattr(a51, f.name)]
     assert differ == ["name", "period_label"], differ
+    assert ablation.ARMS["A53"].latest_pin is False, "기각된 latest_pin 을 물려받았다"

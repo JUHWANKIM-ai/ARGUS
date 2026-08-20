@@ -140,3 +140,4 @@ def test_a54_is_a53_plus_one_flag():
     differ = [f.name for f in dataclasses.fields(a54)
               if getattr(a54, f.name) != getattr(a53, f.name)]
     assert differ == ["name", "contrast_line"], differ
+    assert a54.latest_pin is False, "기각된 latest_pin 을 물려받았다"
