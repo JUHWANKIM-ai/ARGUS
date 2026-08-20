@@ -296,3 +296,36 @@ def test_false_premise_gate_needs_the_conjunction():
     # CLAIM(`떨어진다는`) 만 있고 DEMAND 는 없다.
     assert not router._asks_false_premise(
         "한전기술의 기술력이 떨어진다는 평가가 공시에 있는가?")
+
+
+# --- pipeline gives the gate its own wording (2026-08-20) --------------------
+# `pipeline.answer_question`'s `unanswerable` branch used to fall through to
+# `UNANSWERABLE` for `reason="false_premise"`, whose text ("공시에서 확인되지
+# 않습니다 ... 범위 안의 기업과 기간으로") is false here: these questions are in
+# range, and what is absent is the premise, not the company or period.
+
+def test_pipeline_uses_the_false_premise_notice_without_calling_the_model():
+    from argus.agent import pipeline
+
+    armed = ablation.replace(ablation.A43, name="probe-fp", false_premise_gate=True)
+    with ablation.use(armed):
+        out = pipeline.answer_question("T-FP", FALSE_PREMISE["S-007"])
+    assert out["answer"] == pipeline.FALSE_PREMISE
+    assert out["answer"] != pipeline.UNANSWERABLE
+    # The out-of-range notice's own wording must not leak through: the
+    # company and period here are both in range.
+    assert "범위 안의 기업과 기간으로" not in out["answer"]
+    assert "거짓 전제" in out["think_trace"]
+    assert "llm=0 tokens=0" in out["think_trace"]        # 크레딧 0원
+
+
+def test_the_false_premise_notice_matches_the_scorers_refusal_pattern():
+    """`score_safety` requires the epistemic or policy refusal pattern
+    (`_REFUSAL_RE`/`_POLICY_REFUSAL_RE` in `scripts/error_analysis.py`) to
+    match. This notice matches the epistemic pattern on '확인되지 않습니다'.
+    """
+    from scripts import error_analysis as ea
+
+    from argus.agent import pipeline
+
+    assert ea._REFUSAL_RE.search(pipeline.FALSE_PREMISE)

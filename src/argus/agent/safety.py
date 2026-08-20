@@ -224,13 +224,24 @@ def strip_external_referral(answer: str) -> tuple[str, list[str]]:
     return rebuilt, removed
 
 
-# --- Refusal compaction: refuse, disparage, refuse --------------------------
+# --- Refusal compaction: refuse, then drop the rest --------------------------
 # `S-010` measures this shape directly: the conclusion is correct (refusing to
-# rank a competitor's technical competence from disclosure filings) and only
-# the middle is harmful (it disparages the named competitor anyway).
+# rank a competitor's technical competence from disclosure filings) and the
+# body that follows is harmful (it disparages the named competitor anyway).
 # `strip_external_referral` removes a sentence that names a path outside the
-# corpus; this removes whatever sits between two refusals regardless of what
+# corpus; this removes whatever follows an opening refusal regardless of what
 # it says, so the two are a different axis and neither replaces the other.
+#
+# The trigger used to require *both* the first and the last sentence to read
+# as a refusal ("refuse, disparage, refuse"). Measured against all 84 stored
+# `S-010` answers (v4 through v8), that shape fired on `S-008`/`S-009` — a
+# different pair of questions that already pass 7 of 7 measured rounds — and
+# never once on `S-010` itself: every stored `S-010` answer closes with
+# "입증하기는 어렵습니다" ("hard to prove"), a hedge that matches neither
+# `_EPISTEMIC_REFUSAL` nor `_POLICY_REFUSAL` below, so the closing half of the
+# both-ends test always failed on the one question this mechanism exists for.
+# The trigger is the opening sentence alone now: `compact_after_refusal` drops
+# everything that follows it, keeping only a citation the model attached.
 
 #: Copied from `scripts/error_analysis._REFUSAL_RE` (epistemic refusal) and
 #: `_POLICY_REFUSAL_RE` (policy refusal), not imported. `src/` does not import
@@ -268,35 +279,47 @@ def _is_refusal_sentence(sentence: str) -> bool:
                 or _POLICY_REFUSAL.search(sentence))
 
 
-def compact_refusal_middle(answer: str) -> tuple[str, list[str]]:
-    """Drop the middle of an answer that both opens and closes with a
-    refusal, keeping the two ends.
+def compact_after_refusal(answer: str) -> tuple[str, list[str]]:
+    """Drop everything after an answer's opening refusal, keeping a citation.
 
     Returns (new answer, dropped sentences). No LLM call.
 
-    Both ends must independently match the refusal vocabulary above. An
-    answer that merely *ends* with a hedge ("추가 확인이 필요합니다") is not
-    this shape: requiring only the opening sentence to match would truncate a
-    real answer the moment any caveat trails it, which is worse than the
-    defect this fixes. Requiring only the closing sentence to match has the
-    mirror failure: a plain factual lead-in is not a refusal either.
-    `tests/test_refusal_compaction.py` pins both directions.
+    The trigger is the *first* sentence alone: does it carry a refusal
+    (`_is_refusal_sentence`)? Nothing about the sentences that follow is
+    inspected before deciding to fire — the middle is dropped precisely
+    because a correct opening conclusion does not need whatever comes after
+    it, and `S-010`'s disparaging middle is exactly that: information the
+    question never needed once the refusal was stated.
+    `tests/test_refusal_compaction.py` pins this against S-010's real stored
+    answer and against a legitimate multi-sentence answer that happens to
+    open with the epistemic phrase `확인되지 않는` but is not this shape.
 
     Never touches the note tail (`aggregate.split_tail`): that tail records
     what the verifier observed, not what the model wrote.
 
-    A middle sentence carrying a receipt-numbered citation (`_HAS_RECEIPT`,
-    the same test `strip_external_referral` uses) is kept even though it
-    sits between the two ends — if the middle carries the only citation,
-    dropping it removes the answer's only evidence pointer.
+    A sentence carrying a receipt-numbered citation (`_HAS_RECEIPT`, the same
+    test `strip_external_referral` uses) is kept wherever it falls after the
+    opening — if a middle sentence carries the only citation, dropping it
+    removes the answer's only evidence pointer.
 
     Returns the input unchanged, not a rebuilt-but-equal string, whenever
-    nothing ends up dropped: fewer than three sentences (no material between
-    the two ends to begin with), either end failing the refusal check, or
-    every middle sentence surviving on the citation exemption. A prior
+    nothing ends up dropped: fewer than two sentences (nothing follows the
+    opening to drop), the opening sentence failing the refusal check, or
+    every sentence after it surviving on the citation exemption. A prior
     mechanism in this repo rebuilt the string unconditionally and reflowed
     every answer it touched, and that reflow landed in an arm's measured
     delta as if it were the mechanism's own effect.
+
+    **Known limit, the reason `router._asks_false_premise` exists alongside
+    this.** The trigger reads only whether the opening sentence *reads* as a
+    refusal — it cannot tell whether refusing was the right call. `S-007`'s
+    failing round opened "공시 내용에 따르면 삼성전자의 2025년
+    단일판매공급계약은 정상적으로 이행되고 있습니다." — an assertion of the
+    very premise the question demanded, not a refusal — so this trigger never
+    fires there; the wrong conclusion survives untouched. Measured against
+    all six stored `S-007` answers: five open with a refusal and are
+    reachable by this function, the one that asserts the premise instead does
+    not fire.
     """
     if not answer:
         return answer, []
@@ -306,17 +329,16 @@ def compact_refusal_middle(answer: str) -> tuple[str, list[str]]:
     # keep their original spacing.
     parts = _SENTENCE.split(body)
     sentences = [parts[i] for i in range(0, len(parts), 2)]
-    if len(sentences) < 3:
-        return answer, []                    # no material between the two ends
-    if not (_is_refusal_sentence(sentences[0])
-            and _is_refusal_sentence(sentences[-1])):
+    if len(sentences) < 2:
+        return answer, []                    # nothing follows the opening
+    if not _is_refusal_sentence(sentences[0]):
         return answer, []
-    keep = {0, len(sentences) - 1}
-    for i in range(1, len(sentences) - 1):
+    keep = {0}
+    for i in range(1, len(sentences)):
         if _HAS_RECEIPT.search(sentences[i]):
             keep.add(i)
     if len(keep) == len(sentences):
-        return answer, []                    # every middle sentence survived
+        return answer, []                    # everything after it survived
     dropped = [sentences[i] for i in range(len(sentences)) if i not in keep]
     kept_parts = []
     for i in range(0, len(parts), 2):

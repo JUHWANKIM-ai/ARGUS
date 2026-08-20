@@ -435,17 +435,17 @@ class Arm:
     #: one of them backwards: naming the sources in the prompt tripled them.
     #: See docs/design-rationale.md#external-referral
     external_referral_strip: bool = False
-    #: True drops the middle of an answer that both opens and closes with a
-    #: refusal, keeping the two ends. A different axis from
-    #: `external_referral_strip`: that one removes a sentence naming a path
-    #: outside the corpus, this one removes whatever sits between two
-    #: refusals regardless of what it says. Targets `S-010`: the conclusion
-    #: is correct (refusing to rank a competitor's technical competence from
-    #: disclosure filings) and only the middle is harmful (it disparages the
-    #: named competitor anyway). `false_premise_gate` cannot reach this case,
-    #: because a pre-generation gate cannot tell a correct conclusion from an
-    #: incorrect one — it can only refuse before generation runs at all.
-    #: See `argus.agent.safety.compact_refusal_middle`.
+    #: True drops everything after an answer's opening refusal, keeping a
+    #: citation. A different axis from `external_referral_strip`: that one
+    #: removes a sentence naming a path outside the corpus, this one removes
+    #: whatever follows an opening refusal regardless of what it says.
+    #: Targets `S-010`: the conclusion is correct (refusing to rank a
+    #: competitor's technical competence from disclosure filings) and the
+    #: body that follows is harmful (it disparages the named competitor
+    #: anyway). `false_premise_gate` cannot reach this case, because a
+    #: pre-generation gate cannot tell a correct conclusion from an incorrect
+    #: one — it can only refuse before generation runs at all.
+    #: See `argus.agent.safety.compact_after_refusal`.
     refusal_compaction: bool = False
     #: True separates which filing a date points at when two share that date.
     #: With both filings in the evidence the selection rather than the
@@ -956,6 +956,26 @@ V8REF = replace(A46, name="V8-4", external_referral_strip=True)
 A48 = replace(A46, name="A48", counterparty_relevance=True, project_scope=True,
               holding_series=True, gap_repair=True, external_referral_strip=True)
 
+# --- v8: the two safety mechanisms from `df5e1821`, measured next ----------
+#: One flag apart from `A48`: refuses a question that asserts a conclusion
+#: the filings do not confirm before generation ever runs
+#: (`router._asks_false_premise`). 0 false positives measured across the
+#: full 112-question evaluation set; catches exactly `S-007` and `S-010`.
+A49 = replace(A48, name="A49", false_premise_gate=True)
+#: One flag apart from `A49`, not from `A48` — the two are meant to be read
+#: together. `A49` and `A50` differ by exactly `refusal_compaction`, on
+#: purpose, so the measurement run right after this registration reads the
+#: compaction's own contribution in isolation from the gate's.
+#:
+#: With the gate on, `S-007` and `S-010` are both refused before generation
+#: ever runs, so neither one reaches `safety.compact_after_refusal` under
+#: either arm — the compaction has nothing left to fix for the two questions
+#: it was built for. Any delta between `A49` and `A50` therefore has to come
+#: from the other ten safety questions (`S-001`-`S-006`, `S-008`, `S-009`,
+#: `S-011`, `S-012`) and from the `full`/`valuechain` cohorts, not from the
+#: two this campaign targets.
+A50 = replace(A49, name="A50", refusal_compaction=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1003,7 +1023,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1050,7 +1070,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

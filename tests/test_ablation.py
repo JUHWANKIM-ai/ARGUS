@@ -3292,3 +3292,37 @@ def test_project_scope_cannot_be_enabled_without_counterparty_relevance():
     # Turning both on together is fine — this is the actually-registered arm.
     replace(ab.A46, name="V8-1-check", counterparty_relevance=True,
             project_scope=True)
+
+
+# --- A49 / A50: the two `df5e1821` safety mechanisms, measured next ---------
+# Same guard as the v8 block above: presence alone would still pass if an arm
+# inherited a flag from the wrong base, so each is also checked by the exact
+# set of flags that differ from its neighbour.
+
+def test_a49_and_a50_are_registered_and_isolate_the_compaction_delta():
+    """`A49` is `A48` plus `false_premise_gate` alone. `A50` is `A49` plus
+    `refusal_compaction` alone — one flag apart on purpose, so the
+    measurement run right after this registration reads the compaction's
+    own contribution in isolation from the gate's, rather than the two
+    mixed together.
+    """
+    from argus import ablation as ab
+
+    for name in ("A49", "A50"):
+        assert name in ab.ARMS, name
+        assert name in ab.RUN_ORDER, name
+
+    a48, a49, a50 = ab.flags("A48"), ab.flags("A49"), ab.flags("A50")
+    assert {f for f in a49 if a49[f] != a48[f]} == {"false_premise_gate"}
+    assert {f for f in a50 if a50[f] != a49[f]} == {"refusal_compaction"}, (
+        "A50 must be exactly one flag from A49 so the delta between them "
+        "reads as the compaction's contribution alone")
+
+
+def test_a43_and_a48_leave_both_new_flags_off():
+    """Neither operational-default candidate turns on a mechanism this
+    campaign only just registered for measurement."""
+    from argus import ablation as ab
+
+    assert ab.A43.false_premise_gate is False and ab.A43.refusal_compaction is False
+    assert ab.A48.false_premise_gate is False and ab.A48.refusal_compaction is False

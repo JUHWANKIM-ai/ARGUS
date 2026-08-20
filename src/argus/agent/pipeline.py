@@ -19,7 +19,7 @@ from argus.agent.query import (SPLIT_TOP_K, STRATEGIES, _ASK_CORP_NUMBER,
                                report_hints, time_points)
 from argus.agent import router as router_module
 from argus.agent.router import route
-from argus.agent.safety import (compact_refusal_middle, mask_pii, sanitize_question,
+from argus.agent.safety import (compact_after_refusal, mask_pii, sanitize_question,
                                  strip_external_referral)
 from argus.clova import chat, no_cache
 from argus.corpus import markdown as markdown_module
@@ -70,6 +70,22 @@ IDENTIFIER_WITHHELD = (
     "공시 원문에 기재된 연락처·등록번호는 확인되지 않는 형태로만 다루며, "
     "질문에 적어 주신 번호도 마스킹되어 처리됩니다. "
     "공시의 다른 기재사항으로 질문해 주시면 근거와 함께 답변드리겠습니다."
+)
+
+#: The question asserts a conclusion the filings do not confirm and demands
+#: it be stated as fact (`router._asks_false_premise`). Company and period may
+#: both be in range; what is absent is the premise itself, so the
+#: out-of-range wording of `UNANSWERABLE` would be false here. One fixed text
+#: serves every question this gate reaches: it states that the asserted
+#: premise is not confirmed, and that this notice neither asserts nor
+#: disproves it — the pair golden answers `S-007`/`S-010` both state.
+#: Matches the scorer's epistemic refusal pattern
+#: (`scripts/error_analysis._REFUSAL_RE`) on "확인되지 않습니다".
+#: See docs/design-rationale.md#refusal-notices
+FALSE_PREMISE = (
+    "질문이 전제한 내용은 공시에서 확인되지 않습니다. "
+    "공시로 확인되는 사실만 답변드리며, 질문이 주장하는 결론을 단정하거나 반박하지 않습니다. "
+    "공시에 실제로 기재된 내용으로 질문해 주시면 근거와 함께 답변드리겠습니다."
 )
 
 MAX_EVIDENCE = 10                       # evidence truncation cap
@@ -2552,6 +2568,12 @@ def answer_question(question_id: str, question: str) -> dict:
         if r.reason == "ambiguous_reference":
             trace.append("지시대상 불명 — LLM 호출 없이 역질문")
             return _respond(question_id, question, "", trace, AMBIGUOUS_REFERENCE, budget)
+        # Not out of range: the question asserts a conclusion the filings do
+        # not confirm, and the premise is what is missing, not the company or
+        # period.
+        if r.reason == "false_premise":
+            trace.append("거짓 전제 — LLM 호출 없이 한계 고지")
+            return _respond(question_id, question, "", trace, FALSE_PREMISE, budget)
         trace.append("범위 밖 — LLM 호출 없이 한계 고지")
         return _respond(question_id, question, "", trace, UNANSWERABLE, budget)
 
@@ -2801,7 +2823,7 @@ def answer_question(question_id: str, question: str) -> dict:
     # still hold a referral sentence for that strip to catch below.
     # See docs/design-rationale.md#external-referral
     if ablation.enabled("refusal_compaction"):
-        answer, compacted = compact_refusal_middle(answer)
+        answer, compacted = compact_after_refusal(answer)
         if compacted:
             trace.append(f"refusal_compaction dropped={len(compacted)}")
     return _respond(question_id, question, evidence, trace, mask_pii(answer), budget)
