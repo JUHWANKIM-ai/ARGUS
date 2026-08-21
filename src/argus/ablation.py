@@ -68,13 +68,20 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
                  "counterparty_exempt", "amount_coverage_gate"),
     #: `aggregate_items` 는 `aggregate.line` 의 `합` 분기에 줄을 덧붙인다. 부모가 꺼지면
     #: `pipeline` 이 그 함수를 아예 안 부르므로 자식은 조용한 무동작이 된다.
-    "aggregate_line": ("substitute_aggregate", "aggregate_items"),
     #: `sum_operand_fix` 는 `summand_roster` 가 근거에 쓴 명세를 되읽는다. 명세가 없으면
     #: 읽을 것이 없어 조용한 무동작이 된다.
     "aggregate_items": ("sum_operand_fix",),
     #: `roster_items` 는 `_roster_line` 이 만드는 줄에 항목을 덧붙인다. 부모가 꺼지면
-    #: `roster_out` 자체를 안 넘기므로 자식은 조용한 무동작이 된다.
-    "roster_line": ("roster_items",),
+    #: `roster_out` 자체를 안 넘기므로 자식은 조용한 무동작이 된다. `roster_counts` 도
+    #: 같은 줄에 붙으므로 같은 부모를 갖는다.
+    "roster_line": ("roster_items", "roster_counts"),
+    #: `pledged_series` 와 `holding_receipts` 는 **`holding_series` 가 만든 줄 안에서만**
+    #: 산다. 앞은 그 줄에 문장을 덧붙이고 뒤는 그 줄의 걸음마다 접수번호를 끼운다. 부모가
+    #: 꺼지면 `pipeline` 이 그 함수를 아예 안 부르므로 둘 다 조용한 무동작이 된다.
+    "holding_series": ("holding_ask_wide", "pledged_series", "holding_receipts"),
+    #: `delta_totals` 는 `aggregate.line` 의 `차` 분기에 중간 합계를 덧붙인다.
+    #: `aggregate_line` 이 꺼지면 그 함수를 안 부른다 — `aggregate_items` 와 같은 자리다.
+    "aggregate_line": ("substitute_aggregate", "aggregate_items", "delta_totals"),
     #: `refusal_needs_gap` narrows a branch inside `attach_citation`. With the
     #: parent off that function returns before the branch is reached, so the
     #: child would be a silent no-op -- the failure mode `period_label` hit,
