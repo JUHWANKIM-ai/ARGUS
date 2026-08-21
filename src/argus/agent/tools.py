@@ -604,18 +604,68 @@ def _period_label(record: dict) -> str:
     return "%s %s" % (stem, quarter) if quarter else stem
 
 
+PERIODIC_CHAINS_NAME = "periodic_chains.jsonl"
+
+
+@lru_cache(maxsize=1)
+def _periodic_chains() -> dict[str, dict]:
+    """periodic 정정본 -> 그 정정이 무엇을 정정한 것인가.
+
+    `scripts/build_periodic_chains.py` 가 대장 조인으로 만든다 — 원문 파싱도 LLM 도 없고
+    모호 0건이다. 파일이 없으면 빈 매핑이라 이 처방은 조용한 무동작이 된다.
+
+    exchange·major·holding 은 `corpus.corrections.build_chains` 가 잇는데 periodic 은 그
+    경로를 안 탄다. `periodic_sections.jsonl` 은 `is_correction` 불리언만 갖는다.
+    """
+    path = settings().artifacts_root / PERIODIC_CHAINS_NAME
+    if not path.exists():
+        return {}
+    out = {}
+    with path.open(encoding="utf-8") as fh:
+        for line in fh:
+            if line.strip():
+                row = json.loads(line)
+                if row.get("root"):
+                    out[str(row["rcept_no"])] = row
+    return out
+
+
+def _section_chain_line(rcept_no: str) -> str:
+    """정정본 블록이 무엇을 정정한 것인지 밝히는 줄. 아니면 "".
+
+    🔴 **이 줄은 우리 근거 완전성 회계에 들어간다.** `error_analysis._blocks` 가 근거를
+    `^## ` 로 쪼개고 `evidence_hit` 이 블록 안의 14자리를 「실린 골든」으로 읽으므로,
+    원공시가 골든이면 **본문이 하나도 안 실렸는데** 적재로 세어진다. 실측: 겨냥한 넷 중
+    셋(`Q-054`·`Q-068`·`Q-082`)이 그 경우이고 167/168 -> 170/168 로 오른다.
+
+    그래서 이 스위치를 채택 판정할 때는 근거 완전성을 **두 가지로** 낸다 — 날값과 포인터
+    줄을 뺀 값. 날값만 보면 아무것도 안 싣고 얻은 3점을 이득으로 읽는다.
+    See docs/superpowers/plans/2026-08-21-raw-preprocessing.md 과제 3
+    """
+    row = _periodic_chains().get(str(rcept_no))
+    if not row:
+        return ""
+    return (f"- 정정 대상 원공시: 접수번호 {row['root']} "
+            f"({row['report']} {row['period']})\n")
+
+
 def _section_markdown(record: dict) -> str:
     """Evidence block. The citation format is the one the convention requires:
     report and period, receipt number, section path."""
+    from argus import ablation
+
     rcept_no = str(record["doc_id"]).split("_")[-1]
     label = _period_label(record)
     part = ""
     if record.get("n_parts", 1) > 1:
         part = f" [{record['part'] + 1}/{record['n_parts']} 조각]"
     body = _section_body(record)
+    chain = (_section_chain_line(rcept_no)
+             if ablation.enabled("section_chain_note") else "")
     return (f"## [{label}] "
             f"{record.get('corp_name', '')} – {record.get('path', '')}{part}\n"
-            f"- 출처: 접수번호 {rcept_no} (공시일 {record.get('rcept_dt', '')})\n\n{body}")
+            f"- 출처: 접수번호 {rcept_no} (공시일 {record.get('rcept_dt', '')})\n"
+            f"{chain}\n{body}")
 
 
 def resolve_company_tool(name: str) -> dict:
