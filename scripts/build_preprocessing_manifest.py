@@ -36,6 +36,11 @@ FILES = [
     "artifacts/major_records.jsonl",
     "artifacts/nary_records.jsonl",
     "artifacts/nary_records.meta.json",
+    #: 🔴 2026-08-21 추가. 런타임이 여는 파일이므로 이 목록에 들어간다 — 빠지면 심사자가
+    #: 받는 묶음에 없고, 그러면 `section_chain_note` 가 **조용한 무동작**이 된다(없는
+    #: 파일은 빈 매핑을 돌려주게 만들어 서버가 죽지는 않는다).
+    #: 이 줄이 늘면 구글 드라이브의 전처리 산출물 묶음도 다시 올려야 한다.
+    "artifacts/periodic_chains.jsonl",
     "artifacts/periodic_sections.jsonl",
     "artifacts/periodic_sections.txt",
     "artifacts/references.jsonl",

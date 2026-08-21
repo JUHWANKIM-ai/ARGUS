@@ -1,8 +1,8 @@
 {
  "생성": "제출용 전처리 산출물 목록",
- "기준일": "2026-08-20",
- "파일수": 20,
- "총바이트": 1219562890,
+ "기준일": "2026-08-21",
+ "파일수": 21,
+ "총바이트": 1219591471,
  "🔴 제외": "data/dart-disclosures/raw (5.2G) — 주최측이 제공한 원본 공시이지 우리 전처리 산출물이 아니다",
  "파일": [
   {
@@ -54,6 +54,11 @@
    "path": "artifacts/nary_records.meta.json",
    "bytes": 1079,
    "sha256": "3142e4c2c1e47c02c2531df19e8c059236946083f230a6740642d596fab31d7a"
+  },
+  {
+   "path": "artifacts/periodic_chains.jsonl",
+   "bytes": 28581,
+   "sha256": "656a0b7a58d7e6bb2632f0d8fe04fc21438d938992f70393adf5e0ebe338d77a"
   },
   {
    "path": "artifacts/periodic_sections.jsonl",

@@ -42,9 +42,14 @@ def test_manifest_builder_declares_the_artifacts_files():
     비교하며 조용히 통과한다.
     """
     names = _expected()
-    assert len(names) == 15, sorted(names)
+    #: 🔴 2026-08-21 15 -> 16. `periodic_chains.jsonl` 이 늘었다(계획서
+    #: `2026-08-21-raw-preprocessing.md` 과제 2). 이 수가 바뀌면 **구글 드라이브의
+    #: 전처리 산출물 묶음도 다시 올려야 한다** — 심사자가 받는 묶음이 런타임이 여는
+    #: 파일보다 적으면 그 처방이 조용한 무동작이 된다.
+    assert len(names) == 16, sorted(names)
     assert "periodic_sections.txt" in names
     assert "section_index.npz" in names
+    assert "periodic_chains.jsonl" in names
 
 
 @pytest.mark.skipif(not ARTIFACTS.is_dir(),
