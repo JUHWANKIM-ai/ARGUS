@@ -850,19 +850,47 @@ _ASKS_ROSTER = ("상장사", "기업은", "기업들", "어느 기업", "어디�
                 "빠짐없이", "모두 알려", "전부 알려", "목록", "나열")
 
 
-def _roster_line(display: str, partners: Sequence[str]) -> str:
+def _roster_line(display: str, partners: Sequence[str],
+                 loaded: dict[str, dict] | None = None) -> str:
     """The enumerated set as one line.
 
-    Carries neither receipt numbers nor filing counts, for the reason given in
-    `_counterparty_note`.
+    Filing counts are never carried, for the reason given in
+    `_counterparty_note`: a global count is unfiltered for supersession and
+    outside the scope of the question, and it leaked into an answer verbatim
+    once.
+
+    🔴 Receipt numbers are carried only behind `roster_items`, and only for
+    partners whose filing actually reached the evidence (`loaded`). The reason
+    the plain line carries none is measurement integrity: `error_analysis._blocks`
+    splits the evidence on `^## `, so everything prepended above the first
+    header counts as one block, and `evidence_hit` then reads any receipt
+    number there as a golden filing that was loaded. Writing a receipt for a
+    company whose filing was *not* carried would raise our own evidence-recall
+    figure without loading anything -- Q-110's 두산퓨얼셀 is exactly that case,
+    its golden reaching no hop candidate.
+
+    Restricting to `loaded` makes the inflation structurally impossible rather
+    than merely unlikely: every receipt written here is one that a real block
+    already carries. `aggregate.summand_roster` is safe by the same argument,
+    its rows coming out of the evidence records.
 
     Same position as `aggregate.line`: what the system knows deterministically
     goes at the head of the evidence together with an explicit disposition,
     since supplying the value alone leaves the model trusting its own judgment.
     See docs/design-rationale.md#roster-position
     """
-    return (f"[결정적 조회] {display} 를 계약상대로 공시한 상장사는 "
-            f"{len(partners)}곳이다: {' · '.join(partners)}\n"
+    head = (f"[결정적 조회] {display} 를 계약상대로 공시한 상장사는 "
+            f"{len(partners)}곳이다: {' · '.join(partners)}")
+    detail = ""
+    if ablation.enabled("roster_items") and loaded:
+        rows = [f"  · {corp} — {loaded[corp]['subject']} {loaded[corp]['amount']}"
+                f" (접수번호 {loaded[corp]['rcept_no']})"
+                for corp in partners if corp in loaded]
+        if rows:
+            detail = ("\n" + "\n".join(rows)
+                      + "\n  (접수번호는 근거에 실린 공시만 적었다. 목록의 나머지 회사는"
+                        " 이번 근거에 안 실렸으므로 접수번호를 지어내지 않는다.)")
+    return (head + detail + "\n"
             f"(이 목록은 시스템이 계약상대 그래프에서 직접 열거한 것이다. "
             f"답변은 이 {len(partners)}곳을 빠짐없이 적고 임의로 줄이지 않는다.)")
 
@@ -927,14 +955,6 @@ def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[st
 
     asks_roster = any(k in (question or "") for k in _ASKS_ROSTER)
 
-    # The boundary of the set goes at the head of the evidence. An in-block
-    # note alone is not read. Fires only with two or more partners, since one
-    # partner is not an enumeration.
-    # See docs/design-rationale.md#roster-position
-    if roster_out is not None and len(partners) >= 2 and asks_roster:
-        roster_out.append(
-            _roster_line(router_module.counterparty_display(hub) or hub, partners))
-
     taken: list[str] = []
     if _spends_by_relevance(question, asks_roster):
         for record in _relevance_order(question, partners, lanes)[:limit]:
@@ -953,6 +973,33 @@ def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[st
                 if take(record.get("doc_id"), _annotate(record.get("markdown", ""), note),
                         None, corp):
                     taken.append(record["doc_id"])
+
+    # The boundary of the set goes at the head of the evidence. An in-block
+    # note alone is not read. Fires only with two or more partners, since one
+    # partner is not an enumeration.
+    #
+    # 🔴 Built after `taken`, not before. `roster_items` writes a receipt number
+    # only for a partner whose filing actually reached the evidence, and that
+    # set is not known until the taking loop has run. `extra_lines` is consumed
+    # after every `_gather_counterparty` call returns, so moving the append down
+    # to here changes nothing about where the line lands.
+    # See docs/design-rationale.md#roster-position
+    if roster_out is not None and len(partners) >= 2 and asks_roster:
+        from argus.agent import aggregate
+
+        loaded = {}
+        for corp in partners:
+            for record in lanes.get(corp, ()):
+                if record.get("doc_id") in taken:
+                    amount = record.get("amount")
+                    loaded[corp] = {
+                        "rcept_no": record.get("rcept_no", ""),
+                        "subject": aggregate._subject(record),
+                        "amount": f"{int(amount):,}원" if amount else "금액 미기재"}
+                    break
+        roster_out.append(
+            _roster_line(router_module.counterparty_display(hub) or hub, partners,
+                         loaded))
 
     trace.append(f'hop={COUNTERPARTY_HOP} strat=counterparty tool=query_by_counterparty '
                  f'via={hub} partners={len(partners)} '
