@@ -154,3 +154,34 @@ def test_the_flag_needs_its_parent():
 
     with pytest.raises(ValueError, match="sum_operand_fix"):
         replace(ablation.ARMS["A0"], name="TEST", sum_operand_fix=True)
+
+
+# --- 꼬리가 자기를 반박하지 않게 한다 ------------------------------------------
+#
+# 꼬리는 수리 **전에** 만들어진다. 본문에서 뺀 금액을 검증기가 결함으로 적어 두면 답변이
+# 자기를 반박한다. `substitute` 가 쓰는 `_prune_notes` 를 그대로 쓴다.
+#
+# 🔴 머리글이 두 가지다 — 대체가 일어났으면 "재계산값으로 정정했습니다", 아니면 "결함이
+# 발견되었습니다"(`pipeline.py:3186`). 첫 판이 뒤쪽만 받아서 `Q-107` 의 꼬리를 못 다듬었다.
+SUBSTITUTED_TAIL = ("\n\n(주의: 자동 검증에서 결함이 발견되어 재계산값으로 정정했습니다 — "
+                    "amount: 답변 890,200,000,000원 vs 재계산 12,345 (10^+1 배 자릿수 오류))")
+PLAIN_TAIL = ("\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — "
+              "amount: 답변 890,200,000,000원 vs 재계산 12,345)")
+
+
+@pytest.mark.parametrize("tail", [SUBSTITUTED_TAIL, PLAIN_TAIL])
+def test_a_note_about_a_removed_figure_is_dropped(tail):
+    with ablation.use("A61"):
+        out, why = aggregate.fix_stray_summands(STRAY + tail, EVIDENCE)
+    assert "890,200,000,000" not in out, "본문에서 뺀 금액이 꼬리에도 안 남는다"
+    assert "note=1" in why
+
+
+def test_a_note_about_a_figure_we_kept_survives():
+    """해소되지 않은 결함을 지우면 관측을 잃는다. `substitute` 와 같은 규칙이다."""
+    tail = ("\n\n(주의: 자동 검증에서 결함이 발견되었습니다 — "
+            "provenance: 답변 1,652,800,000,000원 이 근거에 없다)")
+    with ablation.use("A61"):
+        out, why = aggregate.fix_stray_summands(STRAY + tail, EVIDENCE)
+    assert "provenance" in out, "우리가 안 건드린 사유는 남는다"
+    assert "note=0" in why

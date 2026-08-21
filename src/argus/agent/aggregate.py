@@ -212,7 +212,11 @@ def _prune_notes(tail: str, wrong: str) -> str:
             return ""
         return f"{match.group(1)}{'; '.join(kept)})"
 
-    pruned = re.sub(r"(\n*\(주의: 자동 검증에서 결함이 발견되었습니다 — )([^)]*)\)",
+    #: 머리글이 두 가지다 — `pipeline` 이 대체가 일어났을 때는 "재계산값으로 정정했습니다"
+    #: 를 쓰고 아닐 때는 "결함이 발견되었습니다" 를 쓴다(`pipeline.py:3186`). 첫 판은 뒤쪽만
+    #: 받아서 `fix_stray_summands` 가 대체를 되돌렸을 때 꼬리를 못 다듬었다 — 실측 `Q-107`.
+    pruned = re.sub(r"(\n*\(주의: 자동 검증에서 결함이 발견(?:되었습니다|되어 "
+                    r"재계산값으로 정정했습니다) — )([^)]*)\)",
                     _fix, tail)
     return pruned
 
@@ -1502,9 +1506,11 @@ def fix_stray_summands(answer: str, evidence: str) -> tuple[str, str]:
     #: 머리글이 항목 없이 남는다.
     unused = [r for r in roster if r["amount"] not in listed]
     swapped, dropped = 0, 0
+    removed: list[str] = []
     for index, amount in enumerate(listed):
         if not amount or amount in wanted:
             continue
+        removed.append(amount)
         if unused:
             item = unused.pop(0)
             indent = re.match(r"^\s*(?:[-·*]|\d+[.)])\s*", lines[index]).group(0)
@@ -1557,8 +1563,19 @@ def fix_stray_summands(answer: str, evidence: str) -> tuple[str, str]:
             counted += hits
         out_lines.append(line)
     body = "\n".join(out_lines)
+    #: 🔴 꼬리는 수리 **전에** 만들어졌다. 본문에서 뺀 금액을 검증기가 결함으로 적어 두면
+    #: 답변이 자기를 반박한다 — 실측 `Q-107`: 본문은 4,928,968,079,043 으로 고쳐졌는데
+    #: 꼬리가 여전히 "답변 490,881,723,100원 vs 재계산" 을 말했다. `substitute` 가 쓰는
+    #: `_prune_notes` 를 그대로 쓴다. 해소된 결함을 미해결로 남기는 것도 틀린 것이다.
+    #: See docs/design-rationale.md#substitution-scope
+    pruned = 0
+    for amount in dict.fromkeys(removed):
+        before = tail
+        tail = _prune_notes(tail, amount)
+        pruned += before != tail
     return (body + tail,
-            f"swapped={swapped} dropped={dropped} eq={fixed_eq} count={counted}")
+            f"swapped={swapped} dropped={dropped} eq={fixed_eq} "
+            f"count={counted} note={pruned}")
 
 
 def date_disambiguation(records, question: str) -> str:
