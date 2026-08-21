@@ -583,6 +583,9 @@ class Arm:
     #: 차액이 답의 일부인 꼴 — `line` 의 차 연산이 안 걸리는 자리다.
     segment_sales: bool = False
     counterparty_pair: bool = False
+    #: 공시가 스스로 적어 둔 원화 환산액과 그 환율을 문면에서 그대로 옮긴다. 우리가
+    #: 계산하지 않는다 — 공시와 다른 수를 내지 않기 위해서다.
+    fx_conversion: bool = False
     #: periodic 정정본 블록이 무엇을 정정한 것인지 밝힌다. 🔴 이 줄의 14자리는 우리 근거
     #: 완전성 회계에 들어간다 — 원공시가 골든이면 본문 없이 적재로 세어진다. 채택 판정은
     #: 근거 완전성을 **두 가지로** 내야 한다(날값 · 포인터 줄 제외값).
@@ -1492,6 +1495,19 @@ A72 = replace(A71, name="A72", segment_sales=True)
 #: 적는다. 퇴행은 6회 모두 0건이다.
 A73 = replace(A72, name="A73", counterparty_pair=True)
 
+# --- W4 · 공시가 스스로 밝힌 원화 환산을 옮긴다 (브랜치 keypoint-gaps) ----------
+#: `Q-101` 골든 요점2 는 *"2025년 3월 24일 매매기준율(1,466.9원/달러)로 환산한 8조
+#: 5,080억원이 함께 적혀 있다"* 다. 그 문장은 근거 안에 **그대로 있다** — `- 기타 투자판단과
+#: 관련한 중요사항:` 필드의 산문 속이다. 답변은 세 판 모두 `$58억` 만 적었다.
+#:
+#: 🔴 `58억 × 1,466.9` 를 우리가 계산해서 내지 않는다. 공시가 적은 환산액과 우리 계산이
+#: 어긋나면(반올림·기준일 차이로 흔히 어긋난다) 우리 값이 공시와 다른 수가 되고, 심사자가
+#: 원공시와 맞춰 볼 때 곧바로 드러난다. 그래서 `[결정적 집계]` 가 아니라 `[결정적 조회]` 다.
+#:
+#: 사정거리 실측: 352건을 훑어 `Q-101` 하나. `Q-067` 에도 `환율` 낱말이 있으나 환산
+#: 문장은 아니다.
+A74 = replace(A73, name="A74", fx_conversion=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1539,7 +1555,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1586,7 +1602,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

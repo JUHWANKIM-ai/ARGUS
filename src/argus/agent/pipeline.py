@@ -2800,6 +2800,16 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, pair)
             trace.append(f"counterparty_pair line=1 chars={len(pair)}")
 
+    # 공시가 스스로 적어 둔 원화 환산 문장을 줄로 끌어올린다. 근거 산문에만 있는 수는
+    # 답변에 안 들어온다는 것을 여기서도 다시 본다(`Q-101` 3회 모두 누락).
+    if ablation.enabled("fx_conversion"):
+        from argus.agent import aggregate
+
+        fx = aggregate.fx_conversion(evidence, clean)
+        if fx:
+            evidence = _prepend(evidence, fx)
+            trace.append(f"fx_conversion line=1 chars={len(fx)}")
+
     # A stub in one filing and a body in another is a categorical difference,
     # and an answer calling them the same is wrong with confidence. The line
     # states it; it does not edit the answer.
