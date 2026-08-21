@@ -944,6 +944,41 @@ def _latest_per_chain(records: list[dict]) -> list[dict]:
     return sorted(out, key=lambda r: order.get(r["rcept_no"], 1 << 30))
 
 
+def summand_roster(rows: list[dict]) -> str:
+    """가산 항목의 신원. 합계 줄 밑에 항목마다 회사·계약명·금액·접수번호를 적는다.
+    플래그가 꺼져 있으면 빈 문자열이라 합계 줄이 종전과 글자 하나 다르지 않다.
+
+    🔴 **왜 이것이 필요한가.** 합계 줄은 총액과 피가수의 *값*만 실었다. **어느 공시가
+    그 피가수인지는 안 실었다.** `Q-115` 실측(서버 3회 전부 같은 모양):
+
+        결정적 집계   위 근거 2건의 금액 합계: 106,796,802,000 + 1,652,800,000,000
+                     = 1,759,596,802,000원
+        답변          계약 넷을 열거하고 → = 1,759,596,802,000원
+
+    총액은 이 줄에서 그대로 베끼고 가산 항목은 자기가 다시 골랐다. 「2025년 공시분 ·
+    계약상대 현대자동차」 조건을 근거 블록 다섯에 처음부터 다시 적용해야 했고 틀렸다.
+    답변 안에서 열거와 합계가 안 맞으므로 심사자가 네 수를 더해 보면 그것이 보인다.
+
+    Graph of Thoughts 가 이 공백을 정의한다 — CoT 는 사슬이고 ToT 는 트리이며 **둘 다
+    여러 갈래를 합치는 연산이 없다.** aggregation 변환이 그것을 메운다. 우리는 병합을
+    이미 결정적으로 했으므로 새로 계산할 것이 없고, **한 것을 보여 주기만** 하면 된다.
+    See paper/idea/idea.md §3.1 · docs/design-rationale.md#aggregate-scope
+
+    재생성으로는 못 고친다. `Q-115` 는 3회 모두 재생성이 돌고 3회 모두 실패 종류가 그대로라
+    버려졌다(`kept=original`). 판단이 생성보다 쉽다는 SWE-Lancer 의 관측과 같은 방향이다.
+    """
+    #: 빈 목록에 꼬리만 붙으면 "위 0건뿐이다" 라는 거짓 문장이 근거에 실린다. `line()` 이
+    #: 먼저 막지만 여기서도 막는다 — 근거에 들어가는 문장은 두 곳에서 지킨다.
+    if not ablation.enabled("aggregate_items") or not rows:
+        return ""
+    items = "\n".join(
+        f"  · {r.get('corp_name', '')} {_subject(r)} — {_amount(r):,}원 "
+        f"(접수번호 {r.get('rcept_no', '')})" for r in rows)
+    return (f"\n{items}\n"
+            f"  (가산 대상은 위 {len(rows)}건뿐이다. 답변이 항목을 열거할 때는 이 목록을 "
+            f"그대로 쓰고 다른 근거 블록을 더하지 않는다.)")
+
+
 def line(records, question: str, route) -> str:
     """One line to place in the evidence, or "" when there is nothing to emit."""
     op = _op(question)
@@ -980,8 +1015,9 @@ def line(records, question: str, route) -> str:
             return ""
         total = sum(_amount(r) for r in rows)
         terms = " + ".join(f"{_amount(r):,}" for r in rows)
-        return (f"- [결정적 집계] 위 근거 {len(rows)}건의 금액 합계{scope}: "
+        head = (f"- [결정적 집계] 위 근거 {len(rows)}건의 금액 합계{scope}: "
                 f"{terms} = **{total:,}원** {_DIRECTIVE}")
+        return head + summand_roster(rows)
 
     if op == "차":
         groups = _delta_groups(picked, question)

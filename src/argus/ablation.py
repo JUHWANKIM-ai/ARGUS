@@ -66,7 +66,9 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
                          "substitute_tool_results"),
     "verifier": ("substitute_verified", "provenance_gate", "regenerate_on_verify",
                  "counterparty_exempt", "amount_coverage_gate"),
-    "aggregate_line": ("substitute_aggregate",),
+    #: `aggregate_items` 는 `aggregate.line` 의 `합` 분기에 줄을 덧붙인다. 부모가 꺼지면
+    #: `pipeline` 이 그 함수를 아예 안 부르므로 자식은 조용한 무동작이 된다.
+    "aggregate_line": ("substitute_aggregate", "aggregate_items"),
     #: `refusal_needs_gap` narrows a branch inside `attach_citation`. With the
     #: parent off that function returns before the branch is reached, so the
     #: child would be a silent no-op -- the failure mode `period_label` hit,
@@ -552,6 +554,7 @@ class Arm:
     citation_note_fix: bool = False
     refusal_needs_gap: bool = False
     cite_chain_pair: bool = False
+    aggregate_items: bool = False
     #: True separates which filing a date points at when two share that date.
     #: With both filings in the evidence the selection rather than the
     #: retrieval goes wrong. The rule is what the date means: a contract filed
@@ -1185,6 +1188,22 @@ A57 = replace(A56, name="A57", refusal_needs_gap=True)
 #:     최신본의 형제 하나만      14문항 · 골든 12 : 비골든 4   (75%)  채택
 A58 = replace(A56, name="A58", cite_chain_pair=True)
 
+# --- W4 · P-A① : 결정적 집계 줄이 가산 항목을 밝힌다 --------------------------
+#: `A56` 위에 `aggregate_items` 하나. 계획서의 P-A 앞쪽. `A57`·`A58` 위가 아니다.
+#:
+#: 근거는 Graph of Thoughts — CoT 는 사슬, ToT 는 트리이며 **둘 다 여러 갈래를 합치는
+#: 연산이 없다**(`paper/idea/idea.md` §3.1). 우리는 병합을 이미 결정적으로 했는데 결과만
+#: 보여 주고 무엇을 병합했는지는 안 보여 준다.
+#:
+#: `Q-115` 실측(서버 3회 전부 같은 모양): 답변이 총액 1,759,596,802,000 을 결정적 줄에서
+#: 그대로 베끼고 가산 항목은 자기가 넷으로 다시 열거했다. 줄이 피가수 둘의 **신원**을
+#: 안 실었기 때문이다. 재생성은 3회 다 돌고 3회 다 버려졌다(실패 종류가 그대로였다).
+#:
+#: 🔴 **근거 문면이 바뀌는 첫 팔이다.** 생성 프롬프트는 한 글자도 안 바뀌지만 근거가
+#: 바뀌면 프롬프트 바이트가 바뀌어 **요청 캐시가 깨진다** — 이 팔부터 측정이 유료다.
+#: W1 실측으로 `[결정적 집계]` 는 15문항에 실린다(`scratch/audit/w1_risk_A56.json`).
+A59 = replace(A56, name="A59", aggregate_items=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1232,7 +1251,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1279,7 +1298,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
