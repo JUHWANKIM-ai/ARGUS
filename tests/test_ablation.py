@@ -3412,3 +3412,32 @@ def test_a43_and_a48_leave_both_new_flags_off():
 
     assert ab.A43.false_premise_gate is False and ab.A43.refusal_compaction is False
     assert ab.A48.false_premise_gate is False and ab.A48.refusal_compaction is False
+
+
+def test_밤샘_캠페인의_스위치는_배포본에_안_들어갔다():
+    """🔴 배포본(`_current`)을 실수로 바꾸는 것을 막는다.
+
+    `A68`~`A81` 열넷은 모두 게이트를 통과했지만 **채택과 배포는 다른 일이다**. 켤지는
+    측정을 보고 사람이 정할 일이고, 그때까지 `_current` 는 `A65` 여야 한다.
+
+    672건 전수 대조로 이 열넷이 꺼진 `A65` 의 거동이 글자 그대로 같음을 확인했다 — 새
+    방출기 전부 침묵 · `holding_series` 발화 여부 동일 · 괄호 환산 처분이 `Q-061` 하나만
+    다르다(그것이 `A81` 의 겨냥이다). 이 시험은 그 확인이 계속 참이게 붙잡는다.
+    """
+    campaign = ("holding_ask_wide", "composition_total", "pledged_series",
+                "segment_sales", "counterparty_pair", "fx_conversion",
+                "revision_diff", "strip_marker_citation", "holding_receipts",
+                "roster_counts", "drop_broken_equation", "delta_totals",
+                "wide_unit_parens")
+    for flag in campaign:
+        assert getattr(ablation.current(), flag) is False, \
+            f"{flag} 가 배포본에 들어갔다 — 배포는 별개의 결정이다"
+
+
+def test_기각한_스위치는_어느_채택_팔에도_없다():
+    """`roster_counts` 는 조건 셋을 다 채우고도 기각됐다(답변이 그 수를 안 쓴다).
+
+    `A78` 은 그 측정을 남기려고 등록해 둔 팔이므로 이 스위치를 켠 유일한 팔이어야 한다.
+    """
+    on = [name for name, arm in ablation.ARMS.items() if arm.roster_counts]
+    assert on == ["A78"], f"기각한 스위치가 다른 팔에 들어갔다: {on}"
