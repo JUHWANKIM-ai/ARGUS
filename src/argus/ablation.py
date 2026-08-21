@@ -596,6 +596,9 @@ class Arm:
     #: 명세 줄이 상대별 공시 건수를 나른다. 전체와 최신본을 나란히 적고 전역 집계임을
     #: 라벨에 박는다 — `design-rationale.md#counterparty-note-no-counts` 가 요구한 셋이다.
     roster_counts: bool = False
+    #: 피연산자가 결과를 못 만드는 등식에서 거짓 유도를 지운다. 결과가 결정적 줄의 값일
+    #: 때만 — 아니면 어느 쪽이 틀렸는지 모른다.
+    drop_broken_equation: bool = False
     #: periodic 정정본 블록이 무엇을 정정한 것인지 밝힌다. 🔴 이 줄의 14자리는 우리 근거
     #: 완전성 회계에 들어간다 — 원공시가 골든이면 본문 없이 적재로 세어진다. 채택 판정은
     #: 근거 완전성을 **두 가지로** 내야 한다(날값 · 포인터 줄 제외값).
@@ -1606,6 +1609,23 @@ A77 = replace(A76, name="A77", holding_receipts=True)
 #: 필요해지면 조건을 다시 논할 필요가 없다.
 A78 = replace(A77, name="A78", roster_counts=True)   # 🔴 기각 — 위 실측
 
+# --- W9 · 거짓 유도를 지운다 (브랜치 keypoint-gaps) -----------------------------
+#: `Q-113` 답변이 `1,828,750,000,000 - 526,570,000,000 = **526,570,000,000원**` 이라 적었다.
+#: **결과를 피감수 자리에 다시 쓴 것**이라 산술이 성립하지 않는다(실제 1,302,180,000,000).
+#: 결과 자체는 맞다 — 결정적 줄이 `합계 **526,570,000,000원**` 을 주었다.
+#:
+#: 그래서 이 문항은 정확성에는 안 잡히고 추론 논리성에만 걸린다(v3 §4.2, 2/3). `A61`
+#: (`sum_operand_fix`)은 「근거에 결정적 집계 **명세**가 있다」가 발화 조건이라 안 닿고,
+#: `fix_self_contradiction` 은 등식이 맞는지 자체를 안 본다.
+#:
+#: 🔴 바른 피감수(1,302,180,000,000)를 계산해 써 넣지 않는다. 근거 어디에도 그 수가 글자로
+#: 없으므로 써 넣는 것은 우리가 만든 수를 답변에 넣는 일이다 — `fx_conversion` 에서 환산을
+#: 직접 계산하지 않은 것과 같은 판단이다. 거짓 문장을 지우는 것은 언제나 안전하다.
+#:
+#: 🔴 결과가 결정적 줄에 없으면 침묵한다. 결과가 틀렸을 수도 있고 그때 유도를 지우면
+#: 틀린 값만 남는다. `A78` 을 기각한 팔 위에 얹지 않고 채택된 `A77` 위에 얹는다.
+A79 = replace(A77, name="A79", drop_broken_equation=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1653,7 +1673,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1700,7 +1720,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

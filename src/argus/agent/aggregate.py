@@ -1253,6 +1253,91 @@ def fix_self_contradiction(answer: str) -> tuple[str, list[str]]:
     return body + tail, fixed
 
 
+#: 근거의 결정적 줄. 그 줄에 적힌 금액은 시스템이 직접 계산·조회한 것이라 답변의 산문보다
+#: 믿을 수 있다. 표지는 이미 쓰이는 둘뿐이다(새 표지를 만들면 답변이 그것을 출처로
+#: 인용한다 — `pipeline.strip_marker_citation` 참조).
+_DECISIVE_LINE = re.compile(r"(?m)^.*\[결정적 (?:집계|조회)\].*$")
+
+
+def _decisive_amounts(evidence: str) -> set[int]:
+    """결정적 줄에 적힌 금액들. 답변의 등식 결과를 믿을지 가리는 잣대다."""
+    out: set[int] = set()
+    for line in _DECISIVE_LINE.findall(evidence or ""):
+        for text in _ANSWER_NUM.findall(line):
+            out.add(int(text.replace(",", "")))
+    return out
+
+
+def fix_broken_equation(answer: str, evidence: str) -> tuple[str, list[str]]:
+    """피연산자가 결과를 못 만드는 등식에서 **거짓 유도를 지운다.** LLM 호출 없음.
+
+    (고친 답변, 무엇을 고쳤는지) 를 돌려준다. 아니면 (원본, []).
+
+    ## 왜 필요한가
+
+    `Q-113` 은 *"두 회사 정정 후 계약금액 합계는 최초 공시 합계보다 얼마나 늘었는가"* 다.
+    답변이 이렇게 적었다(`A65` 서버 r1).
+
+        - 계산식: 1,328,800,000,000 + 499,950,000,000 = **1,828,750,000,000원**
+        - 증가분 = 1,828,750,000,000 - 526,570,000,000 = **526,570,000,000원**
+
+    앞 줄은 맞다. 뒷 줄은 **결과를 피감수 자리에 다시 쓴 것**이라 산술이 성립하지 않는다
+    (`1,828,750,000,000 − 526,570,000,000 = 1,302,180,000,000`). 결과 자체는 맞다 —
+    결정적 줄이 `합계 **526,570,000,000원**` 을 주었고 답변이 그것을 옮겼다.
+
+    그래서 이 문항은 **정확성에는 안 잡히고 추론 논리성에만** 걸린다(2/3). `A61`
+    (`sum_operand_fix`)은 발화 조건이 「근거에 결정적 집계 **명세**가 있다」라서 안 닿고,
+    `fix_self_contradiction` 은 등식이 **맞는지 자체를 안 본다** — 다른 자리의 산문을
+    결과에 맞추는 일만 한다.
+
+    ## 🔴 왜 피연산자를 고치지 않고 유도를 지우는가
+
+    바른 피감수는 `1,828,750,000,000 − 526,570,000,000 = 1,302,180,000,000` 이고 그것은
+    최초 공시 합계다. 계산해서 써 넣을 수도 있다. 하지 않는다 — 근거 어디에도 그 수가
+    글자로 적혀 있지 않으므로, 써 넣는 것은 **우리가 만든 수를 답변에 넣는 일**이다.
+    이 코드베이스가 `fx_conversion` 에서 환산을 직접 계산하지 않은 것과 같은 판단이다.
+
+    거짓 문장을 지우는 것은 언제나 안전하다. 남는 것은 `- 증가분 = **526,570,000,000원**`
+    이고, 그 값은 결정적 줄이 준 것이다.
+
+    ## 🔴 언제 침묵하는가
+
+        1. 등식이 성립한다 — 고칠 것이 없다
+        2. 결과가 결정적 줄에 없다 — **어느 쪽이 틀렸는지 모른다.** 결과가 틀렸을 수도
+           있고 그때 유도를 지우면 틀린 값만 남는다
+        3. 꼬리(시스템이 붙인 註)는 건드리지 않는다 — `split_tail` 의 규율이다
+    See docs/design-rationale.md#self-contradiction
+    """
+    if not ablation.enabled("drop_broken_equation"):
+        return answer, []
+    body, tail = split_tail(answer or "")
+    matches = list(_SELF_EQ.finditer(body))
+    if not matches:
+        return answer, []
+    trusted = _decisive_amounts(evidence)
+    if not trusted:
+        return answer, []
+
+    fixes: list[str] = []
+    #: 뒤에서부터 고친다 — 앞에서 고치면 뒤 구간의 자리가 밀린다.
+    for match in reversed(matches):
+        left = int(match.group(1).replace(",", ""))
+        right = int(match.group(3).replace(",", ""))
+        result = int(match.group(4).replace(",", ""))
+        got = left + right if match.group(2) == "+" else left - right
+        if got == result:
+            continue
+        if result not in trusted:
+            #: 🔴 결과가 결정적 줄에 없으면 어느 쪽이 틀렸는지 모른다.
+            continue
+        text = match.group(0)
+        kept = text[text.rfind("=") + 1:].lstrip()
+        body = body[:match.start()] + kept + body[match.end():]
+        fixes.append(f"{left:,} {match.group(2)} {right:,} = {result:,} "
+                     f"(실제 {got:,}) 유도를 지웠다")
+    return body + tail, fixes
+
+
 def _conclusion(answer: str) -> str:
     """Portion the answer presents as its final result, else the whole body.
 

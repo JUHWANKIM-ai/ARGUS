@@ -3127,6 +3127,14 @@ def answer_question(question_id: str, question: str) -> dict:
     # Align a figure that contradicts an expression the answer wrote itself, a
     # self-contradiction that neither exact match nor the numeric checks catch.
     # See docs/design-rationale.md#self-contradiction
+    # 거짓 유도를 먼저 지운다. `fix_self_contradiction` 은 등식 결과를 믿고 다른 자리를
+    # 그것에 맞추므로, 성립하지 않는 등식이 남아 있으면 맞출 기준이 흔들린다.
+    if ablation.enabled("drop_broken_equation"):
+        from argus.agent import aggregate
+
+        answer, dropped = aggregate.fix_broken_equation(answer, evidence)
+        if dropped:
+            trace.append(f'broken_eq {" · ".join(dropped)}')
     if ablation.enabled("self_consistency_fix"):
         from argus.agent import aggregate
 
