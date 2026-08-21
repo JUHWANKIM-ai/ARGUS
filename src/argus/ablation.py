@@ -608,6 +608,9 @@ class Arm:
     drop_broken_equation: bool = False
     #: 차 줄이 갈래별 차와 총 차 말고 **두 중간 합계**(정정 후 · 정정 전)도 싣는다.
     delta_totals: bool = False
+    #: 괄호 환산 검사가 조·억 밖의 표기도 읽는다. 못 읽는 표기는 종전에 **손대지 않고**
+    #: 지나갔고, 그래서 못 읽는 것과 틀린 것이 같이 통과했다.
+    wide_unit_parens: bool = False
     #: periodic 정정본 블록이 무엇을 정정한 것인지 밝힌다. 🔴 이 줄의 14자리는 우리 근거
     #: 완전성 회계에 들어간다 — 원공시가 골든이면 본문 없이 적재로 세어진다. 채택 판정은
     #: 근거 완전성을 **두 가지로** 내야 한다(날값 · 포인터 줄 제외값).
@@ -1649,6 +1652,24 @@ A79 = replace(A77, name="A79", drop_broken_equation=True)
 #: 둘을 함께 잰다.
 A80 = replace(A79, name="A80", delta_totals=True)
 
+# --- W11 · 괄호 환산 검사가 조·억 밖의 표기도 읽는다 (브랜치 keypoint-gaps) -----
+#: `Q-061` 답변이 `345,173,200,000원 (341십억 원)` 이라 적는다. 341십억은 341,000,000,000
+#: 이고 본문 값과 4,173,200,000 이 어긋난다. `fix_unit_parens` 는 `_EOK_TEXT` 가 못 읽는
+#: 표기를 **손대지 않고 지나가므로**(그 함수의 규율이고 옳다 — `(지분율 30%)` 를 환산으로
+#: 읽으면 안 된다) 이 틀린 값이 그대로 남았다.
+#:
+#: 🔴 `restatement` 관문이 이것을 **A65 서버 3회 · A77 로컬 3회 모두** 잡았다. 여섯 판
+#: 내리 같은 결함인데 v3 §4 에 없던 자리다 — 수치 검산 축의 유일한 고정 결함이다.
+#:
+#: 672건 전수 대조로 못 읽는 환산 표기는 셋뿐이다: `**2,759억원**`(강조가 괄호 안) ·
+#: `341십억 원`(자릿수 낱말) · `412억여 원`(`여` 접미). 값이 맞는 둘은 그대로 통과하고
+#: 틀린 하나만 고쳐진다.
+#:
+#: 🔴 허용 오차를 **표기의 눈금**으로 바꿨다. 종전은 `10 ** 8` 하나였는데 `십억` 표기의
+#: 눈금은 `10 ** 9` 이라 바른 값도 오차를 넘는다. 눈금을 모르면 맞는 것을 고치거나 틀린
+#: 것을 놓친다.
+A81 = replace(A80, name="A81", wide_unit_parens=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1696,7 +1717,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1743,7 +1764,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

@@ -1142,9 +1142,72 @@ _PAREN_UNIT = re.compile(r"(\d{1,3}(?:,\d{3}){2,})(\s*원?\s*\**\s*)"
 #: `9,714억원` and `2,000억`.
 _EOK_TEXT = re.compile(r"^(?:([\d,]+)\s*조\s*)?(?:([\d,]+(?:\.\d+)?)\s*억)?\s*원?$")
 
+#: 🔴 조·억 밖의 자릿수 낱말. `_EOK_TEXT` 가 못 읽는 표기는 `fix_unit_parens` 가 **손대지
+#: 않고 지나간다**(그 함수의 독스트링: *"Parentheses that do not parse as a conversion are
+#: left alone"*). 그 규율은 옳다 — `(주당 1,000원)` 이나 `(지분율 30%)` 를 환산으로 읽으면
+#: 안 된다. 다만 **못 읽는 것과 틀린 것이 같이 통과한다**는 대가가 있었다.
+#:
+#: `Q-061` 실측: 답변이 `345,173,200,000원 (341십억 원)` 이라 적는다. 341십억은
+#: 341,000,000,000 이고 본문 값과 4,173,200,000 이 어긋난다. `십억` 을 못 읽어 그대로
+#: 지나갔고 `restatement` 관문이 **A65 서버 3회 · A77 로컬 3회 모두** 이것을 잡았다 —
+#: 여섯 판 내리 같은 결함인데 v3 §4 에 없던 자리다.
+#:
+#: 672건 전수 대조로 `_EOK_TEXT` 가 못 읽는 환산 표기는 셋뿐이다.
+#:
+#:     `**2,759억원**`  마크다운 강조가 괄호 **안**에 있다 (`Q-018` 6/6, 값은 맞다)
+#:     `341십억 원`     자릿수 낱말이 조·억 밖이다 (`Q-061` 6/6, 값이 틀렸다)
+#:     `412억여 원`     `여`(남짓) 접미가 붙었다 (`Q-091` 5/6, 값은 맞다)
+#:
+#: 셋을 다 읽게 한다. 값이 맞는 둘은 그대로 통과하고 틀린 하나만 고쳐진다.
+_SCALE_WORDS = (("십억", 10 ** 9), ("백만", 10 ** 6), ("천만", 10 ** 7), ("만", 10 ** 4))
+_SCALE_TEXT = re.compile(r"^([\d,]+(?:\.\d+)?)\s*(십억|백만|천만|만)\s*여?\s*원?$")
+#: 괄호 안에서 지울 것 — 마크다운 강조와 `여`(남짓). 값에 영향이 없다.
+_PAREN_NOISE = re.compile(r"[*_]|(?<=억)\s*여|(?<=조)\s*여")
+
 #: Rounding allowance. Unit notation drops anything below 100 million, so a
 #: gap that size is not an error.
 _PAREN_TOLERANCE = 10 ** 8
+
+
+def _parse_paren_unit(inner: str) -> tuple[int, int] | None:
+    """(적힌 값, 그 표기의 눈금). 환산 표기가 아니면 None.
+
+    🔴 눈금을 함께 돌려주는 것이 요점이다. 종전은 허용 오차가 `10 ** 8` 하나였는데,
+    `십억` 표기의 눈금은 `10 ** 9` 이라 **바른 값도 오차를 넘는다**(`345십억` vs
+    345,173,200,000 은 173,200,000 차이지만 `341십억` 은 4,173,200,000 차이다). 눈금을
+    모르면 맞는 것을 고치거나 틀린 것을 놓친다.
+    """
+    from argus.agent.prompts import EOK_PER_JO
+
+    text = _PAREN_NOISE.sub("", inner or "").strip()
+    hit = _EOK_TEXT.match(text)
+    if hit and (hit.group(1) or hit.group(2)):
+        stated = 0
+        if hit.group(1):
+            stated += int(hit.group(1).replace(",", "")) * EOK_PER_JO * 10 ** 8
+        if hit.group(2):
+            stated += int(float(hit.group(2).replace(",", "")) * 10 ** 8)
+        return stated, _PAREN_TOLERANCE
+    hit = _SCALE_TEXT.match(text)
+    if hit:
+        scale = dict(_SCALE_WORDS)[hit.group(2)]
+        return int(float(hit.group(1).replace(",", "")) * scale), scale
+    return None
+
+
+def _narrow_paren_unit(inner: str) -> tuple[int, int] | None:
+    """`wide_unit_parens` 가 꺼졌을 때의 판. 종전 거동을 글자 그대로 유지한다."""
+    from argus.agent.prompts import EOK_PER_JO
+
+    hit = _EOK_TEXT.match(inner or "")
+    if not hit or not (hit.group(1) or hit.group(2)):
+        return None
+    stated = 0
+    if hit.group(1):
+        stated += int(hit.group(1).replace(",", "")) * EOK_PER_JO * 10 ** 8
+    if hit.group(2):
+        stated += int(float(hit.group(2).replace(",", "")) * 10 ** 8)
+    return stated, _PAREN_TOLERANCE
 
 
 def fix_unit_parens(answer: str) -> tuple[str, list[str]]:
@@ -1174,15 +1237,12 @@ def fix_unit_parens(answer: str) -> tuple[str, list[str]]:
     def _sub(match: re.Match) -> str:
         won = int(match.group(1).replace(",", ""))
         inner = match.group(3).strip()
-        hit = _EOK_TEXT.match(inner)
-        if not hit or not (hit.group(1) or hit.group(2)):
+        parsed = _parse_paren_unit(inner) if ablation.enabled("wide_unit_parens") \
+            else _narrow_paren_unit(inner)
+        if parsed is None:
             return match.group(0)               # not a unit conversion
-        stated = 0
-        if hit.group(1):
-            stated += int(hit.group(1).replace(",", "")) * EOK_PER_JO * 10 ** 8
-        if hit.group(2):
-            stated += int(float(hit.group(2).replace(",", "")) * 10 ** 8)
-        if abs(stated - won) <= _PAREN_TOLERANCE:
+        stated, tolerance = parsed
+        if abs(stated - won) <= tolerance:
             return match.group(0)               # rounding gap, value is correct
         eok = won / 10 ** 8
         right = _split_jo(eok) if abs(eok) >= EOK_PER_JO else f"{eok:,.0f}억원"
