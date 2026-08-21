@@ -588,6 +588,8 @@ class Arm:
     fx_conversion: bool = False
     #: 정정 전후 두 벌을 줄 단위로 견주어 무엇이 바뀌고 무엇이 안 바뀌었는지 낸다.
     revision_diff: bool = False
+    #: 답변이 결정적 줄의 표지(`결정적 집계` 따위)를 출처로 인용한 자리를 걷어낸다.
+    strip_marker_citation: bool = False
     #: periodic 정정본 블록이 무엇을 정정한 것인지 밝힌다. 🔴 이 줄의 14자리는 우리 근거
     #: 완전성 회계에 들어간다 — 원공시가 골든이면 본문 없이 적재로 세어진다. 채택 판정은
     #: 근거 완전성을 **두 가지로** 내야 한다(날값 · 포인터 줄 제외값).
@@ -1529,6 +1531,22 @@ A74 = replace(A73, name="A74", fx_conversion=True)
 #: 짝이 있고 그것을 한 줄에 담으면 근거를 밀어내는 벽이 된다.
 A75 = replace(A74, name="A75", revision_diff=True)
 
+# --- W6 · 표지를 출처로 댄 자리를 걷어낸다 (브랜치 keypoint-gaps) ---------------
+#: 표지(`[결정적 집계]` 따위)는 우리가 근거 앞에 붙인 **내부 이름표**다. 생성 프롬프트는
+#: 그것을 아예 모르므로 모델은 대괄호를 그냥 출처로 읽고 그대로 인용한다.
+#:
+#:     (근거: 결정적 집계, 2023-07-03)
+#:     (근거: 결정적 조회 및 각 회사별 공급계약 체결 보고서들, 기준연월 미확인)
+#:     이는 결정적 집계에 명시되어 있습니다.
+#:
+#: `A65` 서버 3회 실측: 336건 중 **36건**(12문항 × 3회). 12문항 모두 매 회차에 나오므로
+#: 흔들림이 아니라 규칙이다. 값은 맞는데 출처가 허깨비인 것이라 채점 축에 안 잡히면서
+#: 심사자의 신뢰를 깎는다.
+#:
+#: 🔴 생성 프롬프트는 고정이므로 프롬프트로는 못 고친다. `drop_citation_warning` 과 같은
+#: 자리·같은 방식으로 답변을 뒤에서 고친다.
+A76 = replace(A75, name="A76", strip_marker_citation=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1576,7 +1594,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1623,7 +1641,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

@@ -2606,6 +2606,118 @@ _CITATION_REASON = next(text for field, _bad, text in _VERDICT_REASONS
                         if field == "has_citation")
 
 
+#: 결정적 줄의 표지. 답변이 이것을 **출처로 인용**한다 — `(근거: 결정적 집계, 2023-07-03)`.
+#: 표지는 우리가 근거 앞에 붙인 내부 이름표이고 공시가 아니다. 심사자가 읽는 글에
+#: 「결정적 집계」가 출처로 적히면 있지도 않은 자료를 댄 것으로 읽힌다.
+_MARKER_WORDS = ("결정적 집계", "결정적 조회", "결정적 단위", "결정적 대조", "결정적 줄")
+_MARKER_RE = re.compile("|".join(re.escape(w) for w in _MARKER_WORDS))
+#: 답변이 문장 안에 직접 적은 근거 괄호의 **여는 쪽**. 닫는 쪽은 정규식으로 못 찾는다 —
+#: 🔴 `(근거: 결정적 집계 (주)두산 보고 …)` 처럼 회사 이름이 괄호를 품는다. `[^)]*` 로
+#: 잡으면 `(주)` 에서 끊겨 뒤가 문장에 나뒹군다. 그래서 깊이를 세며 걸어간다.
+_SOURCE_OPEN = re.compile(r"[(（]\s*근거\s*[:：]")
+_OPENERS, _CLOSERS = "(（", ")）"
+#: 표지를 뺀 자리에 남는 접착사. `및` · `와` · `과` · 쉼표.
+_GLUE = re.compile(r"^[\s,·및와과의그리고]+|[\s,·및와과의그리고]+$")
+#: 괄호에 남은 것이 값어치가 있는가. 접수번호나 두 글자 넘는 낱말이 남아야 한다.
+#: 날짜만 남은 근거는 근거가 아니다.
+_SUBSTANTIVE = re.compile(r"\d{14}|[가-힣A-Za-z]{2,}")
+
+
+def _source_spans(text: str) -> list[tuple[int, int, str]]:
+    """(시작, 끝, 괄호 안) 목록. 괄호 깊이를 세며 짝을 찾는다.
+
+    닫히지 않은 괄호는 담지 않는다 — 끝을 모르면 무엇을 지울지도 모른다.
+    """
+    out = []
+    for opened in _SOURCE_OPEN.finditer(text):
+        depth, at = 1, opened.end()
+        while at < len(text) and depth:
+            if text[at] in _OPENERS:
+                depth += 1
+            elif text[at] in _CLOSERS:
+                depth -= 1
+            at += 1
+        if depth:
+            continue
+        out.append((opened.start(), at, text[opened.end():at - 1]))
+    return out
+
+
+def strip_marker_citation(answer: str) -> tuple[str, list[str]]:
+    """답변이 결정적 줄의 표지를 출처로 인용한 자리를 걷어낸다.
+
+    (고친 답변, 무엇을 고쳤는지) 를 돌려준다. LLM 호출 없음.
+
+    ## 왜 필요한가
+
+    표지(`[결정적 집계]` 따위)는 우리가 근거 앞에 붙인 **내부 이름표**다. 생성 프롬프트는
+    그것을 아예 모르므로 모델은 대괄호를 그냥 출처로 읽고, 그대로 인용한다.
+
+        (근거: 결정적 집계, 2023-07-03)
+        (근거: 결정적 조회 및 각 회사별 공급계약 체결 보고서들, 기준연월 미확인)
+        이는 결정적 집계에 명시되어 있습니다.
+
+    `A65` 서버 3회 실측: 336건 중 **36건**(12문항 × 3회)이 이 모양이다 — `Q-018` `Q-023`
+    `Q-034` `Q-106` `Q-107` `Q-109` `Q-110` `Q-113` `Q-114` `Q-115` `Q-116` `Q-117`.
+    12문항 모두 매 회차에 나오므로 흔들림이 아니라 규칙이다.
+
+    심사자가 읽는 글에 「결정적 집계」가 출처로 적히면 **있지도 않은 자료를 댄 것**으로
+    읽힌다. 값은 맞는데 출처가 허깨비인 것이라, 채점 축에 안 잡히면서 신뢰를 깎는다.
+
+    ## 🔴 프롬프트로는 못 고친다
+
+    생성 프롬프트(`prompts._BASE_RULES`)는 고정이다. 그래서 `drop_citation_warning` 과
+    같은 자리·같은 방식으로 **답변을 뒤에서 고친다.** `attach_citation` 앞에 두는 것은
+    진짜 표기가 그 뒤에 붙기 때문이다 — 허깨비를 지우고 참을 붙이는 순서다.
+
+    ## 무엇을 어떻게 고치는가
+
+        괄호에 값어치 있는 것이 남는다 → 표지만 뺀다. 남은 표기는 참이므로 지우면 관측을 잃는다.
+        남을 것이 없다                → 괄호를 통째로 지운다. 날짜만 남은 근거는 근거가 아니다.
+        괄호 밖의 문장                → 표지를 `위 근거` 로 바꾼다. 결정적 줄은 정말로 근거
+                                       안에 있으므로 이것은 참인 말이다.
+
+    ## 🔴 두 번 틀리고 고쳤다
+
+    ① 괄호를 `[^)]*` 로 잡았더니 `(근거: 결정적 집계 (주)두산 보고 보유비율 추이, …)` 에서
+       `(주)` 에 걸려 끊기고 뒤가 문장에 나뒹굴었다(`Q-106` 실측). 회사 이름이 괄호를
+       품으므로 깊이를 세며 걸어가야 한다.
+    ② 지운 자리를 `[ \\t]{2,}` → 한 칸으로 다듬었더니 **마크다운 들여쓰기가 무너졌다** —
+       `   - 계약 상대:` 가 ` - 계약 상대:` 가 됐다(`Q-034`·`Q-106` 실측). 답변 전체에
+       거는 정리는 지운 자리와 무관한 곳을 건드린다. 그래서 지울 때 **그 앞의 공백만**
+       함께 지운다.
+    """
+    if not ablation.enabled("strip_marker_citation"):
+        return answer, []
+    text = answer or ""
+    if not _MARKER_RE.search(text):
+        return answer, []
+    fixes: list[str] = []
+    #: 뒤에서부터 고친다 — 앞에서 고치면 뒤 구간의 자리가 밀린다.
+    for start, end, inner in reversed(_source_spans(text)):
+        if not _MARKER_RE.search(inner):
+            continue
+        rest = _GLUE.sub("", _MARKER_RE.sub("", inner))
+        rest = _GLUE.sub("", re.sub(r"\s*[,·]\s*[,·]\s*", ", ", rest).strip())
+        if _SUBSTANTIVE.search(rest):
+            text = text[:start] + f"(근거: {rest})" + text[end:]
+            fixes.append("표지만 뺀 근거 괄호 1곳")
+            continue
+        #: 🔴 지울 때 **그 앞의 공백만** 함께 지운다. 답변 전체에 공백 정리를 걸면
+        #: 마크다운 들여쓰기가 무너진다.
+        lead = start
+        while lead > 0 and text[lead - 1] in " \t":
+            lead -= 1
+        text = text[:lead] + text[end:]
+        fixes.append("표지뿐인 근거 괄호 1곳을 지웠다")
+    if _MARKER_RE.search(text):
+        #: 괄호 밖에 남은 것은 문장 속 언급이다. `위 근거` 는 참인 말이다 — 결정적 줄은
+        #: 정말로 근거 안에 있다.
+        text = _MARKER_RE.sub("위 근거", text)
+        fixes.append("문장 속 표지를 '위 근거' 로 바꿨다")
+    return text, fixes
+
+
 def drop_citation_warning(answer: str) -> tuple[str, bool]:
     """Remove the "no citation" reason once a citation has been attached.
 
@@ -2992,6 +3104,12 @@ def answer_question(question_id: str, question: str) -> dict:
         answer, why = aggregate.fix_stray_summands(answer, evidence)
         if why:
             trace.append(f"stray_summands {why}")
+    # 답변이 결정적 줄의 표지를 출처로 인용한 자리를 걷어낸다. `attach_citation` **앞**에
+    # 두는 것은 진짜 표기가 그 뒤에 붙기 때문이다 — 허깨비를 지우고 참을 붙이는 순서다.
+    if ablation.enabled("strip_marker_citation"):
+        answer, stripped = strip_marker_citation(answer)
+        if stripped:
+            trace.append(f'marker_citation {" · ".join(stripped)}')
     answer, cited = ablation.attach_citation(answer, evidence, provenance=provenance,
                                              question=clean)
     if cited:
