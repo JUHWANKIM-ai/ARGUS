@@ -59,10 +59,18 @@ def _group_records(group: str) -> dict[str, dict]:
 
     arm = ablation.current()
     if arm.nary:
-        return _group_records_nary(group)
-    if arm.correction_fields:
-        return _group_records_fields(group)
-    return _group_records_raw(group)
+        base, kind = _group_records_nary(group), "nary"
+    elif arm.correction_fields:
+        base, kind = _group_records_fields(group), "fields"
+    else:
+        base, kind = _group_records_raw(group), "raw"
+    # 🔴 `stale_note` 는 앞의 셋을 **대체하지 않고 겹친다.** 계획서 과제 1 단계 4 는 이
+    # 분기를 맨 앞에 두고 바로 돌려주게 적었는데, `A56` 이 `correction_fields` 를 켜 두고
+    # 있으므로 그러면 `A63` 이 그 분기를 조용히 잃는다 — 스위치와 무관한 근거 변화가
+    # 델타에 섞인다. 어느 바탕 위에 각인했는지를 캐시 키에 넣어 팔별로 따로 담는다.
+    if arm.stale_note:
+        return _group_records_stale(group, kind)
+    return base
 
 
 # --- Appending extracted n-ary values to the evidence -----------------------
@@ -256,6 +264,58 @@ def _correction_lines(record: dict) -> list[str]:
             best[label] = value
     return [f"- {label.split('. ', 1)[-1]}: {best[label][:CORRECTION_FIELD_CHARS]}"
             for label in CORRECTION_FIELD_LABELS if label in best]
+
+
+def _stale_line(record: dict, latest: dict | None) -> str | None:
+    """대체본 각인. 최신본이 같은 그룹에 있을 때 최신 금액까지 적는다.
+
+    🔴 `정정체인:` 과 `대체됨` 은 하중을 받는 낱말이다. `critic._STALE_NOTE`
+    (`정정체인:.*대체됨`)가 이 어구로 블록의 체인 위치를 읽어 `stale_value` 검사를 돈다.
+    바꾸면 그 검사의 전제가 사라진다.
+
+    🔴 최신본 접수번호는 적지 않는다. 근거에 안 실린 공시의 14자리를 블록에 쓰면
+    `error_analysis._blocks` 가 그것을 **적재된 골든**으로 읽어 우리 재현율만 오른다 —
+    `pipeline._roster_line` 이 `loaded` 로 제한한 것과 같은 근거다. 금액은 14자리가
+    아니라 그 회계에 안 들어간다.
+    See docs/superpowers/plans/2026-08-21-raw-preprocessing.md 과제 1
+    """
+    if record.get("is_latest", True):
+        return None
+    head = "- 정정체인: 이 공시는 정정되어 대체됨"
+    if not latest:
+        return head
+    amount, mine = latest.get("amount"), record.get("amount")
+    if not isinstance(amount, int) or amount == mine:
+        return head
+    label = latest.get("amount_type") or "금액"
+    return f"{head} (최신 {label} {amount:,}원)"
+
+
+@lru_cache(maxsize=len(RECORD_GROUPS) * 3)
+def _group_records_stale(group: str, kind: str = "raw") -> dict[str, dict]:
+    """각인한 사본. 원본 매핑은 절대 변형하지 않는다 — 같은 프로세스에서 다른 팔을
+    돌리면 그 팔의 근거가 조용히 오염된다. `_group_records_nary` 와 같은 규율이다.
+
+    `kind` 는 어느 바탕 위에 각인하는가다(`raw` · `fields` · `nary`). 캐시를 바탕별로
+    나누지 않으면 첫 팔의 매핑이 뒤의 팔에 재생돼 없던 델타를 0 으로 보고한다.
+    """
+    base = {"nary": _group_records_nary, "fields": _group_records_fields}.get(
+        kind, _group_records_raw)(group)
+    by_rcept = {str(r.get("rcept_no")): r for r in base.values()}
+    out: dict[str, dict] = {}
+    changed = False
+    for doc_id, record in base.items():
+        links = [by_rcept.get(str(r)) for r in (record.get("related") or ())]
+        latest = next((r for r in links if r and r.get("is_latest")), None)
+        line = _stale_line(record, latest)
+        if not line or line in (record.get("markdown") or ""):
+            out[doc_id] = record
+            continue
+        changed = True
+        head, sep, rest = (record.get("markdown") or "").partition("\n")
+        out[doc_id] = {**record,
+                       "markdown": f"{head}\n{line}\n{rest}" if sep else f"{head}\n{line}"}
+    return out if changed else base
 
 
 @lru_cache(maxsize=len(RECORD_GROUPS))

@@ -457,9 +457,23 @@ def _chain_note(entry: dict, index: int, total: int, as_of: str = "") -> str:
 
 def _annotate(markdown: str, note: str) -> str:
     """Insert one line directly below the `## ` header, leaving the block
-    boundary intact."""
+    boundary intact.
+
+    A line with the same prefix (`- 정정체인:`) is **replaced** rather than
+    joined. The stamp written by `ablation.stale_note` and the runtime chain
+    note can meet in one block, and two lines saying the same thing differently
+    leave it undecided which the model should believe. The runtime line is the
+    one that knows the chain position (`n/N`), so it wins.
+    See docs/superpowers/plans/2026-08-21-raw-preprocessing.md 과제 1
+    """
     if not markdown:
         return markdown
+    prefix = note.split(":", 1)[0] + ":"
+    lines = markdown.split("\n")
+    for index, line in enumerate(lines[1:], 1):
+        if line.startswith(prefix):
+            lines[index] = note
+            return "\n".join(lines)
     head, sep, rest = markdown.partition("\n")
     if not sep:
         return f"{markdown}\n{note}"

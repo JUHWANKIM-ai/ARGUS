@@ -563,6 +563,12 @@ class Arm:
     aggregate_items: bool = False
     sum_operand_fix: bool = False
     roster_items: bool = False
+    #: 대체본 블록에 폐기 표시를 각인한다. 레코드의 `related` · `is_latest` 는 이미 있고
+    #: `to_markdown` 이 안 쓴다. 런타임 창(`CHAIN_SEED_WINDOW = 2`)과 무관하게 붙으므로
+    #: `latest_pin`(퇴행 2건으로 기각)과 달리 근거 슬롯을 하나도 더 안 쓴다.
+    #: 최신본 접수번호는 적지 않는다 — 근거에 안 실린 공시의 14자리를 블록에 쓰면
+    #: `error_analysis._blocks` 가 적재된 골든으로 읽어 우리 재현율만 오른다.
+    stale_note: bool = False
     #: True separates which filing a date points at when two share that date.
     #: With both filings in the evidence the selection rather than the
     #: retrieval goes wrong. The rule is what the date means: a contract filed
@@ -1267,6 +1273,25 @@ A60 = replace(A56, name="A60", roster_items=True)
 A62 = replace(A56, name="A62", refusal_needs_gap=True, cite_chain_pair=True,
               aggregate_items=True, sum_operand_fix=True, roster_items=True)
 
+# --- W-A : 대체본에 폐기 표시를 각인한다 --------------------------------------
+#: `A56` 위에 `stale_note` 하나. 계획서
+#: `docs/superpowers/plans/2026-08-21-raw-preprocessing.md` 의 과제 1.
+#: `A57`~`A62` 위가 아니다 — 델타를 섞지 않는다.
+#:
+#: `Q-116` 실측(서버 3회 전부): 답변이 폐기된 581,790,000,000 을 말하고 최신값
+#: 583,874,002,800 을 한 번도 안 쓴다. 대체본 블록에 폐기 신호가 문면에 하나도 없기
+#: 때문이다 — `related` 는 레코드에 있고(양방향) `to_markdown` 이 안 쓴다.
+#:
+#: 🔴 `latest_pin`(같은 진단, 창을 넓히는 처방)은 퇴행 2건으로 기각됐다. 이 팔은 창을
+#: 안 건드리고 근거 슬롯을 하나도 더 안 쓴다 — 블록 안의 줄 하나다. 그리고 순위와
+#: 무관하게 **모든 대체본에** 붙는다.
+#:
+#: 🔴 각인은 `nary`·`correction_fields` 분기를 **대체하지 않고 겹친다.** 계획서 단계 4 는
+#: 맨 앞에서 바로 돌려주게 적었는데 `A56` 이 `correction_fields` 를 켜 두고 있어 그러면
+#: 이 팔이 그 분기를 조용히 잃는다. `_group_records_stale(group, kind)` 가 바탕을 키에
+#: 넣어 그것을 막는다.
+A63 = replace(A56, name="A63", stale_note=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1314,7 +1339,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1361,7 +1386,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
