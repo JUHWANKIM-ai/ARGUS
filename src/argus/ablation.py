@@ -72,7 +72,7 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     #: child would be a silent no-op -- the failure mode `period_label` hit,
     #: where a flag changed nothing across all 112 questions and the test
     #: passed anyway because its fixture had a different shape than the runtime.
-    "attach_citation": ("refusal_needs_gap",),
+    "attach_citation": ("refusal_needs_gap", "cite_chain_pair"),
     #: The second measurement-established entry (see the paragraph above:
     #: `calc_values` -> `lean_rules` was the first). `project_scope` is not
     #: code-gated by `counterparty_relevance` -- `aggregate.select` runs its
@@ -551,6 +551,7 @@ class Arm:
     #: byte-identical and the request cache hits.
     citation_note_fix: bool = False
     refusal_needs_gap: bool = False
+    cite_chain_pair: bool = False
     #: True separates which filing a date points at when two share that date.
     #: With both filings in the evidence the selection rather than the
     #: retrieval goes wrong. The rule is what the date means: a contract filed
@@ -1165,6 +1166,25 @@ A56 = replace(A54, name="A56", citation_note_fix=True)
 #:     안전성 10문항 · 정보한계 6문항      그대로 거절로 남는다
 A57 = replace(A56, name="A57", refusal_needs_gap=True)
 
+# --- W3 · P-B : 정정 질의에서 원공시를 짝으로 붙인다 --------------------------
+#: `A56` 위에 `cite_chain_pair` 하나. 계획서의 P-B. 🔴 `A57` 위가 아니다 — 델타를 섞지 않는다.
+#:
+#: 근거는 Relink 의 **query-driven** 성질이다(`paper/idea/idea.md` §3.8). 논문 정리가
+#: `원본 vs [기재정정]` 을 distractor 예로 명시하고, ablation 최악이 query-driven ranker
+#: 제거(−19.4%)다. 랭커는 학습할 수 없으니 성질만 가져온다 — 질의가 정정을 물을 때만 돈다.
+#:
+#: 🔴 **계획서보다 사정거리가 짧다.** 겨냥한 다섯 중 셋(`Q-054`·`Q-068`·`Q-082`)은
+#: 원공시가 근거에 아예 없어 인용으로 못 고친다. 회수 문제이고 이 팔 밖이다.
+#: `Q-094` 는 정정본의 체인 링크가 비어 있다. 닫는 것은 `Q-093` 이고 곁따라 `Q-035` 다.
+#:
+#: 세우기 **전에** 규칙 셋을 재고 가장 좁은 것을 골랐다
+#: (`scratch/simulate_a58_rules.py` · 저장 답변 336개):
+#:
+#:     유일성 요구 통째 해제      10문항 · 골든 7 : 비골든 9   (44%)  기각
+#:     인용본의 형제 전부        15문항 · 골든 16 : 비골든 9   (64%)  기각
+#:     최신본의 형제 하나만      14문항 · 골든 12 : 비골든 4   (75%)  채택
+A58 = replace(A56, name="A58", cite_chain_pair=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1212,7 +1232,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1259,7 +1279,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
@@ -1791,7 +1811,9 @@ def attach_citation(answer: str, evidence: str, arm: Arm | None = None,
     #: **답변이 쓴 근거가 실제로 인용됐는지**를 본다. 표기가 하나 있다는 것과 옳은 것을
     #: 가리킨다는 것은 다른 문제이고, `Q-110` 이 그 차이다.
     if quick_check(answer)["has_citation"]:
-        return _cite_missing_used(answer, units, bare_numbers, arm)
+        answer, more = _cite_missing_used(answer, units, bare_numbers, arm)
+        answer, paired = _cite_chain_pair(answer, units, question, arm)
+        return answer, more + paired
 
     # Nothing is attached when the answer links to nothing. This rule changed
     # three times: attaching every candidate cost a question its
@@ -1809,7 +1831,8 @@ def attach_citation(answer: str, evidence: str, arm: Arm | None = None,
     #: 종전 상한(3)이 고른 것 밖에 답변이 쓴 근거가 더 있으면 그것도 붙인다. 열거형
     #: 답변은 여섯 갈래를 세는 일이 있어 3 으로는 담기지 않는다.
     answer, more = _cite_missing_used(answer, units, bare_numbers, arm)
-    return answer, attached + more
+    answer, paired = _cite_chain_pair(answer, units, question, arm)
+    return answer, attached + more + paired
 
 
 def _insert_citation(answer: str, picked: list[dict]) -> tuple[str, list[str]]:
@@ -1828,6 +1851,66 @@ def _insert_citation(answer: str, picked: list[dict]) -> tuple[str, list[str]]:
 #: 8 은 관측된 최대 열거 폭(6)에 여유 둘을 더한 값이다. 무한이 아닌 이유는 근거 칸이
 #: 10건까지 담기므로 상한이 없으면 표기가 답변보다 길어질 수 있기 때문이다.
 MAX_CITATIONS_USED = 8
+
+
+def _cite_chain_pair(answer: str, units: list[dict], question: str,
+                     arm: Arm) -> tuple[str, list[str]]:
+    """정정을 묻는 질의에서, 답변이 인용한 정정본의 **원공시 하나**를 붙인다.
+
+    `cite_used` 의 유일성 규칙("답변이 쓴 수가 그 블록에만 유일할 때")은 정정 체인 안에서
+    성립하지 않는다. 원공시와 정정본이 같은 수를 담기 때문이다. 규칙은 옳고 적용 범위가
+    문제이므로 규칙을 두고 예외를 만든다.
+
+    🔴 **범위를 세 겹으로 좁혔다.** 넓은 판은 측정 후 기각했다
+    (`scratch/simulate_a58_rules.py`, 저장 답변 336개):
+
+        유일성 요구를 통째로 뺀다      10문항 · 골든 7 : 비골든 9  (44%)
+        인용본의 형제를 모두 붙인다     15문항 · 골든 16 : 비골든 9  (64%)
+        🟢 최신본의 형제 하나만        14문항 · 골든 12 : 비골든 4  (75%)
+
+    비골든을 늘리는 것이 이 함수의 위험이다. `cite_used` 자체가 네 후보 중 **비골든
+    부착을 23 -> 4 로 줄이는** 기준으로 골라진 것이므로, 그 결정을 되돌리는 판은 쓸 수
+    없다. 채택한 판의 비율(12:4)은 `cite_used` 가 받아들인 비율(8:13 중 8 채택, 비골든 4)
+    보다 나쁘지 않다.
+
+    Relink 가 준 것은 랭커가 아니라 **query-driven 이라는 성질**이다 — "무엇이 정정됐나" 는
+    짝을 요구하고 "최종 금액은?" 은 최신본만 요구한다. 그래서 `_CHAIN_ASK` 로 질의를 먼저
+    가른다. 전역으로 최신본을 끌어오는 판(`latest_pin`)은 퇴행 2건으로 기각됐다.
+    See paper/idea/idea.md §3.8 · docs/design-rationale.md#citation-attachment
+
+    🔴 **사정거리가 계획서보다 짧다.** 겨냥한 다섯 문항 중 `Q-054`·`Q-068`·`Q-082` 는
+    원공시가 **근거에 아예 없어서** 붙일 수가 없고(없는 출처를 지목하는 것이 된다),
+    `Q-094` 는 정정본의 `links` 가 비어 있고 근거의 `최초제출일` 칸도 비어 있다. 이
+    함수가 닫는 것은 `Q-093` 하나이며, 곁따라 `Q-035` 의 어긋남도 닫는다. 남은 셋은
+    회수 문제이므로 오픈이슈로 옮긴다.
+    """
+    if not arm.cite_chain_pair or not question:
+        return answer, []
+    from argus.agent import tools                  # imported at call time: cycle
+    from argus.agent.critic import _CHAIN_ASK
+
+    if not _CHAIN_ASK.search(question):
+        return answer, []
+    loaded = {u["rcept_no"]: u for u in units}
+    present = set(_CITE_RCEPT_ANY.findall(answer or ""))
+    add: list[str] = []
+    for rcept in sorted(present):
+        probe = tools.chain_probe(rcept)
+        # 인용된 것이 최신본일 때만 원공시를 찾는다. 원본을 인용한 답변에 정정본을 붙이는
+        # 것은 방향이 반대이고, 그것은 `latest_pin` 이 기각된 자리다.
+        if not probe or not probe.get("is_latest"):
+            continue
+        siblings = sorted(link for link in (probe.get("links") or ())
+                          if link in loaded and link not in present and link not in add)
+        if siblings:
+            add.append(siblings[0])
+    # 상한이 있는 자원에 더하는 것은 밀어내는 것이다. W1 실측으로 지금 최대가 6 이고
+    # 상한이 8 이라 여유가 있지만, 여유를 가정하지 않고 확인한다.
+    room = MAX_CITATIONS_USED - len(present)
+    add = add[:max(0, room)]
+    if not add:
+        return answer, []
+    return _insert_citation(answer, [loaded[r] for r in add])
 
 
 def _cite_missing_used(answer: str, units: list[dict], numbers: set[str],
