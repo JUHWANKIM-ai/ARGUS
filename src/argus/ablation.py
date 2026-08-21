@@ -69,6 +69,9 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     #: `aggregate_items` 는 `aggregate.line` 의 `합` 분기에 줄을 덧붙인다. 부모가 꺼지면
     #: `pipeline` 이 그 함수를 아예 안 부르므로 자식은 조용한 무동작이 된다.
     "aggregate_line": ("substitute_aggregate", "aggregate_items"),
+    #: `sum_operand_fix` 는 `summand_roster` 가 근거에 쓴 명세를 되읽는다. 명세가 없으면
+    #: 읽을 것이 없어 조용한 무동작이 된다.
+    "aggregate_items": ("sum_operand_fix",),
     #: `refusal_needs_gap` narrows a branch inside `attach_citation`. With the
     #: parent off that function returns before the branch is reached, so the
     #: child would be a silent no-op -- the failure mode `period_label` hit,
@@ -555,6 +558,7 @@ class Arm:
     refusal_needs_gap: bool = False
     cite_chain_pair: bool = False
     aggregate_items: bool = False
+    sum_operand_fix: bool = False
     #: True separates which filing a date points at when two share that date.
     #: With both filings in the evidence the selection rather than the
     #: retrieval goes wrong. The rule is what the date means: a contract filed
@@ -1204,6 +1208,25 @@ A58 = replace(A56, name="A58", cite_chain_pair=True)
 #: W1 실측으로 `[결정적 집계]` 는 15문항에 실린다(`scratch/audit/w1_risk_A56.json`).
 A59 = replace(A56, name="A59", aggregate_items=True)
 
+# --- W4b · 명세를 놓아 주는 것으로는 안 됐다 — 결정적으로 갈아 끼운다 ----------
+#: `A59` 위에 `sum_operand_fix`. 계획서에 없던 스위치다 — `A59` 3회 측정이 세웠다.
+#:
+#: `A59` 는 게이트 조건 1 을 못 넘었다. 명세를 절반만 따른다 — ERP 항목은 접수번호까지
+#: 그대로 옮기고 hCloud 는 떨어뜨렸는데, 근거에 `완성차 해상운송계약` 이라는 **같은
+#: 계약명이 여러 건** 실려 있어 명세가 접수번호로 지목한 것 대신 다른 것을 골랐다.
+#: 3회 모두 그렇다(`scratch/audit/gate_a59.json`).
+#:
+#: **근거에 정답을 놓아 주는 것으로는 안 된다.** SWE-Lancer 의 판단 45% vs 생성 26%,
+#: QA.pdf 의 "정답 근거가 있는데도 자신 있게 틀리는 것" 이 같은 자리를 가리킨다.
+#:
+#: 🔴 **수리 방향이 정해진다.** 총액은 우리가 계산해 명세에 실은 값이고 답변이 그것을
+#: 베꼈으므로 맞다. 틀린 것은 피가수이고 옳은 피가수 집합을 **명세가 이미 안다.** 계획서
+#: §4 P-D 가 "수리 방향이 모호하다" 며 보류한 것이 이 측정으로 풀렸다.
+#:
+#: 답변 본문을 재작성하는 첫 스위치다. 발화 조건을 세 겹으로 좁혔다 — 명세가 있고,
+#: 답변이 우리 총액을 적었고, 열거한 금액 집합이 명세와 다를 때만.
+A61 = replace(A59, name="A61", sum_operand_fix=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1251,7 +1274,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A61",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1298,7 +1321,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A61)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

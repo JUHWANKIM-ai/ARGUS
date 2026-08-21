@@ -1393,6 +1393,174 @@ def repair_gap(answer: str, evidence: str) -> tuple[str, str]:
     return body + stated + tail, f"repaired {len(additions)}"
 
 
+#: 명세 한 줄: `  · 회사 계약명 — 1,234원 (접수번호 20250101000001)`
+_ROSTER_ITEM = re.compile(
+    r"^\s+· (?P<text>.+?) — (?P<amount>[\d,]+)원 \(접수번호 (?P<rcept>\d{14})\)$", re.M)
+#: 답변이 스스로 쓴 가산식: 피가수 둘 이상과 결과. `fix_self_contradiction` 의 `_SELF_EQ`
+#: 는 피가수를 정확히 둘만 받으므로 열거가 셋 이상인 이 결함에는 안 닿는다.
+#: 🔴 굵게 표시가 `**1,759,596,802,000원**` 이라 닫는 `**` 가 `원` **뒤에** 온다. 첫 판이
+#: `**총액**원` 을 기대해 3회 모두 식을 못 고쳤다(`eq=0`). 양쪽 표시를 따로 받는다.
+_SUM_EQ = re.compile(r"(?P<terms>[\d,]{7,}(?:\s*\+\s*[\d,]{7,}){1,})\s*=\s*"
+                     r"(?P<open>\*{0,2})\s*(?P<total>[\d,]{7,})\s*원(?P<close>\*{0,2})")
+#: 항목 줄로 볼 최소 금액. 연도(2025)·비율·건수를 항목으로 오인하지 않는다.
+MIN_ITEM_AMOUNT = 1_000_000
+#: 개수를 말하는 우리말 수관형사. 여섯까지면 관측된 최대 열거 폭(6)을 덮는다.
+_COUNT_WORD = {1: "한", 2: "두", 3: "세", 4: "네", 5: "다섯", 6: "여섯"}
+#: 합산을 말하는 낱말. 개수 정정의 사정거리를 이 낱말이 있는 줄로 묶는다.
+_SUM_WORD = re.compile(r"합계|합하|합산|더하")
+#: `두 건` · `2건` 처럼 개수를 말하는 자리. 앞에 숫자·쉼표가 붙은 것은 금액의 일부다.
+_COUNT_MENTION = re.compile(
+    r"(?<![\d,])(" + "|".join([*map(re.escape, _COUNT_WORD.values()), r"\d"])
+    + r")(\s*)건")
+
+
+def _roster_of(evidence: str) -> list[dict]:
+    """근거의 결정적 집계 명세를 항목 목록으로 읽는다.
+
+    `summand_roster` 가 쓴 것을 그대로 되읽는다. 우리가 쓴 문면만 읽으므로 오탐률이
+    구조적으로 묶인다 — `repair_gap` 이 같은 규율을 쓴다.
+    """
+    return [{"text": m.group("text").strip(), "amount": m.group("amount"),
+             "rcept": m.group("rcept")}
+            for m in _ROSTER_ITEM.finditer(evidence or "")]
+
+
+def _item_amount(line: str) -> str:
+    """그 줄이 열거한 금액, 없으면 "". 항목 줄만 골라낸다."""
+    if not re.match(r"^\s*(?:[-·*]|\d+[.)])\s", line):
+        return ""
+    for found in re.findall(r"[\d,]{7,}", line):
+        if int(found.replace(",", "")) >= MIN_ITEM_AMOUNT:
+            return found
+    return ""
+
+
+def fix_stray_summands(answer: str, evidence: str) -> tuple[str, str]:
+    """답변의 열거가 명세와 다를 때 명세로 갈아 끼운다. LLM 호출 없음.
+
+    반환은 (새 답변, 사유). 발화하지 않으면 (원본, "").
+
+    ## 왜 이것이 필요한가
+
+    `repair_gap` 은 **모자란 것**을 붙인다 — 결정적 줄의 숫자 중 절반 미만이 답변에 있을
+    때 발화한다. `Q-115` 는 반대다. 결정적 줄의 숫자 셋 중 둘(피가수 하나와 총액)이 답변에
+    있어 그 검사를 통과하는데, **없어야 할 금액이 더 들어 있다.**
+
+    실측(`A59` 서버 3회 · `scratch/audit/gate_a59.json`):
+
+        명세    차세대 ERP 106,796,802,000 (20251128800125)
+               완성차 해상운송계약 1,652,800,000,000 (20250117800487)
+        답변    차세대 ERP 106,796,802,000 (20251128800125)     ← 그대로 따랐다
+               완성차 해상운송계약 890,200,000,000 (20250227800164)
+               완성차 해상운송계약 1,345,900,000,000 (20250117800494)
+               합계 = 1,759,596,802,000원                        ← 우리 총액
+
+    근거에 같은 계약명이 여러 건 실려 있고 명세가 접수번호로 하나를 지목했는데 모델이
+    다른 것을 골랐다. **근거에 정답을 놓아 주는 것으로는 안 되고 판단이 해야 한다** —
+    SWE-Lancer 의 판단 45% vs 생성 26%, QA.pdf 의 *"정답 근거가 있는데도 자신 있게 틀리는
+    것"* 이 같은 자리를 가리킨다.
+
+    ## 수리 방향이 정해지는 이유
+
+    **총액은 맞고 피가수가 틀렸다.** 총액은 우리가 계산해 명세에 실은 값이고 답변이 그것을
+    베꼈다. 그러므로 눈감고 재계산하면(피가수를 더해 총액을 갈면) 맞는 답을 틀리게 만든다.
+    갈아야 하는 쪽은 피가수이고, **옳은 피가수 집합을 명세가 이미 안다.**
+
+    ## 세 겹으로 좁힌 발화 조건
+
+        1. 근거에 명세가 있다 (`aggregate_items` 가 켜져 있다)
+        2. 답변이 명세의 총액을 적었다 — 우리 값을 베낀 답변만 손댄다
+        3. 답변이 열거한 금액 집합이 명세와 다르다
+
+    셋 중 하나라도 아니면 원본을 글자 그대로 돌려준다.
+
+    See docs/design-rationale.md#aggregate-scope · paper/idea/idea.md §3.1
+    """
+    #: 🔴 파이프라인도 막지만 여기서도 막는다. 이 함수는 **답변 본문을 재작성하는** 유일한
+    #: 자리이므로, 플래그를 빼먹은 호출자가 모든 팔의 답변을 조용히 갈아 버리는 일이
+    #: 생기지 않게 한다. `summand_roster` 와 같은 규율이다.
+    if not ablation.enabled("sum_operand_fix"):
+        return answer, ""
+    roster = _roster_of(evidence)
+    if len(roster) < 2:
+        return answer, ""
+    body, tail = split_tail(answer or "")
+    if not body:
+        return answer, ""
+    total = f"{sum(int(r['amount'].replace(',', '')) for r in roster):,}"
+    if total not in body:
+        #: 우리 총액을 안 쓴 답변은 이 결함이 아니다. 손대면 다른 계산을 망친다.
+        return answer, ""
+
+    wanted = [r["amount"] for r in roster]
+    lines = body.split("\n")
+    listed = [_item_amount(line) for line in lines]
+    if {a for a in listed if a} == set(wanted):
+        return answer, ""
+
+    #: 어긋난 항목 줄을 명세 항목으로 **제자리에서** 갈아 끼운다. 지우기만 하면 회사
+    #: 머리글이 항목 없이 남는다.
+    unused = [r for r in roster if r["amount"] not in listed]
+    swapped, dropped = 0, 0
+    for index, amount in enumerate(listed):
+        if not amount or amount in wanted:
+            continue
+        if unused:
+            item = unused.pop(0)
+            indent = re.match(r"^\s*(?:[-·*]|\d+[.)])\s*", lines[index]).group(0)
+            lines[index] = (f"{indent}{item['text']} — {item['amount']}원 "
+                            f"(접수번호 {item['rcept']})")
+            swapped += 1
+        else:
+            lines[index] = ""
+            dropped += 1
+    if not swapped and not dropped:
+        return answer, ""
+    body = "\n".join(line for index, line in enumerate(lines)
+                     if line or not listed[index])
+
+    #: 답변이 스스로 쓴 가산식도 명세의 피가수로 다시 쓴다. 식을 그대로 두면 항목은
+    #: 고쳐지고 식만 틀린 채 남아 자기 모순이 유지된다.
+    terms = " + ".join(wanted)
+    fixed_eq = 0
+
+    def _swap(match: re.Match) -> str:
+        nonlocal fixed_eq
+        if match.group("total").replace(",", "") != total.replace(",", ""):
+            return match.group(0)
+        fixed_eq += 1
+        return (f"{terms} = {match.group('open')}{total}원"
+                f"{match.group('close')}")
+
+    body = _SUM_EQ.sub(_swap, body)
+
+    #: 🔴 항목을 뺐으면 개수를 말하는 문장도 같이 틀린다. 실측 r2: "이제 이 **세 건**의
+    #: 금액을 합하면" 뒤에 두 건이 남았다. 우리 수리가 만든 모순이므로 우리가 닫는다.
+    #: 겹치는 낱말을 잘못 갈지 않도록 **수리 전 항목 수와 같은 개수만** 바꾼다.
+    #: 범위는 **합산을 말하는 줄**로 묶는다. 본문 아무 곳의 `N건` 을 갈면 무관한 개수를
+    #: 망친다(정정 2건 같은 것). 합계·합하·더하·합산 이 있는 줄만 본다.
+    #:
+    #: 🔴 첫 판은 "수리 전 항목 수와 같은 개수만" 갈게 했는데 발화하지 않았다. r2 는 항목
+    #: 넷을 열거하면서 "세 건" 이라 적었다 — **우리 수리 전에 이미 틀린 문장**이었다. 우리가
+    #: 만든 모순이 아니어도 우리가 손댄 답변에 남으므로 같이 닫는다.
+    after = len(wanted)
+    correct = str(_COUNT_WORD.get(after, after))
+    counted = 0
+    out_lines = []
+    for line in body.split("\n"):
+        if _SUM_WORD.search(line):
+            #: 원래 띄어쓰기를 살린다. `세 건` 을 `두건` 으로 만들면 우리가 문면을 망친다.
+            line, hits = _COUNT_MENTION.subn(
+                lambda m: (m.group(0)
+                           if m.group(1) in (str(after), _COUNT_WORD.get(after, ""))
+                           else f"{correct}{m.group(2)}건"), line)
+            counted += hits
+        out_lines.append(line)
+    body = "\n".join(out_lines)
+    return (body + tail,
+            f"swapped={swapped} dropped={dropped} eq={fixed_eq} count={counted}")
+
+
 def date_disambiguation(records, question: str) -> str:
     """State which filing a date in the question points at, as one line.
 

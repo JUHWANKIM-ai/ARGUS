@@ -2867,6 +2867,16 @@ def answer_question(question_id: str, question: str) -> dict:
         answer, aligned = aggregate.fix_self_contradiction(answer)
         if aligned:
             trace.append(f'self_align fixed={len(aligned)} {" · ".join(aligned)}')
+    # 답변의 열거가 결정적 명세와 다를 때 명세로 갈아 끼운다. `fix_self_contradiction` 의
+    # 짝이다 — 그것은 피가수 둘의 식을 고치고, 이것은 열거 자체를 고친다. `repair_gap` 과도
+    # 짝인데 방향이 반대다: 그것은 모자란 것을 붙이고 이것은 없어야 할 것을 뺀다.
+    # See docs/design-rationale.md#aggregate-scope
+    if ablation.enabled("sum_operand_fix"):
+        from argus.agent import aggregate
+
+        answer, why = aggregate.fix_stray_summands(answer, evidence)
+        if why:
+            trace.append(f"stray_summands {why}")
     answer, cited = ablation.attach_citation(answer, evidence, provenance=provenance,
                                              question=clean)
     if cited:
