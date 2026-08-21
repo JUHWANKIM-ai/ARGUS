@@ -2789,6 +2789,17 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, holding)
             trace.append(f"holding_series line=1 chars={len(holding)}")
 
+    # 계약상대가 같은 두 회사의 공시를 잇고 금액 차를 못 박는다. `holding_series` 와 같은
+    # 자리인 것은 둘 다 레코드를 읽기 때문이고, 합치지 않은 것은 읽는 필드와 발화 조건이
+    # 다르기 때문이다 — 한 스위치가 다른 쪽 거동을 옮기면 안 된다.
+    if ablation.enabled("counterparty_pair"):
+        from argus.agent import aggregate
+
+        pair = aggregate.counterparty_pair(_evidence_records(evidence), clean)
+        if pair:
+            evidence = _prepend(evidence, pair)
+            trace.append(f"counterparty_pair line=1 chars={len(pair)}")
+
     # A stub in one filing and a body in another is a categorical difference,
     # and an answer calling them the same is wrong with confidence. The line
     # states it; it does not edit the answer.

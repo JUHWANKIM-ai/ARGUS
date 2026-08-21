@@ -627,6 +627,120 @@ def counterparty_branch(groups: dict) -> str:
     )
 
 
+#: 질문이 **두 공시의 관계**를 묻는가. 열거 문항에는 안 든다 — 보류셋 실측으로 `H-011`
+#: *"계약상대로 하는 …을 공시한 상장사를 빠짐없이"* · `N-014` 가 꼴에는 걸리지만 차액이
+#: 답이 아니라 잡음이다.
+_PAIR_ASK = re.compile(r"관계|이어받|넘어갔|같은 사업|동일한 사업|바뀐 것")
+#: 1억. 골든이 `약 4,111억원` 이라 적으므로 억 단위로 내림해 적는다.
+_EOK = 10 ** 8
+
+
+def _bare(name: str) -> str:
+    return re.sub(r"\s+", "", name or "")
+
+
+def counterparty_pair(records, question: str) -> str:
+    """계약상대가 같은 **두 회사의 공시**를 잇고 금액 차를 못 박는다. LLM 호출 없음.
+
+    발화하지 않으면 "" 를 돌려준다.
+
+    ## 왜 필요한가
+
+    `Q-112` 는 *"대우건설이 해지하고 현대건설이 같은 사업을 체결했다 — 두 공시가 어떤
+    관계인지 설명하라"* 다. 골든 요점3 이 *"약 4,111억원 더 크다"* 를 요구하는데 답변은
+    세 판 모두 두 금액을 나란히 적고 **차를 계산하지 않는다.** 이 문항에는 결정적 줄이
+    하나도 안 붙었다 — `[결정적 집계]` 가 통째로 침묵한 자리다.
+
+    `line`(`_op`) 의 차 연산이 안 걸린 것은 질문이 *"차이는 얼마인가"* 가 아니라
+    *"어떤 관계인가"* 이기 때문이다. 관계를 묻는 질문에 차액이 답의 일부인 꼴은 이
+    문항 유형에 고유하므로 줄을 따로 만든다.
+
+    ## 무엇으로 잇는가 — 공백만 지운 계약상대 이름
+
+    두 공시의 계약상대는 `'주식회사 유토개발2차'` 와 `'주식회사유토개발2차'` 로 **공백만
+    다르다.** 골든 요점4 가 바로 그것을 말한다(*"두 공시를 잇는 것은 계약상대 필드뿐이며
+    표기가 띄어쓰기만 다르다"*). 그래서 이 줄은 두 표기를 **둘 다 적는다** — 답변이
+    무엇으로 이었는지 말할 수 있어야 한다.
+
+    ## 🔴 언제 침묵하는가
+
+        1. 질문이 관계를 묻지 않는다
+        2. 그런 쌍이 **정확히 하나**가 아니다 — 여럿이면 어느 쌍의 차인지 모른다
+        3. 한 상대에 세 건 이상 붙는다 — 「차」가 어느 둘의 것인지 모른다
+        4. 두 공시의 **공시 주체가 같다** — 한 회사가 같은 상대와 두 번 계약한 것은
+           시공사가 바뀐 것이 아니다
+        5. 어느 한쪽에 금액이 없다
+
+    ## 🔴 차액은 아직 절반만 닿는다 — 다섯 꼴을 재고 원칙으로 골랐다
+
+    골든은 *"약 4,111억원 더 크다"* 라 적는다. 어순을 다섯 꼴로 재 봤다(꼴마다 3회).
+
+        `411,161,299,002원 (약 4,111억원)` 꼬리 절     → 원 3/3 · 억원 0/3
+        `약 4,111억원 (411,161,299,002원)` 꼬리 절     → 원 0/3 · 억원 0/3
+        `411,161,299,002원 더 크다 — 억 단위로는 …`     → 원 3/3 · 억원 2/3   ← 채택
+        위 꼴 + `답변은 … 함께 적는다` 지시 줄            → 원 2/3 · 억원 1/3
+        차를 별개의 등식 줄로 분리                       → 원 1/3 · 억원 0/3
+
+    🔴 그리고 채택한 꼴을 **다시 재니 원 1/3 · 억원 1/3**, 6회로 늘려 재니 **원 3/6 ·
+    억원 1/6** 이었다. 같은 꼴의 표본 간 분산이 꼴 사이의 차이보다 크다 — 이 크기의
+    표본으로는 꼴을 가릴 수 없다는 뜻이다. 그래서 마지막에는 실측이 아니라 원칙으로
+    골랐다: 한 줄이고(다른 줄들과 같은 꼴) 두 단위를 다 싣는다.
+
+    합쳐 읽으면 차액이 답변에 드는 것은 대략 **원 7/12 · 억원 4/12** 다. `Q-112` 요점3
+    은 이 팔로 **닫히지 않는다.** 종전이 0/3 이었으니 나아진 것은 맞지만 닫혔다고
+    적으면 거짓이다.
+
+    ## 무엇이 확실히 나아졌는가
+
+    골든 요점4(계약상대 표기가 공백만 다르다)는 3회 모두 답변에 든다. 요점2·3 의 날짜와
+    금액, 두 접수번호도 그렇다. 종전 답변은 확정일(2023-12-13)을 적었고 이 줄이 붙은
+    뒤로는 공시일(2023-12-14)을 적는다.
+
+    ## 배운 것 — 지시 줄은 늘 듣지 않는다
+
+    `counterparty_branch` 가 쓰는 「답변은 …」 지시 줄을 여기에 붙이면 **더 나빠졌다**.
+    그 꼴을 다른 자리에 옮겨 쓸 때는 재 보고 써야 한다.
+
+    사정거리 실측: 코호트 112문항에서 꼴이 걸리는 것은 `Q-112` 하나이고, 보류셋에서
+    걸리는 둘은 조건 1 에 막힌다.
+    See docs/design-rationale.md#aggregate-scope
+    """
+    if not ablation.enabled("counterparty_pair"):
+        return ""
+    if not _PAIR_ASK.search(question or ""):
+        return ""
+    grouped: dict[str, list[dict]] = {}
+    for record in records or ():
+        name = str(record.get("counterparty") or "")
+        if not name or not record.get("amount"):
+            continue
+        grouped.setdefault(_bare(name), []).append(record)
+    pairs = [group for group in grouped.values()
+             if len(group) == 2
+             and group[0].get("corp_name") != group[1].get("corp_name")]
+    if len(pairs) != 1:
+        return ""
+    first, second = sorted(pairs[0], key=lambda r: str(r.get("rcept_dt") or ""))
+    amounts = [int(first["amount"]), int(second["amount"])]
+    delta = amounts[1] - amounts[0]
+    if not delta:
+        #: 금액이 같으면 「더 크다」가 거짓이다.
+        return ""
+    spellings = [str(r.get("counterparty") or "") for r in (first, second)]
+    if spellings[0] == spellings[1]:
+        mark = f"계약상대 '{spellings[0]}' 가 같다"
+    else:
+        mark = (f"계약상대 표기가 '{spellings[0]}' 와 '{spellings[1]}' 로 "
+                f"공백만 다르고 나머지가 같다")
+    steps = " → ".join(
+        f"{r.get('corp_name')} {_ymd(r)} {amount:,}원 (접수번호 {r.get('rcept_no')})"
+        for r, amount in zip((first, second), amounts))
+    bigger = second if delta > 0 else first
+    return (f"- [결정적 집계] 같은 사업으로 이어지는 두 공시 ({mark}): {steps} · "
+            f"{bigger.get('corp_name')} 쪽이 {abs(delta):,}원 더 크다 — "
+            f"억 단위로는 약 {abs(delta) // _EOK:,}억원이다. {_DIRECTIVE}")
+
+
 #: The answer form `1,234,567,890원(12억원)`. Markdown emphasis has to be
 #: crossed, since answers contain `**207,684,631,210원**(20,768억원)`.
 _PAREN_UNIT = re.compile(r"(\d{1,3}(?:,\d{3}){2,})(\s*원?\s*\**\s*)"
