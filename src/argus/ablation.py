@@ -574,6 +574,9 @@ class Arm:
     holding_ask_wide: bool = False
     #: 구성을 묻는 질문에서 그 표의 합계를 결정적 줄로 못 박는다. 백분율의 분모다.
     composition_total: bool = False
+    #: 보유비율 추이 줄에 `주요계약체결` 추이를 한 줄 더 붙인다. 그 값은 `shares_current`
+    #: 가 아니라 `fields` 안의 문자열에 있어 종전 줄이 못 읽었다.
+    pledged_series: bool = False
     #: periodic 정정본 블록이 무엇을 정정한 것인지 밝힌다. 🔴 이 줄의 14자리는 우리 근거
     #: 완전성 회계에 들어간다 — 원공시가 골든이면 본문 없이 적재로 세어진다. 채택 판정은
     #: 근거 완전성을 **두 가지로** 내야 한다(날값 · 포인터 줄 제외값).
@@ -1426,6 +1429,22 @@ A69 = replace(A65, name="A69", composition_total=True)
 #: 영향 문항: `Q-012` · `Q-020` (A68) · `Q-080` (A69) — 셋. 겹침 없음.
 A70 = replace(A65, name="A70", holding_ask_wide=True, composition_total=True)
 
+# --- W1 · 주요계약체결 추이를 한 줄 더 (브랜치 keypoint-gaps) ------------------
+#: `A70` 위에 `pledged_series` 하나. 🔴 `A70` 위인 것이 의도다 — 이 줄은 보유비율 추이
+#: 줄에 덧붙는 것이므로 그 줄이 `Q-012` 에서 발화해야(`holding_ask_wide`) 뜻이 있다.
+#:
+#: `Q-012` 요점3 이 요구하는 두 수(`84,282,066` → `92,270,920`)는 `shares_current` 가
+#: 아니라 `fields["주요계약체결 주식등의 수"]` 에 있다. 그 필드는 `직전 A주 → 이번 B주`
+#: 꼴의 **문자열**이고 골든은 각 보고서의 **이번** 값을 잇는다.
+#:
+#: `A70` 실측이 이 처방의 근거다 — 요점1 은 줄에 실려 3회 모두 답변에 들어왔고 요점3 의
+#: 뒤 수는 근거 본문에만 있어 안 들어왔다. **같은 문항 · 같은 근거에서 갈렸다.**
+#:
+#: 🔴 침묵 조건: 체인의 양 끝 둘 다 그 필드를 가질 때만. 코퍼스 실측으로 대량보유
+#: 1,083건 중 507건만 이 필드를 갖는다. 한쪽만 있으면 「무엇에서 무엇으로」가 성립하지
+#: 않는다. 두 끝이 같으면 변동이 없으므로 `추이` 라 적지 않는다.
+A71 = replace(A70, name="A71", pledged_series=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1473,7 +1492,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1520,7 +1539,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

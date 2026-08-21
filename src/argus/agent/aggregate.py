@@ -423,6 +423,62 @@ def holding_series(records, question: str, chain_lookup=None) -> str:
     return (f"- [결정적 집계] {reporter} 보고 보유비율 추이 ({count_note}): "
             f"{' → '.join(steps)} · 누적 {-moved:+.2f}%p "
             f"(이 값은 시스템이 위 근거의 비율 필드에서 직접 읽은 것이다. "
+            f"답변의 해당 수치는 이 값을 그대로 쓴다.)"
+            + _pledged_series(chain))
+
+
+#: 대량보유 보고서의 `주요계약체결` 두 칸. 값은 `직전 A주 → 이번 B주` 꼴의 **문자열**이라
+#: 「이번」 쪽을 따로 뽑아야 한다. 골든이 잇는 것은 각 보고서의 「이번」 값이다 —
+#: `Q-012` 요점3 은 2025-03 의 이번(84,282,066) 과 2026-03 의 이번(92,270,920) 을 잇는다.
+_PLEDGED_SHARES_KEY = "주요계약체결 주식등의 수"
+_PLEDGED_RATIO_KEY = "주요계약체결 비율"
+#: `이번` 뒤의 값. `직전` 쪽을 잡으면 한 보고서 안의 변동을 보고서 사이의 변동으로 오인한다.
+_CURRENT_IN_FIELD = re.compile(r"이번\s*([\d,]+(?:\.\d+)?)")
+
+
+def _pledged_current(record: dict, key: str) -> str:
+    """그 보고서의 `주요계약체결` 「이번」 값. 없으면 ""."""
+    hit = _CURRENT_IN_FIELD.search(str((record.get("fields") or {}).get(key) or ""))
+    return hit.group(1) if hit else ""
+
+
+def _pledged_series(chain: list[dict]) -> str:
+    """보유비율 추이 줄에 덧붙이는 **주요계약체결 추이**. 아니면 "".
+
+    ## 왜 따로 붙이나
+
+    `Q-012` 요점3 이 요구하는 두 수(`84,282,066` → `92,270,920`)는 `shares_current` 가
+    아니라 `fields["주요계약체결 주식등의 수"]` 에 있다. 보유비율 추이 줄은 그 필드를 안
+    읽으므로 요점1 만 닫히고 요점3 은 뒤 수가 계속 빠졌다 — **결정적 줄에 실린 수는
+    답변에 들어오고 근거 본문에만 있는 수는 안 들어온다**는 것의 실측 반례다.
+
+    ## 🔴 언제 침묵하는가
+
+    체인의 **양 끝 둘 다** 그 필드를 가질 때만 낸다. 코퍼스 실측: 대량보유 1,083건 중
+    507건만 이 필드를 갖는다. 한쪽만 있으면 「무엇에서 무엇으로」가 성립하지 않으므로
+    침묵한다 — 반쪽 추이를 내는 것은 없는 변동을 말하는 것이다.
+
+    양 끝만 적는 것은 위 줄의 주식수 규칙과 같다. 중간값을 다 실으면 질문이 묻지 않은
+    값으로 줄이 두 배가 된다.
+    """
+    if not ablation.enabled("pledged_series") or len(chain) < 2:
+        return ""
+    first, last = chain[0], chain[-1]
+    shares = [_pledged_current(r, _PLEDGED_SHARES_KEY) for r in (first, last)]
+    if not all(shares):
+        return ""
+    ratios = [_pledged_current(r, _PLEDGED_RATIO_KEY) for r in (first, last)]
+    if shares[0] == shares[1] and ratios[0] == ratios[1]:
+        #: 두 끝의 **값**이 같으면 변동이 없다. `추이` 라고 적으면 거짓이다.
+        #: 🔴 날짜를 붙인 뒤에 견주면 안 된다 — 날짜는 늘 다르므로 이 문이 죽는다.
+        return ""
+    ends = []
+    for record, share, ratio in zip((first, last), shares, ratios):
+        tail = f" ({ratio}%)" if ratio else ""
+        ends.append(f"{_ymd(record)} {share}주{tail}")
+    return (f"\n- [결정적 집계] 같은 보고의 주요계약체결 주식등 추이: "
+            f"{' → '.join(ends)} "
+            f"(이 값은 시스템이 위 근거의 `주요계약체결` 칸에서 직접 읽은 것이다. "
             f"답변의 해당 수치는 이 값을 그대로 쓴다.)")
 
 
