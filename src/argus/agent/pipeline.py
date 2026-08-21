@@ -2800,6 +2800,17 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, contrast)
             trace.append(f"contrast_line line=1 chars={len(contrast)}")
 
+    # 구성을 묻는 질문에서 그 표의 합계를 못 박는다. 백분율은 분모 없이는 뜻이 없다.
+    # `contrast_line` 과 같은 자리에 두는 이유는 같은 성질이기 때문이다 — 레코드가 아니라
+    # **근거 문자열을 직접 읽어** 줄을 낸다.
+    if ablation.enabled("composition_total"):
+        from argus.agent import aggregate
+
+        total = aggregate.composition_total(evidence, clean)
+        if total:
+            evidence = _prepend(evidence, total)
+            trace.append(f"composition_total line=1 chars={len(total)}")
+
     try:
         # Read through `enabled()` so that a misspelled flag raises instead of
         # silently evaluating false. At the default the two lines below are

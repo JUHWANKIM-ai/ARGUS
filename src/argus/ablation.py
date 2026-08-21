@@ -572,6 +572,8 @@ class Arm:
     #: 보유비율 추이 줄의 발화 낱말에 `달라` 를 더한다. 낱말 목록 자체는 코드 상수라
     #: 플래그로 가를 수 없으므로, 이 플래그는 **그 줄을 그 낱말로도 내보낼지**를 가른다.
     holding_ask_wide: bool = False
+    #: 구성을 묻는 질문에서 그 표의 합계를 결정적 줄로 못 박는다. 백분율의 분모다.
+    composition_total: bool = False
     #: periodic 정정본 블록이 무엇을 정정한 것인지 밝힌다. 🔴 이 줄의 14자리는 우리 근거
     #: 완전성 회계에 들어간다 — 원공시가 골든이면 본문 없이 적재로 세어진다. 채택 판정은
     #: 근거 완전성을 **두 가지로** 내야 한다(날값 · 포인터 줄 제외값).
@@ -1391,6 +1393,25 @@ A67 = replace(A65, name="A67", partner_profile=True)
 #: **`Q-012`·`Q-020` 둘이 는다.** 잃는 문항은 없다.
 A68 = replace(A65, name="A68", holding_ask_wide=True)
 
+# --- P3 · 구성 표의 합계를 못 박는다 (브랜치 keypoint-gaps) --------------------
+#: `A65` 위에 `composition_total` 하나.
+#:
+#: `Q-080` 은 *"영업수익의 **구성**을 알려줘"* 이고 요점1~3 이 백분율을 요구한다. 답변은
+#: 3회 모두 백분율만 적고 **분모(합계 80,318백만원)를 안 밝힌다.** 백분율은 분모 없이는
+#: 뜻이 없다.
+#:
+#: 🔴 **전처리가 필요 없다.** 처음엔 periodic 레코드를 새로 추출하는 판을 세웠는데, 그
+#: 문항들은 `_op` 이 연산을 분류하지 못해(`op=-`) 레코드를 줘도 기계가 안 돈다. 대신
+#: `contrast_line` 의 전례를 따른다 — 레코드가 아니라 **근거 문자열을 직접 읽는다.**
+#:
+#: 🔴 **아무 합계나 못 낸다.** `Q-080` 의 근거에는 합계 행이 11개 있다(대손충당금 · 재고 ·
+#: 리스 …). 하나를 골라 틀리면 자신 있게 틀린 수가 된다. 두 겹으로 좁혔다 — 질문이
+#: 구성·비중을 묻고, 같은 행에 백분율 100 이 있는 합계 행이 **정확히 하나**일 때만.
+#:
+#: 112문항 전수 대조: 조건 1 만으로는 2문항(`Q-043` 6행 · `Q-080` 1행), 조건 2 까지 걸면
+#: **`Q-080` 하나**다. `Q-043` 은 모호하므로 침묵한다.
+A69 = replace(A65, name="A69", composition_total=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1438,7 +1459,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1485,7 +1506,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

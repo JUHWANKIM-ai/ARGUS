@@ -1186,6 +1186,64 @@ _PERIODIC_HEAD = re.compile(
     r"(.+?)\s+–\s+(.+?)(?:\s+\[\d+/\d+ 조각\])?$")
 
 
+#: 구성 표의 합계 행. `| 합 계 | | | 80,318 | 100.0 | …` 처럼 **같은 행에 100(%)** 이 있는
+#: 것만 받는다. 백분율 100 이 그 표가 「전체를 나눈 표」임을 말하고, 그 합계가 백분율의
+#: 분모다.
+_COMPOSITION_TOTAL = re.compile(
+    r"(?m)^\|\s*(?:합\s*계|소\s*계)\s*\|(?=.*(?<![\d.])100(?:\.0)?(?![\d.])).+$")
+#: 질문이 구성·비중을 묻는가. 이 줄은 그 질문에만 든다 — 아무 표의 합계나 내면 근거에
+#: 합계 행이 열 개 넘는 문항에서 **어느 것이 답인지 모르는 수**를 내놓는다(`Q-080` 실측
+#: 11개). `_sum_rows` 가 침묵을 기본값으로 둔 것과 같은 판단이다.
+_COMPOSITION_ASK = re.compile(r"구성|비중|비율.*알려|어떻게.*이루")
+#: 행에서 뽑을 금액. 백분율(`100.0`)과 섞이지 않게 쉼표 묶음만 받는다.
+_ROW_AMOUNT = re.compile(r"\d{1,3}(?:,\d{3})+")
+
+
+def composition_total(evidence: str, question: str) -> str:
+    """구성을 묻는 질문에서 그 표의 합계를 한 줄로 못 박는다. LLM 호출 없음.
+
+    발화하지 않으면 "" 를 돌려준다.
+
+    ## 왜 필요한가
+
+    `Q-080` 은 *"영업수익의 **구성**을 알려줘"* 이고 골든 요점1~3 이 백분율
+    (91.6% · 0.9% · 7.5%)을 요구한다. 답변은 3회 모두 백분율만 적고 **그 분모(합계
+    80,318백만원)를 안 밝힌다.** 백분율은 분모 없이는 뜻이 없다.
+
+    ## 🔴 왜 아무 합계나 못 내는가
+
+    `Q-080` 의 근거에는 합계 행이 **11개** 있다(대손충당금 · 재고 · 리스 …). 통째로 내면
+    어느 것이 답인지 모르고, 하나를 골라 틀리면 **자신 있게 틀린 수**가 된다.
+
+    그래서 두 겹으로 좁힌다.
+
+        1. 질문이 구성·비중을 묻는다
+        2. 같은 행에 백분율 100 이 있는 합계 행이 **정확히 하나**다
+
+    112문항 전수 대조: 조건 1 만으로는 2문항(`Q-043` 6행 · `Q-080` 1행), 조건 2 까지
+    걸면 **`Q-080` 하나**다. `Q-043` 은 6행이라 모호하므로 침묵한다 — 침묵이 기본값이다.
+
+    ## 단위는 안 적는다
+
+    `[결정적 단위]` 줄이 이미 근거에 그것을 낸다(`위 표의 금액 단위: 백만원 = 1,000,000원`).
+    같은 것을 두 줄에 적으면 한쪽만 고쳐질 수 있다.
+    See docs/design-rationale.md#aggregate-scope
+    """
+    if not ablation.enabled("composition_total"):
+        return ""
+    if not _COMPOSITION_ASK.search(question or ""):
+        return ""
+    rows = _COMPOSITION_TOTAL.findall(evidence or "")
+    if len(rows) != 1:
+        return ""
+    amounts = _ROW_AMOUNT.findall(rows[0])
+    if not amounts:
+        return ""
+    return (f"- [결정적 집계] 구성 표의 합계: **{amounts[0]}** "
+            f"(위 표의 백분율은 이 값을 분모로 한다. 단위는 [결정적 단위] 줄을 따른다.) "
+            f"{_DIRECTIVE}")
+
+
 def contrast_line(evidence: str) -> str:
     """One decisive line when the same section arrived from filings that differ
     **in kind**: a stub in one, a body in another.
