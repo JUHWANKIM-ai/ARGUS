@@ -569,6 +569,9 @@ class Arm:
     #: 최신본 접수번호는 적지 않는다 — 근거에 안 실린 공시의 14자리를 블록에 쓰면
     #: `error_analysis._blocks` 가 적재된 골든으로 읽어 우리 재현율만 오른다.
     stale_note: bool = False
+    #: 보유비율 추이 줄의 발화 낱말에 `달라` 를 더한다. 낱말 목록 자체는 코드 상수라
+    #: 플래그로 가를 수 없으므로, 이 플래그는 **그 줄을 그 낱말로도 내보낼지**를 가른다.
+    holding_ask_wide: bool = False
     #: periodic 정정본 블록이 무엇을 정정한 것인지 밝힌다. 🔴 이 줄의 14자리는 우리 근거
     #: 완전성 회계에 들어간다 — 원공시가 골든이면 본문 없이 적재로 세어진다. 채택 판정은
     #: 근거 완전성을 **두 가지로** 내야 한다(날값 · 포인터 줄 제외값).
@@ -1336,6 +1339,58 @@ A64 = replace(A56, name="A64", section_chain_note=True)
 #: 실험 3 — `A65` + 전처리 고도화.
 A66 = replace(A65, name="A66", section_chain_note=True)
 
+# --- P2 · 계약상대별 건수를 결정적 줄로 낸다 (2026-08-21, 브랜치 keypoint-gaps) ---
+#: `A65` 위에 `partner_profile` 하나.
+#:
+#: 🔴 **이 플래그는 v5 에서 이미 기각됐다** — `A29c`, **Δ 0**, 겨냥은 `Q-107`·`Q-117`
+#: 이었고 둘 다 산술이 아니라 검색이 막고 있었다. 그때는 **점수**를 봤다.
+#:
+#: 지금 겨냥이 다르다. `Q-114` 의 요점1·2 가 요구하는 건수(`47`·`19`)가 **근거에 없다** —
+#: `[결정적 조회]` 줄이 회사 이름만 낸다. 그 수를 코퍼스에서 직접 세어 보니
+#: 삼성E&A 47 · 삼성중공업 19 로 골든과 정확히 일치하므로 **이 기계가 낼 수 있는 수**다.
+#: 그때 없던 계측기(`scratch/keypoint_literal_report.py`)가 지금은 그것을 센다.
+#:
+#: 🔴 `_counterparty_note` 가 경고를 적어 두었다 — 전역 건수는 정정 반영이 안 됐고
+#: **한 번은 답변에 그대로 새어 나갔다.** 그래서 점수 퇴행 0 을 게이트로 둔다.
+#:
+#: 사정거리 9문항 (`A65` r1 흔적에서 계약상대·열거 hop 이 도는 것):
+#: `Q-107` `Q-109` `Q-110` `Q-111` `Q-114` `Q-115` `Q-116` `Q-117` `Q-118`
+#: 🔴 **기각 (2026-08-21). 조용한 무동작이었다.**
+#:
+#: 3회 다 돌렸고 퇴행 0 인데 **겨냥한 수가 답변에 안 들어왔다** — `Q-114` 3회 모두
+#: `47`·`19` 가 없다. 근거를 열어 보니 **분포 줄이 아예 없다.**
+#:
+#: 원인은 배선이다. `partner_profile` 은 `pipeline._enumerate_events`(열거 hop,
+#: `strat=enumerate`) 안에서만 불린다. `Q-114` 는 **계약상대 hop**(`strat=counterparty`)을
+#: 타므로 그 함수에 들어오지 않는다. 흔적이 그것을 보여 준다 —
+#: `hop=6 strat=counterparty via=삼성전자 partners=2`, `strat=enumerate` 없음.
+#:
+#: 🔴 계약상대 경로에 건수를 옮겨 붙이는 것은 **문서로 기각된 결정을 되돌리는 일**이다.
+#: `pipeline._counterparty_note` 가 적는다 — 전역 건수는 정정 반영이 안 됐고 질문 범위
+#: 밖이며 **한 번은 답변에 그대로 새어 나갔다.**
+#:
+#: 그리고 `Q-114` 의 질문은 *"상장사는 어디이며 공정 분담은 어떻게 나뉘는가"* 다. 건수는
+#: 골든 요점의 괄호 안 부속이고 질문이 직접 묻지 않는다. 답변은 **범위 안의 것**(두 회사
+#: 이름 · 단계별 분담)을 3회 모두 적었다. 정량화만 안 했다.
+A67 = replace(A65, name="A67", partner_profile=True)
+
+# --- P1 · 보유비율 추이 줄의 발화 낱말을 넓힌다 (브랜치 keypoint-gaps) ----------
+#: `A65` 위에 `holding_ask_wide` 하나.
+#:
+#: `Q-012` 는 *"지분 보유 상황이 어떻게 **달라졌는지**"* 를 묻는데 `_HOLDING_ASK` 에 그
+#: 낱말이 없어 **조용한 무동작**이었다. `period_label` 의 `base_month` 와 같은 모양이다.
+#:
+#: 🔴 그 튜플은 **느슨해도 되는 쪽**이다 — 독스트링이 적는다: 강한 전제는 레코드 조건
+#: (한 보고자의 대량보유 2건 이상)이고 낱말은 그 앞 관문일 뿐이다. `Q-012` 는 레코드
+#: 조건을 만족한다((주)두산 → 두산에너빌리티 2건).
+#:
+#: 데이터는 이미 구조화 필드에 있다 — `shares_prev`·`shares_current` 가 골든 요점1 의
+#: 두 수(`196,488,145` → `196,506,795`)를 그대로 담는다. 새 추출도 파싱도 LLM 도 없다.
+#:
+#: 사정거리 전수 대조(112문항): 지금 이 줄이 도는 것은 `Q-106` 하나이고, 넓히면
+#: **`Q-012`·`Q-020` 둘이 는다.** 잃는 문항은 없다.
+A68 = replace(A65, name="A68", holding_ask_wide=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1383,7 +1438,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1430,7 +1485,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

@@ -272,7 +272,16 @@ def _ymd(record: dict) -> str:
 #: below — two or more holding filings by one reporter — is the strong half of
 #: the premise.
 #: See docs/design-rationale.md#holding-series
+#: 🔴 2026-08-21 `달라` 를 더했다. `Q-012` 가 *"지분 보유 상황이 어떻게 **달라졌는지**"* 를
+#: 묻는데 이 목록에 그 낱말이 없어 **조용한 무동작**이었다. 이 튜플은 위 주석대로 느슨해도
+#: 되는 쪽이다 — 강한 전제는 아래 레코드 조건(한 보고자의 대량보유 2건 이상)이고 `Q-012`
+#: 는 그 조건을 만족한다((주)두산 → 두산에너빌리티 2건).
+#:
+#: 사정거리 실측: 이 줄이 지금 도는 문항은 `Q-106` 하나뿐이고, `달라` 를 더해 늘어나는
+#: 것은 `Q-012` 하나다(112문항 전수 대조).
 _HOLDING_ASK = ("추이", "변해", "변화", "변동", "바뀌", "시간순", "시계열", "어떻게 변")
+#: 플래그로 가르는 추가 낱말. 상수 튜플은 플래그를 못 읽으므로 따로 둔다.
+_HOLDING_ASK_WIDE = ("달라",)
 
 
 def _ratio_of(record: dict):
@@ -362,7 +371,10 @@ def holding_series(records, question: str, chain_lookup=None) -> str:
     line does not have is exactly the defect this fixes.
     See docs/design-rationale.md#holding-series
     """
-    if not any(h in (question or "") for h in _HOLDING_ASK):
+    words = _HOLDING_ASK
+    if ablation.enabled("holding_ask_wide"):
+        words = _HOLDING_ASK + _HOLDING_ASK_WIDE
+    if not any(h in (question or "") for h in words):
         return ""
     rows = [r for r in (records or []) if _ratio_of(r) is not None]
     if len(rows) < 2:
