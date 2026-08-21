@@ -1696,9 +1696,21 @@ def line(records, question: str, route) -> str:
         if len(parts) == 1:
             return (f"- [결정적 집계] 정정 전후 금액 변동{scope}: {parts[0]}원 "
                     f"{_DIRECTIVE}")
+        #: 🔴 갈래가 둘 이상이면 **두 중간 합계도 싣는다.** 종전은 갈래별 차와 총 차만
+        #: 냈고, 답변은 「정정 후 합계」와 「정정 전 합계」를 스스로 더하다 틀렸다.
+        #: `Q-113` 실측 — r3 이 `499,950,000,000 + 1,328,800,000,000` 을
+        #: `1,738,750,000,000` 이라 적었다(참값 `1,828,750,000,000`). 근거에 없는 수라
+        #: provenance 관문에 걸려 추론 논리성이 깎였고, r1 은 아예 총 차를 피감수 자리에
+        #: 다시 써서 `equation` 에 걸렸다. **두 판 다 이 두 수가 없어서 생긴 일이다.**
+        totals = ""
+        if ablation.enabled("delta_totals"):
+            after = sum(_amount(g[-1]) for g in groups)
+            before = sum(_amount(g[0]) for g in groups)
+            totals = (f" (정정 후 합계 {after:,} − 정정 전 합계 {before:,} 로 계산한 것이다. "
+                      f"답변이 중간 합계를 적을 때는 이 두 수를 그대로 쓴다.)")
         return (f"- [결정적 집계] 정정 전후 금액 변동{scope} — "
                 + " · ".join(parts)
-                + f" · 합계 **{total:,}원** {_DIRECTIVE}")
+                + f" · 합계 **{total:,}원**{totals} {_DIRECTIVE}")
 
     if op == "몫":
         rows = _latest_per_chain(picked)
