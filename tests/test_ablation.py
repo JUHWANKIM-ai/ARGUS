@@ -402,8 +402,21 @@ def test_default_arm_is_the_submission_configuration():
     골든 2/2 → 1/2 가 됐다 — 상한이 있는 창에 더하는 것은 밀어내는 것이다.
     계획서: `docs/superpowers/plans/2026-08-21-eight-defects.md`
     """
-    assert ablation.current() == ablation.A56
-    assert ablation.current().name == "A56"
+    #: 2026-08-21, v10: `A56` -> `A65`. 세 실험을 로컬 3회로 나란히 재고 골랐다
+    #: (`scratch/audit/three_way_axes.json`).
+    #:
+    #:     A56  베이스라인                 111 · 109 · 110   평균 110.0
+    #:     A64  베이스라인 + 전처리 고도화    110 · 109 · 110   퇴행 1  기각
+    #:     A65  모델 쪽 채택본              111 · 111 · 111   🟢 채택
+    #:     A66  A65 + 전처리 고도화         111 · 110 · 111   퇴행 2  기각
+    #:
+    #: `A65` 는 `A56` 위에 여섯이다 — `refusal_needs_gap`(Q-053 표기) ·
+    #: `cite_chain_pair`(Q-093 Q-035 원공시) · `aggregate_items`+`sum_operand_fix`
+    #: (Q-107 Q-115 열거) · `roster_items`(Q-110 정답·표기) · `stale_note`(Q-116 폐기값).
+    #: 전처리 고도화(`section_chain_note`)는 **측정으로 기각**했다 — 근거 한 줄이 답변의
+    #: 금액을 밀어내 `Q-094` 가 3회 모두 깨진다.
+    assert ablation.current() == ablation.A65
+    assert ablation.current().name == "A65"
     # 2026-08-21 채택 넷. 기각한 `latest_pin` 은 꺼져 있어야 한다.
     assert ablation.current().cite_used is True
     assert ablation.current().period_label is True
@@ -3328,16 +3341,16 @@ def test_a47_is_not_registered():
     assert "A47" not in ab.ARMS
 
 
-def test_the_operational_default_has_moved_to_a56():
+def test_the_operational_default_has_moved_to_a65():
     """운영 기본값의 이름을 한 자리에서 못 박는다.
 
-    2026-08-20 에 `A43` -> `A49`, 2026-08-21 에 `A49` -> `A56` 으로 옮겼다. 이 시험은
-    이름을 바꿔 가며 따라간다 — 종전 이름(`..._has_moved_to_a49`)을 그대로 두면 참이
-    아닌 문장이 시험 이름으로 남는다.
+    2026-08-20 에 `A43` -> `A49`, 2026-08-21 에 `A49` -> `A56` -> `A65` 로 옮겼다. 이
+    시험은 이름을 바꿔 가며 따라간다 — 종전 이름(`..._has_moved_to_a56`)을 그대로 두면
+    참이 아닌 문장이 시험 이름으로 남는다.
     """
     from argus import ablation as ab
 
-    assert ab.current().name == "A56"
+    assert ab.current().name == "A65"
 
 
 def test_project_scope_cannot_be_enabled_without_counterparty_relevance():
