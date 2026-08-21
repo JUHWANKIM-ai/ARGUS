@@ -108,7 +108,10 @@ def test_the_line_changes_for_the_sum_operation_only():
     것은 **4문항**이다 — `Q-034` `Q-107` `Q-109` `Q-115`. 나머지는 비교·차·몫 연산이고
     그 줄들은 이미 회사명을 적는다. 사정거리를 시험에 못 박아 둔다.
     """
+    #: 빈 목록은 빈 문자열이다. 꼬리만 붙으면 "위 0건뿐이다" 라는 거짓 문장이 근거에
+    #: 실린다. `line()` 이 `if not rows: return ""` 로 먼저 막지만 여기서도 막는다 —
+    #: 근거에 들어가는 문장은 두 곳에서 지킨다.
     with ablation.use("A59"):
-        assert aggregate.summand_roster([]) != ""      # 빈 목록도 꼬리를 낸다
+        assert aggregate.summand_roster([]) == ""
     #: 🔴 `line()` 을 통과시키는 시험은 레코드 집합과 라우터가 필요해 여기 두지 않는다.
     #: 사정거리 4문항은 `scratch/gate_a59.py` 가 실행으로 확인한다.
