@@ -1412,6 +1412,20 @@ A68 = replace(A65, name="A68", holding_ask_wide=True)
 #: **`Q-080` 하나**다. `Q-043` 은 모호하므로 침묵한다.
 A69 = replace(A65, name="A69", composition_total=True)
 
+# --- 브랜치 keypoint-gaps 의 채택본 ------------------------------------------
+#: `A65` 에 이 브랜치가 채택한 둘을 얹은 팔.
+#:
+#:     holding_ask_wide   보유비율 추이 줄의 발화 낱말에 `달라` (A68 · Q-012)
+#:     composition_total  구성 표의 합계를 못 박는다 (A69 · Q-080)
+#:
+#: 🔴 **기각한 것도 함께 적는다.** `partner_profile`(`A67`)은 조용한 무동작이었다 —
+#: 열거 hop 안에서만 불리는데 겨냥한 `Q-114` 는 계약상대 hop 을 탄다. 그 경로에 건수를
+#: 옮기는 것은 `pipeline._counterparty_note` 가 문서로 기각한 결정을 되돌리는 일이다.
+#: v5 의 `A29c`(Δ 0)에 이어 **두 번째 기각**이고 이유가 다르다.
+#:
+#: 영향 문항: `Q-012` · `Q-020` (A68) · `Q-080` (A69) — 셋. 겹침 없음.
+A70 = replace(A65, name="A70", holding_ask_wide=True, composition_total=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1459,7 +1473,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1506,7 +1520,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
