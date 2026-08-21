@@ -865,13 +865,27 @@ _ASKS_ROSTER = ("상장사", "기업은", "기업들", "어느 기업", "어디�
 
 
 def _roster_line(display: str, partners: Sequence[str],
-                 loaded: dict[str, dict] | None = None) -> str:
+                 loaded: dict[str, dict] | None = None,
+                 counts: dict[str, dict] | None = None) -> str:
     """The enumerated set as one line.
 
-    Filing counts are never carried, for the reason given in
-    `_counterparty_note`: a global count is unfiltered for supersession and
-    outside the scope of the question, and it leaked into an answer verbatim
-    once.
+    ## 🔴 건수는 `roster_counts` 를 켤 때만, 세 조건을 다 채워서 싣는다
+
+    `_counterparty_note` 가 건수를 뺀 이유는 둘이었다 — 전역 집계가 정정 대체를 안 걸러
+    참이 아닐 수 있고, 질문 범위 밖이며, 실제로 답변에 그대로 복사된 적이 있다. 그리고
+    다시 넣으려면 세 가지를 하라고 적어 뒀다(`design-rationale.md#counterparty-note-no-counts`):
+    어느 문항이 요구하는지 적을 것 · `is_latest` 로 걸러 볼 것 · 범위 밖 집계임을 라벨에
+    박을 것. 셋을 다 채운다.
+
+        요구하는 문항  `Q-114` 요점1 이 *"삼성E&A(47건)와 삼성중공업(19건) 두 곳이다"* 다.
+                      「건수를 묻는 문항은 0개」라던 그 메모가 이 문항으로 낡았다.
+        `is_latest`   걸러도 보고 **둘 다** 적는다. 코퍼스 실측으로 삼성E&A 47건 중 최신본은
+                      12건, 삼성중공업 19건 중 7건이다. 골든이 쓰는 수는 전체 쪽이고
+                      (요점2 의 *"19건 중 17건"* 도 전체 기준으로 정확히 맞는다), 최신본
+                      수를 숨기면 그 메모가 지적한 오해가 그대로 남는다. 그래서 나란히 적는다.
+        라벨          「코퍼스 전체 집계이고 질문이 지목한 사업장에 한정한 수가 아니다」를
+                      줄 안에 박는다. 이 줄에 적은 낱말은 답변에 복사된다고 가정해야 하므로
+                      (`Q-117` 실측) 라벨도 복사되게 두는 것이 맞다.
 
     🔴 Receipt numbers are carried only behind `roster_items`, and only for
     partners whose filing actually reached the evidence (`loaded`). The reason
@@ -896,14 +910,33 @@ def _roster_line(display: str, partners: Sequence[str],
     head = (f"[결정적 조회] {display} 를 계약상대로 공시한 상장사는 "
             f"{len(partners)}곳이다: {' · '.join(partners)}")
     detail = ""
+    #: 🔴 건수는 **`roster_items` 의 행 안에** 넣는다. 별도 행으로 두었을 때 답변이 3회
+    #: 모두 그 수를 안 썼다 — 회사마다 괄호가 둘(건수 · 대표계약)이 되고 답변은 대표계약
+    #: 쪽만 베꼈다. 라벨 문면을 금지에서 허가로 바꿔도 그대로였으니 문면이 아니라 자리
+    #: 문제였다. 답변이 이미 베끼는 행에 붙인다.
+    count_of = {}
+    if ablation.enabled("roster_counts") and counts:
+        count_of = {corp: f" {counts[corp]['total']}건"
+                          f"(최신본 {counts[corp]['latest']}건)"
+                    for corp in partners if corp in counts}
     if ablation.enabled("roster_items") and loaded:
-        rows = [f"  · {corp} — {loaded[corp]['subject']} {loaded[corp]['amount']}"
-                f" (접수번호 {loaded[corp]['rcept_no']})"
+        rows = [f"  · {corp}{count_of.get(corp, '')} — {loaded[corp]['subject']}"
+                f" {loaded[corp]['amount']} (접수번호 {loaded[corp]['rcept_no']})"
                 for corp in partners if corp in loaded]
         if rows:
-            detail = ("\n" + "\n".join(rows)
-                      + "\n  (접수번호는 근거에 실린 공시만 적었다. 목록의 나머지 회사는"
-                        " 이번 근거에 안 실렸으므로 접수번호를 지어내지 않는다.)")
+            #: 🔴 `=` 이 아니라 `+=` 다. 종전은 대입이라 앞서 쓴 줄을 통째로 덮었다 —
+            #: 줄이 붙은 줄 알고 3회를 잰 뒤에야 드러났다.
+            detail += ("\n" + "\n".join(rows)
+                       + "\n  (접수번호는 근거에 실린 공시만 적었다. 목록의 나머지 회사는"
+                         " 이번 근거에 안 실렸으므로 접수번호를 지어내지 않는다.)")
+            if count_of:
+                detail += (f"\n  (건수는 {display} 를 계약상대로 한 공시 **전체**를 센"
+                           " 것이다. 「어느 상장사가 몇 건을 공시했는가」에는 이 수를"
+                           " 그대로 쓰고, 특정 사업장·기간에 한정된 수로 적지는 않는다.)")
+    elif count_of:
+        #: `roster_items` 가 꺼져 있으면 붙일 행이 없다. 그때는 회사 이름 뒤에 붙인다.
+        detail += ("\n" + "\n".join(f"  · {corp}{count_of[corp]}"
+                                   for corp in partners if corp in count_of))
     return (head + detail + "\n"
             f"(이 목록은 시스템이 계약상대 그래프에서 직접 열거한 것이다. "
             f"답변은 이 {len(partners)}곳을 빠짐없이 적고 임의로 줄이지 않는다.)")
@@ -1011,9 +1044,15 @@ def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[st
                         "subject": aggregate._subject(record),
                         "amount": f"{int(amount):,}원" if amount else "금액 미기재"}
                     break
+        # 🔴 건수는 `by_partner`(도구가 돌려준 전부)에서 센다. `lanes` 는 `_partner_order`
+        # 를 지난 것이라 대표 정렬용이고, 그것으로 세면 정렬 규칙이 집계를 흔든다 —
+        # 「정렬은 최신본을 아는데 집계는 몰랐다」던 그 결함의 거울상이다.
+        counts = {corp: {"total": len(rows),
+                         "latest": sum(1 for r in rows if r.get("is_latest"))}
+                  for corp, rows in ((c, by_partner.get(c, [])) for c in partners)}
         roster_out.append(
             _roster_line(router_module.counterparty_display(hub) or hub, partners,
-                         loaded))
+                         loaded, counts))
 
     trace.append(f'hop={COUNTERPARTY_HOP} strat=counterparty tool=query_by_counterparty '
                  f'via={hub} partners={len(partners)} '
