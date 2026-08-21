@@ -48,10 +48,21 @@ DROP = [
     ("Q-104", "연결재무제표 기준이며 제51기는 중단사업",
      "질문이 회계 기준도 재작성 사유도 묻지 않았다. 3회 모두 uncovered 인데 "
      "그것은 답변의 흠이 아니라 요점이 질문 범위를 넘은 것이다"),
+    #: 2026-08-21 2차. `A65` 서버 3회에서 `covers_key_points` 가 실패한 자리는 전 코호트
+    #: 3회에 **두 건뿐이고 둘 다 이 문항**이다(r2·r3). 미달 요점 둘 중 어느 것을 빼도
+    #: 판정이 뒤집힌다 — 요점3 은 진짜 미달이고 이 요점4 는 질문 범위 밖이다.
+    ("Q-054", "원공시(20240514000756)와 정정공시(20240514001580)는 접수일이",
+     "질문은 '무엇이 왜 정정됐는지' 다. 두 공시의 선후를 어떻게 가리는가는 무엇도 "
+     "왜도 아니고, 질문이 이미 '같은 날 정정됐다' 고 알려 준다. 표기 요구가 요점 칸에 "
+     "들어온 것이고 걷어낸 Q-092·Q-104 와 같은 갈래다"),
 ]
 
 
 ROUNDS = (1, 2, 3)
+#: 판정을 되짚을 팔. 🔴 종전 판은 `A56` 이 박혀 있어 배포본이 바뀐 뒤에도 옛 판정을 읽었다.
+#: `A65` 서버 3회에서 `Q-054` r2·r3 가 `covers_key_points=False` 인데 `A56` 판정으로는
+#: 4/4 통과라 「채택에 영향 없음」으로 잘못 읽힌다.
+ARMS_TO_CHECK = ("A56", "A65")
 
 
 def verdict_after(qid: str, drop_at: list[int]) -> str:
@@ -63,20 +74,25 @@ def verdict_after(qid: str, drop_at: list[int]) -> str:
     🔴 한 문항에서 두 칸을 뺄 때는 합쳐서 재야 한다. 한 칸씩 따로 재면 각각은 통과하는데
     합치면 뒤집히는 경우를 놓친다.
     """
-    out = []
-    for round_no in ROUNDS:
-        name = "server_full" if round_no == 1 else "server_full_r%d" % round_no
-        path = Path("scratch/ablation/v6/%s/A56/judge/%s.json" % (name, qid))
-        if not path.exists():
-            return "판정 산출물 없음"
-        covered = list(json.loads(path.read_text(encoding="utf-8"))["covered"])
-        before = sum(covered) * 2 > len(covered)
-        kept = [c for i, c in enumerate(covered) if i not in set(drop_at)]
-        after = sum(kept) * 2 > len(kept)
-        out.append("r%d %d/%d → %d/%d %s→%s"
-                   % (round_no, sum(covered), len(covered), sum(kept), len(kept),
-                      "O" if before else "X", "O" if after else "X"))
-    return " · ".join(out)
+    lines = []
+    for arm in ARMS_TO_CHECK:
+        out = []
+        for round_no in ROUNDS:
+            name = "server_full" if round_no == 1 else "server_full_r%d" % round_no
+            path = Path("scratch/ablation/v6/%s/%s/judge/%s.json" % (name, arm, qid))
+            if not path.exists():
+                out.append("r%d 없음" % round_no)
+                continue
+            covered = list(json.loads(path.read_text(encoding="utf-8"))["covered"])
+            before = sum(covered) * 2 > len(covered)
+            kept = [c for i, c in enumerate(covered) if i not in set(drop_at)]
+            after = sum(kept) * 2 > len(kept)
+            mark = "  🟢 뒤집힌다" if (not before and after) else ""
+            out.append("r%d %d/%d → %d/%d %s→%s%s"
+                       % (round_no, sum(covered), len(covered), sum(kept), len(kept),
+                          "O" if before else "X", "O" if after else "X", mark))
+        lines.append("%-5s %s" % (arm, " · ".join(out)))
+    return "\n     ".join(lines)
 
 
 def main() -> int:
