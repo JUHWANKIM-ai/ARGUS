@@ -19,6 +19,8 @@ guard.
 """
 from __future__ import annotations
 
+import collections
+import difflib
 import re
 
 from argus import ablation
@@ -809,6 +811,291 @@ def fx_conversion(evidence: str, question: str) -> str:
             f"이 값은 시스템이 위 근거의 문면에서 그대로 옮긴 것이다 — "
             f"우리가 계산한 것이 아니므로 답변은 이 값을 고치지 않고, "
             f"외화 금액과 이 원화 환산액을 함께 적는다.")
+
+
+# --- 정정 전후 대조 -------------------------------------------------------
+#
+# `정정 전후로 무엇이 달라졌는지` 를 묻는 문항은 근거에 **같은 절이 두 벌** 실린다.
+# 원공시 한 벌과 정정공시 한 벌이다. 그 둘의 차이는 코드로 정확히 구할 수 있는데
+# 답변은 그것을 눈으로 훑어 짐작한다 — `Q-094` 는 세 판 모두 표기 변경은 맞히고
+# 「금액은 하나도 안 바뀌었다」와 그 금액들을 못 적었다.
+#
+# 🔴 갈림길이 하나 있다. **금액이 바뀐 정정과 표기만 바뀐 정정은 답이 다르다.**
+#
+#     금액이 바뀌었다 → 무엇이 무엇으로 바뀌었는가가 답이다. 바뀐 줄만 낸다.
+#     금액이 안 바뀌었다 → 무엇이 **안** 바뀌었는가가 답이다. 그 줄이 든 표까지 낸다.
+#
+# 뒤쪽에서 표를 함께 내는 것이 `Q-094` 요점3(`63,562,284`·`135,653,693` 은 안 바뀌었다)의
+# 처방이다. 그 두 수는 바뀐 줄에 없고 바뀐 줄 **바로 아래**에 있다.
+# See docs/design-rationale.md#aggregate-scope
+
+#: 근거 블록의 제목에서 조각 표시를 떼어 낸다. `[1/2 조각]` 이 붙은 것과 안 붙은 것이
+#: 같은 절이다.
+_PIECE_MARK = re.compile(r"\s*\[\d+/\d+ 조각\]\s*$")
+#: 블록의 출처 줄. 대조에서 **빼야 한다** — 접수번호가 다른 것은 당연하고, 그것을 차이로
+#: 세면 모든 짝이 최소 한 줄 다르게 나온다.
+_BLOCK_SOURCE = re.compile(r"^- 출처: 접수번호 (\d{14})")
+#: 바뀐 줄 짝의 상한. 이보다 많으면 침묵한다 — 코퍼스 실측으로 `Q-076` 71줄 · `Q-088`
+#: 249줄 짝이 있고, 그것을 한 줄에 담으면 근거를 밀어내는 벽이 된다. 결정적 줄은
+#: 200~400자를 지켜 왔다.
+MAX_REVISION_PAIRS = 6
+#: 「안 바뀐 표」를 낼 때의 상한. 표 두 개 · 표마다 여덟 줄.
+MAX_SAME_TABLES = 2
+MAX_SAME_ROWS = 8
+
+
+def _revision_blocks(evidence: str) -> list[tuple[str, list[str]]]:
+    """근거를 `## ` 제목으로 쪼갠다. (조각 표시를 뗀 제목, 본문 줄)."""
+    out: list[tuple[str, list[str]]] = []
+    head: str | None = None
+    body: list[str] = []
+    for raw in (evidence or "").split("\n"):
+        if raw.startswith("## "):
+            if head is not None:
+                out.append((head, body))
+            head, body = _PIECE_MARK.sub("", raw[3:]).strip(), []
+        elif head is not None:
+            body.append(raw)
+    if head is not None:
+        out.append((head, body))
+    return out
+
+
+def _block_receipt(body: list[str]) -> str:
+    for line in body:
+        hit = _BLOCK_SOURCE.match(line)
+        if hit:
+            return hit.group(1)
+    return ""
+
+
+def _revision_pair(evidence: str):
+    """(절 제목, 원공시 본문, 정정공시 본문). 짝이 정확히 하나가 아니면 None.
+
+    짝을 고르는 규칙은 **같은 제목 · 다른 접수번호 · 정확히 두 벌**이다. 셋 이상 실리면
+    어느 둘이 전후인지 모르므로 침묵한다.
+    """
+    grouped: dict[str, list[list[str]]] = {}
+    for head, body in _revision_blocks(evidence):
+        grouped.setdefault(head, []).append(body)
+    pairs = []
+    for head, bodies in grouped.items():
+        if len(bodies) != 2:
+            continue
+        left, right = (_block_receipt(bodies[0]), _block_receipt(bodies[1]))
+        if not left or not right or left == right:
+            continue
+        #: 접수번호가 작은 쪽이 원공시다. 정정은 언제나 뒤에 접수된다.
+        order = sorted(zip((left, right), bodies), key=lambda x: x[0])
+        pairs.append((head, order[0], order[1]))
+    return pairs[0] if len(pairs) == 1 else None
+
+
+#: 표 위의 단위 선언. `(단위 : 천원)` · `(단위:백만원)`.
+_TABLE_UNIT = re.compile(r"[(（]\s*단위\s*[:：]\s*([^)）]{1,12}?)\s*[)）]")
+#: 그 행의 값이 **돈이 아닌** 것. 표가 `(단위 : 천원)` 을 선언했어도 주식수에 천원을
+#: 붙이면 자신 있게 틀린 수가 된다. 표의 선언은 표의 사정이고 우리 줄은 우리 말이다.
+_NOT_MONEY_LABEL = ("주식수", "주수", "수량", "인원", "건수", "비율", "율(", "주가")
+
+
+def _containing_table(body: list[str], at: int) -> tuple[list[str], str]:
+    """(`at` 번째 줄이 든 표의 값 행들, 그 표가 선언한 단위).
+
+    구분 행과 머리 행은 뺀다. 단위는 표 **바로 위**에서 찾는다 — 멀리서 찾으면 다른
+    표의 단위를 끌어온다.
+    """
+    if not body[at].lstrip().startswith("|"):
+        return [], ""
+    lo = at
+    while lo > 0 and body[lo - 1].lstrip().startswith("|"):
+        lo -= 1
+    hi = at
+    while hi + 1 < len(body) and body[hi + 1].lstrip().startswith("|"):
+        hi += 1
+    rows = [body[i] for i in range(lo, hi + 1)
+            if not set(body[i].replace("|", "").strip()) <= set("- :")]
+    unit = ""
+    for back in range(lo - 1, max(lo - 5, -1), -1):
+        hit = _TABLE_UNIT.search(body[back])
+        if hit:
+            unit = hit.group(1)
+            break
+    return (rows[1:] if len(rows) > 1 else rows), unit
+
+
+def _money_row(row: str, unit: str) -> str:
+    """돈 행이면 `라벨 값단위`, 아니면 "".
+
+    ## 왜 골라 내는가
+
+    `covers_key_amounts` 는 `money_values` 로 재고 그것은 **단위가 붙은 수**만 돈으로
+    본다(`63,562,284` → 없음 · `63,562,284천원` → 있음). 그래서 단위를 붙여야 골든 요점의
+    금액을 답변이 말한 것으로 센다.
+
+    🔴 그런데 아무 행에나 붙이면 안 된다. `Q-094` 의 표는 `(단위 : 천원)` 을 선언했지만
+    그 안에 `배당 기준 총발행 보통주식수 21,954,022` 가 있다. `21,954,022천원` 이라 적으면
+    주식수를 돈이라고 단정하는 것이다. 그리고 `보통주에 지급된 주당배당금(단위: 원/주)` 은
+    **자기 단위를 스스로 밝힌 행**이라 표의 단위가 안 듣는다.
+
+    그래서 둘을 뺀다: 라벨이 수량·비율을 말하는 행과 라벨이 자기 단위를 밝힌 행.
+    남는 것이 `보통주에 지급된 배당금 63,562,284천원` — 골든 요점3 이 요구한 그것이다.
+    """
+    cells = [c.strip() for c in row.strip().strip("|").split("|") if c.strip()]
+    if len(cells) < 2:
+        return ""
+    label, values = cells[0], cells[1:]
+    if any(word in label for word in _NOT_MONEY_LABEL):
+        return ""
+    if _TABLE_UNIT.search(label):
+        return ""
+    amounts = [v for v in values if _ROW_AMOUNT.fullmatch(v)]
+    if not amounts:
+        return ""
+    return f"{label} {amounts[0]}{unit}" if unit else f"{label} {amounts[0]}"
+
+
+def _row_text(row: str) -> str:
+    cells = [c.strip() for c in row.strip().strip("|").split("|") if c.strip()]
+    return " ".join(cells)
+
+
+def revision_diff(evidence: str) -> str:
+    """정정 전후 두 벌을 대조해 한 줄로 못 박는다. LLM 호출 없음.
+
+    발화하지 않으면 "" 를 돌려준다.
+
+    ## 왜 필요한가
+
+    `Q-094`(*"배당금 지급 내역 표에서 정정 전후로 무엇이 달라졌는지"*)의 골든 요점 넷이
+    이 대조에 통째로 들어 있다.
+
+        요점1  주당배당금 항목명에 '(단위: 원/주)' 가 추가됐다      → 바뀐 줄 짝
+        요점2  3,130 · 6,680 은 전후가 같다                      → 바뀐 줄 안의 수
+        요점3  63,562,284 · 135,653,693 도 바뀌지 않았다          → 그 줄이 든 표
+        요점4  금액은 하나도 바뀌지 않았다                        → 금액 다중집합 동일
+
+    답변은 세 판 모두 요점1·2 만 맞혔다. 요점3 의 두 수는 바뀐 줄에 없고 **바로 아래
+    줄**에 있어, 눈으로 훑는 것으로는 「안 바뀌었다」를 말할 수 없다. 코드는 말할 수 있다.
+
+    ## 🔴 금액이 바뀐 정정과 표기만 바뀐 정정은 답이 다르다
+
+        금액이 바뀌었다   → 무엇이 무엇으로 바뀌었는가가 답. 바뀐 줄만 낸다.
+        금액이 안 바뀌었다 → 무엇이 **안** 바뀌었는가가 답. 그 줄이 든 표까지 낸다.
+
+    뒤쪽에서만 표를 함께 내는 이유는 앞쪽에서 내면 벽이 되기 때문이다 — 금액이 바뀐 짝은
+    표가 크다(`Q-048` 178종 · `Q-052` 14종).
+
+    ## 🔴 언제 침묵하는가
+
+        1. 같은 제목 · 다른 접수번호인 짝이 **정확히 하나**가 아니다
+        2. 다른 줄이 하나도 없다 — 말할 것이 없다
+        3. 바뀐 줄 짝이 `MAX_REVISION_PAIRS` 를 넘는다 — 코퍼스 실측으로 `Q-076` 71줄
+           · `Q-088` 249줄 짝이 있고, 그것을 한 줄에 담으면 근거를 밀어내는 벽이 된다
+
+    출처 줄은 대조에서 뺀다. 접수번호가 다른 것은 당연하고, 그것을 차이로 세면 모든 짝이
+    최소 한 줄 다르게 나온다.
+
+    ## 🔴 표지는 `[결정적 집계]` 다 — 새 표지를 만들면 답변이 그것을 근거로 인용한다
+
+    첫 판은 `[결정적 대조]` 라는 새 표지를 썼다. 답변이 *"(근거: 결정적 대조 정보)"* ·
+    *"(근거: 결정적 대조, 결정적 단위)"* 라고 적었다. 생성 프롬프트는 표지를 아예 모르므로
+    모델은 대괄호를 그냥 출처로 읽는다. `counterparty_branch` 가 술어 이름을 줄에서 빼
+    두는 것과 같은 까닭이라, 표지는 이미 쓰이는 둘(`집계`·`조회`) 안에 머문다. 이것은
+    우리가 계산한 대조이므로 `집계` 다.
+
+    ## 🔴 안 바뀐 금액에는 단위를 붙인다 — 그러나 아무 행에나 붙이지 않는다
+
+    `covers_key_amounts` 는 `money_values` 로 재고 그것은 **단위가 붙은 수**만 돈으로 본다.
+    첫 판은 표의 값을 그대로 옮겨 `63,562,284` 라 적었고, 수리기가 그 줄을 답변에 붙였는데도
+    `covers_key_amounts` 가 *"금액 표기가 하나도 없다"* 로 떨어져 3회 모두 오답이 됐다.
+
+    그래서 표가 선언한 단위를 값에 붙인다. 🔴 다만 두 갈래를 뺀다 — 라벨이 수량·비율을
+    말하는 행(`배당 기준 총발행 보통주식수 21,954,022` 에 천원을 붙이면 주식수를 돈이라고
+    단정하는 것이다)과 라벨이 자기 단위를 스스로 밝힌 행(`주당배당금(단위: 원/주)` 에는
+    표의 천원이 안 듣는다). 남는 것이 `보통주에 지급된 배당금 63,562,284천원` 이다.
+
+    ## 🔴 그리고 「안 바뀌었다」만 말하면 금액이 하나도 안 남는다
+
+    첫 판의 지시는 *"바뀐 것과 바뀌지 않은 것을 모두 이 대조대로 적는다"* 였다. 답변은
+    *"…금액 등은 정정 전후로 변동이 없습니다"* 로 뭉뚱그리고 **수치를 한 개도 적지
+    않았다.** `amount_gap` 이 걸려 3회 중 2회가 오답이 됐다 — 겨냥한 문항을 우리가 망친
+    것이다. 그래서 지시를 「위에 적힌 금액을 그대로 적어라」로 바꿨다.
+    See docs/design-rationale.md#aggregate-scope
+    """
+    if not ablation.enabled("revision_diff"):
+        return ""
+    picked = _revision_pair(evidence)
+    if not picked:
+        return ""
+    head, (old_no, old_body), (new_no, new_body) = picked
+    old_rows = [l for l in old_body if not _BLOCK_SOURCE.match(l)]
+    new_rows = [l for l in new_body if not _BLOCK_SOURCE.match(l)]
+    removed, added = [], []
+    for line in difflib.unified_diff(old_rows, new_rows, lineterm="", n=0):
+        if line.startswith("---") or line.startswith("+++"):
+            continue
+        if line.startswith("-"):
+            removed.append(line[1:])
+        elif line.startswith("+"):
+            added.append(line[1:])
+    if not removed and not added:
+        return ""
+    if max(len(removed), len(added)) > MAX_REVISION_PAIRS:
+        return ""
+
+    same_amounts = (collections.Counter(_ROW_AMOUNT.findall("\n".join(old_rows)))
+                    == collections.Counter(_ROW_AMOUNT.findall("\n".join(new_rows))))
+    verdict = ("금액은 하나도 바뀌지 않았다" if same_amounts
+               else "금액이 바뀌었다")
+    steps = []
+    for before, after in zip(removed, added):
+        left, right = _row_text(before) or "(빈 줄)", _row_text(after) or "(빈 줄)"
+        if left != right:
+            steps.append(f"'{left}' → '{right}'")
+    for extra in removed[len(added):]:
+        steps.append(f"'{_row_text(extra)}' 가 빠졌다")
+    for extra in added[len(removed):]:
+        steps.append(f"'{_row_text(extra)}' 가 들어왔다")
+    if not steps:
+        return ""
+
+    line = (f"- [결정적 집계] 정정 전후 대조 (원공시 {old_no} → 정정 {new_no}, "
+            f"절 '{head}'): {verdict}. 달라진 곳 {len(steps)}군데 — "
+            + " · ".join(steps))
+    if not same_amounts:
+        return line + (" (이 값은 시스템이 위 두 벌을 줄 단위로 견준 것이다. "
+                       "답변의 해당 수치는 이 값을 그대로 쓰고, 이 목록 밖의 변경을 "
+                       "적지 않는다.)")
+
+    #: 금액이 안 바뀐 정정에서는 「안 바뀐 값」이 답이다. 바뀐 줄이 든 표를 함께 낸다 —
+    #: `Q-094` 요점3 의 두 수가 거기 있다.
+    tables, seen = [], set()
+    for before, after in zip(removed, added):
+        at = next((i for i, l in enumerate(new_rows) if l == after), -1)
+        source = new_rows
+        if at < 0:
+            at = next((i for i, l in enumerate(old_rows) if l == before), -1)
+            source = old_rows
+        if at < 0:
+            continue
+        rows, unit = _containing_table(source, at)
+        money = [_money_row(r, unit) for r in rows]
+        money = [m for m in money if m]
+        if not money:
+            continue
+        key = tuple(money)
+        if key in seen:
+            continue
+        seen.add(key)
+        tables.append(money[:MAX_SAME_ROWS])
+        if len(tables) >= MAX_SAME_TABLES:
+            break
+    if tables:
+        shown = " ∥ ".join(" · ".join(rows) for rows in tables)
+        line += f" · 그 줄이 든 표의 금액은 전후가 같다: {shown}"
+    return line + (" (이 값은 시스템이 위 두 벌을 줄 단위로 견준 것이다. "
+                   "답변은 바뀐 항목명과 함께 위에 적힌 금액을 그대로 적어 "
+                   "무엇이 안 바뀌었는지 밝힌다.)")
 
 
 #: The answer form `1,234,567,890원(12억원)`. Markdown emphasis has to be

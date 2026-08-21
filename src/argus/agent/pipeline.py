@@ -2810,6 +2810,17 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, fx)
             trace.append(f"fx_conversion line=1 chars={len(fx)}")
 
+    # 정정 문항은 근거에 같은 절이 두 벌 실린다. 그 차이는 코드로 정확히 구할 수 있는데
+    # 답변은 눈으로 훑어 짐작한다. 질문을 안 보고 근거만 보는 줄이라 `clean` 을 안 받는다 —
+    # 같은 절이 두 벌 실렸다는 것 자체가 정정 문항이라는 뜻이다.
+    if ablation.enabled("revision_diff"):
+        from argus.agent import aggregate
+
+        diff = aggregate.revision_diff(evidence)
+        if diff:
+            evidence = _prepend(evidence, diff)
+            trace.append(f"revision_diff line=1 chars={len(diff)}")
+
     # A stub in one filing and a body in another is a categorical difference,
     # and an answer calling them the same is wrong with confidence. The line
     # states it; it does not edit the answer.

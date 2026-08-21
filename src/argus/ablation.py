@@ -586,6 +586,8 @@ class Arm:
     #: 공시가 스스로 적어 둔 원화 환산액과 그 환율을 문면에서 그대로 옮긴다. 우리가
     #: 계산하지 않는다 — 공시와 다른 수를 내지 않기 위해서다.
     fx_conversion: bool = False
+    #: 정정 전후 두 벌을 줄 단위로 견주어 무엇이 바뀌고 무엇이 안 바뀌었는지 낸다.
+    revision_diff: bool = False
     #: periodic 정정본 블록이 무엇을 정정한 것인지 밝힌다. 🔴 이 줄의 14자리는 우리 근거
     #: 완전성 회계에 들어간다 — 원공시가 골든이면 본문 없이 적재로 세어진다. 채택 판정은
     #: 근거 완전성을 **두 가지로** 내야 한다(날값 · 포인터 줄 제외값).
@@ -1508,6 +1510,25 @@ A73 = replace(A72, name="A73", counterparty_pair=True)
 #: 문장은 아니다.
 A74 = replace(A73, name="A74", fx_conversion=True)
 
+# --- W5 · 정정 전후 두 벌을 줄 단위로 견준다 (브랜치 keypoint-gaps) -------------
+#: 정정 문항은 근거에 **같은 절이 두 벌** 실린다. 그 차이는 코드로 정확히 구할 수 있는데
+#: 답변은 눈으로 훑어 짐작한다. `Q-094` 골든 요점 넷이 이 대조에 통째로 들어 있다.
+#:
+#:     요점1  항목명에 '(단위: 원/주)' 추가        → 바뀐 줄 짝
+#:     요점2  3,130 · 6,680 은 전후가 같다        → 바뀐 줄 안의 수
+#:     요점3  63,562,284 · 135,653,693 도 그렇다  → 그 줄이 든 표
+#:     요점4  금액은 하나도 바뀌지 않았다          → 금액 다중집합 동일
+#:
+#: 답변은 세 판 모두 요점1·2 만 맞혔다. 요점3 의 두 수는 바뀐 줄에 없고 바로 아래 줄에
+#: 있어 눈으로는 「안 바뀌었다」를 말할 수 없다.
+#:
+#: 🔴 금액이 바뀐 정정과 표기만 바뀐 정정은 답이 다르다. 앞쪽은 바뀐 줄만, 뒤쪽은 그 줄이
+#: 든 표까지 낸다 — 뒤쪽에서는 「안 바뀐 값」이 답이기 때문이다.
+#:
+#: 🔴 바뀐 줄 짝이 6 을 넘으면 침묵한다. 코퍼스 실측으로 `Q-076` 71줄 · `Q-088` 249줄
+#: 짝이 있고 그것을 한 줄에 담으면 근거를 밀어내는 벽이 된다.
+A75 = replace(A74, name="A75", revision_diff=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1555,7 +1576,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1602,7 +1623,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
