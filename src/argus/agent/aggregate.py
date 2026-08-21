@@ -1300,6 +1300,100 @@ def composition_total(evidence: str, question: str) -> str:
             f"{_DIRECTIVE}")
 
 
+#: 질문이 **부문별 매출**을 묻는가. 비교·차이 문항은 안 받는다 — 부문 분해가 답이 아니고
+#: 잡음이다(`Q-049` *"어느 쪽이 큰지"* · `Q-051` *"차이는 몇 백만원인가"* 가 그 예다).
+_SEGMENT_ASK = re.compile(r"부문별\s*매출|사업부문.*매출|부문.*매출액")
+#: 부문 소계 삼중항의 가운데·끝 행. `| 내수 | 191,737 | … |` 다음 `| 합계 | 5,198,502 | … |`.
+_DOMESTIC_ROW = "내수"
+#: 부문 이름이 아닌 것. 총계 행을 부문으로 세면 질문이 묻지 않은 수가 답에 들어간다
+#: (`Q-104` 의 합계 요점은 질문 범위 밖이라 이미 걷어냈다).
+_NOT_A_SEGMENT = ("합계", "합 계", "계", "소계", "소 계", "총계", "총 계")
+
+
+def _row_cells(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def segment_sales(evidence: str, question: str) -> str:
+    """부문별 매출을 **수출+내수로 검산해** 한 줄로 못 박는다. LLM 호출 없음.
+
+    발화하지 않으면 "" 를 돌려준다.
+
+    ## 왜 필요한가
+
+    `Q-104`(*"삼성전기 제53기 사업부문별 매출을 알려줘"*)의 근거에는 같은 공시 안에 표가
+    **둘** 있고 부문값이 1 씩 다르다.
+
+        주요 제품 및 서비스   컴포넌트 5,198,501 · 광학솔루션 3,814,205   (비중 표)
+        매출실적             컴포넌트 5,198,502 · 광학솔루션 3,814,204   (수출/내수 표)
+
+    답변은 세 판 모두 앞의 표를 읽었고 골든은 뒤의 표를 쓴다. **둘 다 내적으로 맞고
+    합계는 11,314,459 로 같다** — 원문 자체의 반올림 차다. 그래서 골든을 고칠 수 없고
+    답변을 틀렸다고 할 수도 없다. 어느 쪽이 더 단단한지를 가려 주는 것이 처방이다.
+
+    ## 무엇으로 가리는가 — 산술
+
+    뒤의 표는 `수출 + 내수 = 합계` 가 세 부문 모두 정확히 맞는다.
+
+        5,006,765 + 191,737 = 5,198,502
+        2,266,771 +  34,982 = 2,301,753
+        3,615,414 + 198,790 = 3,814,204
+
+    앞의 표는 그런 검산 대상이 없다. 유도되는 쪽을 내는 것이므로 이 줄은 **취향이 아니라
+    검산**이다. 그리고 검산이 안 맞는 삼중항은 아예 담지 않으므로, 이 줄이 나왔다는 것
+    자체가 그 값이 표 안에서 더해진다는 뜻이다.
+
+    ## 🔴 무엇을 안 담는가
+
+    총계 행(`합 계 | 수출 10,888,950 | 내수 425,509`)은 부문이 아니라서 뺀다. `Q-104` 의
+    합계 요점은 *"사업부문별 매출을 알려줘"* 의 범위 밖이라 이미 걷어냈으므로, 여기서
+    다시 실으면 걷어낸 것을 되돌리는 셈이다.
+
+    부문이 둘 미만이면 침묵한다 — 하나는 「부문별」이 아니다.
+
+    ## 사정거리
+
+    112문항 전수 대조: 표 꼴만으로는 3문항(`Q-049` · `Q-051` · `Q-104`), 질문 필터까지
+    걸면 **`Q-104` 하나**다. 침묵이 기본값인 것은 `composition_total` 과 같다.
+    See docs/design-rationale.md#aggregate-scope
+    """
+    if not ablation.enabled("segment_sales"):
+        return ""
+    if not _SEGMENT_ASK.search(question or ""):
+        return ""
+    lines = (evidence or "").splitlines()
+    found: list[tuple[str, str, str, str]] = []
+    for i in range(len(lines) - 2):
+        head, mid, tail = lines[i], lines[i + 1], lines[i + 2]
+        if not all(x.lstrip().startswith("|") for x in (head, mid, tail)):
+            continue
+        cells_mid, cells_tail = _row_cells(mid), _row_cells(tail)
+        if not cells_mid or cells_mid[0] != _DOMESTIC_ROW:
+            continue
+        if not cells_tail or cells_tail[0].replace(" ", "") != "합계":
+            continue
+        numbers = [_ROW_AMOUNT.findall(x) for x in (head, mid, tail)]
+        if not all(numbers):
+            continue
+        export, domestic, total = (int(n[0].replace(",", "")) for n in numbers)
+        if export + domestic != total:
+            #: 🔴 검산이 안 맞으면 담지 않는다. 표가 우리 짐작과 다른 꼴이라는 뜻이고,
+            #: 그때 값을 내면 **자신 있게 틀린 수**가 된다.
+            continue
+        name = _row_cells(head)[0]
+        if name.replace(" ", "") in {x.replace(" ", "") for x in _NOT_A_SEGMENT}:
+            continue
+        found.append((name, numbers[0][0], numbers[1][0], numbers[2][0]))
+    if len(found) < 2:
+        return ""
+    parts = [f"{name} {export} + {domestic} = **{total}**"
+             for name, export, domestic, total in found]
+    return (f"- [결정적 집계] 부문별 매출 (수출 + 내수 = 합계, 위 표에서 검산했다): "
+            f"{' · '.join(parts)} "
+            f"(같은 공시의 비중 표는 반올림본이라 부문값이 1 다를 수 있다. "
+            f"검산이 맞는 이 값을 쓴다.) {_DIRECTIVE}")
+
+
 def contrast_line(evidence: str) -> str:
     """One decisive line when the same section arrived from filings that differ
     **in kind**: a stub in one, a body in another.

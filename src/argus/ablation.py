@@ -577,6 +577,9 @@ class Arm:
     #: 보유비율 추이 줄에 `주요계약체결` 추이를 한 줄 더 붙인다. 그 값은 `shares_current`
     #: 가 아니라 `fields` 안의 문자열에 있어 종전 줄이 못 읽었다.
     pledged_series: bool = False
+    #: 부문별 매출을 `수출 + 내수 = 합계` 로 검산해 한 줄로 낸다. 같은 공시에 표가 둘
+    #: 있고 부문값이 1 다를 때 검산이 맞는 쪽을 가려 준다.
+    segment_sales: bool = False
     #: periodic 정정본 블록이 무엇을 정정한 것인지 밝힌다. 🔴 이 줄의 14자리는 우리 근거
     #: 완전성 회계에 들어간다 — 원공시가 골든이면 본문 없이 적재로 세어진다. 채택 판정은
     #: 근거 완전성을 **두 가지로** 내야 한다(날값 · 포인터 줄 제외값).
@@ -1445,6 +1448,22 @@ A70 = replace(A65, name="A70", holding_ask_wide=True, composition_total=True)
 #: 않는다. 두 끝이 같으면 변동이 없으므로 `추이` 라 적지 않는다.
 A71 = replace(A70, name="A71", pledged_series=True)
 
+# --- W2 · 부문별 매출을 검산해 낸다 (브랜치 keypoint-gaps) ---------------------
+#: `Q-104` 는 같은 공시 안에 표가 **둘** 있고 부문값이 1 씩 다르다. 답변은 세 판 모두
+#: 비중 표(5,198,501 · 3,814,205)를 읽었고 골든은 매출실적 표(5,198,502 · 3,814,204)를
+#: 쓴다. 둘 다 내적으로 맞고 합계는 11,314,459 로 같다 — 원문 자체의 반올림 차다.
+#:
+#: 그래서 골든을 고칠 수 없고 답변을 틀렸다고 할 수도 없다. 가릴 잣대는 **산술**이다.
+#: 매출실적 표는 `수출 + 내수 = 합계` 가 세 부문 모두 맞고 비중 표는 그런 검산 대상이
+#: 없다. 검산이 맞는 삼중항만 담으므로 이 줄이 나왔다는 것 자체가 값이 표 안에서
+#: 더해진다는 뜻이다.
+#:
+#: 🔴 총계 행은 뺀다. `Q-104` 의 합계 요점은 질문 범위 밖이라 이미 걷어냈으므로 여기서
+#: 다시 실으면 걷어낸 것을 되돌리는 셈이다.
+#:
+#: 사정거리 실측: 표 꼴만으로 3문항(`Q-049`·`Q-051`·`Q-104`), 질문 필터까지 걸면 하나다.
+A72 = replace(A71, name="A72", segment_sales=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1492,7 +1511,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1539,7 +1558,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

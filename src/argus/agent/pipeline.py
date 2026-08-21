@@ -2811,6 +2811,17 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, total)
             trace.append(f"composition_total line=1 chars={len(total)}")
 
+    # 부문별 매출을 묻는 질문에서 `수출 + 내수 = 합계` 를 검산해 낸다. 같은 공시에 표가
+    # 둘 있고 부문값이 1 다를 때(`Q-104`) 유도되는 쪽을 가려 주는 것이 이 줄의 일이다.
+    # `composition_total` 과 같은 자리·같은 성질 — 레코드가 아니라 근거 문자열을 읽는다.
+    if ablation.enabled("segment_sales"):
+        from argus.agent import aggregate
+
+        segments = aggregate.segment_sales(evidence, clean)
+        if segments:
+            evidence = _prepend(evidence, segments)
+            trace.append(f"segment_sales line=1 chars={len(segments)}")
+
     try:
         # Read through `enabled()` so that a misspelled flag raises instead of
         # silently evaluating false. At the default the two lines below are
