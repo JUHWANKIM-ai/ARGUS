@@ -67,6 +67,12 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     "verifier": ("substitute_verified", "provenance_gate", "regenerate_on_verify",
                  "counterparty_exempt", "amount_coverage_gate"),
     "aggregate_line": ("substitute_aggregate",),
+    #: `refusal_needs_gap` narrows a branch inside `attach_citation`. With the
+    #: parent off that function returns before the branch is reached, so the
+    #: child would be a silent no-op -- the failure mode `period_label` hit,
+    #: where a flag changed nothing across all 112 questions and the test
+    #: passed anyway because its fixture had a different shape than the runtime.
+    "attach_citation": ("refusal_needs_gap",),
     #: The second measurement-established entry (see the paragraph above:
     #: `calc_values` -> `lean_rules` was the first). `project_scope` is not
     #: code-gated by `counterparty_relevance` -- `aggregate.select` runs its
@@ -544,6 +550,7 @@ class Arm:
     #: call so the generation, critic and regeneration prompts stay
     #: byte-identical and the request cache hits.
     citation_note_fix: bool = False
+    refusal_needs_gap: bool = False
     #: True separates which filing a date points at when two share that date.
     #: With both filings in the evidence the selection rather than the
     #: retrieval goes wrong. The rule is what the date means: a contract filed
@@ -1135,6 +1142,29 @@ A55 = replace(A51, name="A55", citation_note_fix=True)
 #: 근거 창에 더하는 것은 밀어내는 것이었다. `docs/superpowers/plans/2026-08-21-eight-defects.md`
 A56 = replace(A54, name="A56", citation_note_fix=True)
 
+# --- W2 · P-C : 거절 판정에 외부 신호를 곱한다 --------------------------------
+#: `A56` 위에 `refusal_needs_gap` 하나. 계획서
+#: `docs/superpowers/plans/2026-08-21-paper-grounded-repairs.md` 의 P-C.
+#:
+#: 근거는 Self-Consistency 의 calibration 부재 — 모델의 정규화 조건확률이 정답/오답 간
+#: 거의 차이가 없으므로 정보한계 판정을 답변 문면에 맡기면 안 되고 외부 신호를 써야 한다
+#: (`paper/base/base.md` §3).
+#:
+#: `Q-053` 은 질문이 `'V. 회계감사인의 감사의견 등 > 2. 내부통제에 관한 사항'` 을 글자
+#: 그대로 지목하고 그 섹션이 근거 첫 블록에 실려 있다. 답변은 그 섹션의 내용(분기보고서에는
+#: 기재하지 않는다)을 정확히 서술하는데 그 문장에 `찾을 수 없으며` 가 들어가 거절로
+#: 판정됐고, 그래서 접수번호가 하나도 안 붙었다.
+#:
+#: 🔴 어구 목록을 넓히는 쪽은 v4 에서 이미 측정 후 기각했다 — 모델이 거절하는 낱말은
+#: 끝이 없다. 목록은 한 글자도 안 건드린다.
+#:
+#: 세우기 **전에** 쟀다 (`scratch/w1_risk_sizing.py` · 저장 답변 336개):
+#:
+#:     지금 거절로 판정되는 답변          53개 · 18문항
+#:     새 술어가 뒤집는 것               3개 · 1문항 (Q-053, 3회 모두)
+#:     안전성 10문항 · 정보한계 6문항      그대로 거절로 남는다
+A57 = replace(A56, name="A57", refusal_needs_gap=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1182,7 +1212,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1229,7 +1259,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
@@ -1612,8 +1642,80 @@ def _render_citation(unit: dict) -> str:
     return "(근거: " + ", ".join(parts) + ")"
 
 
+#: Numeric prefix on a section path segment: `2. 내부통제에 관한 사항`.
+_SECTION_NUM = re.compile(r"^\s*[0-9IVXivx]+\s*[.)]\s*")
+#: Shortest segment usable as a signal. `개요` and `현황` appear in hundreds of
+#: filings, so a match on them says nothing about which section was asked for.
+_SECTION_MIN = 8
+
+
+#: Four-digit year in a question or an evidence label. Non-capturing, so
+#: `findall` returns whole years rather than the century group.
+_LABEL_YEAR = re.compile(r"(?:19|20)\d{2}")
+
+
+def _units_naming_question_section(question: str, units: list[dict]) -> list[dict]:
+    """Citations whose section path the question called by name.
+
+    The same section is filed every year, so a name match alone is not enough:
+    `Q-053` loads `내부통제에 관한 사항` from both the 2026 and the 2023 quarterly
+    report. The answer speaks about 2026 only, and citing 2023 for it is the
+    false attribution this whole branch exists to prevent. When the question
+    names a year, labels carrying a different one are dropped; a label with no
+    year is kept, because the filter must not silence a citation it cannot judge.
+    """
+    hits = []
+    for unit in units:
+        if _question_names_loaded_section(question, [unit]):
+            hits.append(unit)
+    years = set(_LABEL_YEAR.findall(question))
+    if not years:
+        return hits
+    scoped = [u for u in hits
+              if not set(_LABEL_YEAR.findall(u["label"]))
+              or set(_LABEL_YEAR.findall(u["label"])) & years]
+    #: 연도가 하나도 안 맞으면 좁히지 않는다. 좁혀서 빈 손이 되면 표기가 아예 안 붙어
+    #: 종전 동작으로 돌아가는데, 그것은 이 처방이 겨냥한 것과 반대다.
+    return scoped or hits
+
+
+def _question_names_loaded_section(question: str, units: list[dict]) -> str:
+    """The section path the question named, when that section is in the
+    evidence. Empty string when the question named none of them.
+
+    🔴 This is the external signal. Deciding refusal from the answer's own
+    wording cannot separate two different things that share a vocabulary:
+
+        답변   "이 보고서에는 그 항목이 없다"      -- answers the question
+        거절   "답을 못 찾겠다"                   -- declines to answer
+
+    Both contain `찾을 수 없`. The evidence separates them: if the question
+    called a section by name and that section is loaded, the answer was written
+    from it and is not a refusal. Widening the phrase list was measured and
+    abandoned in v4 -- the words a model refuses in are open-ended.
+
+    Self-Consistency reports that a model's normalised conditional probability
+    barely differs between right and wrong answers, so a limit-of-knowledge
+    judgment must not rest on the model's own output. See
+    `paper/base/base.md` §3 and docs/design-rationale.md#citation-attachment
+
+    The section paths come from `_citation_units`, which already parses them
+    into `tails`. Parsing the headers a second time here is how one of the two
+    copies ends up fixed and the other does not.
+    """
+    if not question:
+        return ""
+    for unit in units:
+        for tail in unit["tails"]:
+            segment = _SECTION_NUM.sub("", tail.split(">")[-1]).strip()
+            if len(segment) >= _SECTION_MIN and segment in question:
+                return tail
+    return ""
+
+
 def attach_citation(answer: str, evidence: str, arm: Arm | None = None,
-                    provenance: dict[str, dict] | None = None) -> tuple[str, list[str]]:
+                    provenance: dict[str, dict] | None = None,
+                    question: str = "") -> tuple[str, list[str]]:
     """Attach a citation when the answer carries none.
 
     Returns (new answer, receipt numbers attached).
@@ -1660,7 +1762,27 @@ def attach_citation(answer: str, evidence: str, arm: Arm | None = None,
     # whether an answer used the evidence at all.
     # See docs/design-rationale.md#citation-attachment
     if not (named or used) and any(k in bare for k in _CITE_REFUSAL):
-        return bare, []
+        # One exception, behind `refusal_needs_gap`: an answer that reports what
+        # a named section contains is not a refusal even when it says the
+        # content is not there. `_question_names_loaded_section` decides that
+        # from the evidence rather than from the wording.
+        #
+        # Measured before the flag was written (scratch/w1_risk_sizing.py, 336
+        # stored answers): 53 answers across 18 questions are judged refusals
+        # today, and this exception moves exactly 3 of them -- Q-053 in all
+        # three rounds. The safety and info-limit refusals stay refusals.
+        section_units = (_units_naming_question_section(question, units)
+                         if arm.refusal_needs_gap else [])
+        if not section_units:
+            return bare, []
+        # The link here is the named section, not a receipt number or an amount,
+        # so the normal pick order (`named or used or titled`) must not run:
+        # title-word overlap matches the company name in every block and would
+        # attach filings the answer never spoke about. Only the blocks carrying
+        # the section the question asked for are cited.
+        if not quick_check(answer)["has_citation"]:
+            return _insert_citation(answer, section_units[:MAX_CITATIONS])
+        # 모델이 이미 표기를 쓴 경우는 지우지 않고 아래 종전 경로로 흐른다.
 
     if not units:
         return answer, []

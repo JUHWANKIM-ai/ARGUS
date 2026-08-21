@@ -2867,7 +2867,8 @@ def answer_question(question_id: str, question: str) -> dict:
         answer, aligned = aggregate.fix_self_contradiction(answer)
         if aligned:
             trace.append(f'self_align fixed={len(aligned)} {" · ".join(aligned)}')
-    answer, cited = ablation.attach_citation(answer, evidence, provenance=provenance)
+    answer, cited = ablation.attach_citation(answer, evidence, provenance=provenance,
+                                             question=clean)
     if cited:
         trace.append(f'citation attached={",".join(cited)}')
     # The note was built before the citation existed. Leaving it makes the
