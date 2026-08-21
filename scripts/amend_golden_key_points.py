@@ -36,7 +36,10 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-PATH = Path("evalset/questions.jsonl")
+#: 🔴 문항이 네 파일에 흩어져 있다. 종전 판은 `questions.jsonl` 만 읽어 `Q-068`(regression)
+#: 과 `Q-114`(valuechain)에서 `KeyError` 로 죽었다.
+PATHS = tuple(Path("evalset") / ("%s.jsonl" % n)
+              for n in ("questions", "regression", "valuechain", "safety"))
 
 #: (문항, 걷어낼 요점의 앞머리, 왜)
 DROP = [
@@ -55,6 +58,20 @@ DROP = [
      "질문은 '무엇이 왜 정정됐는지' 다. 두 공시의 선후를 어떻게 가리는가는 무엇도 "
      "왜도 아니고, 질문이 이미 '같은 날 정정됐다' 고 알려 준다. 표기 요구가 요점 칸에 "
      "들어온 것이고 걷어낸 Q-092·Q-104 와 같은 갈래다"),
+    #: 2026-08-21 3차. 요점 미기재 17건을 **질문 범위**로 하나씩 훑어 넷을 찾았다.
+    #: 앞의 세 건은 `Q-054` 요점4 와 같은 갈래다 — 표기 요구가 요점 칸에 들어온 것이다.
+    #: 🔴 넷을 빼도 채점은 안 움직인다(요점이 5~6개라 과반 초과가 여유 있게 통과한다).
+    #: 얻는 것은 계측기 정확도다 — 「답변이 못 적은 것」과 「골든이 안 물은 것을 요구한
+    #: 것」이 섞이지 않는다.
+    ("Q-068", "근거 접수번호 20250321000310",
+     "질문은 '무엇이 왜 정정됐는지' 다. 접수번호는 무엇도 왜도 아니다"),
+    ("Q-082", "근거는 원공시 20240814003869",
+     "질문은 '무엇이 어떻게 정정됐는지' 다. 접수번호는 그 답이 아니다"),
+    ("Q-094", "근거는 원공시 20250318001264",
+     "질문은 '표에서 정정 전후로 무엇이 달라졌는지' 다. 접수번호는 그 답이 아니다"),
+    ("Q-114", "계약상대 표기는 '삼성전자(주)' 63건",
+     "질문은 '상장사는 어디이며 공정 분담은 어떻게 나뉘는가' 다. 계약상대 표기 분포는 "
+     "데이터 위생 관찰이고 공정 분담이 아니다"),
 ]
 
 
@@ -100,8 +117,13 @@ def main() -> int:
     ap.add_argument("--check", action="store_true", help="바꾸지 않고 대조만 한다")
     args = ap.parse_args()
 
-    rows = [json.loads(line) for line in io.open(PATH, encoding="utf-8") if line.strip()]
-    index = {row["question_id"]: row for row in rows}
+    #: 파일마다 줄을 따로 담아 둔다 — 쓸 때 원래 파일로 되돌려야 한다.
+    per_file = {path: [json.loads(line) for line in io.open(path, encoding="utf-8")
+                       if line.strip()] for path in PATHS if path.exists()}
+    index = {row["question_id"]: row
+             for rows in per_file.values() for row in rows}
+    home = {row["question_id"]: path
+            for path, rows in per_file.items() for row in rows}
 
     #: 저장된 판정의 칸 번호는 **편집 전** 요점 순서에 매인다. 먼저 다 찾아 두고 나서 뺀다.
     original = {qid: list(index[qid]["answer_key_points"]) for qid, _h, _w in DROP}
@@ -131,9 +153,13 @@ def main() -> int:
     if args.check:
         print("\n--check 라 파일은 안 건드렸다. 해당 %d건." % hit)
         return 0
-    PATH.write_text(
-        "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), encoding="utf-8")
-    print("\n%s 에 %d건 반영했다." % (PATH, hit))
+    touched = {home[qid] for qid in dropped_at}
+    for path in sorted(touched):
+        path.write_text(
+            "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in per_file[path]),
+            encoding="utf-8")
+        print("\n%s 에 반영했다." % path)
+    print("총 %d건." % hit)
     return 0
 
 
