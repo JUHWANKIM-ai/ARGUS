@@ -590,6 +590,9 @@ class Arm:
     revision_diff: bool = False
     #: 답변이 결정적 줄의 표지(`결정적 집계` 따위)를 출처로 인용한 자리를 걷어낸다.
     strip_marker_citation: bool = False
+    #: 보유비율 추이 줄이 걸음마다 접수번호를 나른다. `Q-106` 은 *"각 보고서를 근거로"* 를
+    #: 묻는데 그 번호가 근거 블록에도 없어 답변이 알 길이 없었다.
+    holding_receipts: bool = False
     #: periodic 정정본 블록이 무엇을 정정한 것인지 밝힌다. 🔴 이 줄의 14자리는 우리 근거
     #: 완전성 회계에 들어간다 — 원공시가 골든이면 본문 없이 적재로 세어진다. 채택 판정은
     #: 근거 완전성을 **두 가지로** 내야 한다(날값 · 포인터 줄 제외값).
@@ -1547,6 +1550,26 @@ A75 = replace(A74, name="A75", revision_diff=True)
 #: 자리·같은 방식으로 답변을 뒤에서 고친다.
 A76 = replace(A75, name="A76", strip_marker_citation=True)
 
+# --- W7 · 보유비율 추이 줄이 접수번호를 나른다 (브랜치 keypoint-gaps) -----------
+#: `Q-106` 은 *"각 보고서를 **근거로** 설명해줘"* 다. 골든 요점1~4 가 걸음마다 접수번호를
+#: 짝지어 요구하는데(`20250707000299` · `20260227007254`) **그 번호는 근거 블록에도 없다** —
+#: 체인은 `tools.holding_chain` 이 들고 있고 근거로 실리는 것은 일부다. 그러니 이 줄이
+#: 내지 않으면 답변이 알 길이 아예 없다. 검색 결함이라 미뤄 뒀던 자리인데 검색이 아니라
+#: **줄이 안 실어 준 것**이었다.
+#:
+#: `roster_line` 이 항목마다 접수번호를 나르는 것과 같은 판단이다(`roster_items`, P-A②).
+#:
+#: 🔴 **요점3·4 는 이 팔로 닫히지 않는다.** 줄에만 있는 두 번호가 답변에 드는 것은 3회에
+#: 1회다(종전 0/3). 지시 줄을 붙여도 그대로였다. 나머지 두 판은 *"각 보고서별 접수번호
+#: 참조"* 로 뭉뚱그린다. 그래도 남기는 이유는 **답변이 그 번호를 알 유일한 길**이고 퇴행이
+#: 없기 때문이다.
+#:
+#: 이 팔에서 함께 고친 것: `pledged_series` 의 짝을 체인 전체 양 끝이 아니라 **근거로
+#: 실린 두 벌**에서 뽑는다. 첫 판은 `Q-012` 에서 `2023-02-17 40,939,844주 (6.41%)` 를
+#: 앞 끝으로 삼아 골든의 짝과 달랐다. `holding_receipts` 를 켜면서 `holding_chain` 이
+#: 넘어오는 자리를 다시 읽다가 드러났다.
+A77 = replace(A76, name="A77", holding_receipts=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1594,7 +1617,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1641,7 +1664,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
