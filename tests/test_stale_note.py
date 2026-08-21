@@ -188,3 +188,36 @@ def test_annotate_still_inserts_when_no_such_line_exists():
     out = _annotate(block, "- 발주처 관계: …")
     assert out.split("\n")[1] == "- 발주처 관계: …"
     assert out.split("\n")[2] == "- 계약금액: 900원"
+
+
+# --- 각인 줄의 금액으로는 대체본이 인용되지 않는다 ------------------------------
+#
+# 🔴 계획서 §5.2 가 미리 지목한 자리이고 실제로 났다. `A63` r1 의 `Q-116` 답변이 최신 금액
+# 583,874,002,800 을 말하면서 **대체본** 20240722800037 을 근거로 달았다. 각인 줄은 다른
+# 문서의 값을 적는 메타 줄인데 `cite_used` 의 유일성 규칙이 그것을 이 블록의 수로 읽었다.
+STAMPED_BLOCK = """## [공급계약 체결] 두산에너빌리티 – 단일판매ㆍ공급계약체결 — 함안복합
+- 정정체인: 이 공시는 정정되어 대체됨 (최신 계약금액 583,874,002,800원)
+- 공시일: 2024-07-22 (접수번호 20240722800037)
+- 계약금액: 581,790,000,000원
+"""
+
+
+def test_the_stamped_amount_does_not_make_the_block_citable():
+    from argus import ablation as ab
+
+    units = ab._citation_units(STAMPED_BLOCK, None)
+    assert len(units) == 1
+    assert "581790000000" in units[0]["numbers"], "본문 금액은 세어진다"
+    assert "583874002800" not in units[0]["numbers"], \
+        "🔴 각인 줄의 금액은 이 블록의 수가 아니다 — 거짓 귀속을 만든다"
+
+
+def test_an_answer_using_only_the_latest_amount_is_not_attributed_to_the_stale_block():
+    from argus import ablation as ab
+
+    answer = "계약금액은 583,874,002,800원입니다."
+    with ablation.use("A63"):
+        out, cited = ab.attach_citation(answer, STAMPED_BLOCK,
+                                        question="계약금액이 가장 큰 계약은?")
+    assert "20240722800037" not in cited, "대체본을 최신 금액의 출처로 달지 않는다"
+    assert "20240722800037" not in out

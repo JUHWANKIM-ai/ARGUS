@@ -1290,7 +1290,37 @@ A62 = replace(A56, name="A62", refusal_needs_gap=True, cite_chain_pair=True,
 #: 맨 앞에서 바로 돌려주게 적었는데 `A56` 이 `correction_fields` 를 켜 두고 있어 그러면
 #: 이 팔이 그 분기를 조용히 잃는다. `_group_records_stale(group, kind)` 가 바탕을 키에
 #: 넣어 그것을 막는다.
+#: 측정 — `A63` 영향 34문항 3회 (`scratch/audit/gate_a63.json` · 사정거리는
+#: `scratch/a63_affected.py` 가 냈다: 각인 대상 550건이 37문항 근거에 실린다):
+#:
+#:     게이트 1  Q-116 이 폐기값 581,790,000,000 을 **3회 모두 안 쓴다**
+#:               (A56 은 3회 모두 썼다) · 최신값 583,874,002,800 을 3회 모두 쓴다
+#:     게이트 2  퇴행 0 — 34문항 3회
+#:     게이트 3  근거 완전성 82/90 불변 — 부풀림 0. 각인 줄에 14자리가 없으므로
+#:               `error_analysis._blocks` 회계에 안 들어간다 (전수 단정으로 못 박았다)
+#:
+#: 🔴 근거 표시 축은 안 움직인다. 답변이 최신 금액을 말하지만 최신본 접수번호를 인용하진
+#: 않는다 — 계획서 §5.1 이 "적지 않는다" 를 기본값으로 고르며 예측한 그대로다.
+#:
+#: 🔴 계획서 §5.2 가 지목한 거짓 귀속이 실제로 났고 같이 고쳤다. 각인 줄의 최신 금액이
+#: `cite_used` 의 유일성 규칙에 잡혀 **대체본이 그 금액의 출처로 인용됐다**(r1 실측).
+#: `_body_only` 가 메타 줄을 인용 선택에서 뺀다. 저장 근거 1,380블록 전수에서 숫자 집합이
+#: 안 바뀌므로 `A62` 이전 측정은 유효하다.
 A63 = replace(A56, name="A63", stale_note=True)
+
+# --- W6b · 2026-08-21 논문 + 원자료 캠페인의 채택본 ---------------------------
+#: `A62` 위에 `stale_note` 하나. 계획서 과제 4 단계 5.
+#:
+#: 🔴 계획서는 `A65 = A62 + stale_note + section_chain_note` 였고 "하나라도 게이트를 못
+#: 넘으면 A65 를 세우지 않는다" 고 적었다. `section_chain_note`(과제 3)는 **구현 전 측정으로
+#: 기각**했다 — 원공시 접수번호를 블록에 적으면 겨냥한 넷 중 셋에서 근거 완전성이
+#: 167/168 -> 170/168 로 오른다(본문은 하나도 안 실린다). 세우지 않은 스위치는 퇴행을
+#: 물려줄 수 없으므로, 게이트를 통과한 `stale_note` 하나만 얹는다.
+#:
+#:     refusal_needs_gap · cite_chain_pair · aggregate_items · sum_operand_fix
+#:     · roster_items      (A62 에서 채택)
+#:     stale_note          (A63 게이트 통과)
+A65 = replace(A62, name="A65", stale_note=True)
 
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
@@ -1339,7 +1369,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A65",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1386,7 +1416,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A65)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
@@ -1684,6 +1714,29 @@ def _cite_numbers(text: str) -> set[str]:
     return {m.replace(",", "") for m in _CITE_NUM.findall(text or "")}
 
 
+#: 블록 안의 **메타 줄**. 이 문서가 무엇인지를 말하는 줄이고 이 문서가 담은 값이 아니다.
+#: `- 정정체인:` 은 `ablation.stale_note` 의 각인과 `pipeline._chain_note` 가 쓴다.
+_CITE_META_LINE = re.compile(r"(?m)^\s*-\s*정정체인\s*:.*$")
+
+
+def _body_only(block: str) -> str:
+    """인용 대상을 고를 때 읽는 부분. 메타 줄을 뺀다.
+
+    🔴 각인 줄(`- 정정체인: … (최신 계약금액 583,874,002,800원)`)은 **다른 문서의 값**을
+    적는다. 그것을 이 블록의 숫자로 세면 `cite_used` 의 유일성 규칙이 그 수를 *대체본
+    블록에만 유일한 수*로 읽어 **대체본을 그 금액의 출처로 인용한다.** 대체본에는 그 수가
+    없으므로 거짓 귀속이다.
+
+    실측(`A63` r1 · `Q-116`): 답변이 최신 금액 583,874,002,800 을 말하면서 대체본
+    `20240722800037` 을 근거로 달았다. 계획서
+    `docs/superpowers/plans/2026-08-21-raw-preprocessing.md` §5.2 가 이것을 미리 지목했다.
+
+    `aggregate.py` 의 `_LINE_DIRECTIVE` 가 `- 출처:` 메타 줄을 본문이 아니라고 배제한
+    전례와 같은 판단이다.
+    """
+    return _CITE_META_LINE.sub("", block or "")
+
+
 #: Lexical link between an answer and a piece of evidence. Some answers name a
 #: subject without ever writing a figure, so numbers alone cannot link them.
 #: The minimum length keeps particles and suffixes from matching every block.
@@ -1750,7 +1803,7 @@ def _citation_units(evidence: str, provenance: dict[str, dict] | None = None) ->
         for part in (t.strip() for t in tail.split(" / ")):
             if part and part not in unit["tails"]:
                 unit["tails"].append(part)
-        unit["numbers"] |= _cite_numbers(block)
+        unit["numbers"] |= _cite_numbers(_body_only(block))
         # Linking reads the header and the recorded title, not the block body:
         # a periodic section runs to thousands of characters and would match
         # any answer, making the selection meaningless.
