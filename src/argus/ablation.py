@@ -1245,6 +1245,28 @@ A61 = replace(A59, name="A61", sum_operand_fix=True)
 #: 실린 것만 적으면 부풀리기가 원리적으로 불가능해진다.
 A60 = replace(A56, name="A60", roster_items=True)
 
+# --- W6 · 2026-08-21 논문 캠페인의 채택본 ------------------------------------
+#: `A56` 에 이번 캠페인이 채택한 다섯을 얹은 팔.
+#:
+#:     refusal_needs_gap  거절 판정에 외부 신호를 곱한다 (P-C · Q-053)
+#:     cite_chain_pair    정정 질의에서 원공시를 짝으로 붙인다 (P-B · Q-093 Q-035)
+#:     aggregate_items    결정적 집계 줄이 가산 항목을 밝힌다 (P-A① )
+#:     sum_operand_fix    답변의 열거를 명세로 갈아 끼운다 (Q-107 Q-115)
+#:     roster_items       결정적 조회 줄이 항목마다 출처를 나른다 (P-A② · Q-110)
+#:
+#: 🔴 `aggregate_items` 와 `sum_operand_fix` 는 **따로 채택할 수 없다.** `A59`(명세만)는
+#: 게이트 조건 1 을 못 넘었고 — 모델이 명세를 절반만 따랐다 — `A61`(둘 다)이 넘었다.
+#: `period_label`+`contrast_line` 과 같은 짝 관계다.
+#:
+#: 측정 — 팔별 3회는 각각의 게이트 파일에 있다.
+#:
+#:     A57  Q-053 표기 0/3 -> 3/3 · 저장 답변 336개 중 333개 글자 동일
+#:     A58  접수번호 어긋남 7 -> 5 (Q-035 Q-093) · 퇴행 0 · 골든 12 : 비골든 4
+#:     A61  Q-107 Q-115 열거 3/3 수리 · equation 3회 -> 0회 · 퇴행 0
+#:     A60  Q-110 정답 0/3 -> 3/3 · 근거 표시 0/3 -> 3/3 · 근거 적재 불변
+A62 = replace(A56, name="A62", refusal_needs_gap=True, cite_chain_pair=True,
+              aggregate_items=True, sum_operand_fix=True, roster_items=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1292,7 +1314,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1339,7 +1361,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
