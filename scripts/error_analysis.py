@@ -677,11 +677,39 @@ def golden_positions(case: dict, hops: list[dict]) -> dict:
             "top3": sorted(r for r, k in best_rank.items() if k <= 3)}
 
 
+#: 다른 문서를 가리키는 줄. 이 블록이 담은 값이 아니다. `tools._section_chain_line` 이
+#: 쓰는 모양이고, 같은 성질의 줄이 늘면 여기 더한다.
+_POINTER_LINE = re.compile(r"(?m)^\s*-\s*정정 대상 원공시\s*:.*$")
+
+
 def _blocks(retrieved_context: str) -> list[str]:
-    """근거 블록. 마크다운 `## ` 헤더 하나가 근거 한 건이다."""
+    """근거 블록. 마크다운 `## ` 헤더 하나가 근거 한 건이다.
+
+    🔴 **두 자리를 뺀다. 둘 다 문서가 아니다.**
+
+    첫째, `re.split` 의 **첫 조각은 헤더가 없는 앞 영역**이다. 거기에는 결정적 줄들이
+    놓인다(`[결정적 집계]` · `[결정적 조회]` · `[결정적 단위]`) — 우리가 계산한 요약이고
+    문서가 아니다. `aggregate.summand_roster` 와 `pipeline._roster_line` 이 그 줄에
+    접수번호를 적으므로, 그것을 블록으로 세면 `evidence_hit` 이 **본문이 하나도 안
+    실렸어도** 그 문서를 적재로 센다. 종전 판은 그 조각을 안 버려 독스트링과 어긋났다.
+
+    둘째, 블록 **안**의 포인터 줄(`- 정정 대상 원공시: 접수번호 …`)은 다른 문서를
+    가리킨다. 블록 자신의 신원(`- 출처: 접수번호 …`)은 남긴다.
+
+    **과거 측정은 안 움직인다.** 전수 실측(`scratch/evidence_hit_exposure.py` ·
+    `A49`·`A56`·`A65` 서버 3회 = 9개 측정): 세 변형이 전부 167/168 이다. 지금 부풀림이
+    0 이라는 뜻이고 이 수정은 앞으로를 막는다.
+
+    🔴 이것이 무엇을 풀지 **않는지**도 적어 둔다. `Q-054`·`Q-068`·`Q-082`·`Q-094` 의
+    원공시 미인용은 이것으로 안 풀린다 — `section_chain_note` 는 부풀림이 아니라 성적
+    하락으로 기각됐다(`docs/open-issues-v3.md` §7).
+    """
     text = retrieved_context or ""
     parts = re.split(r"(?m)^##\s", text)
-    return [p for p in parts if p.strip()]
+    #: 머리글로 시작하지 않으면 첫 조각은 헤더 앞 영역이다. 버린다.
+    if parts and not text.startswith("## "):
+        parts = parts[1:]
+    return [_POINTER_LINE.sub("", p) for p in parts if p.strip()]
 
 
 def evidence_hit(case: dict, retrieved_context: str) -> dict:
