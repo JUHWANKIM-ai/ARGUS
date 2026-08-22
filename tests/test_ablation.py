@@ -2742,10 +2742,17 @@ def test_temperature_moved_to_the_arm_but_the_default_is_still_zero():
     #:
     #: 목록이 늘어나는 것 자체가 기록이다. 넷째가 생기면 그때도 여기 적어야 한다.
     MOVES_TEMPERATURE = ("A10", "V7-1", "A82")
+    #: 🔴 `A83` 은 표본을 셋 뽑으면서 **온도를 안 올린다.** 상류가 온도 0 에서도
+    #: 결정적이지 않다는 실측(수치까지 갈리는 문항 38/112) 위에 선 설계다. 그래서
+    #: `sc_k>1` 이지만 온도 예외 목록에는 안 들어간다 — 아래 `sc_k` 단정만 비켜 간다.
+    DRAWS_AT_ZERO = ("A83",)
     for name, arm in ablation.ARMS.items():
         if name in MOVES_TEMPERATURE:
             continue
         assert arm.temperature == 0.0, f"{name} 의 온도가 0.0 이 아니다 — 통제가 깨졌다"
+        if name in DRAWS_AT_ZERO:
+            assert arm.sc_k > 1, f"{name} 이 예외 목록에 있는데 표본을 하나만 뽑는다"
+            continue
         assert arm.sc_k == 1, f"{name} 이 표본을 둘 이상 뽑는다"
     for name in MOVES_TEMPERATURE:
         arm = ablation.ARMS[name]
@@ -2883,11 +2890,21 @@ def test_counterparty_branch_is_unreachable_without_the_hop_ladder():
         replace(ablation.A1B, name="bad", counterparty_branch=True)
 
 
-def test_self_consistency_at_temperature_zero_is_rejected():
-    """온도 0 에서 k 를 올리면 표본이 전부 같아 다수결이 정의상 만장일치가 된다.
-    그 0 을 "SC 는 효과가 없다" 로 읽는 것이 이 저장소가 막으려는 사고다."""
-    with pytest.raises(ValueError):
-        replace(ablation.A8, name="A8-sc0", sc_k=3)
+def test_self_consistency_at_temperature_zero_is_now_allowed():
+    """🔴 **종전 이 시험은 온도 0 의 `k>1` 을 금지가 맞는지 지켰다. 전제가 뒤집혔다.**
+
+    금지의 근거는 *"온도 0 에서는 표본이 전부 같아 다수결이 정의상 만장일치"* 였다.
+    `A77` 골든셋 세 판(전부 온도 0.0 · 프롬프트가 112문항 전부 바이트까지 같다)을
+    견주니 **수치까지 갈리는 문항이 38/112(34%)** 다. 상류가 온도 0 에서도 결정적이지
+    않으므로 다수결이 만장일치가 되지 않는다.
+
+    캐시로 표본이 같아지는 경우는 `_self_consistent` 가 2회차부터 `no_cache()` 로
+    막는다. 그러니 이 금지가 막던 「조용한 무동작」은 실재하지 않는다.
+
+    `sc_k < 1` 금지는 그대로다 — 그것은 전제가 아니라 정의다.
+    """
+    arm = replace(ablation.A8, name="A8-sc0", sc_k=3)
+    assert arm.sc_k == 3 and arm.temperature == 0.0
     with pytest.raises(ValueError):
         replace(ablation.A8, name="A8-sc-", sc_k=0)
 
@@ -3452,3 +3469,46 @@ def test_기각한_스위치는_어느_채택_팔에도_없다():
     """
     on = [name for name, arm in ablation.ARMS.items() if arm.roster_counts]
     assert on == ["A78"], f"기각한 스위치가 다른 팔에 들어갔다: {on}"
+
+
+def test_sc_key_set_groups_by_value_not_by_listing():
+    """🔴 나열 키는 순서와 중복에 민감하다. 그 대가를 실측이 보였다.
+
+    `A77` 세 판에서 회차마다 정답이 갈리는 문항이 둘인데(`Q-093`·`Q-111`) **둘 다**
+    「같은 답인데 다른 갈래」로 세어져 다수가 안 섰다.
+
+        Q-093  r1 `2e+11`  vs  r2 `2e+11|2e+11`      같은 금액을 두 번 말했을 뿐이다
+        Q-111  r2 와 r3 의 값 집합이 같고 중복만 다르다
+
+    집합으로 묶으면 갈래가 1:74→84 · 3:14→12 로 모이고 다수결 성적이 111/112 →
+    112/112 가 된다. 순서와 중복은 답변의 **내용이 아니라 문체**다.
+    """
+    from argus.agent.pipeline import _sc_key
+
+    once = "출자금액은 200,000,000,000원입니다."
+    twice = "출자금액은 200,000,000,000원이며, 200,000,000,000원 그대로입니다."
+    with ablation.use("A81"):
+        assert _sc_key(once) != _sc_key(twice), "나열 키는 중복에 민감하다 (종전 거동)"
+    with ablation.use("A83"):
+        assert _sc_key(once) == _sc_key(twice), "집합 키가 중복을 묶어야 한다"
+
+
+def test_sc_key_set_still_separates_different_values():
+    """묶는 것이 헐렁해지는 것은 아니다. 값이 다르면 여전히 다른 갈래다."""
+    from argus.agent.pipeline import _sc_key
+
+    with ablation.use("A83"):
+        assert _sc_key("계약금액은 200,000,000,000원") \
+            != _sc_key("계약금액은 300,000,000,000원")
+        #: 순서만 다른 것은 같은 갈래여야 한다.
+        assert _sc_key("가 100,000,000원 나 200,000,000원") \
+            == _sc_key("나 200,000,000원 가 100,000,000원")
+
+
+def test_a83_draws_samples_without_raising_the_temperature():
+    """`A82` 는 `V7-1` 을 그대로 옮긴 것이고 `A83` 은 실측을 보고 고친 것이다."""
+    a82, a83 = ablation.ARMS["A82"], ablation.ARMS["A83"]
+    assert (a82.sc_k, a82.temperature, a82.sc_key_set) == (3, 0.5, False)
+    assert (a83.sc_k, a83.temperature, a83.sc_key_set) == (3, 0.0, True)
+    #: 둘 다 거절 답변은 안 산다 — 다수결할 수치가 없다.
+    assert a82.sc_figures_only and a83.sc_figures_only

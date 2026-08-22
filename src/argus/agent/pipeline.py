@@ -2324,6 +2324,18 @@ def _sc_key(answer: str) -> str:
     text = answer or ""
     values = [f"{value:.10g}" for _, _, value, _, _ in critic._money_spans(text)]
     values += [f'{m.group(1).replace(",", "")}%' for m in critic._PCT_RE.finditer(text)]
+    if ablation.enabled("sc_key_set"):
+        #: 🔴 **집합으로 묶는다.** 나열은 순서와 중복에 민감해서, 같은 금액을 두 번
+        #: 말했다는 이유만으로 두 표본을 다른 갈래로 센다. 실측이 그 대가를 보였다
+        #: (`A77` 세 판, `scratch/sc_simulate.py`).
+        #:
+        #:     Q-093  r1 `2e+11`  vs  r2 `2e+11|2e+11`       같은 금액인데 다른 키
+        #:     Q-111  r2 의 값 집합 = r3 의 값 집합, 중복만 다름
+        #:
+        #: 집합으로 묶으면 갈래가 1:74→84 · 3:14→12 로 모이고, 다수결 성적이
+        #: 111/112 → **112/112** 가 된다(`Q-111` 을 살린다). 순서와 중복은 답변의
+        #: 내용이 아니라 문체이므로 묶는 것이 옳다.
+        return "|".join(sorted(set(values))) if values else " ".join(text.split())
     return "|".join(values) if values else " ".join(text.split())
 
 

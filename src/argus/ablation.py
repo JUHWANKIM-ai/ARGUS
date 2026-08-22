@@ -377,6 +377,9 @@ class Arm:
     #: after paying for the rest.
     #: See docs/design-rationale.md#self-consistency-scope
     sc_figures_only: bool = False
+    #: 표본을 **값의 집합**으로 묶는다. 나열은 순서와 중복에 민감해 같은 금액을 두 번
+    #: 말했다는 이유로 두 표본을 갈라 센다.
+    sc_key_set: bool = False
     #: True recomputes the parenthesised unit conversion in the answer. No LLM
     #: call. Body figures are copied from the evidence and are correct, while
     #: the parenthesised value is divided by the model and is not. One of the
@@ -715,15 +718,22 @@ class Arm:
                     f"(arm {self.name!r}). 검색 LOO 는 오라클 없이 재십시오.")
         if self.sc_k < 1:
             raise ValueError(f"sc_k 는 1 이상이어야 합니다: {self.sc_k} (arm {self.name!r})")
-        # Calling the same prompt k times at temperature zero returns
-        # identical samples, so the majority is unanimous by construction and
-        # self-consistency becomes a no-op whose zero would read as evidence
-        # that the technique has no effect.
-        if self.sc_k > 1 and self.temperature <= 0.0:
-            raise ValueError(
-                f"sc_k={self.sc_k} 인데 temperature={self.temperature} 입니다 — 온도 0 에서는 "
-                f"표본이 전부 같아 다수결이 정의상 만장일치가 되고 Δ 가 조용히 0 이 됩니다 "
-                f"(arm {self.name!r}).")
+        #: 🔴 **종전 여기에 「온도 0 에서 k>1 은 표본이 전부 같아진다」는 금지가 있었다.
+        #: 그 전제가 실측으로 뒤집혔다.**
+        #:
+        #: `A77` 골든셋 세 판(전부 온도 0.0 · 프롬프트가 112문항 전부 바이트까지 같다)을
+        #: 견주니 이렇게 나온다.
+        #:
+        #:     문면까지 같다        51/112 (46%)
+        #:     문면만 갈린다        23/112 (21%)
+        #:     **수치까지 갈린다**  38/112 (34%)
+        #:
+        #: 상류가 온도 0 에서도 결정적이지 않다. 다양성을 사려고 온도를 올릴 필요가 없고,
+        #: 올리면 **원래 안정적이던 46% 까지 흔든다** — `V7-1` 이 분산을 늘려(갈리는 문항
+        #: 9→13) 기각된 기전이 그것이다.
+        #:
+        #: 캐시로 표본이 같아지는 경우는 `_self_consistent` 가 2회차부터 `no_cache()` 로
+        #: 막는다. 그러니 이 금지가 막던 「조용한 무동작」은 실재하지 않는다.
 
     @property
     def uses_bm25(self) -> bool:
@@ -1692,6 +1702,30 @@ A81 = replace(A80, name="A81", wide_unit_parens=True)
 #: 값은 `V7-1` 과 같게 둔다(k=3 · 온도 0.5). 그래야 두 측정을 나란히 놓을 수 있다.
 A82 = replace(A81, name="A82", sc_k=3, temperature=0.5, sc_figures_only=True)
 
+# --- W13 · 자기일관성을 **다시 설계해서** 잰다 (브랜치 keypoint-gaps) -----------
+#: `A82` 는 `V7-1` 을 그대로 옮긴 것이고, `A83` 은 실측을 보고 두 군데를 고친 것이다.
+#:
+#: ① **온도를 안 올린다.** 상류가 온도 0 에서도 결정적이지 않다 — `A77` 세 판에서
+#:    수치까지 갈리는 문항이 34% 다. 다양성은 이미 공짜로 있다. 온도를 올리면 원래
+#:    안정적이던 46% 까지 흔드는데, 그것이 `V7-1` 이 분산을 늘려 기각된 기전이다.
+#:
+#: ② **키를 집합으로 묶는다.** 나열 키는 순서와 중복에 민감하다.
+#:
+#:        Q-093  r1 `2e+11`  vs  r2 `2e+11|2e+11`
+#:        Q-111  r2 와 r3 의 값 집합이 같고 중복만 다르다
+#:
+#:    둘 다 「같은 답인데 다른 갈래」로 세어져 다수가 안 섰다. 회차마다 정답이 갈리는
+#:    문항 둘이 **정확히 그 둘**이다.
+#:
+#: 세 판으로 시뮬레이션한 결과(`scratch/sc_simulate.py`, 호출 0회):
+#:
+#:     나열 키   갈래 1:74 2:24 3:14   111/112 → 111/112   살림 없음
+#:     집합 키   갈래 1:84 2:16 3:12   111/112 → **112/112**  살림 `Q-111`
+#:
+#: 🔴 상한이 +1 이었고(1회차 오답 중 다른 판에 정답이 있는 문항이 `Q-111` 하나뿐)
+#: 집합 키가 그 상한을 정확히 친다. 잃은 문항은 없다.
+A83 = replace(A81, name="A83", sc_k=3, sc_figures_only=True, sc_key_set=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1739,7 +1773,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1786,7 +1820,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
