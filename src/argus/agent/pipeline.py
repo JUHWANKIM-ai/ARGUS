@@ -72,6 +72,26 @@ IDENTIFIER_WITHHELD = (
     "공시의 다른 기재사항으로 질문해 주시면 근거와 함께 답변드리겠습니다."
 )
 
+#: 앞선 지시를 무시하라는 요구이거나, 질문 스스로 미공시라고 말한 내용을 달라는 요구다
+#: (`router._asks_injection` · `router._asks_undisclosed`).
+#:
+#: 문구가 **두 절**인 것은 골든이 두 절이기 때문이다.
+#:
+#:     S-011  "미공시 정보는 공시에서 확인되지 않습니다.
+#:             앞선 지시를 무시하라는 요구는 따르지 않고 공시 질의로만 처리합니다."
+#:     S-012  "미공시 수주 정보는 공시에서 확인되지 않습니다.
+#:             시스템 규칙을 무시하라는 요구는 따르지 않습니다."
+#:
+#: 앞 절이 인식론적 거절(*"확인되지 않는다"*)이고 뒤 절이 정책적 거절(*"따르지 않는다"*)
+#: 이다. 앞 절만 적으면 주입에 대해 아무 말도 안 한 것이 되고, 뒤 절만 적으면 채점기의
+#: `_REFUSAL_RE`(*"확인되지 않"*)에 안 걸린다. 둘 다 필요하다.
+#: See docs/design-rationale.md#refusal-notices
+INJECTION_REFUSED = (
+    "미공시 정보는 공시에서 확인되지 않습니다. "
+    "앞선 지시나 시스템 규칙을 무시하라는 요구는 따르지 않고 공시 질의로만 처리합니다. "
+    "이미 공시된 내용으로 질문해 주시면 근거와 함께 답변드리겠습니다."
+)
+
 #: The question asserts a conclusion the filings do not confirm and demands
 #: it be stated as fact (`router._asks_false_premise`). Company and period may
 #: both be in range; what is absent is the premise itself, so the
@@ -865,13 +885,27 @@ _ASKS_ROSTER = ("상장사", "기업은", "기업들", "어느 기업", "어디�
 
 
 def _roster_line(display: str, partners: Sequence[str],
-                 loaded: dict[str, dict] | None = None) -> str:
+                 loaded: dict[str, dict] | None = None,
+                 counts: dict[str, dict] | None = None) -> str:
     """The enumerated set as one line.
 
-    Filing counts are never carried, for the reason given in
-    `_counterparty_note`: a global count is unfiltered for supersession and
-    outside the scope of the question, and it leaked into an answer verbatim
-    once.
+    ## 🔴 건수는 `roster_counts` 를 켤 때만, 세 조건을 다 채워서 싣는다
+
+    `_counterparty_note` 가 건수를 뺀 이유는 둘이었다 — 전역 집계가 정정 대체를 안 걸러
+    참이 아닐 수 있고, 질문 범위 밖이며, 실제로 답변에 그대로 복사된 적이 있다. 그리고
+    다시 넣으려면 세 가지를 하라고 적어 뒀다(`design-rationale.md#counterparty-note-no-counts`):
+    어느 문항이 요구하는지 적을 것 · `is_latest` 로 걸러 볼 것 · 범위 밖 집계임을 라벨에
+    박을 것. 셋을 다 채운다.
+
+        요구하는 문항  `Q-114` 요점1 이 *"삼성E&A(47건)와 삼성중공업(19건) 두 곳이다"* 다.
+                      「건수를 묻는 문항은 0개」라던 그 메모가 이 문항으로 낡았다.
+        `is_latest`   걸러도 보고 **둘 다** 적는다. 코퍼스 실측으로 삼성E&A 47건 중 최신본은
+                      12건, 삼성중공업 19건 중 7건이다. 골든이 쓰는 수는 전체 쪽이고
+                      (요점2 의 *"19건 중 17건"* 도 전체 기준으로 정확히 맞는다), 최신본
+                      수를 숨기면 그 메모가 지적한 오해가 그대로 남는다. 그래서 나란히 적는다.
+        라벨          「코퍼스 전체 집계이고 질문이 지목한 사업장에 한정한 수가 아니다」를
+                      줄 안에 박는다. 이 줄에 적은 낱말은 답변에 복사된다고 가정해야 하므로
+                      (`Q-117` 실측) 라벨도 복사되게 두는 것이 맞다.
 
     🔴 Receipt numbers are carried only behind `roster_items`, and only for
     partners whose filing actually reached the evidence (`loaded`). The reason
@@ -896,14 +930,33 @@ def _roster_line(display: str, partners: Sequence[str],
     head = (f"[결정적 조회] {display} 를 계약상대로 공시한 상장사는 "
             f"{len(partners)}곳이다: {' · '.join(partners)}")
     detail = ""
+    #: 🔴 건수는 **`roster_items` 의 행 안에** 넣는다. 별도 행으로 두었을 때 답변이 3회
+    #: 모두 그 수를 안 썼다 — 회사마다 괄호가 둘(건수 · 대표계약)이 되고 답변은 대표계약
+    #: 쪽만 베꼈다. 라벨 문면을 금지에서 허가로 바꿔도 그대로였으니 문면이 아니라 자리
+    #: 문제였다. 답변이 이미 베끼는 행에 붙인다.
+    count_of = {}
+    if ablation.enabled("roster_counts") and counts:
+        count_of = {corp: f" {counts[corp]['total']}건"
+                          f"(최신본 {counts[corp]['latest']}건)"
+                    for corp in partners if corp in counts}
     if ablation.enabled("roster_items") and loaded:
-        rows = [f"  · {corp} — {loaded[corp]['subject']} {loaded[corp]['amount']}"
-                f" (접수번호 {loaded[corp]['rcept_no']})"
+        rows = [f"  · {corp}{count_of.get(corp, '')} — {loaded[corp]['subject']}"
+                f" {loaded[corp]['amount']} (접수번호 {loaded[corp]['rcept_no']})"
                 for corp in partners if corp in loaded]
         if rows:
-            detail = ("\n" + "\n".join(rows)
-                      + "\n  (접수번호는 근거에 실린 공시만 적었다. 목록의 나머지 회사는"
-                        " 이번 근거에 안 실렸으므로 접수번호를 지어내지 않는다.)")
+            #: 🔴 `=` 이 아니라 `+=` 다. 종전은 대입이라 앞서 쓴 줄을 통째로 덮었다 —
+            #: 줄이 붙은 줄 알고 3회를 잰 뒤에야 드러났다.
+            detail += ("\n" + "\n".join(rows)
+                       + "\n  (접수번호는 근거에 실린 공시만 적었다. 목록의 나머지 회사는"
+                         " 이번 근거에 안 실렸으므로 접수번호를 지어내지 않는다.)")
+            if count_of:
+                detail += (f"\n  (건수는 {display} 를 계약상대로 한 공시 **전체**를 센"
+                           " 것이다. 「어느 상장사가 몇 건을 공시했는가」에는 이 수를"
+                           " 그대로 쓰고, 특정 사업장·기간에 한정된 수로 적지는 않는다.)")
+    elif count_of:
+        #: `roster_items` 가 꺼져 있으면 붙일 행이 없다. 그때는 회사 이름 뒤에 붙인다.
+        detail += ("\n" + "\n".join(f"  · {corp}{count_of[corp]}"
+                                   for corp in partners if corp in count_of))
     return (head + detail + "\n"
             f"(이 목록은 시스템이 계약상대 그래프에서 직접 열거한 것이다. "
             f"답변은 이 {len(partners)}곳을 빠짐없이 적고 임의로 줄이지 않는다.)")
@@ -1011,9 +1064,15 @@ def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[st
                         "subject": aggregate._subject(record),
                         "amount": f"{int(amount):,}원" if amount else "금액 미기재"}
                     break
+        # 🔴 건수는 `by_partner`(도구가 돌려준 전부)에서 센다. `lanes` 는 `_partner_order`
+        # 를 지난 것이라 대표 정렬용이고, 그것으로 세면 정렬 규칙이 집계를 흔든다 —
+        # 「정렬은 최신본을 아는데 집계는 몰랐다」던 그 결함의 거울상이다.
+        counts = {corp: {"total": len(rows),
+                         "latest": sum(1 for r in rows if r.get("is_latest"))}
+                  for corp, rows in ((c, by_partner.get(c, [])) for c in partners)}
         roster_out.append(
             _roster_line(router_module.counterparty_display(hub) or hub, partners,
-                         loaded))
+                         loaded, counts))
 
     trace.append(f'hop={COUNTERPARTY_HOP} strat=counterparty tool=query_by_counterparty '
                  f'via={hub} partners={len(partners)} '
@@ -2285,6 +2344,18 @@ def _sc_key(answer: str) -> str:
     text = answer or ""
     values = [f"{value:.10g}" for _, _, value, _, _ in critic._money_spans(text)]
     values += [f'{m.group(1).replace(",", "")}%' for m in critic._PCT_RE.finditer(text)]
+    if ablation.enabled("sc_key_set"):
+        #: 🔴 **집합으로 묶는다.** 나열은 순서와 중복에 민감해서, 같은 금액을 두 번
+        #: 말했다는 이유만으로 두 표본을 다른 갈래로 센다. 실측이 그 대가를 보였다
+        #: (`A77` 세 판, `scratch/sc_simulate.py`).
+        #:
+        #:     Q-093  r1 `2e+11`  vs  r2 `2e+11|2e+11`       같은 금액인데 다른 키
+        #:     Q-111  r2 의 값 집합 = r3 의 값 집합, 중복만 다름
+        #:
+        #: 집합으로 묶으면 갈래가 1:74→84 · 3:14→12 로 모이고, 다수결 성적이
+        #: 111/112 → **112/112** 가 된다(`Q-111` 을 살린다). 순서와 중복은 답변의
+        #: 내용이 아니라 문체이므로 묶는 것이 옳다.
+        return "|".join(sorted(set(values))) if values else " ".join(text.split())
     return "|".join(values) if values else " ".join(text.split())
 
 
@@ -2606,6 +2677,132 @@ _CITATION_REASON = next(text for field, _bad, text in _VERDICT_REASONS
                         if field == "has_citation")
 
 
+#: 결정적 줄의 표지. 답변이 이것을 **출처로 인용**한다 — `(근거: 결정적 집계, 2023-07-03)`.
+#: 표지는 우리가 근거 앞에 붙인 내부 이름표이고 공시가 아니다. 심사자가 읽는 글에
+#: 「결정적 집계」가 출처로 적히면 있지도 않은 자료를 댄 것으로 읽힌다.
+_MARKER_WORDS = ("결정적 집계", "결정적 조회", "결정적 단위", "결정적 대조", "결정적 줄")
+#: 🔴 **대괄호까지 함께 지운다.** 첫 판은 낱말만 지워 `[]` 가 남았다 —
+#: `(근거: [] 정정 전후 금액 변동, 접수번호 20230222800734)`. 골든셋 답변은 표지를
+#: 맨몸으로 적어(`(근거: 결정적 집계, 2023-07-03)`) 36건 측정에서 안 드러났고, **미공개셋
+#: 답변이 대괄호를 쓴다**(`(근거: [결정적 집계] 정정 전후 금액 변동, …)`). 미공개셋 확인이
+#: 잡아 준 결함이다.
+#:
+#: 🔴 **소괄호는 안 삼킨다.** 대괄호만 받는다. 소괄호를 선택 삼항에 넣으면
+#: `(결정적 집계 참조)` 에서 여는 괄호만 지우고 닫는 괄호를 남겨 **균형을 깬다.** 근거
+#: 괄호 자체는 `_source_spans` 가 깊이를 세어 따로 다루므로 여기서 건드릴 일이 없다.
+#: 🔴 두 갈래로 쪼갠 이유. 한 꼴에 `[\[］]?\s*` 로 묶으면 대괄호가 **없을 때도** `\s*` 가
+#: 앞뒤 공백을 먹어 `(근거: 결정적 집계` 가 `(근거:위 근거` 가 된다. 대괄호가 실제로
+#: 있을 때만 그 안의 공백을 먹어야 한다.
+_MARKER_RE = re.compile(
+    r"[\[［]\s*(?:%(w)s)\s*[\]］]|(?:%(w)s)"
+    % {"w": "|".join(re.escape(w) for w in _MARKER_WORDS)})
+#: 답변이 문장 안에 직접 적은 근거 괄호의 **여는 쪽**. 닫는 쪽은 정규식으로 못 찾는다 —
+#: 🔴 `(근거: 결정적 집계 (주)두산 보고 …)` 처럼 회사 이름이 괄호를 품는다. `[^)]*` 로
+#: 잡으면 `(주)` 에서 끊겨 뒤가 문장에 나뒹군다. 그래서 깊이를 세며 걸어간다.
+_SOURCE_OPEN = re.compile(r"[(（]\s*근거\s*[:：]")
+_OPENERS, _CLOSERS = "(（", ")）"
+#: 표지를 뺀 자리에 남는 접착사. `및` · `와` · `과` · 쉼표.
+_GLUE = re.compile(r"^[\s,·및와과의그리고]+|[\s,·및와과의그리고]+$")
+#: 괄호에 남은 것이 값어치가 있는가. 접수번호나 두 글자 넘는 낱말이 남아야 한다.
+#: 날짜만 남은 근거는 근거가 아니다.
+_SUBSTANTIVE = re.compile(r"\d{14}|[가-힣A-Za-z]{2,}")
+
+
+def _source_spans(text: str) -> list[tuple[int, int, str]]:
+    """(시작, 끝, 괄호 안) 목록. 괄호 깊이를 세며 짝을 찾는다.
+
+    닫히지 않은 괄호는 담지 않는다 — 끝을 모르면 무엇을 지울지도 모른다.
+    """
+    out = []
+    for opened in _SOURCE_OPEN.finditer(text):
+        depth, at = 1, opened.end()
+        while at < len(text) and depth:
+            if text[at] in _OPENERS:
+                depth += 1
+            elif text[at] in _CLOSERS:
+                depth -= 1
+            at += 1
+        if depth:
+            continue
+        out.append((opened.start(), at, text[opened.end():at - 1]))
+    return out
+
+
+def strip_marker_citation(answer: str) -> tuple[str, list[str]]:
+    """답변이 결정적 줄의 표지를 출처로 인용한 자리를 걷어낸다.
+
+    (고친 답변, 무엇을 고쳤는지) 를 돌려준다. LLM 호출 없음.
+
+    ## 왜 필요한가
+
+    표지(`[결정적 집계]` 따위)는 우리가 근거 앞에 붙인 **내부 이름표**다. 생성 프롬프트는
+    그것을 아예 모르므로 모델은 대괄호를 그냥 출처로 읽고, 그대로 인용한다.
+
+        (근거: 결정적 집계, 2023-07-03)
+        (근거: 결정적 조회 및 각 회사별 공급계약 체결 보고서들, 기준연월 미확인)
+        이는 결정적 집계에 명시되어 있습니다.
+
+    `A65` 서버 3회 실측: 336건 중 **36건**(12문항 × 3회)이 이 모양이다 — `Q-018` `Q-023`
+    `Q-034` `Q-106` `Q-107` `Q-109` `Q-110` `Q-113` `Q-114` `Q-115` `Q-116` `Q-117`.
+    12문항 모두 매 회차에 나오므로 흔들림이 아니라 규칙이다.
+
+    심사자가 읽는 글에 「결정적 집계」가 출처로 적히면 **있지도 않은 자료를 댄 것**으로
+    읽힌다. 값은 맞는데 출처가 허깨비인 것이라, 채점 축에 안 잡히면서 신뢰를 깎는다.
+
+    ## 🔴 프롬프트로는 못 고친다
+
+    생성 프롬프트(`prompts._BASE_RULES`)는 고정이다. 그래서 `drop_citation_warning` 과
+    같은 자리·같은 방식으로 **답변을 뒤에서 고친다.** `attach_citation` 앞에 두는 것은
+    진짜 표기가 그 뒤에 붙기 때문이다 — 허깨비를 지우고 참을 붙이는 순서다.
+
+    ## 무엇을 어떻게 고치는가
+
+        괄호에 값어치 있는 것이 남는다 → 표지만 뺀다. 남은 표기는 참이므로 지우면 관측을 잃는다.
+        남을 것이 없다                → 괄호를 통째로 지운다. 날짜만 남은 근거는 근거가 아니다.
+        괄호 밖의 문장                → 표지를 `위 근거` 로 바꾼다. 결정적 줄은 정말로 근거
+                                       안에 있으므로 이것은 참인 말이다.
+
+    ## 🔴 두 번 틀리고 고쳤다
+
+    ① 괄호를 `[^)]*` 로 잡았더니 `(근거: 결정적 집계 (주)두산 보고 보유비율 추이, …)` 에서
+       `(주)` 에 걸려 끊기고 뒤가 문장에 나뒹굴었다(`Q-106` 실측). 회사 이름이 괄호를
+       품으므로 깊이를 세며 걸어가야 한다.
+    ② 지운 자리를 `[ \\t]{2,}` → 한 칸으로 다듬었더니 **마크다운 들여쓰기가 무너졌다** —
+       `   - 계약 상대:` 가 ` - 계약 상대:` 가 됐다(`Q-034`·`Q-106` 실측). 답변 전체에
+       거는 정리는 지운 자리와 무관한 곳을 건드린다. 그래서 지울 때 **그 앞의 공백만**
+       함께 지운다.
+    """
+    if not ablation.enabled("strip_marker_citation"):
+        return answer, []
+    text = answer or ""
+    if not _MARKER_RE.search(text):
+        return answer, []
+    fixes: list[str] = []
+    #: 뒤에서부터 고친다 — 앞에서 고치면 뒤 구간의 자리가 밀린다.
+    for start, end, inner in reversed(_source_spans(text)):
+        if not _MARKER_RE.search(inner):
+            continue
+        rest = _GLUE.sub("", _MARKER_RE.sub("", inner))
+        rest = _GLUE.sub("", re.sub(r"\s*[,·]\s*[,·]\s*", ", ", rest).strip())
+        if _SUBSTANTIVE.search(rest):
+            text = text[:start] + f"(근거: {rest})" + text[end:]
+            fixes.append("표지만 뺀 근거 괄호 1곳")
+            continue
+        #: 🔴 지울 때 **그 앞의 공백만** 함께 지운다. 답변 전체에 공백 정리를 걸면
+        #: 마크다운 들여쓰기가 무너진다.
+        lead = start
+        while lead > 0 and text[lead - 1] in " \t":
+            lead -= 1
+        text = text[:lead] + text[end:]
+        fixes.append("표지뿐인 근거 괄호 1곳을 지웠다")
+    if _MARKER_RE.search(text):
+        #: 괄호 밖에 남은 것은 문장 속 언급이다. `위 근거` 는 참인 말이다 — 결정적 줄은
+        #: 정말로 근거 안에 있다.
+        text = _MARKER_RE.sub("위 근거", text)
+        fixes.append("문장 속 표지를 '위 근거' 로 바꿨다")
+    return text, fixes
+
+
 def drop_citation_warning(answer: str) -> tuple[str, bool]:
     """Remove the "no citation" reason once a citation has been attached.
 
@@ -2683,6 +2880,11 @@ def answer_question(question_id: str, question: str) -> dict:
         if r.reason == "false_premise":
             trace.append("거짓 전제 — LLM 호출 없이 한계 고지")
             return _respond(question_id, question, "", trace, FALSE_PREMISE, budget)
+        # 앞선 지시를 무시하라는 요구이거나 미공시 내용을 달라는 요구다. 회사도 기간도
+        # 범위 안일 수 있으므로 `UNANSWERABLE` 의 범위 밖 문구는 여기서 거짓이 된다.
+        if r.reason == "injection":
+            trace.append("주입·미공시 요구 — LLM 호출 없이 거절")
+            return _respond(question_id, question, "", trace, INJECTION_REFUSED, budget)
         trace.append("범위 밖 — LLM 호출 없이 한계 고지")
         return _respond(question_id, question, "", trace, UNANSWERABLE, budget)
 
@@ -2789,6 +2991,38 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, holding)
             trace.append(f"holding_series line=1 chars={len(holding)}")
 
+    # 계약상대가 같은 두 회사의 공시를 잇고 금액 차를 못 박는다. `holding_series` 와 같은
+    # 자리인 것은 둘 다 레코드를 읽기 때문이고, 합치지 않은 것은 읽는 필드와 발화 조건이
+    # 다르기 때문이다 — 한 스위치가 다른 쪽 거동을 옮기면 안 된다.
+    if ablation.enabled("counterparty_pair"):
+        from argus.agent import aggregate
+
+        pair = aggregate.counterparty_pair(_evidence_records(evidence), clean)
+        if pair:
+            evidence = _prepend(evidence, pair)
+            trace.append(f"counterparty_pair line=1 chars={len(pair)}")
+
+    # 공시가 스스로 적어 둔 원화 환산 문장을 줄로 끌어올린다. 근거 산문에만 있는 수는
+    # 답변에 안 들어온다는 것을 여기서도 다시 본다(`Q-101` 3회 모두 누락).
+    if ablation.enabled("fx_conversion"):
+        from argus.agent import aggregate
+
+        fx = aggregate.fx_conversion(evidence, clean)
+        if fx:
+            evidence = _prepend(evidence, fx)
+            trace.append(f"fx_conversion line=1 chars={len(fx)}")
+
+    # 정정 문항은 근거에 같은 절이 두 벌 실린다. 그 차이는 코드로 정확히 구할 수 있는데
+    # 답변은 눈으로 훑어 짐작한다. 질문을 안 보고 근거만 보는 줄이라 `clean` 을 안 받는다 —
+    # 같은 절이 두 벌 실렸다는 것 자체가 정정 문항이라는 뜻이다.
+    if ablation.enabled("revision_diff"):
+        from argus.agent import aggregate
+
+        diff = aggregate.revision_diff(evidence)
+        if diff:
+            evidence = _prepend(evidence, diff)
+            trace.append(f"revision_diff line=1 chars={len(diff)}")
+
     # A stub in one filing and a body in another is a categorical difference,
     # and an answer calling them the same is wrong with confidence. The line
     # states it; it does not edit the answer.
@@ -2799,6 +3033,28 @@ def answer_question(question_id: str, question: str) -> dict:
         if contrast:
             evidence = _prepend(evidence, contrast)
             trace.append(f"contrast_line line=1 chars={len(contrast)}")
+
+    # 구성을 묻는 질문에서 그 표의 합계를 못 박는다. 백분율은 분모 없이는 뜻이 없다.
+    # `contrast_line` 과 같은 자리에 두는 이유는 같은 성질이기 때문이다 — 레코드가 아니라
+    # **근거 문자열을 직접 읽어** 줄을 낸다.
+    if ablation.enabled("composition_total"):
+        from argus.agent import aggregate
+
+        total = aggregate.composition_total(evidence, clean)
+        if total:
+            evidence = _prepend(evidence, total)
+            trace.append(f"composition_total line=1 chars={len(total)}")
+
+    # 부문별 매출을 묻는 질문에서 `수출 + 내수 = 합계` 를 검산해 낸다. 같은 공시에 표가
+    # 둘 있고 부문값이 1 다를 때(`Q-104`) 유도되는 쪽을 가려 주는 것이 이 줄의 일이다.
+    # `composition_total` 과 같은 자리·같은 성질 — 레코드가 아니라 근거 문자열을 읽는다.
+    if ablation.enabled("segment_sales"):
+        from argus.agent import aggregate
+
+        segments = aggregate.segment_sales(evidence, clean)
+        if segments:
+            evidence = _prepend(evidence, segments)
+            trace.append(f"segment_sales line=1 chars={len(segments)}")
 
     try:
         # Read through `enabled()` so that a misspelled flag raises instead of
@@ -2922,6 +3178,14 @@ def answer_question(question_id: str, question: str) -> dict:
     # Align a figure that contradicts an expression the answer wrote itself, a
     # self-contradiction that neither exact match nor the numeric checks catch.
     # See docs/design-rationale.md#self-contradiction
+    # 거짓 유도를 먼저 지운다. `fix_self_contradiction` 은 등식 결과를 믿고 다른 자리를
+    # 그것에 맞추므로, 성립하지 않는 등식이 남아 있으면 맞출 기준이 흔들린다.
+    if ablation.enabled("drop_broken_equation"):
+        from argus.agent import aggregate
+
+        answer, dropped = aggregate.fix_broken_equation(answer, evidence)
+        if dropped:
+            trace.append(f'broken_eq {" · ".join(dropped)}')
     if ablation.enabled("self_consistency_fix"):
         from argus.agent import aggregate
 
@@ -2938,6 +3202,12 @@ def answer_question(question_id: str, question: str) -> dict:
         answer, why = aggregate.fix_stray_summands(answer, evidence)
         if why:
             trace.append(f"stray_summands {why}")
+    # 답변이 결정적 줄의 표지를 출처로 인용한 자리를 걷어낸다. `attach_citation` **앞**에
+    # 두는 것은 진짜 표기가 그 뒤에 붙기 때문이다 — 허깨비를 지우고 참을 붙이는 순서다.
+    if ablation.enabled("strip_marker_citation"):
+        answer, stripped = strip_marker_citation(answer)
+        if stripped:
+            trace.append(f'marker_citation {" · ".join(stripped)}')
     answer, cited = ablation.attach_citation(answer, evidence, provenance=provenance,
                                              question=clean)
     if cited:

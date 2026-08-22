@@ -289,11 +289,33 @@ def test_a_question_that_does_not_ask_for_a_history_gets_nothing():
 
 
 def test_the_line_carries_no_receipt_numbers():
-    """Same rule as `partner_profile` and `counterparty_branch`: the citation
-    is attached by code elsewhere, and receipt numbers in a summary line get
-    copied into the answer as if they were the citation."""
+    """🔴 **2026-08-22 에 뒤집혔다.** 이 줄은 이제 걸음마다 접수번호를 나른다.
+
+    종전 규율은 `partner_profile`·`counterparty_branch` 와 같았다 — 요약 줄의 접수번호가
+    답변에 표기처럼 복사되고, `error_analysis._blocks` 가 그것을 적재된 골든으로 읽어
+    **아무것도 안 싣고 재현율만 올린다.**
+
+    두 가지가 바뀌어 규율의 전제가 사라졌다.
+
+      ① `_blocks` 가 **헤더 앞 영역을 블록에서 뺀다**(2026-08-21 수리). 결정적 줄은 그
+         영역에 놓이므로 거기 적힌 접수번호는 이제 적재로 안 세어진다.
+      ② `Q-106` 은 *"각 보고서를 **근거로** 설명해줘"* 이고 골든 요점1~4 가 걸음마다
+         접수번호를 요구하는데, **그 번호가 근거 블록에도 없다** — 체인은
+         `tools.holding_chain` 이 들고 있고 블록으로 실리는 것은 일부다. 이 줄이 내지
+         않으면 답변이 알 길이 아예 없다.
+
+    부풀림이 실제로 0 임을 전수로 확인했다(`A84` 3회 336건: 결정적 줄에만 있는 접수번호가
+    `golden_in_evidence` 로 세어진 자리 **0건** · 근거 완전성 167/168 로 `A65` 와 동일).
+    아래 단정이 그 사실을 붙잡는다 — **줄에는 있고 지표는 안 움직인다.**
+    """
     line = aggregate.holding_series(PARTIAL_EVIDENCE, QUESTION, _full_chain)
-    assert not re.search(r"\d{14}", line)
+    with ablation.use("A81"):
+        legacy = aggregate.holding_series(PARTIAL_EVIDENCE, QUESTION, _full_chain)
+    assert re.search(r"\d{14}", line), "배포본은 걸음마다 접수번호를 실어야 한다"
+    assert re.search(r"\d{14}", legacy), "`A81` 도 `holding_receipts` 를 켠다"
+    #: 🔴 헤더가 없으므로 `_blocks` 는 이 줄을 블록으로 세지 않는다. 그것이 부풀림을
+    #: 구조적으로 막는 자리다.
+    assert not line.lstrip().startswith("## ")
 
 
 def test_the_flag_is_off_by_default():

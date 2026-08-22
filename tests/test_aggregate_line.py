@@ -295,3 +295,56 @@ def test_the_gate_stays_narrow_across_the_whole_evalset():
     assert len(fired) <= 30, f"발화 {len(fired)}문항 — 너무 넓다: {fired}"
     for qid, *_ in CASES:
         assert qid in fired, f"{qid} 를 놓쳤다"
+
+
+# --- `delta_totals` — 차 줄이 두 중간 합계도 싣는다 -----------------------------
+#
+# `Q-113` 은 추론 논리성 2/3 인데 두 회차의 사유가 다르고, **둘 다 같은 결핍**에서 나온다 —
+# 차 줄이 갈래별 차와 총 차만 주고 「정정 후 합계」·「정정 전 합계」를 안 줬다.
+#
+#     r1  1,828,750,000,000 - 526,570,000,000 = 526,570,000,000   → equation
+#         (정정 전 합계 1,302,180,000,000 을 몰라 총 차를 피감수 자리에 다시 썼다)
+#     r3  499,950,000,000 + 1,328,800,000,000 = 1,738,750,000,000  → provenance
+#         (참값 1,828,750,000,000 을 스스로 더하다 틀렸고 근거에 없는 수가 됐다)
+
+Q113 = ("삼성전자가 발주한 평택 P4 Ph4(상동) 마감공사를 삼성E&A와 삼성중공업이 각각 "
+        "공시했고 두 회사 모두 2025년 9월 24일 정정공시를 냈다. 두 회사 정정 후 계약금액 "
+        "합계는 최초 공시 합계보다 얼마나 늘었는가?")
+#: 두 갈래 각각의 원본·정정본. 🔴 `20250721800070` 이 삼성중공업의 원본이다 — 첫 판은
+#: 이 자리에 없는 접수번호를 적어 갈래가 하나로 줄어 줄이 아예 안 났다.
+Q113_RCEPTS = ("20250718800275", "20250924800260",   # 삼성E&A  909,590 → 1,328,800
+               "20250721800070", "20250924800262")   # 삼성중공업 392,590 →   499,950
+
+
+def _q113_line(arm):
+    with ablation.use(arm):
+        return aggregate.line(_recs(*Q113_RCEPTS), Q113, None)
+
+
+def test_delta_totals_두_중간_합계를_싣는다():
+    out = _q113_line("A80")
+    assert "정정 후 합계 1,828,750,000,000 − 정정 전 합계 1,302,180,000,000" in out
+    #: 🔴 답변이 스스로 더하다 틀린 값은 실리지 않는다.
+    assert "1,738,750,000,000" not in out
+
+
+def test_delta_totals_총_차는_안_바뀐다():
+    """골든은 `526,570,000,000` 이다. 덧붙이는 것이라 종전 본문이 그대로다."""
+    before, after = _q113_line("A79"), _q113_line("A80")
+    assert "합계 **526,570,000,000원**" in before
+    assert "합계 **526,570,000,000원**" in after
+    assert before.split(" · 합계 ")[0] == after.split(" · 합계 ")[0]
+
+
+def test_delta_totals_두_합계의_차가_총_차와_같다():
+    """구성상 반드시 같다. 안 같으면 갈래를 잘못 모은 것이다."""
+    out = _q113_line("A80")
+    after = int(out.split("정정 후 합계 ")[1].split(" ")[0].replace(",", ""))
+    before = int(out.split("정정 전 합계 ")[1].split(" ")[0].replace(",", ""))
+    total = int(out.split("합계 **")[1].split("원")[0].replace(",", ""))
+    assert after - before == total
+
+
+def test_delta_totals_스위치가_꺼지면_안_실린다():
+    assert "정정 후 합계" not in _q113_line("A79")
+    assert "정정 후 합계" not in _q113_line("A65")

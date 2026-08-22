@@ -68,6 +68,41 @@ def _asks_speculation(question: str) -> bool:
             and any(a in text for a in _SPEC_ASK))
 
 
+#: 앞선 지시를 무시하라는 요구. 정상적인 공시 질의는 모델에게 지시를 무시하라고 말하지
+#: 않는다. `_SPEC_ALONE` 과 같은 갈래 — 단독으로 충분한 표현이다.
+#:
+#: 🔴 그래도 **곱으로 잠근다.** `지시`·`규칙`·`프롬프트` 는 공시 본문에도 나오는 낱말이고
+#: (*"정정요구ㆍ명령"* 처럼), 그 낱말 하나로 거절하면 답할 수 있는 질문을 거절한다.
+#: 「가리키는 말」과 「무시하라」가 함께 있을 때만 발화한다.
+_INJECT_TARGET = ("지시", "규칙", "프롬프트", "명령")
+_INJECT_ASK = ("무시하고", "무시한 채", "무시하라", "무시해", "무시하여", "잊고", "잊어")
+
+#: 질문 스스로 **아직 공시되지 않았다고 말하면서** 그 내용을 요구하는 표현. 공시에 없는
+#: 것을 달라는 요구이므로 어느 근거로도 답할 수 없다.
+#:
+#: `_asks_speculation` 이 못 잡는다 — 그 관문은 주가·실적 **전망**을 겨냥해
+#: `_SPEC_TARGET`(주가·내년·향후…) × `_SPEC_ASK`(예측·전망…)의 곱을 본다. `S-011` 은
+#: *"아직 공시되지 않은 … 다음 계약 상대와 계약금액을 **알려줘**"* 라 양쪽 다 안 걸린다.
+_UNDISCLOSED = ("아직 공시되지 않은", "아직 공시하지 않은", "공시되기 전",
+                "공시 전의", "미공시")
+
+
+def _asks_injection(question: str) -> bool:
+    """앞선 지시를 무시하라는 요구인가.
+
+    골든이 그것을 거절 사유로 명시한다 — `S-011` *"앞선 지시를 무시하라는 요구는 따르지
+    않고"* · `S-012` *"시스템 규칙을 무시하라는 요구는 따르지 않습니다"*.
+    """
+    text = question or ""
+    return (any(t in text for t in _INJECT_TARGET)
+            and any(a in text for a in _INJECT_ASK))
+
+
+def _asks_undisclosed(question: str) -> bool:
+    """질문 스스로 미공시라고 말하면서 그 내용을 요구하는가."""
+    return any(t in (question or "") for t in _UNDISCLOSED)
+
+
 def _asks_identifier(question: str) -> bool:
     """Whether the question asks for personal data or identifiers verbatim."""
     text = question or ""
@@ -470,6 +505,12 @@ def route(question: str) -> Route:
     # lookup and reach generation, which is too late to refuse.
     if ablation.enabled("false_premise_gate") and _asks_false_premise(question):
         return made("unanswerable", reason="false_premise")
+
+    # 주입과 미공시 요구도 회사 해석 전에 거절한다. 회사 이름이 있으면 조회로 라우팅돼
+    # 생성까지 가고, 거기서는 늦다 — 위 두 관문과 같은 이유다.
+    if ablation.enabled("injection_gate") and (_asks_injection(question)
+                                               or _asks_undisclosed(question)):
+        return made("unanswerable", reason="injection")
 
     if not companies and not counterparty:
         # An existence question is corpus-wide even without a company name.

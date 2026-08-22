@@ -185,3 +185,55 @@ def test_a_note_about_a_figure_we_kept_survives():
         out, why = aggregate.fix_stray_summands(STRAY + tail, EVIDENCE)
     assert "provenance" in out, "우리가 안 건드린 사유는 남는다"
     assert "note=0" in why
+
+
+# --- 🔴 총액을 항목으로 착각해 지우던 결함 (2026-08-22 실측) -------------------
+#
+# `_item_amount` 는 `-`·`·`·`*`·`N.`·`N)` 로 시작하는 줄을 열거 항목으로 본다. 답변이
+# 결론을 목록으로 쓰면(`3. 합계: 1,759,596,802,000원`) 그 줄도 항목이 되고, 총액은
+# 피가수 집합에 없으므로 「어긋난 항목」으로 판정돼 **통째로 사라졌다.**
+#
+# `Q-115` r3 실측: `substitute` 가 정답을 넣었는데(`substitute=996,996,802,000 ->
+# 1,759,596,802,000`) 이 함수가 그것을 지웠다. 같은 회차의 다른 실행은 결론을 평문으로
+# 써서 살아남았다 — **답이 목록이냐 문장이냐 하는 문체 하나로 정답이 갈렸다.**
+#
+# 이 함수는 총액이 본문에 있을 때만 발화한다. 그 총액을 스스로 지우는 것은 자기 전제를
+# 무너뜨리는 일이다.
+
+_TOTAL = "1,759,596,802,000"
+
+
+@pytest.mark.parametrize("shape,body", [
+    ("번호 목록",
+     "1. 현대오토에버\n"
+     "   - 차세대 ERP 106,796,802,000원 (접수번호 20251128800125)\n"
+     "2. 현대글로비스\n"
+     "   - 완성차 해상운송계약 1,652,800,000,000원 (접수번호 20250117800487)\n"
+     "3. 합계: %s원" % _TOTAL),
+    ("글머리 목록",
+     "- 차세대 ERP 106,796,802,000원\n"
+     "- 완성차 해상운송계약 1,652,800,000,000원\n"
+     "- 합계 %s원" % _TOTAL),
+    ("평문",
+     "- 차세대 ERP 106,796,802,000원\n"
+     "- 완성차 해상운송계약 1,652,800,000,000원\n\n"
+     "따라서 합계는 %s원입니다." % _TOTAL),
+])
+def test_총액은_어떤_문체에서도_안_지워진다(shape, body):
+    with ablation.use("A81"):
+        out, why = aggregate.fix_stray_summands(body, EVIDENCE)
+    assert _TOTAL in out, f"{shape}: 총액이 사라졌다"
+    assert why == "", f"{shape}: 열거가 명세와 같은데 손댔다"
+
+
+def test_어긋난_피가수는_여전히_갈아_끼운다():
+    """총액을 지키는 것이 이 함수를 무력화하는 것은 아니다."""
+    body = ("- 차세대 ERP 106,796,802,000원\n"
+            "- 완성차 해상운송계약 890,200,000,000원\n"
+            "- 합계 %s원" % _TOTAL)
+    with ablation.use("A81"):
+        out, why = aggregate.fix_stray_summands(body, EVIDENCE)
+    assert "swapped=1" in why
+    assert "890,200,000,000" not in out, "어긋난 피가수가 남았다"
+    assert "1,652,800,000,000" in out, "명세 항목으로 안 갈렸다"
+    assert _TOTAL in out, "총액이 사라졌다"

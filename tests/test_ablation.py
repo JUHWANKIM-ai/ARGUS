@@ -415,8 +415,8 @@ def test_default_arm_is_the_submission_configuration():
     #: (Q-107 Q-115 열거) · `roster_items`(Q-110 정답·표기) · `stale_note`(Q-116 폐기값).
     #: 전처리 고도화(`section_chain_note`)는 **측정으로 기각**했다 — 근거 한 줄이 답변의
     #: 금액을 밀어내 `Q-094` 가 3회 모두 깨진다.
-    assert ablation.current() == ablation.A65
-    assert ablation.current().name == "A65"
+    assert ablation.current() == ablation.A84
+    assert ablation.current().name == "A84"
     # 2026-08-21 채택 넷. 기각한 `latest_pin` 은 꺼져 있어야 한다.
     assert ablation.current().cite_used is True
     assert ablation.current().period_label is True
@@ -2734,11 +2734,30 @@ def test_w1_arms_call_the_counterparty_hop_with_the_old_arguments():
 
 def test_temperature_moved_to_the_arm_but_the_default_is_still_zero():
     assert "temperature" in FLAGS and "sc_k" in FLAGS
+    #: 🔴 온도를 옮기는 팔은 셋뿐이고 **셋 다 같은 조작의 서로 다른 판**이다.
+    #:
+    #:     `A10`   k=3 · 0.7 · 전 문항        정확도로 기각
+    #:     `V7-1`  k=3 · 0.5 · 수치 문항만    `A42` 위 · 최솟값 +1(잡음 폭 안) · 분산 증가로 기각
+    #:     `A82`   k=3 · 0.5 · 수치 문항만    `A81` 위 · 기준선이 세 세대 바뀌어 다시 잰다
+    #:
+    #: 목록이 늘어나는 것 자체가 기록이다. 넷째가 생기면 그때도 여기 적어야 한다.
+    MOVES_TEMPERATURE = ("A10", "V7-1", "A82")
+    #: 🔴 `A83` 은 표본을 셋 뽑으면서 **온도를 안 올린다.** 상류가 온도 0 에서도
+    #: 결정적이지 않다는 실측(수치까지 갈리는 문항 38/112) 위에 선 설계다. 그래서
+    #: `sc_k>1` 이지만 온도 예외 목록에는 안 들어간다 — 아래 `sc_k` 단정만 비켜 간다.
+    #: `A84`(= `A83` + 관문)도 같은 성질이라 함께 담는다.
+    DRAWS_AT_ZERO = ("A83", "A84")
     for name, arm in ablation.ARMS.items():
-        if name in ("A10", "V7-1"):
+        if name in MOVES_TEMPERATURE:
             continue
         assert arm.temperature == 0.0, f"{name} 의 온도가 0.0 이 아니다 — 통제가 깨졌다"
+        if name in DRAWS_AT_ZERO:
+            assert arm.sc_k > 1, f"{name} 이 예외 목록에 있는데 표본을 하나만 뽑는다"
+            continue
         assert arm.sc_k == 1, f"{name} 이 표본을 둘 이상 뽑는다"
+    for name in MOVES_TEMPERATURE:
+        arm = ablation.ARMS[name]
+        assert arm.sc_k > 1 and arm.temperature > 0.0,             f"{name} 이 예외 목록에 있는데 온도를 안 옮긴다 — 목록이 낡았다"
     assert ablation.current().temperature == 0.0        # 스위치를 안 건드린 운영 경로
 
 
@@ -2872,11 +2891,21 @@ def test_counterparty_branch_is_unreachable_without_the_hop_ladder():
         replace(ablation.A1B, name="bad", counterparty_branch=True)
 
 
-def test_self_consistency_at_temperature_zero_is_rejected():
-    """온도 0 에서 k 를 올리면 표본이 전부 같아 다수결이 정의상 만장일치가 된다.
-    그 0 을 "SC 는 효과가 없다" 로 읽는 것이 이 저장소가 막으려는 사고다."""
-    with pytest.raises(ValueError):
-        replace(ablation.A8, name="A8-sc0", sc_k=3)
+def test_self_consistency_at_temperature_zero_is_now_allowed():
+    """🔴 **종전 이 시험은 온도 0 의 `k>1` 을 금지가 맞는지 지켰다. 전제가 뒤집혔다.**
+
+    금지의 근거는 *"온도 0 에서는 표본이 전부 같아 다수결이 정의상 만장일치"* 였다.
+    `A77` 골든셋 세 판(전부 온도 0.0 · 프롬프트가 112문항 전부 바이트까지 같다)을
+    견주니 **수치까지 갈리는 문항이 38/112(34%)** 다. 상류가 온도 0 에서도 결정적이지
+    않으므로 다수결이 만장일치가 되지 않는다.
+
+    캐시로 표본이 같아지는 경우는 `_self_consistent` 가 2회차부터 `no_cache()` 로
+    막는다. 그러니 이 금지가 막던 「조용한 무동작」은 실재하지 않는다.
+
+    `sc_k < 1` 금지는 그대로다 — 그것은 전제가 아니라 정의다.
+    """
+    arm = replace(ablation.A8, name="A8-sc0", sc_k=3)
+    assert arm.sc_k == 3 and arm.temperature == 0.0
     with pytest.raises(ValueError):
         replace(ablation.A8, name="A8-sc-", sc_k=0)
 
@@ -2995,8 +3024,13 @@ def test_self_consistency_picks_the_majority_and_falls_back_to_the_first_sample(
 
 
 def test_self_consistency_keeps_the_first_answer_when_the_budget_runs_out():
-    """예산이 끊겼다고 이미 받아 둔 정답을 버리면 안 된다. 긴 근거 문항에서
-    토큰 상한 20,000 이 3회차에 실제로 물린다."""
+    """예산이 끊겼다고 이미 받아 둔 정답을 버리면 안 된다.
+
+    🔴 상한을 `Budget` 에서 읽는다. 종전은 `19_999` 를 박아 두어 상한이 20,000 일 때만
+    맞았고, 2026-08-22 에 100,000 으로 올리자 이 시험이 조용히 **아무것도 안 재게** 됐다
+    (예산이 안 끊기므로 `sc stop=budget` 이 안 뜬다). 상한을 하드코딩하면 상한을 바꿀 때
+    시험이 먼저 거짓말을 한다.
+    """
     from argus.agent.budget import Budget as _B
 
     class _Arm:
@@ -3004,7 +3038,7 @@ def test_self_consistency_keeps_the_first_answer_when_the_budget_runs_out():
         temperature = 0.7
 
     budget = _B()
-    budget.spend_llm(19_999, 0)                     # 다음 호출은 토큰 상한을 넘는다
+    budget.spend_llm(budget.max_tokens - 1, 0)      # 다음 호출은 토큰 상한을 넘는다
     trace = []
 
     class _R:
@@ -3341,7 +3375,7 @@ def test_a47_is_not_registered():
     assert "A47" not in ab.ARMS
 
 
-def test_the_operational_default_has_moved_to_a65():
+def test_the_operational_default_has_moved_to_a84():
     """운영 기본값의 이름을 한 자리에서 못 박는다.
 
     2026-08-20 에 `A43` -> `A49`, 2026-08-21 에 `A49` -> `A56` -> `A65` 로 옮겼다. 이
@@ -3350,7 +3384,7 @@ def test_the_operational_default_has_moved_to_a65():
     """
     from argus import ablation as ab
 
-    assert ab.current().name == "A65"
+    assert ab.current().name == "A84"
 
 
 def test_project_scope_cannot_be_enabled_without_counterparty_relevance():
@@ -3412,3 +3446,79 @@ def test_a43_and_a48_leave_both_new_flags_off():
 
     assert ab.A43.false_premise_gate is False and ab.A43.refusal_compaction is False
     assert ab.A48.false_premise_gate is False and ab.A48.refusal_compaction is False
+
+
+def test_밤샘_캠페인의_스위치가_배포본에_들어갔다():
+    """🔴 **2026-08-22 에 뒤집혔다.** 캠페인 채택본 `A84` 가 배포본이 됐다.
+
+    종전 이 시험은 「캠페인 스위치가 배포본에 **안** 들어갔다」를 지켰다. 채택과 배포가
+    다른 일이므로 사람이 정할 때까지 붙잡아 두는 장치였고, 그 결정이 났다.
+
+    무엇이 채택됐고 무엇이 기각됐는지를 여기 한 자리에 적는다. **목록이 곧 기록이다.**
+    """
+    adopted = ("holding_ask_wide", "composition_total", "pledged_series",
+               "segment_sales", "counterparty_pair", "fx_conversion",
+               "revision_diff", "strip_marker_citation", "holding_receipts",
+               "drop_broken_equation", "delta_totals", "wide_unit_parens",
+               "injection_gate", "sc_figures_only", "sc_key_set")
+    for flag in adopted:
+        assert getattr(ablation.current(), flag) is True, f"{flag} 가 채택본에서 빠졌다"
+    assert ablation.current().sc_k == 3, "자기일관성이 꺼졌다"
+    #: 🔴 기각한 것은 안 들어간다. `roster_counts` 는 설계 문서가 건 조건 셋을 다 채우고도
+    #: 답변이 그 수를 아홉 판에 걸쳐 한 번도 안 써서 기각됐다.
+    assert ablation.current().roster_counts is False, "기각한 스위치가 배포본에 들어갔다"
+    #: 🔴 온도는 0.0 을 지킨다. 자기일관성을 켜면서도 온도를 안 올린 것이 이 채택의 핵심이다
+    #: — 상류가 온도 0 에서도 결정적이지 않으므로 다양성은 이미 공짜로 있다.
+    assert ablation.current().temperature == 0.0
+
+
+def test_기각한_스위치는_어느_채택_팔에도_없다():
+    """`roster_counts` 는 조건 셋을 다 채우고도 기각됐다(답변이 그 수를 안 쓴다).
+
+    `A78` 은 그 측정을 남기려고 등록해 둔 팔이므로 이 스위치를 켠 유일한 팔이어야 한다.
+    """
+    on = [name for name, arm in ablation.ARMS.items() if arm.roster_counts]
+    assert on == ["A78"], f"기각한 스위치가 다른 팔에 들어갔다: {on}"
+
+
+def test_sc_key_set_groups_by_value_not_by_listing():
+    """🔴 나열 키는 순서와 중복에 민감하다. 그 대가를 실측이 보였다.
+
+    `A77` 세 판에서 회차마다 정답이 갈리는 문항이 둘인데(`Q-093`·`Q-111`) **둘 다**
+    「같은 답인데 다른 갈래」로 세어져 다수가 안 섰다.
+
+        Q-093  r1 `2e+11`  vs  r2 `2e+11|2e+11`      같은 금액을 두 번 말했을 뿐이다
+        Q-111  r2 와 r3 의 값 집합이 같고 중복만 다르다
+
+    집합으로 묶으면 갈래가 1:74→84 · 3:14→12 로 모이고 다수결 성적이 111/112 →
+    112/112 가 된다. 순서와 중복은 답변의 **내용이 아니라 문체**다.
+    """
+    from argus.agent.pipeline import _sc_key
+
+    once = "출자금액은 200,000,000,000원입니다."
+    twice = "출자금액은 200,000,000,000원이며, 200,000,000,000원 그대로입니다."
+    with ablation.use("A81"):
+        assert _sc_key(once) != _sc_key(twice), "나열 키는 중복에 민감하다 (종전 거동)"
+    with ablation.use("A83"):
+        assert _sc_key(once) == _sc_key(twice), "집합 키가 중복을 묶어야 한다"
+
+
+def test_sc_key_set_still_separates_different_values():
+    """묶는 것이 헐렁해지는 것은 아니다. 값이 다르면 여전히 다른 갈래다."""
+    from argus.agent.pipeline import _sc_key
+
+    with ablation.use("A83"):
+        assert _sc_key("계약금액은 200,000,000,000원") \
+            != _sc_key("계약금액은 300,000,000,000원")
+        #: 순서만 다른 것은 같은 갈래여야 한다.
+        assert _sc_key("가 100,000,000원 나 200,000,000원") \
+            == _sc_key("나 200,000,000원 가 100,000,000원")
+
+
+def test_a83_draws_samples_without_raising_the_temperature():
+    """`A82` 는 `V7-1` 을 그대로 옮긴 것이고 `A83` 은 실측을 보고 고친 것이다."""
+    a82, a83 = ablation.ARMS["A82"], ablation.ARMS["A83"]
+    assert (a82.sc_k, a82.temperature, a82.sc_key_set) == (3, 0.5, False)
+    assert (a83.sc_k, a83.temperature, a83.sc_key_set) == (3, 0.0, True)
+    #: 둘 다 거절 답변은 안 산다 — 다수결할 수치가 없다.
+    assert a82.sc_figures_only and a83.sc_figures_only

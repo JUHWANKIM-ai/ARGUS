@@ -19,6 +19,8 @@ guard.
 """
 from __future__ import annotations
 
+import collections
+import difflib
 import re
 
 from argus import ablation
@@ -272,7 +274,16 @@ def _ymd(record: dict) -> str:
 #: below — two or more holding filings by one reporter — is the strong half of
 #: the premise.
 #: See docs/design-rationale.md#holding-series
+#: 🔴 2026-08-21 `달라` 를 더했다. `Q-012` 가 *"지분 보유 상황이 어떻게 **달라졌는지**"* 를
+#: 묻는데 이 목록에 그 낱말이 없어 **조용한 무동작**이었다. 이 튜플은 위 주석대로 느슨해도
+#: 되는 쪽이다 — 강한 전제는 아래 레코드 조건(한 보고자의 대량보유 2건 이상)이고 `Q-012`
+#: 는 그 조건을 만족한다((주)두산 → 두산에너빌리티 2건).
+#:
+#: 사정거리 실측: 이 줄이 지금 도는 문항은 `Q-106` 하나뿐이고, `달라` 를 더해 늘어나는
+#: 것은 `Q-012` 하나다(112문항 전수 대조).
 _HOLDING_ASK = ("추이", "변해", "변화", "변동", "바뀌", "시간순", "시계열", "어떻게 변")
+#: 플래그로 가르는 추가 낱말. 상수 튜플은 플래그를 못 읽으므로 따로 둔다.
+_HOLDING_ASK_WIDE = ("달라",)
 
 
 def _ratio_of(record: dict):
@@ -362,7 +373,10 @@ def holding_series(records, question: str, chain_lookup=None) -> str:
     line does not have is exactly the defect this fixes.
     See docs/design-rationale.md#holding-series
     """
-    if not any(h in (question or "") for h in _HOLDING_ASK):
+    words = _HOLDING_ASK
+    if ablation.enabled("holding_ask_wide"):
+        words = _HOLDING_ASK + _HOLDING_ASK_WIDE
+    if not any(h in (question or "") for h in words):
         return ""
     rows = [r for r in (records or []) if _ratio_of(r) is not None]
     if len(rows) < 2:
@@ -399,6 +413,13 @@ def holding_series(records, question: str, chain_lookup=None) -> str:
         # intermediate one doubles the line length for values the question
         # did not ask about.
         tail = f" ({shares}주)" if shares and record.get("rcept_no") in ends else ""
+        #: 🔴 이 줄이 답하는 질문은 *"각 보고서를 **근거로** 설명해줘"* 다(`Q-106`). 날짜와
+        #: 비율만 내면 어느 보고서인지 말할 수 없다. 골든 요점1~4 가 걸음마다 접수번호를
+        #: 짝지어 요구하는데(`20250707000299` · `20260227007254`) 그 번호는 근거 블록에도
+        #: 없다 — 체인은 `holding_chain` 이 들고 있고 근거로 실리는 것은 일부다. 그러니
+        #: 이 줄이 내지 않으면 답변이 알 길이 아예 없다.
+        if ablation.enabled("holding_receipts") and record.get("rcept_no"):
+            tail += f" (접수번호 {record['rcept_no']})"
         steps.append(f"{_ymd(record)} {_ratio_of(record):.2f}%{tail}")
     if elided:
         # Inserted just before the final step, the position the elided
@@ -408,9 +429,93 @@ def holding_series(records, question: str, chain_lookup=None) -> str:
 
     moved = _ratio_of(chain[0]) - _ratio_of(chain[-1])
     count_note = f"{total}건" if not elided else f"{total}건 중 {len(shown)}건 표시"
+    #: 🔴 지시 줄(`답변은 걸음마다 그 접수번호를 함께 적는다`)을 붙여 봤으나 3회에 1/3
+    #: 그대로였다. `counterparty_pair` 에서 배운 것과 같다 — 지시 줄은 늘 듣지 않는다.
+    #: 그래서 안 붙인다.
     return (f"- [결정적 집계] {reporter} 보고 보유비율 추이 ({count_note}): "
             f"{' → '.join(steps)} · 누적 {-moved:+.2f}%p "
             f"(이 값은 시스템이 위 근거의 비율 필드에서 직접 읽은 것이다. "
+            f"답변의 해당 수치는 이 값을 그대로 쓴다.)"
+            + _pledged_series(sorted(
+                evidence_chain,
+                key=lambda r: (str(r.get("rcept_dt", "")), r.get("rcept_no", "")))))
+
+
+#: 대량보유 보고서의 `주요계약체결` 두 칸. 값은 `직전 A주 → 이번 B주` 꼴의 **문자열**이라
+#: 「이번」 쪽을 따로 뽑아야 한다. 골든이 잇는 것은 각 보고서의 「이번」 값이다 —
+#: `Q-012` 요점3 은 2025-03 의 이번(84,282,066) 과 2026-03 의 이번(92,270,920) 을 잇는다.
+_PLEDGED_SHARES_KEY = "주요계약체결 주식등의 수"
+_PLEDGED_RATIO_KEY = "주요계약체결 비율"
+#: `이번` 뒤의 값. `직전` 쪽을 잡으면 한 보고서 안의 변동을 보고서 사이의 변동으로 오인한다.
+_CURRENT_IN_FIELD = re.compile(r"이번\s*([\d,]+(?:\.\d+)?)")
+
+
+def _pledged_current(record: dict, key: str) -> str:
+    """그 보고서의 `주요계약체결` 「이번」 값. 없으면 ""."""
+    hit = _CURRENT_IN_FIELD.search(str((record.get("fields") or {}).get(key) or ""))
+    return hit.group(1) if hit else ""
+
+
+def _pledged_series(chain: list[dict]) -> str:
+    """보유비율 추이 줄에 덧붙이는 **주요계약체결 추이**. 아니면 "".
+
+    ## 왜 따로 붙이나
+
+    `Q-012` 요점3 은 `84,282,066주(13.15%)` → `92,270,920주(14.40%)` 를 요구한다. 그 두
+    수는 `shares_current` 가 아니라 `fields["주요계약체결 주식등의 수"]` 안의 문자열
+    (`직전 A주 → 이번 B주`)에 있고 보유비율 추이 줄은 그 필드를 안 읽는다.
+
+    ## 🔴 실측이 말한 것 — 처음 적은 설명은 뒤집혀 있었다
+
+    첫 커밋에 *"뒤 수가 근거 본문에만 있어 안 들어왔다"* 라고 적었는데 회차별로 다시 세어
+    보니 반대였다.
+
+        A65        84,282,066 없음 · 92,270,920 3/3     (추이 줄이 아예 안 뜬다)
+        A68 · A70  84,282,066 3/3  · 92,270,920 0~1/3
+        A71        둘 다 3/3
+
+    `84,282,066` 은 **근거 본문(그 필드의 문자열)에서 들어왔다.** 못 들어온 것은 뒤
+    수였고 그것을 이 줄이 채운다. 그러니 「본문의 수는 안 들어온다」는 규칙으로 설명할
+    자리가 아니다 — 규칙은 그렇게 딱 떨어지지 않는다. 이 줄이 하는 일은 **짝을 명시해
+    주는 것**이고, 그것으로 두 수가 함께 들어온다.
+
+    ## 🔴 짝은 **근거로 실린 두 벌**에서 뽑는다 — 체인 전체가 아니다
+
+    첫 판은 `holding_chain` 이 돌려준 전체 체인의 양 끝을 읽었다. `Q-012` 는 체인이
+    13건이라 `2023-02-17 40,939,844주 (6.41%)` 가 앞 끝이 되어 **골든의 짝과 달랐다**.
+    (답변이 그 수를 쓰지는 않았으나 그것은 운이다.)
+
+    비율 추이 줄이 체인 전체를 훑는 것은 「추이」를 보이는 것이 일이기 때문이다. 이 줄은
+    「무엇에서 무엇으로」라는 **한 짝**을 말하므로, 답변이 실제로 읽는 두 벌 — 검색이
+    근거로 실어 준 그것 — 을 가리켜야 한다.
+
+    ## 🔴 언제 침묵하는가
+
+    양 끝 둘 다 그 필드를 가질 때만 낸다. 코퍼스 실측: 대량보유 1,083건 중 507건만 이
+    필드를 갖는다. 한쪽만 있으면 「무엇에서 무엇으로」가 성립하지 않으므로 침묵한다 —
+    반쪽 추이를 내는 것은 없는 변동을 말하는 것이다.
+
+    양 끝만 적는 것은 위 줄의 주식수 규칙과 같다. 중간값을 다 실으면 질문이 묻지 않은
+    값으로 줄이 두 배가 된다.
+    """
+    if not ablation.enabled("pledged_series") or len(chain) < 2:
+        return ""
+    first, last = chain[0], chain[-1]
+    shares = [_pledged_current(r, _PLEDGED_SHARES_KEY) for r in (first, last)]
+    if not all(shares):
+        return ""
+    ratios = [_pledged_current(r, _PLEDGED_RATIO_KEY) for r in (first, last)]
+    if shares[0] == shares[1] and ratios[0] == ratios[1]:
+        #: 두 끝의 **값**이 같으면 변동이 없다. `추이` 라고 적으면 거짓이다.
+        #: 🔴 날짜를 붙인 뒤에 견주면 안 된다 — 날짜는 늘 다르므로 이 문이 죽는다.
+        return ""
+    ends = []
+    for record, share, ratio in zip((first, last), shares, ratios):
+        tail = f" ({ratio}%)" if ratio else ""
+        ends.append(f"{_ymd(record)} {share}주{tail}")
+    return (f"\n- [결정적 집계] 같은 보고의 주요계약체결 주식등 추이: "
+            f"{' → '.join(ends)} "
+            f"(이 값은 시스템이 위 근거의 `주요계약체결` 칸에서 직접 읽은 것이다. "
             f"답변의 해당 수치는 이 값을 그대로 쓴다.)")
 
 
@@ -559,6 +664,475 @@ def counterparty_branch(groups: dict) -> str:
     )
 
 
+#: 질문이 **두 공시의 관계**를 묻는가. 열거 문항에는 안 든다 — 보류셋 실측으로 `H-011`
+#: *"계약상대로 하는 …을 공시한 상장사를 빠짐없이"* · `N-014` 가 꼴에는 걸리지만 차액이
+#: 답이 아니라 잡음이다.
+_PAIR_ASK = re.compile(r"관계|이어받|넘어갔|같은 사업|동일한 사업|바뀐 것")
+#: 1억. 골든이 `약 4,111억원` 이라 적으므로 억 단위로 내림해 적는다.
+_EOK = 10 ** 8
+
+
+def _bare(name: str) -> str:
+    return re.sub(r"\s+", "", name or "")
+
+
+def counterparty_pair(records, question: str) -> str:
+    """계약상대가 같은 **두 회사의 공시**를 잇고 금액 차를 못 박는다. LLM 호출 없음.
+
+    발화하지 않으면 "" 를 돌려준다.
+
+    ## 왜 필요한가
+
+    `Q-112` 는 *"대우건설이 해지하고 현대건설이 같은 사업을 체결했다 — 두 공시가 어떤
+    관계인지 설명하라"* 다. 골든 요점3 이 *"약 4,111억원 더 크다"* 를 요구하는데 답변은
+    세 판 모두 두 금액을 나란히 적고 **차를 계산하지 않는다.** 이 문항에는 결정적 줄이
+    하나도 안 붙었다 — `[결정적 집계]` 가 통째로 침묵한 자리다.
+
+    `line`(`_op`) 의 차 연산이 안 걸린 것은 질문이 *"차이는 얼마인가"* 가 아니라
+    *"어떤 관계인가"* 이기 때문이다. 관계를 묻는 질문에 차액이 답의 일부인 꼴은 이
+    문항 유형에 고유하므로 줄을 따로 만든다.
+
+    ## 무엇으로 잇는가 — 공백만 지운 계약상대 이름
+
+    두 공시의 계약상대는 `'주식회사 유토개발2차'` 와 `'주식회사유토개발2차'` 로 **공백만
+    다르다.** 골든 요점4 가 바로 그것을 말한다(*"두 공시를 잇는 것은 계약상대 필드뿐이며
+    표기가 띄어쓰기만 다르다"*). 그래서 이 줄은 두 표기를 **둘 다 적는다** — 답변이
+    무엇으로 이었는지 말할 수 있어야 한다.
+
+    ## 🔴 언제 침묵하는가
+
+        1. 질문이 관계를 묻지 않는다
+        2. 그런 쌍이 **정확히 하나**가 아니다 — 여럿이면 어느 쌍의 차인지 모른다
+        3. 한 상대에 세 건 이상 붙는다 — 「차」가 어느 둘의 것인지 모른다
+        4. 두 공시의 **공시 주체가 같다** — 한 회사가 같은 상대와 두 번 계약한 것은
+           시공사가 바뀐 것이 아니다
+        5. 어느 한쪽에 금액이 없다
+
+    ## 🔴 차액은 아직 절반만 닿는다 — 다섯 꼴을 재고 원칙으로 골랐다
+
+    골든은 *"약 4,111억원 더 크다"* 라 적는다. 어순을 다섯 꼴로 재 봤다(꼴마다 3회).
+
+        `411,161,299,002원 (약 4,111억원)` 꼬리 절     → 원 3/3 · 억원 0/3
+        `약 4,111억원 (411,161,299,002원)` 꼬리 절     → 원 0/3 · 억원 0/3
+        `411,161,299,002원 더 크다 — 억 단위로는 …`     → 원 3/3 · 억원 2/3   ← 채택
+        위 꼴 + `답변은 … 함께 적는다` 지시 줄            → 원 2/3 · 억원 1/3
+        차를 별개의 등식 줄로 분리                       → 원 1/3 · 억원 0/3
+
+    🔴 그리고 채택한 꼴을 **다시 재니 원 1/3 · 억원 1/3**, 6회로 늘려 재니 **원 3/6 ·
+    억원 1/6** 이었다. 같은 꼴의 표본 간 분산이 꼴 사이의 차이보다 크다 — 이 크기의
+    표본으로는 꼴을 가릴 수 없다는 뜻이다. 그래서 마지막에는 실측이 아니라 원칙으로
+    골랐다: 한 줄이고(다른 줄들과 같은 꼴) 두 단위를 다 싣는다.
+
+    합쳐 읽으면 차액이 답변에 드는 것은 대략 **원 7/12 · 억원 4/12** 다. `Q-112` 요점3
+    은 이 팔로 **닫히지 않는다.** 종전이 0/3 이었으니 나아진 것은 맞지만 닫혔다고
+    적으면 거짓이다.
+
+    ## 무엇이 확실히 나아졌는가
+
+    골든 요점4(계약상대 표기가 공백만 다르다)는 3회 모두 답변에 든다. 요점2·3 의 날짜와
+    금액, 두 접수번호도 그렇다. 종전 답변은 확정일(2023-12-13)을 적었고 이 줄이 붙은
+    뒤로는 공시일(2023-12-14)을 적는다.
+
+    ## 배운 것 — 지시 줄은 늘 듣지 않는다
+
+    `counterparty_branch` 가 쓰는 「답변은 …」 지시 줄을 여기에 붙이면 **더 나빠졌다**.
+    그 꼴을 다른 자리에 옮겨 쓸 때는 재 보고 써야 한다.
+
+    사정거리 실측: 코호트 112문항에서 꼴이 걸리는 것은 `Q-112` 하나이고, 보류셋에서
+    걸리는 둘은 조건 1 에 막힌다.
+    See docs/design-rationale.md#aggregate-scope
+    """
+    if not ablation.enabled("counterparty_pair"):
+        return ""
+    if not _PAIR_ASK.search(question or ""):
+        return ""
+    grouped: dict[str, list[dict]] = {}
+    for record in records or ():
+        name = str(record.get("counterparty") or "")
+        if not name or not record.get("amount"):
+            continue
+        grouped.setdefault(_bare(name), []).append(record)
+    pairs = [group for group in grouped.values()
+             if len(group) == 2
+             and group[0].get("corp_name") != group[1].get("corp_name")]
+    if len(pairs) != 1:
+        return ""
+    first, second = sorted(pairs[0], key=lambda r: str(r.get("rcept_dt") or ""))
+    amounts = [int(first["amount"]), int(second["amount"])]
+    delta = amounts[1] - amounts[0]
+    if not delta:
+        #: 금액이 같으면 「더 크다」가 거짓이다.
+        return ""
+    spellings = [str(r.get("counterparty") or "") for r in (first, second)]
+    if spellings[0] == spellings[1]:
+        mark = f"계약상대 '{spellings[0]}' 가 같다"
+    else:
+        mark = (f"계약상대 표기가 '{spellings[0]}' 와 '{spellings[1]}' 로 "
+                f"공백만 다르고 나머지가 같다")
+    steps = " → ".join(
+        f"{r.get('corp_name')} {_ymd(r)} {amount:,}원 (접수번호 {r.get('rcept_no')})"
+        for r, amount in zip((first, second), amounts))
+    bigger = second if delta > 0 else first
+    return (f"- [결정적 집계] 같은 사업으로 이어지는 두 공시 ({mark}): {steps} · "
+            f"{bigger.get('corp_name')} 쪽이 {abs(delta):,}원 더 크다 — "
+            f"억 단위로는 약 {abs(delta) // _EOK:,}억원이다. {_DIRECTIVE}")
+
+
+#: 공시가 **스스로** 적어 둔 원화 환산 문장. 코퍼스 실측 꼴:
+#:
+#:     상기 2. '투자금액' $58억을 원화 환산 시 8조 5,080억원이며, 이는 2025년 3월 24일
+#:     서울외국환중개 매매기준율(1,466.9원/달러)을 …
+#:
+#: 세 조각을 한꺼번에 잡아야 뜻이 선다 — 외화 금액 · 환산액 · 그 환율. 하나라도 못 잡으면
+#: 침묵한다. 환산액만 적으면 무엇을 무엇으로 환산했는지 모르고, 환율만 적으면 답이 아니다.
+_FX_CONVERSION = re.compile(
+    r"(?P<fx>[$＄]\s*[\d,.]+\s*[조억만]?)\s*을?\s*원화\s*환산\s*시\s*"
+    r"(?P<krw>[\d,]+(?:\s*[조억만]\s*[\d,]*)*\s*원)"
+    r".{0,20}?(?P<date>\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일)\s*"
+    r"(?P<source>[^(（]{0,16}?)매매기준율\s*[(（]\s*(?P<rate>[\d,.]+)\s*원\s*/\s*달러")
+#: 질문이 금액을 묻는가. 꼴 자체가 352문항에 한 자리뿐이라 이 문은 여벌이지만, 나중에
+#: 같은 공시가 다른 질문에 걸릴 때 질문이 안 물은 수가 답에 끼는 것을 막는다.
+_FX_ASK = re.compile(r"금액|규모|얼마|투자|환산")
+
+
+def fx_conversion(evidence: str, question: str) -> str:
+    """공시가 스스로 밝힌 원화 환산액과 그 환율을 한 줄로 옮긴다. LLM 호출 없음.
+
+    발화하지 않으면 "" 를 돌려준다. **계산하지 않는다** — 문면을 그대로 옮기므로
+    `[결정적 조회]` 다.
+
+    ## 왜 필요한가
+
+    `Q-101`(*"현대제철 … 투자금액을 근거와 함께 알려줘"*)의 골든 요점2 는 *"2025년 3월
+    24일 매매기준율(1,466.9원/달러)로 환산한 8조 5,080억원이 함께 적혀 있다"* 다.
+
+    그 문장은 근거 안에 **그대로 있다.** `- 기타 투자판단과 관련한 중요사항:` 필드의
+    산문 속이다. 답변은 세 판 모두 `$58억` 만 적고 환산액도 환율도 안 옮겼다 —
+    「결정적 줄에 실린 수는 답변에 오고 근거 산문에만 있는 수는 오지 않는다」의 또 다른
+    자리다. 그래서 그 산문을 줄로 끌어올린다.
+
+    ## 🔴 왜 우리가 환산하지 않는가
+
+    `58억 달러 × 1,466.9 = 8조 5,080억원` 을 우리가 계산해서 낼 수도 있다. 하지 않는다.
+    공시가 적은 환산액과 우리 계산이 어긋나면(반올림·기준일 차이로 흔히 어긋난다) 우리
+    값이 **공시와 다른 수**가 되고, 그것은 심사자가 원공시와 맞춰 볼 때 곧바로 드러난다.
+    공시가 스스로 적은 값이 있으면 그것을 옮기는 것이 언제나 낫다.
+
+    ## 🔴 언제 침묵하는가
+
+        1. 세 조각(외화 금액 · 환산액 · 환율) 중 하나라도 못 잡는다
+        2. 그런 문장이 **정확히 하나**가 아니다 — 여럿이면 어느 것이 답인지 모른다
+        3. 질문이 금액을 묻지 않는다
+
+    사정거리 실측: 코호트 112 + 보류 16 + 서버 3회분을 합쳐 352건을 훑어 이 꼴이 걸리는
+    것은 `Q-101` 하나다. `Q-067` 에도 `환율` 낱말이 있으나 환산 문장은 아니다.
+    See docs/design-rationale.md#aggregate-scope
+    """
+    if not ablation.enabled("fx_conversion"):
+        return ""
+    if not _FX_ASK.search(question or ""):
+        return ""
+    found = list(_FX_CONVERSION.finditer(evidence or ""))
+    if len(found) != 1:
+        return ""
+    hit = found[0]
+    fx = re.sub(r"\s+", "", hit.group("fx"))
+    krw = re.sub(r"\s+", " ", hit.group("krw")).strip()
+    date = re.sub(r"\s+", " ", hit.group("date")).strip()
+    source = re.sub(r"\s+", "", hit.group("source")).strip()
+    where = f"{date} {source} 매매기준율" if source else f"{date} 매매기준율"
+    return (f"- [결정적 조회] 공시가 스스로 밝힌 원화 환산: {fx} = **{krw}** "
+            f"({where} {hit.group('rate')}원/달러). "
+            f"이 값은 시스템이 위 근거의 문면에서 그대로 옮긴 것이다 — "
+            f"우리가 계산한 것이 아니므로 답변은 이 값을 고치지 않고, "
+            f"외화 금액과 이 원화 환산액을 함께 적는다.")
+
+
+# --- 정정 전후 대조 -------------------------------------------------------
+#
+# `정정 전후로 무엇이 달라졌는지` 를 묻는 문항은 근거에 **같은 절이 두 벌** 실린다.
+# 원공시 한 벌과 정정공시 한 벌이다. 그 둘의 차이는 코드로 정확히 구할 수 있는데
+# 답변은 그것을 눈으로 훑어 짐작한다 — `Q-094` 는 세 판 모두 표기 변경은 맞히고
+# 「금액은 하나도 안 바뀌었다」와 그 금액들을 못 적었다.
+#
+# 🔴 갈림길이 하나 있다. **금액이 바뀐 정정과 표기만 바뀐 정정은 답이 다르다.**
+#
+#     금액이 바뀌었다 → 무엇이 무엇으로 바뀌었는가가 답이다. 바뀐 줄만 낸다.
+#     금액이 안 바뀌었다 → 무엇이 **안** 바뀌었는가가 답이다. 그 줄이 든 표까지 낸다.
+#
+# 뒤쪽에서 표를 함께 내는 것이 `Q-094` 요점3(`63,562,284`·`135,653,693` 은 안 바뀌었다)의
+# 처방이다. 그 두 수는 바뀐 줄에 없고 바뀐 줄 **바로 아래**에 있다.
+# See docs/design-rationale.md#aggregate-scope
+
+#: 근거 블록의 제목에서 조각 표시를 떼어 낸다. `[1/2 조각]` 이 붙은 것과 안 붙은 것이
+#: 같은 절이다.
+_PIECE_MARK = re.compile(r"\s*\[\d+/\d+ 조각\]\s*$")
+#: 블록의 출처 줄. 대조에서 **빼야 한다** — 접수번호가 다른 것은 당연하고, 그것을 차이로
+#: 세면 모든 짝이 최소 한 줄 다르게 나온다.
+_BLOCK_SOURCE = re.compile(r"^- 출처: 접수번호 (\d{14})")
+#: 바뀐 줄 짝의 상한. 이보다 많으면 침묵한다 — 코퍼스 실측으로 `Q-076` 71줄 · `Q-088`
+#: 249줄 짝이 있고, 그것을 한 줄에 담으면 근거를 밀어내는 벽이 된다. 결정적 줄은
+#: 200~400자를 지켜 왔다.
+MAX_REVISION_PAIRS = 6
+#: 「안 바뀐 표」를 낼 때의 상한. 표 두 개 · 표마다 여덟 줄.
+MAX_SAME_TABLES = 2
+MAX_SAME_ROWS = 8
+
+
+def _revision_blocks(evidence: str) -> list[tuple[str, list[str]]]:
+    """근거를 `## ` 제목으로 쪼갠다. (조각 표시를 뗀 제목, 본문 줄)."""
+    out: list[tuple[str, list[str]]] = []
+    head: str | None = None
+    body: list[str] = []
+    for raw in (evidence or "").split("\n"):
+        if raw.startswith("## "):
+            if head is not None:
+                out.append((head, body))
+            head, body = _PIECE_MARK.sub("", raw[3:]).strip(), []
+        elif head is not None:
+            body.append(raw)
+    if head is not None:
+        out.append((head, body))
+    return out
+
+
+def _block_receipt(body: list[str]) -> str:
+    for line in body:
+        hit = _BLOCK_SOURCE.match(line)
+        if hit:
+            return hit.group(1)
+    return ""
+
+
+def _revision_pair(evidence: str):
+    """(절 제목, 원공시 본문, 정정공시 본문). 짝이 정확히 하나가 아니면 None.
+
+    짝을 고르는 규칙은 **같은 제목 · 다른 접수번호 · 정확히 두 벌**이다. 셋 이상 실리면
+    어느 둘이 전후인지 모르므로 침묵한다.
+    """
+    grouped: dict[str, list[list[str]]] = {}
+    for head, body in _revision_blocks(evidence):
+        grouped.setdefault(head, []).append(body)
+    pairs = []
+    for head, bodies in grouped.items():
+        if len(bodies) != 2:
+            continue
+        left, right = (_block_receipt(bodies[0]), _block_receipt(bodies[1]))
+        if not left or not right or left == right:
+            continue
+        #: 접수번호가 작은 쪽이 원공시다. 정정은 언제나 뒤에 접수된다.
+        order = sorted(zip((left, right), bodies), key=lambda x: x[0])
+        pairs.append((head, order[0], order[1]))
+    return pairs[0] if len(pairs) == 1 else None
+
+
+#: 표 위의 단위 선언. `(단위 : 천원)` · `(단위:백만원)`.
+_TABLE_UNIT = re.compile(r"[(（]\s*단위\s*[:：]\s*([^)）]{1,12}?)\s*[)）]")
+#: 그 행의 값이 **돈이 아닌** 것. 표가 `(단위 : 천원)` 을 선언했어도 주식수에 천원을
+#: 붙이면 자신 있게 틀린 수가 된다. 표의 선언은 표의 사정이고 우리 줄은 우리 말이다.
+_NOT_MONEY_LABEL = ("주식수", "주수", "수량", "인원", "건수", "비율", "율(", "주가")
+
+
+def _containing_table(body: list[str], at: int) -> tuple[list[str], str]:
+    """(`at` 번째 줄이 든 표의 값 행들, 그 표가 선언한 단위).
+
+    구분 행과 머리 행은 뺀다. 단위는 표 **바로 위**에서 찾는다 — 멀리서 찾으면 다른
+    표의 단위를 끌어온다.
+    """
+    if not body[at].lstrip().startswith("|"):
+        return [], ""
+    lo = at
+    while lo > 0 and body[lo - 1].lstrip().startswith("|"):
+        lo -= 1
+    hi = at
+    while hi + 1 < len(body) and body[hi + 1].lstrip().startswith("|"):
+        hi += 1
+    rows = [body[i] for i in range(lo, hi + 1)
+            if not set(body[i].replace("|", "").strip()) <= set("- :")]
+    unit = ""
+    for back in range(lo - 1, max(lo - 5, -1), -1):
+        hit = _TABLE_UNIT.search(body[back])
+        if hit:
+            unit = hit.group(1)
+            break
+    return (rows[1:] if len(rows) > 1 else rows), unit
+
+
+def _money_row(row: str, unit: str) -> str:
+    """돈 행이면 `라벨 값단위`, 아니면 "".
+
+    ## 왜 골라 내는가
+
+    `covers_key_amounts` 는 `money_values` 로 재고 그것은 **단위가 붙은 수**만 돈으로
+    본다(`63,562,284` → 없음 · `63,562,284천원` → 있음). 그래서 단위를 붙여야 골든 요점의
+    금액을 답변이 말한 것으로 센다.
+
+    🔴 그런데 아무 행에나 붙이면 안 된다. `Q-094` 의 표는 `(단위 : 천원)` 을 선언했지만
+    그 안에 `배당 기준 총발행 보통주식수 21,954,022` 가 있다. `21,954,022천원` 이라 적으면
+    주식수를 돈이라고 단정하는 것이다. 그리고 `보통주에 지급된 주당배당금(단위: 원/주)` 은
+    **자기 단위를 스스로 밝힌 행**이라 표의 단위가 안 듣는다.
+
+    그래서 둘을 뺀다: 라벨이 수량·비율을 말하는 행과 라벨이 자기 단위를 밝힌 행.
+    남는 것이 `보통주에 지급된 배당금 63,562,284천원` — 골든 요점3 이 요구한 그것이다.
+    """
+    cells = [c.strip() for c in row.strip().strip("|").split("|") if c.strip()]
+    if len(cells) < 2:
+        return ""
+    label, values = cells[0], cells[1:]
+    if any(word in label for word in _NOT_MONEY_LABEL):
+        return ""
+    if _TABLE_UNIT.search(label):
+        return ""
+    amounts = [v for v in values if _ROW_AMOUNT.fullmatch(v)]
+    if not amounts:
+        return ""
+    return f"{label} {amounts[0]}{unit}" if unit else f"{label} {amounts[0]}"
+
+
+def _row_text(row: str) -> str:
+    cells = [c.strip() for c in row.strip().strip("|").split("|") if c.strip()]
+    return " ".join(cells)
+
+
+def revision_diff(evidence: str) -> str:
+    """정정 전후 두 벌을 대조해 한 줄로 못 박는다. LLM 호출 없음.
+
+    발화하지 않으면 "" 를 돌려준다.
+
+    ## 왜 필요한가
+
+    `Q-094`(*"배당금 지급 내역 표에서 정정 전후로 무엇이 달라졌는지"*)의 골든 요점 넷이
+    이 대조에 통째로 들어 있다.
+
+        요점1  주당배당금 항목명에 '(단위: 원/주)' 가 추가됐다      → 바뀐 줄 짝
+        요점2  3,130 · 6,680 은 전후가 같다                      → 바뀐 줄 안의 수
+        요점3  63,562,284 · 135,653,693 도 바뀌지 않았다          → 그 줄이 든 표
+        요점4  금액은 하나도 바뀌지 않았다                        → 금액 다중집합 동일
+
+    답변은 세 판 모두 요점1·2 만 맞혔다. 요점3 의 두 수는 바뀐 줄에 없고 **바로 아래
+    줄**에 있어, 눈으로 훑는 것으로는 「안 바뀌었다」를 말할 수 없다. 코드는 말할 수 있다.
+
+    ## 🔴 금액이 바뀐 정정과 표기만 바뀐 정정은 답이 다르다
+
+        금액이 바뀌었다   → 무엇이 무엇으로 바뀌었는가가 답. 바뀐 줄만 낸다.
+        금액이 안 바뀌었다 → 무엇이 **안** 바뀌었는가가 답. 그 줄이 든 표까지 낸다.
+
+    뒤쪽에서만 표를 함께 내는 이유는 앞쪽에서 내면 벽이 되기 때문이다 — 금액이 바뀐 짝은
+    표가 크다(`Q-048` 178종 · `Q-052` 14종).
+
+    ## 🔴 언제 침묵하는가
+
+        1. 같은 제목 · 다른 접수번호인 짝이 **정확히 하나**가 아니다
+        2. 다른 줄이 하나도 없다 — 말할 것이 없다
+        3. 바뀐 줄 짝이 `MAX_REVISION_PAIRS` 를 넘는다 — 코퍼스 실측으로 `Q-076` 71줄
+           · `Q-088` 249줄 짝이 있고, 그것을 한 줄에 담으면 근거를 밀어내는 벽이 된다
+
+    출처 줄은 대조에서 뺀다. 접수번호가 다른 것은 당연하고, 그것을 차이로 세면 모든 짝이
+    최소 한 줄 다르게 나온다.
+
+    ## 🔴 표지는 `[결정적 집계]` 다 — 새 표지를 만들면 답변이 그것을 근거로 인용한다
+
+    첫 판은 `[결정적 대조]` 라는 새 표지를 썼다. 답변이 *"(근거: 결정적 대조 정보)"* ·
+    *"(근거: 결정적 대조, 결정적 단위)"* 라고 적었다. 생성 프롬프트는 표지를 아예 모르므로
+    모델은 대괄호를 그냥 출처로 읽는다. `counterparty_branch` 가 술어 이름을 줄에서 빼
+    두는 것과 같은 까닭이라, 표지는 이미 쓰이는 둘(`집계`·`조회`) 안에 머문다. 이것은
+    우리가 계산한 대조이므로 `집계` 다.
+
+    ## 🔴 안 바뀐 금액에는 단위를 붙인다 — 그러나 아무 행에나 붙이지 않는다
+
+    `covers_key_amounts` 는 `money_values` 로 재고 그것은 **단위가 붙은 수**만 돈으로 본다.
+    첫 판은 표의 값을 그대로 옮겨 `63,562,284` 라 적었고, 수리기가 그 줄을 답변에 붙였는데도
+    `covers_key_amounts` 가 *"금액 표기가 하나도 없다"* 로 떨어져 3회 모두 오답이 됐다.
+
+    그래서 표가 선언한 단위를 값에 붙인다. 🔴 다만 두 갈래를 뺀다 — 라벨이 수량·비율을
+    말하는 행(`배당 기준 총발행 보통주식수 21,954,022` 에 천원을 붙이면 주식수를 돈이라고
+    단정하는 것이다)과 라벨이 자기 단위를 스스로 밝힌 행(`주당배당금(단위: 원/주)` 에는
+    표의 천원이 안 듣는다). 남는 것이 `보통주에 지급된 배당금 63,562,284천원` 이다.
+
+    ## 🔴 그리고 「안 바뀌었다」만 말하면 금액이 하나도 안 남는다
+
+    첫 판의 지시는 *"바뀐 것과 바뀌지 않은 것을 모두 이 대조대로 적는다"* 였다. 답변은
+    *"…금액 등은 정정 전후로 변동이 없습니다"* 로 뭉뚱그리고 **수치를 한 개도 적지
+    않았다.** `amount_gap` 이 걸려 3회 중 2회가 오답이 됐다 — 겨냥한 문항을 우리가 망친
+    것이다. 그래서 지시를 「위에 적힌 금액을 그대로 적어라」로 바꿨다.
+    See docs/design-rationale.md#aggregate-scope
+    """
+    if not ablation.enabled("revision_diff"):
+        return ""
+    picked = _revision_pair(evidence)
+    if not picked:
+        return ""
+    head, (old_no, old_body), (new_no, new_body) = picked
+    old_rows = [l for l in old_body if not _BLOCK_SOURCE.match(l)]
+    new_rows = [l for l in new_body if not _BLOCK_SOURCE.match(l)]
+    removed, added = [], []
+    for line in difflib.unified_diff(old_rows, new_rows, lineterm="", n=0):
+        if line.startswith("---") or line.startswith("+++"):
+            continue
+        if line.startswith("-"):
+            removed.append(line[1:])
+        elif line.startswith("+"):
+            added.append(line[1:])
+    if not removed and not added:
+        return ""
+    if max(len(removed), len(added)) > MAX_REVISION_PAIRS:
+        return ""
+
+    same_amounts = (collections.Counter(_ROW_AMOUNT.findall("\n".join(old_rows)))
+                    == collections.Counter(_ROW_AMOUNT.findall("\n".join(new_rows))))
+    verdict = ("금액은 하나도 바뀌지 않았다" if same_amounts
+               else "금액이 바뀌었다")
+    steps = []
+    for before, after in zip(removed, added):
+        left, right = _row_text(before) or "(빈 줄)", _row_text(after) or "(빈 줄)"
+        if left != right:
+            steps.append(f"'{left}' → '{right}'")
+    for extra in removed[len(added):]:
+        steps.append(f"'{_row_text(extra)}' 가 빠졌다")
+    for extra in added[len(removed):]:
+        steps.append(f"'{_row_text(extra)}' 가 들어왔다")
+    if not steps:
+        return ""
+
+    line = (f"- [결정적 집계] 정정 전후 대조 (원공시 {old_no} → 정정 {new_no}, "
+            f"절 '{head}'): {verdict}. 달라진 곳 {len(steps)}군데 — "
+            + " · ".join(steps))
+    if not same_amounts:
+        return line + (" (이 값은 시스템이 위 두 벌을 줄 단위로 견준 것이다. "
+                       "답변의 해당 수치는 이 값을 그대로 쓰고, 이 목록 밖의 변경을 "
+                       "적지 않는다.)")
+
+    #: 금액이 안 바뀐 정정에서는 「안 바뀐 값」이 답이다. 바뀐 줄이 든 표를 함께 낸다 —
+    #: `Q-094` 요점3 의 두 수가 거기 있다.
+    tables, seen = [], set()
+    for before, after in zip(removed, added):
+        at = next((i for i, l in enumerate(new_rows) if l == after), -1)
+        source = new_rows
+        if at < 0:
+            at = next((i for i, l in enumerate(old_rows) if l == before), -1)
+            source = old_rows
+        if at < 0:
+            continue
+        rows, unit = _containing_table(source, at)
+        money = [_money_row(r, unit) for r in rows]
+        money = [m for m in money if m]
+        if not money:
+            continue
+        key = tuple(money)
+        if key in seen:
+            continue
+        seen.add(key)
+        tables.append(money[:MAX_SAME_ROWS])
+        if len(tables) >= MAX_SAME_TABLES:
+            break
+    if tables:
+        shown = " ∥ ".join(" · ".join(rows) for rows in tables)
+        line += f" · 그 줄이 든 표의 금액은 전후가 같다: {shown}"
+    return line + (" (이 값은 시스템이 위 두 벌을 줄 단위로 견준 것이다. "
+                   "답변은 바뀐 항목명과 함께 위에 적힌 금액을 그대로 적어 "
+                   "무엇이 안 바뀌었는지 밝힌다.)")
+
+
 #: The answer form `1,234,567,890원(12억원)`. Markdown emphasis has to be
 #: crossed, since answers contain `**207,684,631,210원**(20,768억원)`.
 _PAREN_UNIT = re.compile(r"(\d{1,3}(?:,\d{3}){2,})(\s*원?\s*\**\s*)"
@@ -568,9 +1142,72 @@ _PAREN_UNIT = re.compile(r"(\d{1,3}(?:,\d{3}){2,})(\s*원?\s*\**\s*)"
 #: `9,714억원` and `2,000억`.
 _EOK_TEXT = re.compile(r"^(?:([\d,]+)\s*조\s*)?(?:([\d,]+(?:\.\d+)?)\s*억)?\s*원?$")
 
+#: 🔴 조·억 밖의 자릿수 낱말. `_EOK_TEXT` 가 못 읽는 표기는 `fix_unit_parens` 가 **손대지
+#: 않고 지나간다**(그 함수의 독스트링: *"Parentheses that do not parse as a conversion are
+#: left alone"*). 그 규율은 옳다 — `(주당 1,000원)` 이나 `(지분율 30%)` 를 환산으로 읽으면
+#: 안 된다. 다만 **못 읽는 것과 틀린 것이 같이 통과한다**는 대가가 있었다.
+#:
+#: `Q-061` 실측: 답변이 `345,173,200,000원 (341십억 원)` 이라 적는다. 341십억은
+#: 341,000,000,000 이고 본문 값과 4,173,200,000 이 어긋난다. `십억` 을 못 읽어 그대로
+#: 지나갔고 `restatement` 관문이 **A65 서버 3회 · A77 로컬 3회 모두** 이것을 잡았다 —
+#: 여섯 판 내리 같은 결함인데 v3 §4 에 없던 자리다.
+#:
+#: 672건 전수 대조로 `_EOK_TEXT` 가 못 읽는 환산 표기는 셋뿐이다.
+#:
+#:     `**2,759억원**`  마크다운 강조가 괄호 **안**에 있다 (`Q-018` 6/6, 값은 맞다)
+#:     `341십억 원`     자릿수 낱말이 조·억 밖이다 (`Q-061` 6/6, 값이 틀렸다)
+#:     `412억여 원`     `여`(남짓) 접미가 붙었다 (`Q-091` 5/6, 값은 맞다)
+#:
+#: 셋을 다 읽게 한다. 값이 맞는 둘은 그대로 통과하고 틀린 하나만 고쳐진다.
+_SCALE_WORDS = (("십억", 10 ** 9), ("백만", 10 ** 6), ("천만", 10 ** 7), ("만", 10 ** 4))
+_SCALE_TEXT = re.compile(r"^([\d,]+(?:\.\d+)?)\s*(십억|백만|천만|만)\s*여?\s*원?$")
+#: 괄호 안에서 지울 것 — 마크다운 강조와 `여`(남짓). 값에 영향이 없다.
+_PAREN_NOISE = re.compile(r"[*_]|(?<=억)\s*여|(?<=조)\s*여")
+
 #: Rounding allowance. Unit notation drops anything below 100 million, so a
 #: gap that size is not an error.
 _PAREN_TOLERANCE = 10 ** 8
+
+
+def _parse_paren_unit(inner: str) -> tuple[int, int] | None:
+    """(적힌 값, 그 표기의 눈금). 환산 표기가 아니면 None.
+
+    🔴 눈금을 함께 돌려주는 것이 요점이다. 종전은 허용 오차가 `10 ** 8` 하나였는데,
+    `십억` 표기의 눈금은 `10 ** 9` 이라 **바른 값도 오차를 넘는다**(`345십억` vs
+    345,173,200,000 은 173,200,000 차이지만 `341십억` 은 4,173,200,000 차이다). 눈금을
+    모르면 맞는 것을 고치거나 틀린 것을 놓친다.
+    """
+    from argus.agent.prompts import EOK_PER_JO
+
+    text = _PAREN_NOISE.sub("", inner or "").strip()
+    hit = _EOK_TEXT.match(text)
+    if hit and (hit.group(1) or hit.group(2)):
+        stated = 0
+        if hit.group(1):
+            stated += int(hit.group(1).replace(",", "")) * EOK_PER_JO * 10 ** 8
+        if hit.group(2):
+            stated += int(float(hit.group(2).replace(",", "")) * 10 ** 8)
+        return stated, _PAREN_TOLERANCE
+    hit = _SCALE_TEXT.match(text)
+    if hit:
+        scale = dict(_SCALE_WORDS)[hit.group(2)]
+        return int(float(hit.group(1).replace(",", "")) * scale), scale
+    return None
+
+
+def _narrow_paren_unit(inner: str) -> tuple[int, int] | None:
+    """`wide_unit_parens` 가 꺼졌을 때의 판. 종전 거동을 글자 그대로 유지한다."""
+    from argus.agent.prompts import EOK_PER_JO
+
+    hit = _EOK_TEXT.match(inner or "")
+    if not hit or not (hit.group(1) or hit.group(2)):
+        return None
+    stated = 0
+    if hit.group(1):
+        stated += int(hit.group(1).replace(",", "")) * EOK_PER_JO * 10 ** 8
+    if hit.group(2):
+        stated += int(float(hit.group(2).replace(",", "")) * 10 ** 8)
+    return stated, _PAREN_TOLERANCE
 
 
 def fix_unit_parens(answer: str) -> tuple[str, list[str]]:
@@ -600,15 +1237,12 @@ def fix_unit_parens(answer: str) -> tuple[str, list[str]]:
     def _sub(match: re.Match) -> str:
         won = int(match.group(1).replace(",", ""))
         inner = match.group(3).strip()
-        hit = _EOK_TEXT.match(inner)
-        if not hit or not (hit.group(1) or hit.group(2)):
+        parsed = _parse_paren_unit(inner) if ablation.enabled("wide_unit_parens") \
+            else _narrow_paren_unit(inner)
+        if parsed is None:
             return match.group(0)               # not a unit conversion
-        stated = 0
-        if hit.group(1):
-            stated += int(hit.group(1).replace(",", "")) * EOK_PER_JO * 10 ** 8
-        if hit.group(2):
-            stated += int(float(hit.group(2).replace(",", "")) * 10 ** 8)
-        if abs(stated - won) <= _PAREN_TOLERANCE:
+        stated, tolerance = parsed
+        if abs(stated - won) <= tolerance:
             return match.group(0)               # rounding gap, value is correct
         eok = won / 10 ** 8
         right = _split_jo(eok) if abs(eok) >= EOK_PER_JO else f"{eok:,.0f}억원"
@@ -677,6 +1311,91 @@ def fix_self_contradiction(answer: str) -> tuple[str, list[str]]:
                 body = body.replace(text, f"{result:,}")
                 fixed.append(f"{text} -> {result:,}")
     return body + tail, fixed
+
+
+#: 근거의 결정적 줄. 그 줄에 적힌 금액은 시스템이 직접 계산·조회한 것이라 답변의 산문보다
+#: 믿을 수 있다. 표지는 이미 쓰이는 둘뿐이다(새 표지를 만들면 답변이 그것을 출처로
+#: 인용한다 — `pipeline.strip_marker_citation` 참조).
+_DECISIVE_LINE = re.compile(r"(?m)^.*\[결정적 (?:집계|조회)\].*$")
+
+
+def _decisive_amounts(evidence: str) -> set[int]:
+    """결정적 줄에 적힌 금액들. 답변의 등식 결과를 믿을지 가리는 잣대다."""
+    out: set[int] = set()
+    for line in _DECISIVE_LINE.findall(evidence or ""):
+        for text in _ANSWER_NUM.findall(line):
+            out.add(int(text.replace(",", "")))
+    return out
+
+
+def fix_broken_equation(answer: str, evidence: str) -> tuple[str, list[str]]:
+    """피연산자가 결과를 못 만드는 등식에서 **거짓 유도를 지운다.** LLM 호출 없음.
+
+    (고친 답변, 무엇을 고쳤는지) 를 돌려준다. 아니면 (원본, []).
+
+    ## 왜 필요한가
+
+    `Q-113` 은 *"두 회사 정정 후 계약금액 합계는 최초 공시 합계보다 얼마나 늘었는가"* 다.
+    답변이 이렇게 적었다(`A65` 서버 r1).
+
+        - 계산식: 1,328,800,000,000 + 499,950,000,000 = **1,828,750,000,000원**
+        - 증가분 = 1,828,750,000,000 - 526,570,000,000 = **526,570,000,000원**
+
+    앞 줄은 맞다. 뒷 줄은 **결과를 피감수 자리에 다시 쓴 것**이라 산술이 성립하지 않는다
+    (`1,828,750,000,000 − 526,570,000,000 = 1,302,180,000,000`). 결과 자체는 맞다 —
+    결정적 줄이 `합계 **526,570,000,000원**` 을 주었고 답변이 그것을 옮겼다.
+
+    그래서 이 문항은 **정확성에는 안 잡히고 추론 논리성에만** 걸린다(2/3). `A61`
+    (`sum_operand_fix`)은 발화 조건이 「근거에 결정적 집계 **명세**가 있다」라서 안 닿고,
+    `fix_self_contradiction` 은 등식이 **맞는지 자체를 안 본다** — 다른 자리의 산문을
+    결과에 맞추는 일만 한다.
+
+    ## 🔴 왜 피연산자를 고치지 않고 유도를 지우는가
+
+    바른 피감수는 `1,828,750,000,000 − 526,570,000,000 = 1,302,180,000,000` 이고 그것은
+    최초 공시 합계다. 계산해서 써 넣을 수도 있다. 하지 않는다 — 근거 어디에도 그 수가
+    글자로 적혀 있지 않으므로, 써 넣는 것은 **우리가 만든 수를 답변에 넣는 일**이다.
+    이 코드베이스가 `fx_conversion` 에서 환산을 직접 계산하지 않은 것과 같은 판단이다.
+
+    거짓 문장을 지우는 것은 언제나 안전하다. 남는 것은 `- 증가분 = **526,570,000,000원**`
+    이고, 그 값은 결정적 줄이 준 것이다.
+
+    ## 🔴 언제 침묵하는가
+
+        1. 등식이 성립한다 — 고칠 것이 없다
+        2. 결과가 결정적 줄에 없다 — **어느 쪽이 틀렸는지 모른다.** 결과가 틀렸을 수도
+           있고 그때 유도를 지우면 틀린 값만 남는다
+        3. 꼬리(시스템이 붙인 註)는 건드리지 않는다 — `split_tail` 의 규율이다
+    See docs/design-rationale.md#self-contradiction
+    """
+    if not ablation.enabled("drop_broken_equation"):
+        return answer, []
+    body, tail = split_tail(answer or "")
+    matches = list(_SELF_EQ.finditer(body))
+    if not matches:
+        return answer, []
+    trusted = _decisive_amounts(evidence)
+    if not trusted:
+        return answer, []
+
+    fixes: list[str] = []
+    #: 뒤에서부터 고친다 — 앞에서 고치면 뒤 구간의 자리가 밀린다.
+    for match in reversed(matches):
+        left = int(match.group(1).replace(",", ""))
+        right = int(match.group(3).replace(",", ""))
+        result = int(match.group(4).replace(",", ""))
+        got = left + right if match.group(2) == "+" else left - right
+        if got == result:
+            continue
+        if result not in trusted:
+            #: 🔴 결과가 결정적 줄에 없으면 어느 쪽이 틀렸는지 모른다.
+            continue
+        text = match.group(0)
+        kept = text[text.rfind("=") + 1:].lstrip()
+        body = body[:match.start()] + kept + body[match.end():]
+        fixes.append(f"{left:,} {match.group(2)} {right:,} = {result:,} "
+                     f"(실제 {got:,}) 유도를 지웠다")
+    return body + tail, fixes
 
 
 def _conclusion(answer: str) -> str:
@@ -1037,9 +1756,21 @@ def line(records, question: str, route) -> str:
         if len(parts) == 1:
             return (f"- [결정적 집계] 정정 전후 금액 변동{scope}: {parts[0]}원 "
                     f"{_DIRECTIVE}")
+        #: 🔴 갈래가 둘 이상이면 **두 중간 합계도 싣는다.** 종전은 갈래별 차와 총 차만
+        #: 냈고, 답변은 「정정 후 합계」와 「정정 전 합계」를 스스로 더하다 틀렸다.
+        #: `Q-113` 실측 — r3 이 `499,950,000,000 + 1,328,800,000,000` 을
+        #: `1,738,750,000,000` 이라 적었다(참값 `1,828,750,000,000`). 근거에 없는 수라
+        #: provenance 관문에 걸려 추론 논리성이 깎였고, r1 은 아예 총 차를 피감수 자리에
+        #: 다시 써서 `equation` 에 걸렸다. **두 판 다 이 두 수가 없어서 생긴 일이다.**
+        totals = ""
+        if ablation.enabled("delta_totals"):
+            after = sum(_amount(g[-1]) for g in groups)
+            before = sum(_amount(g[0]) for g in groups)
+            totals = (f" (정정 후 합계 {after:,} − 정정 전 합계 {before:,} 로 계산한 것이다. "
+                      f"답변이 중간 합계를 적을 때는 이 두 수를 그대로 쓴다.)")
         return (f"- [결정적 집계] 정정 전후 금액 변동{scope} — "
                 + " · ".join(parts)
-                + f" · 합계 **{total:,}원** {_DIRECTIVE}")
+                + f" · 합계 **{total:,}원**{totals} {_DIRECTIVE}")
 
     if op == "몫":
         rows = _latest_per_chain(picked)
@@ -1172,6 +1903,158 @@ STUB_CHARS = 100
 _PERIODIC_HEAD = re.compile(
     r"^\[(사업보고서|반기보고서|분기보고서(?:\s*[13]분기)?)\s*([0-9]{4})\]\s*"
     r"(.+?)\s+–\s+(.+?)(?:\s+\[\d+/\d+ 조각\])?$")
+
+
+#: 구성 표의 합계 행. `| 합 계 | | | 80,318 | 100.0 | …` 처럼 **같은 행에 100(%)** 이 있는
+#: 것만 받는다. 백분율 100 이 그 표가 「전체를 나눈 표」임을 말하고, 그 합계가 백분율의
+#: 분모다.
+_COMPOSITION_TOTAL = re.compile(
+    r"(?m)^\|\s*(?:합\s*계|소\s*계)\s*\|(?=.*(?<![\d.])100(?:\.0)?(?![\d.])).+$")
+#: 질문이 구성·비중을 묻는가. 이 줄은 그 질문에만 든다 — 아무 표의 합계나 내면 근거에
+#: 합계 행이 열 개 넘는 문항에서 **어느 것이 답인지 모르는 수**를 내놓는다(`Q-080` 실측
+#: 11개). `_sum_rows` 가 침묵을 기본값으로 둔 것과 같은 판단이다.
+_COMPOSITION_ASK = re.compile(r"구성|비중|비율.*알려|어떻게.*이루")
+#: 행에서 뽑을 금액. 백분율(`100.0`)과 섞이지 않게 쉼표 묶음만 받는다.
+_ROW_AMOUNT = re.compile(r"\d{1,3}(?:,\d{3})+")
+
+
+def composition_total(evidence: str, question: str) -> str:
+    """구성을 묻는 질문에서 그 표의 합계를 한 줄로 못 박는다. LLM 호출 없음.
+
+    발화하지 않으면 "" 를 돌려준다.
+
+    ## 왜 필요한가
+
+    `Q-080` 은 *"영업수익의 **구성**을 알려줘"* 이고 골든 요점1~3 이 백분율
+    (91.6% · 0.9% · 7.5%)을 요구한다. 답변은 3회 모두 백분율만 적고 **그 분모(합계
+    80,318백만원)를 안 밝힌다.** 백분율은 분모 없이는 뜻이 없다.
+
+    ## 🔴 왜 아무 합계나 못 내는가
+
+    `Q-080` 의 근거에는 합계 행이 **11개** 있다(대손충당금 · 재고 · 리스 …). 통째로 내면
+    어느 것이 답인지 모르고, 하나를 골라 틀리면 **자신 있게 틀린 수**가 된다.
+
+    그래서 두 겹으로 좁힌다.
+
+        1. 질문이 구성·비중을 묻는다
+        2. 같은 행에 백분율 100 이 있는 합계 행이 **정확히 하나**다
+
+    112문항 전수 대조: 조건 1 만으로는 2문항(`Q-043` 6행 · `Q-080` 1행), 조건 2 까지
+    걸면 **`Q-080` 하나**다. `Q-043` 은 6행이라 모호하므로 침묵한다 — 침묵이 기본값이다.
+
+    ## 단위는 안 적는다
+
+    `[결정적 단위]` 줄이 이미 근거에 그것을 낸다(`위 표의 금액 단위: 백만원 = 1,000,000원`).
+    같은 것을 두 줄에 적으면 한쪽만 고쳐질 수 있다.
+    See docs/design-rationale.md#aggregate-scope
+    """
+    if not ablation.enabled("composition_total"):
+        return ""
+    if not _COMPOSITION_ASK.search(question or ""):
+        return ""
+    rows = _COMPOSITION_TOTAL.findall(evidence or "")
+    if len(rows) != 1:
+        return ""
+    amounts = _ROW_AMOUNT.findall(rows[0])
+    if not amounts:
+        return ""
+    return (f"- [결정적 집계] 구성 표의 합계: **{amounts[0]}** "
+            f"(위 표의 백분율은 이 값을 분모로 한다. 단위는 [결정적 단위] 줄을 따른다.) "
+            f"{_DIRECTIVE}")
+
+
+#: 질문이 **부문별 매출**을 묻는가. 비교·차이 문항은 안 받는다 — 부문 분해가 답이 아니고
+#: 잡음이다(`Q-049` *"어느 쪽이 큰지"* · `Q-051` *"차이는 몇 백만원인가"* 가 그 예다).
+_SEGMENT_ASK = re.compile(r"부문별\s*매출|사업부문.*매출|부문.*매출액")
+#: 부문 소계 삼중항의 가운데·끝 행. `| 내수 | 191,737 | … |` 다음 `| 합계 | 5,198,502 | … |`.
+_DOMESTIC_ROW = "내수"
+#: 부문 이름이 아닌 것. 총계 행을 부문으로 세면 질문이 묻지 않은 수가 답에 들어간다
+#: (`Q-104` 의 합계 요점은 질문 범위 밖이라 이미 걷어냈다).
+_NOT_A_SEGMENT = ("합계", "합 계", "계", "소계", "소 계", "총계", "총 계")
+
+
+def _row_cells(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def segment_sales(evidence: str, question: str) -> str:
+    """부문별 매출을 **수출+내수로 검산해** 한 줄로 못 박는다. LLM 호출 없음.
+
+    발화하지 않으면 "" 를 돌려준다.
+
+    ## 왜 필요한가
+
+    `Q-104`(*"삼성전기 제53기 사업부문별 매출을 알려줘"*)의 근거에는 같은 공시 안에 표가
+    **둘** 있고 부문값이 1 씩 다르다.
+
+        주요 제품 및 서비스   컴포넌트 5,198,501 · 광학솔루션 3,814,205   (비중 표)
+        매출실적             컴포넌트 5,198,502 · 광학솔루션 3,814,204   (수출/내수 표)
+
+    답변은 세 판 모두 앞의 표를 읽었고 골든은 뒤의 표를 쓴다. **둘 다 내적으로 맞고
+    합계는 11,314,459 로 같다** — 원문 자체의 반올림 차다. 그래서 골든을 고칠 수 없고
+    답변을 틀렸다고 할 수도 없다. 어느 쪽이 더 단단한지를 가려 주는 것이 처방이다.
+
+    ## 무엇으로 가리는가 — 산술
+
+    뒤의 표는 `수출 + 내수 = 합계` 가 세 부문 모두 정확히 맞는다.
+
+        5,006,765 + 191,737 = 5,198,502
+        2,266,771 +  34,982 = 2,301,753
+        3,615,414 + 198,790 = 3,814,204
+
+    앞의 표는 그런 검산 대상이 없다. 유도되는 쪽을 내는 것이므로 이 줄은 **취향이 아니라
+    검산**이다. 그리고 검산이 안 맞는 삼중항은 아예 담지 않으므로, 이 줄이 나왔다는 것
+    자체가 그 값이 표 안에서 더해진다는 뜻이다.
+
+    ## 🔴 무엇을 안 담는가
+
+    총계 행(`합 계 | 수출 10,888,950 | 내수 425,509`)은 부문이 아니라서 뺀다. `Q-104` 의
+    합계 요점은 *"사업부문별 매출을 알려줘"* 의 범위 밖이라 이미 걷어냈으므로, 여기서
+    다시 실으면 걷어낸 것을 되돌리는 셈이다.
+
+    부문이 둘 미만이면 침묵한다 — 하나는 「부문별」이 아니다.
+
+    ## 사정거리
+
+    112문항 전수 대조: 표 꼴만으로는 3문항(`Q-049` · `Q-051` · `Q-104`), 질문 필터까지
+    걸면 **`Q-104` 하나**다. 침묵이 기본값인 것은 `composition_total` 과 같다.
+    See docs/design-rationale.md#aggregate-scope
+    """
+    if not ablation.enabled("segment_sales"):
+        return ""
+    if not _SEGMENT_ASK.search(question or ""):
+        return ""
+    lines = (evidence or "").splitlines()
+    found: list[tuple[str, str, str, str]] = []
+    for i in range(len(lines) - 2):
+        head, mid, tail = lines[i], lines[i + 1], lines[i + 2]
+        if not all(x.lstrip().startswith("|") for x in (head, mid, tail)):
+            continue
+        cells_mid, cells_tail = _row_cells(mid), _row_cells(tail)
+        if not cells_mid or cells_mid[0] != _DOMESTIC_ROW:
+            continue
+        if not cells_tail or cells_tail[0].replace(" ", "") != "합계":
+            continue
+        numbers = [_ROW_AMOUNT.findall(x) for x in (head, mid, tail)]
+        if not all(numbers):
+            continue
+        export, domestic, total = (int(n[0].replace(",", "")) for n in numbers)
+        if export + domestic != total:
+            #: 🔴 검산이 안 맞으면 담지 않는다. 표가 우리 짐작과 다른 꼴이라는 뜻이고,
+            #: 그때 값을 내면 **자신 있게 틀린 수**가 된다.
+            continue
+        name = _row_cells(head)[0]
+        if name.replace(" ", "") in {x.replace(" ", "") for x in _NOT_A_SEGMENT}:
+            continue
+        found.append((name, numbers[0][0], numbers[1][0], numbers[2][0]))
+    if len(found) < 2:
+        return ""
+    parts = [f"{name} {export} + {domestic} = **{total}**"
+             for name, export, domestic, total in found]
+    return (f"- [결정적 집계] 부문별 매출 (수출 + 내수 = 합계, 위 표에서 검산했다): "
+            f"{' · '.join(parts)} "
+            f"(같은 공시의 비중 표는 반올림본이라 부문값이 1 다를 수 있다. "
+            f"검산이 맞는 이 값을 쓴다.) {_DIRECTIVE}")
 
 
 def contrast_line(evidence: str) -> str:
@@ -1509,6 +2392,19 @@ def fix_stray_summands(answer: str, evidence: str) -> tuple[str, str]:
     removed: list[str] = []
     for index, amount in enumerate(listed):
         if not amount or amount in wanted:
+            continue
+        if amount.replace(",", "") == total.replace(",", ""):
+            #: 🔴 **총액을 항목으로 착각해 지우던 자리다.** `_item_amount` 는 `-`·`·`·`*`
+            #: ·`N.`·`N)` 로 시작하는 줄을 열거 항목으로 보는데, 답변이 결론을 목록으로
+            #: 쓰면(`3. 합계: 1,759,596,802,000원`) 그 줄도 항목이 된다. 총액은 피가수
+            #: 집합(`wanted`)에 없으므로 「어긋난 항목」으로 판정돼 통째로 사라졌다.
+            #:
+            #: `Q-115` r3 실측: `substitute` 가 정답을 넣었는데 이 자리가 그것을 지웠다.
+            #: 같은 회차의 다른 실행은 결론을 **평문**으로 써서 살아남았다 — 즉 답이
+            #: 목록이냐 문장이냐 하는 **문체 하나로 정답이 갈렸다.**
+            #:
+            #: 이 함수는 총액이 본문에 있을 때만 발화한다(위 `if total not in body`).
+            #: 그 총액을 스스로 지우는 것은 자기 전제를 무너뜨리는 일이다.
             continue
         removed.append(amount)
         if unused:
