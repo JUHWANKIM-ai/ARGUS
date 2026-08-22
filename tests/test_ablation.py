@@ -415,8 +415,8 @@ def test_default_arm_is_the_submission_configuration():
     #: (Q-107 Q-115 열거) · `roster_items`(Q-110 정답·표기) · `stale_note`(Q-116 폐기값).
     #: 전처리 고도화(`section_chain_note`)는 **측정으로 기각**했다 — 근거 한 줄이 답변의
     #: 금액을 밀어내 `Q-094` 가 3회 모두 깨진다.
-    assert ablation.current() == ablation.A65
-    assert ablation.current().name == "A65"
+    assert ablation.current() == ablation.A84
+    assert ablation.current().name == "A84"
     # 2026-08-21 채택 넷. 기각한 `latest_pin` 은 꺼져 있어야 한다.
     assert ablation.current().cite_used is True
     assert ablation.current().period_label is True
@@ -3375,7 +3375,7 @@ def test_a47_is_not_registered():
     assert "A47" not in ab.ARMS
 
 
-def test_the_operational_default_has_moved_to_a65():
+def test_the_operational_default_has_moved_to_a84():
     """운영 기본값의 이름을 한 자리에서 못 박는다.
 
     2026-08-20 에 `A43` -> `A49`, 2026-08-21 에 `A49` -> `A56` -> `A65` 로 옮겼다. 이
@@ -3384,7 +3384,7 @@ def test_the_operational_default_has_moved_to_a65():
     """
     from argus import ablation as ab
 
-    assert ab.current().name == "A65"
+    assert ab.current().name == "A84"
 
 
 def test_project_scope_cannot_be_enabled_without_counterparty_relevance():
@@ -3448,24 +3448,28 @@ def test_a43_and_a48_leave_both_new_flags_off():
     assert ab.A48.false_premise_gate is False and ab.A48.refusal_compaction is False
 
 
-def test_밤샘_캠페인의_스위치는_배포본에_안_들어갔다():
-    """🔴 배포본(`_current`)을 실수로 바꾸는 것을 막는다.
+def test_밤샘_캠페인의_스위치가_배포본에_들어갔다():
+    """🔴 **2026-08-22 에 뒤집혔다.** 캠페인 채택본 `A84` 가 배포본이 됐다.
 
-    `A68`~`A81` 열넷은 모두 게이트를 통과했지만 **채택과 배포는 다른 일이다**. 켤지는
-    측정을 보고 사람이 정할 일이고, 그때까지 `_current` 는 `A65` 여야 한다.
+    종전 이 시험은 「캠페인 스위치가 배포본에 **안** 들어갔다」를 지켰다. 채택과 배포가
+    다른 일이므로 사람이 정할 때까지 붙잡아 두는 장치였고, 그 결정이 났다.
 
-    672건 전수 대조로 이 열넷이 꺼진 `A65` 의 거동이 글자 그대로 같음을 확인했다 — 새
-    방출기 전부 침묵 · `holding_series` 발화 여부 동일 · 괄호 환산 처분이 `Q-061` 하나만
-    다르다(그것이 `A81` 의 겨냥이다). 이 시험은 그 확인이 계속 참이게 붙잡는다.
+    무엇이 채택됐고 무엇이 기각됐는지를 여기 한 자리에 적는다. **목록이 곧 기록이다.**
     """
-    campaign = ("holding_ask_wide", "composition_total", "pledged_series",
-                "segment_sales", "counterparty_pair", "fx_conversion",
-                "revision_diff", "strip_marker_citation", "holding_receipts",
-                "roster_counts", "drop_broken_equation", "delta_totals",
-                "wide_unit_parens")
-    for flag in campaign:
-        assert getattr(ablation.current(), flag) is False, \
-            f"{flag} 가 배포본에 들어갔다 — 배포는 별개의 결정이다"
+    adopted = ("holding_ask_wide", "composition_total", "pledged_series",
+               "segment_sales", "counterparty_pair", "fx_conversion",
+               "revision_diff", "strip_marker_citation", "holding_receipts",
+               "drop_broken_equation", "delta_totals", "wide_unit_parens",
+               "injection_gate", "sc_figures_only", "sc_key_set")
+    for flag in adopted:
+        assert getattr(ablation.current(), flag) is True, f"{flag} 가 채택본에서 빠졌다"
+    assert ablation.current().sc_k == 3, "자기일관성이 꺼졌다"
+    #: 🔴 기각한 것은 안 들어간다. `roster_counts` 는 설계 문서가 건 조건 셋을 다 채우고도
+    #: 답변이 그 수를 아홉 판에 걸쳐 한 번도 안 써서 기각됐다.
+    assert ablation.current().roster_counts is False, "기각한 스위치가 배포본에 들어갔다"
+    #: 🔴 온도는 0.0 을 지킨다. 자기일관성을 켜면서도 온도를 안 올린 것이 이 채택의 핵심이다
+    #: — 상류가 온도 0 에서도 결정적이지 않으므로 다양성은 이미 공짜로 있다.
+    assert ablation.current().temperature == 0.0
 
 
 def test_기각한_스위치는_어느_채택_팔에도_없다():
