@@ -1670,6 +1670,28 @@ A80 = replace(A79, name="A80", delta_totals=True)
 #: 것을 놓친다.
 A81 = replace(A80, name="A81", wide_unit_parens=True)
 
+# --- W12 · 자기일관성을 다시 잰다 (브랜치 keypoint-gaps) ------------------------
+#: 🔴 **이미 두 번 재서 두 번 기각한 조작이다.** 그런데도 다시 재는 이유는 하나 —
+#: 기준선이 세 세대 바뀌었다.
+#:
+#:     `A10`   k=3 · 온도 0.7 · 전 문항          정확도로 기각. 서술형에는 다수결의
+#:                                             전제가 없어 표본마다 키가 달라지고
+#:                                             첫 표본이 뽑히며 나머지는 돈만 쓴다.
+#:     `V7-1`  k=3 · 온도 0.5 · 수치 문항만      `A42` 위에서 102·107·103 → 106·103·104.
+#:                                             최솟값 상승 1은 판정기 잡음 폭 안이고,
+#:                                             3회 내내 안정적이던 `Q-023`·`Q-111`
+#:                                             ·`S-012` 를 **새로 흔들었다.**
+#:
+#: `V7-1` 은 `A42` 위에서 쟀고 그 뒤 `A49`→`A56`→`A65`→`A81` 로 바뀌었다. 그때 흔들린
+#: `Q-111` 은 어젯밤 실측에서도 여전히 흔들리는 문항이라 결론이 그대로일지 모른다.
+#:
+#: 🔴 이 저장소에서 **온도 0.0 을 깨는 유일한 팔**이다. 다른 팔과 섞어 재지 않는다는
+#: 규율은 그대로 지킨다 — `A81` 위에 이것 하나만 얹는다. 온도가 키에 들어가므로 요청
+#: 캐시가 안 먹고 재실행마다 전액 재결제다.
+#:
+#: 값은 `V7-1` 과 같게 둔다(k=3 · 온도 0.5). 그래야 두 측정을 나란히 놓을 수 있다.
+A82 = replace(A81, name="A82", sc_k=3, temperature=0.5, sc_figures_only=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1717,7 +1739,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1764,7 +1786,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
