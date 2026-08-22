@@ -2734,11 +2734,22 @@ def test_w1_arms_call_the_counterparty_hop_with_the_old_arguments():
 
 def test_temperature_moved_to_the_arm_but_the_default_is_still_zero():
     assert "temperature" in FLAGS and "sc_k" in FLAGS
+    #: 🔴 온도를 옮기는 팔은 셋뿐이고 **셋 다 같은 조작의 서로 다른 판**이다.
+    #:
+    #:     `A10`   k=3 · 0.7 · 전 문항        정확도로 기각
+    #:     `V7-1`  k=3 · 0.5 · 수치 문항만    `A42` 위 · 최솟값 +1(잡음 폭 안) · 분산 증가로 기각
+    #:     `A82`   k=3 · 0.5 · 수치 문항만    `A81` 위 · 기준선이 세 세대 바뀌어 다시 잰다
+    #:
+    #: 목록이 늘어나는 것 자체가 기록이다. 넷째가 생기면 그때도 여기 적어야 한다.
+    MOVES_TEMPERATURE = ("A10", "V7-1", "A82")
     for name, arm in ablation.ARMS.items():
-        if name in ("A10", "V7-1"):
+        if name in MOVES_TEMPERATURE:
             continue
         assert arm.temperature == 0.0, f"{name} 의 온도가 0.0 이 아니다 — 통제가 깨졌다"
         assert arm.sc_k == 1, f"{name} 이 표본을 둘 이상 뽑는다"
+    for name in MOVES_TEMPERATURE:
+        arm = ablation.ARMS[name]
+        assert arm.sc_k > 1 and arm.temperature > 0.0,             f"{name} 이 예외 목록에 있는데 온도를 안 옮긴다 — 목록이 낡았다"
     assert ablation.current().temperature == 0.0        # 스위치를 안 건드린 운영 경로
 
 
