@@ -3024,8 +3024,13 @@ def test_self_consistency_picks_the_majority_and_falls_back_to_the_first_sample(
 
 
 def test_self_consistency_keeps_the_first_answer_when_the_budget_runs_out():
-    """예산이 끊겼다고 이미 받아 둔 정답을 버리면 안 된다. 긴 근거 문항에서
-    토큰 상한 20,000 이 3회차에 실제로 물린다."""
+    """예산이 끊겼다고 이미 받아 둔 정답을 버리면 안 된다.
+
+    🔴 상한을 `Budget` 에서 읽는다. 종전은 `19_999` 를 박아 두어 상한이 20,000 일 때만
+    맞았고, 2026-08-22 에 100,000 으로 올리자 이 시험이 조용히 **아무것도 안 재게** 됐다
+    (예산이 안 끊기므로 `sc stop=budget` 이 안 뜬다). 상한을 하드코딩하면 상한을 바꿀 때
+    시험이 먼저 거짓말을 한다.
+    """
     from argus.agent.budget import Budget as _B
 
     class _Arm:
@@ -3033,7 +3038,7 @@ def test_self_consistency_keeps_the_first_answer_when_the_budget_runs_out():
         temperature = 0.7
 
     budget = _B()
-    budget.spend_llm(19_999, 0)                     # 다음 호출은 토큰 상한을 넘는다
+    budget.spend_llm(budget.max_tokens - 1, 0)      # 다음 호출은 토큰 상한을 넘는다
     trace = []
 
     class _R:
