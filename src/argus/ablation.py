@@ -1787,7 +1787,22 @@ A83 = replace(A81, name="A83", sc_k=3, sc_figures_only=True, sc_key_set=True)   
 #:
 #: 오탐 실측: 골든 112 + 보류 54 = **166문항 중 걸리는 것은 `S-011`·`S-012` 둘뿐이고 둘 다
 #: `answerable=False` 다.** `false_premise_gate` 가 세운 「오탐 0」 규율을 그대로 지킨다.
-A84 = replace(A81, name="A84", injection_gate=True)
+#: 🔴 **관문만 따로 잰 팔.** 3회 게이트를 이 이름으로 돌렸다가(산출물
+#: `scratch/ablation/v9/gate_A84_r*`) `A84` 를 아래 합본에 내주고 번호를 옮겼다. 그
+#: 측정은 유효하다 — 관문은 라우터에서 생성 전에 갈리므로 위에 무엇이 얹히든 같다.
+#: S-011 · S-012 · S-007 · S-010 · Q-115 · S-001 3회 전부 정답 · 퇴행 0건.
+A85 = replace(A81, name="A85", injection_gate=True)
+
+# --- W15 · 캠페인 합본 (브랜치 keypoint-gaps) -----------------------------------
+#: `A83`(자기일관성) 위에 관문을 얹은 것이다. `A83` 이 골든셋에서 진 두 자리를 둘 다
+#: **voting 밖에서** 고쳤으므로, 그 고침 위에서 voting 을 다시 재는 것이 이 팔이다.
+#:
+#:     Q-115   `fix_stray_summands` 가 총액을 항목으로 착각해 지우던 결함 (모든 팔 공통)
+#:     S-011   `injection_gate` 가 생성 전에 거절 (이 팔이 켠다)
+#:
+#: 🔴 두 고침 다 voting 과 무관하다. `A83` 이 진 것이 voting 탓이 아니었다는 앞선 판정을
+#: 이 팔이 시험한다 — 고치고 나서도 지면 voting 탓이고, 안 지면 뽑기였다.
+A84 = replace(A83, name="A84", injection_gate=True)
 
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
@@ -1836,7 +1851,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1883,7 +1898,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

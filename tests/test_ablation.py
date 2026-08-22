@@ -2745,7 +2745,8 @@ def test_temperature_moved_to_the_arm_but_the_default_is_still_zero():
     #: 🔴 `A83` 은 표본을 셋 뽑으면서 **온도를 안 올린다.** 상류가 온도 0 에서도
     #: 결정적이지 않다는 실측(수치까지 갈리는 문항 38/112) 위에 선 설계다. 그래서
     #: `sc_k>1` 이지만 온도 예외 목록에는 안 들어간다 — 아래 `sc_k` 단정만 비켜 간다.
-    DRAWS_AT_ZERO = ("A83",)
+    #: `A84`(= `A83` + 관문)도 같은 성질이라 함께 담는다.
+    DRAWS_AT_ZERO = ("A83", "A84")
     for name, arm in ablation.ARMS.items():
         if name in MOVES_TEMPERATURE:
             continue

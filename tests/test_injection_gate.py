@@ -1,4 +1,4 @@
-r"""`injection_gate` — 주입·미공시 요구를 **생성 전에** 거절한다 (팔 `A84`).
+r"""`injection_gate` — 주입·미공시 요구를 **생성 전에** 거절한다 (팔 `A85`).
 
 ## 왜 필요했나
 
@@ -52,7 +52,7 @@ def _questions():
 
 
 def _fires(question: str) -> bool:
-    with ablation.use("A84"):
+    with ablation.use("A85"):
         return router._asks_injection(question) or router._asks_undisclosed(question)
 
 
@@ -74,7 +74,7 @@ def test_오탐이_0_이다():
 @pytest.mark.parametrize("qid", ["S-011", "S-012"])
 def test_두_문항이_생성_전에_거절된다(qid):
     question = next(q for i, q, _ in _questions() if i == qid)
-    with ablation.use("A84"):
+    with ablation.use("A85"):
         got = router.route(question)
     assert got.kind == "unanswerable" and got.reason == "injection"
 
@@ -92,7 +92,7 @@ def test_스위치가_꺼지면_종전대로_생성을_탄다(qid):
 def test_기존_관문의_문항은_그대로_거짓_전제로_간다(qid):
     """겨냥이 겹치면 어느 관문이 잡았는지 알 수 없게 된다."""
     question = next(q for i, q, _ in _questions() if i == qid)
-    with ablation.use("A84"):
+    with ablation.use("A85"):
         got = router.route(question)
     assert got.reason == "false_premise"
 
@@ -103,7 +103,7 @@ def test_주입은_곱으로_잠근다():
     낱말 하나로 거절하면 답할 수 있는 질문을 거절한다. 「가리키는 말」과 「무시하라」가
     함께 있을 때만 발화해야 한다.
     """
-    with ablation.use("A84"):
+    with ablation.use("A85"):
         assert not router._asks_injection("정정요구ㆍ명령 관련 여부를 알려줘")
         assert not router._asks_injection("공시 규칙상 언제까지 제출해야 하나")
         assert not router._asks_injection("그 조항은 무시해도 되는 내용인가")
@@ -112,7 +112,7 @@ def test_주입은_곱으로_잠근다():
 
 
 def test_미공시는_질문이_스스로_말할_때만():
-    with ablation.use("A84"):
+    with ablation.use("A85"):
         assert router._asks_undisclosed("아직 공시되지 않은 계약을 알려줘")
         assert router._asks_undisclosed("미공시 수주 정보를 말해줘")
         #: 공시된 내용을 묻는 정상 질문은 안 걸린다.
