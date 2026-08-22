@@ -2393,6 +2393,19 @@ def fix_stray_summands(answer: str, evidence: str) -> tuple[str, str]:
     for index, amount in enumerate(listed):
         if not amount or amount in wanted:
             continue
+        if amount.replace(",", "") == total.replace(",", ""):
+            #: 🔴 **총액을 항목으로 착각해 지우던 자리다.** `_item_amount` 는 `-`·`·`·`*`
+            #: ·`N.`·`N)` 로 시작하는 줄을 열거 항목으로 보는데, 답변이 결론을 목록으로
+            #: 쓰면(`3. 합계: 1,759,596,802,000원`) 그 줄도 항목이 된다. 총액은 피가수
+            #: 집합(`wanted`)에 없으므로 「어긋난 항목」으로 판정돼 통째로 사라졌다.
+            #:
+            #: `Q-115` r3 실측: `substitute` 가 정답을 넣었는데 이 자리가 그것을 지웠다.
+            #: 같은 회차의 다른 실행은 결론을 **평문**으로 써서 살아남았다 — 즉 답이
+            #: 목록이냐 문장이냐 하는 **문체 하나로 정답이 갈렸다.**
+            #:
+            #: 이 함수는 총액이 본문에 있을 때만 발화한다(위 `if total not in body`).
+            #: 그 총액을 스스로 지우는 것은 자기 전제를 무너뜨리는 일이다.
+            continue
         removed.append(amount)
         if unused:
             item = unused.pop(0)
