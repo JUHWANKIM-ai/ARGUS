@@ -93,13 +93,13 @@
 
 #### ■ 기술성
 
-**[핵심 기술 1 — 검색·도구·검증을 LLM 없이 처리하는 구조]** 라우팅은 규칙으로, 검색은 메타 프리필터와 BM25 로, 계산은 전용 도구로, 검증은 결정적 검사로 처리한다. **이 구간 전체가 LLM 호출 0회**다. 그래서 비용과 지연이 예측 가능하고, 같은 입력에 같은 동작을 보장할 수 있다. 모델이 하는 일은 마지막에 문장을 쓰는 것뿐이다.
+**[핵심 기술 1 — 검색·도구·검증을 LLM 없이 처리하는 구조]** 검색과 추론을 교차시키는 루프 형태는 ReAct [4] 에서 왔지만 **행동 선택을 모델에 맡기지 않는다** — 결정적 계획이 고른다. 라우팅은 규칙으로, 검색은 메타 프리필터와 BM25 로, 계산은 전용 도구로, 검증은 결정적 검사로 처리한다. **이 구간 전체가 LLM 호출 0회**다. 그래서 비용과 지연이 예측 가능하고, 같은 입력에 같은 동작을 보장할 수 있다. 모델이 하는 일은 마지막에 문장을 쓰는 것뿐이다.
 
-**[핵심 기술 2 — 정정 체인과 거래상대 2-hop]** 정정본과 원공시를 체인으로 복원하고, **체인 위치로만** 최신 여부를 판정한다. 금액 크기로 고르면 틀리기 때문이다. 또 기업끼리 직접 잇는 대신 **여러 상장사와 계약하는 발주처를 노드로 승격**해 기업–발주처–기업 2-hop 경로를 만든다. 직접 연결률 12.4%라는 코퍼스의 한계를 우회하는 설계다.
+**[핵심 기술 2 — 정정 체인과 거래상대 2-hop]** 구조 검색과 본문 검색을 번갈아 도는 형태는 Think-on-Graph 2.0 [11], 긴 문서를 목차 경로로 나눠 탐색하는 방식은 GraphReader [10] 의 발상이다. 정정본과 원공시를 체인으로 복원하고, **체인 위치로만** 최신 여부를 판정한다. 금액 크기로 고르면 틀리기 때문이다. 또 기업끼리 직접 잇는 대신 **여러 상장사와 계약하는 발주처를 노드로 승격**해 기업–발주처–기업 2-hop 경로를 만든다. 직접 연결률 12.4%라는 코퍼스의 한계를 우회하는 설계다.
 
-**[핵심 기술 3 — 결정적 집계]** 답이 흔들리기 쉬운 자리(합계·차이·단위 환산·목록)는 **코드가 먼저 계산해** 근거 머리에 한 줄로 싣는다. 모델은 그 줄을 인용할 뿐 스스로 계산하지 않는다. 이 설계가 배포본의 정확도를 만든 가장 큰 요인이다.
+**[핵심 기술 3 — 결정적 집계]** 여러 근거를 모아 하나로 집계하는 단계를 따로 두는 것은 Graph of Thoughts [6] 의 발상이고, 생성된 등식을 외부에서 재계산해 결과를 전파하는 것은 Chain-of-Thought 부록 B [2] 의 처방이다. 답이 흔들리기 쉬운 자리(합계·차이·단위 환산·목록)는 **코드가 먼저 계산해** 근거 머리에 한 줄로 싣는다. 모델은 그 줄을 인용할 뿐 스스로 계산하지 않는다. 이 설계가 배포본의 정확도를 만든 가장 큰 요인이다.
 
-**[차별성 — 전제를 먼저 재고 기각했다]** 공시를 관계형 데이터로 보는 그래프 기반 검색이 통용되지만, **코퍼스에서 엣지 밀도를 직접 재어 12.4%임을 확인하고 그 전제를 기각**했다. 임베딩 하이브리드도 붙여서 측정한 결과 검색 지표가 한 칸도 움직이지 않아 제외했다. 좋아 보이는 것을 넣은 것이 아니라 **재보고 남은 것만** 넣었고, 기각한 것도 측정 기록을 남겼다.
+**[차별성 — 전제를 먼저 재고 기각했다]** 공시를 관계형 데이터로 보는 그래프 기반 검색 [7][8][12] 이 통용되지만, **코퍼스에서 엣지 밀도를 직접 재어 12.4%임을 확인하고 그 전제를 기각**했다. 임베딩 하이브리드 [9][11] 도 붙여서 측정한 결과 검색 지표가 한 칸도 움직이지 않아 제외했다. 하이퍼엣지 [12] 는 코퍼스의 arity 가 2 이하인 비율이 58.4%라 논문의 전제 자체가 성립하지 않았다. 좋아 보이는 것을 넣은 것이 아니라 **재보고 남은 것만** 넣었고, 기각한 것도 측정 기록을 남겼다.
 
 <!-- pagebreak -->
 
@@ -107,7 +107,7 @@
 
 공시 질의에 근거와 함께 답하는 **엔진**과, 그 근거가 된 관계를 사람이 직접 확인하는 **열람 서비스**를 하나로 완성한다. 아래가 배포 시점의 구조다.
 
-![그림 1. 배포 구조 — 오프라인 색인은 빌드 타임에 끝나고, 서버와 정적 사이트가 같은 산출물을 읽되 서로의 장애가 전파되지 않는다. 파란 구간이 LLM 호출 0회이며 파이프라인의 대부분을 차지한다.](docs/figures/argus-deploy-v7.png)
+![그림 1. 배포 구조 — A 입력·라우팅, B 검색·근거, B′ 결정적 집계까지가 LLM 호출 0회 구간이며 파이프라인의 대부분을 차지한다. C 생성에서만 모델을 부르고, D 검증·처분이 결정적 검사로 되받는다. 상자 안의 이름은 저장소에 실재하는 함수·도구·게이트 식별자다. 대괄호 번호는 아래 「참고 문헌」의 번호다.](docs/figures/argus-deploy-v7.png)
 
 #### ■ 최종 성능 — 배포본 `A84` (2026-08-22 · 평가 서버 3회)
 
@@ -140,6 +140,8 @@
 #### ■ 최종 사용자 인터페이스 — 관계 열람 서비스
 
 기업 목록 화면은 업종별로 묶어 공시 건수와 정정 건수를 함께 보여 주고, 회사를 고르면 계약·정정·거래상대를 한 화면에서 본다.
+
+![그림 2. 기업 목록 화면. 업종별로 묶어 공시 건수를 보여 주고, 정정이 있는 회사에는 정정 건수를 배지로 함께 표시한다. 회사를 고르면 계약 공시·나중에 정정된 공시·거래상대를 한 화면에서 본다 — 공시를 하나씩 열지 않는다.](docs/figures/argus-site-company.png)
 
 - 정정 추적에 실패한 **309건을 목록에서 빼지 않고 사유와 함께 표시**한다.
 - 재무 요약은 기간·단위·연결 여부가 문서에서 모두 읽힐 때만 싣는다(70곳 중 50곳).
@@ -322,3 +324,80 @@
 - 정정 체인 복원율 개선 — 해지·원계약 등 아직 잇지 못한 관계 유형
 - 지분·계열 관계의 노드화
 - 근거 칸 상한과 차선 정렬 개선 (6-2)
+
+<!-- pagebreak -->
+
+## 참고 문헌
+
+설계에 참조한 문헌 18편이다. 🔴 **논문에 있다는 것은 채택 사유가 아니다.** 처방마다 구성 스위치를 세워 우리 코퍼스에서 재고 그 결과로 갈랐다. **기각도 결과이므로 함께 적는다.** 스위치 정의는 `src/argus/ablation.py`, 측정 절차는 `docs/pipeline/09-ablation.md` 에 있다.
+
+### ■ 채택한 것
+
+| 문헌 | 가져온 것 | 구현 위치 |
+|---|---|---|
+| GPT-3 [1] | 가중치를 고치지 않고 문맥만으로 과제를 수행한다는 전제 | 규약상 추가 학습이 불가하므로 접근 자체의 근거. few-shot exemplar 기법은 쓰지 않는다 |
+| Chain-of-Thought [2] | 답변보다 근거와 계산을 먼저 쓰게 하는 순서 | `agent/prompts.py` · 응답의 `think_trace` |
+| Chain-of-Thought 부록 B [2] | 생성된 등식을 외부 계산기로 재계산하고 결과를 전파 | `agent/critic.py` 의 `verify_answer_arithmetic` · `substitute_verified` |
+| Self-Consistency [3] | k개 표본의 다수결 | **변형 채택** — 금액 문항 한정 · 온도 0.0 · 키 집합 비교 (원형은 기각, 아래) |
+| ReAct [4] | 검색과 추론을 교차하는 다단계 루프 | `agent/pipeline.py` 의 hop 사다리. **행동 선택은 모델이 아니다** — 결정적 계획이 고른다 |
+| Evidence Utilization [15] | 골든 근거를 줘도 모델이 그것을 쓰지 않는다는 진단 | 근거 이용률을 분리 측정. 시스템 프롬프트가 attention 을 크게 먹는다는 보고에 따라 규칙 수를 최소로 유지 |
+
+### ■ 재보고 기각한 것
+
+스위치는 저장소에 남아 있고 배포본 `A84` 에서 꺼져 있다. **재현 가능하다.**
+
+| 문헌 | 처방 | 우리 코퍼스 실측 |
+|---|---|---|
+| Self-Consistency 원형 [3] | 온도를 올려 표집한 뒤 다수결 | 온도 > 0 이 통제 변수를 깨고 캐시를 우회해 재실행마다 재결제된다. **온도 0.0 에서도 금액이 34% 문항에서 갈린다**는 측정이 나온 뒤 그 조건만 남겨 변형 채택 |
+| Toolformer [5] | 산술을 모델의 함수 호출에 넘긴다 | 전체 **74/88 대 기준 81/88**. 도구는 쓰되 **호출을 규칙이 디스패치**한다 |
+| G-Retriever [7] | PCST 로 서브그래프를 최적화해 토큰 절감 | 근거가 이미 문맥에 들어가는 분기라 **절감 대상이 없다.** 논문 자신이 이 분기를 적어 두었다 |
+| 밀집 검색 [9][11] | 임베딩 검색을 BM25 와 융합 | 후보 풀 중앙값 2건 · dense 신규 31건 중 골든 **0건**. 운영 경로에서 임베딩 API 를 호출하지 않는다 |
+| HyperGraphRAG [12] | n-ary 관계를 하이퍼엣지로 표현 | 코퍼스의 **arity ≤ 2 가 58.4%** 로 과반이라 논문의 전제가 성립하지 않는다 |
+| 대화형 멀티에이전트 [16][17] | 역할을 나눈 에이전트들의 대화 | 호출 횟수가 대화 길이를 따라 늘어 **비용 상한을 계약서에 쓸 수 없다** |
+
+### ■ 발상만 반영한 것
+
+원 기제는 구현하지 않았다. PCST · PPR · Leiden 커뮤니티 · 하이퍼엣지 · GRPO · 역할극 대화는 저장소 코드에 각각 0곳이다.
+
+| 문헌 | 남은 것 |
+|---|---|
+| Graph of Thoughts [6] | 여러 근거를 모아 하나로 집계하는 단계를 따로 두는 것 |
+| GraphRAG [8] | 전역 요약과 국소 조회를 가르는 관점. 커뮤니티 요약은 코퍼스 규모상 미적용 |
+| GraphReader [10] | 긴 문서를 목차 경로로 나눠 탐색하고 확인한 사실을 메모로 들고 다니는 방식 |
+| Think-on-Graph 2.0 [11] | 구조 검색과 본문 검색을 번갈아 도는 루프 형태 |
+| Relink [13] | 사전 구축 그래프의 불완전성을 질의 시점에 메우는 발상 |
+| GraphRAG-R1 [14] | 얕은 검색과 과잉 탐색을 함께 억제해야 한다는 관점. **보상 학습 대신 예산 가드**로 구현 |
+| CAMEL [16] · AutoGen [17] | 역할 분리 발상. 단일 에이전트를 유지하되 검증자를 별도 역할로 두는 데까지만 반영 |
+| SWE-Lancer [18] | 판단이 생성보다 쉽다는 결과. 생성 뒤 결정적 검증을 두는 설계의 근거 |
+
+### ■ 문헌 목록
+
+**프롬프팅과 에이전트 기초**
+
+1. Brown, T. B., Mann, B., Ryder, N. 외. **Language Models are Few-Shot Learners.** NeurIPS 2020. arXiv:2005.14165
+2. Wei, J., Wang, X., Schuurmans, D. 외. **Chain-of-Thought Prompting Elicits Reasoning in Large Language Models.** NeurIPS 2022. arXiv:2201.11903
+3. Wang, X., Wei, J., Schuurmans, D. 외. **Self-Consistency Improves Chain of Thought Reasoning in Language Models.** ICLR 2023. arXiv:2203.11171
+4. Yao, S., Zhao, J., Yu, D. 외. **ReAct: Synergizing Reasoning and Acting in Language Models.** ICLR 2023. arXiv:2210.03629
+5. Schick, T., Dwivedi-Yu, J., Dessì, R. 외. **Toolformer: Language Models Can Teach Themselves to Use Tools.** Meta AI Research, 2023. arXiv:2302.04761
+
+**그래프 기반 검색증강생성**
+
+6. Besta, M., Blach, N., Kubicek, A. 외. **Graph of Thoughts: Solving Elaborate Problems with Large Language Models.** ETH Zurich, 2024. arXiv:2308.09687
+7. He, X., Tian, Y., Sun, Y. 외. **G-Retriever: Retrieval-Augmented Generation for Textual Graph Understanding and Question Answering.** NeurIPS 2024. arXiv:2402.07630
+8. Edge, D., Trinh, H., Cheng, N. 외. **From Local to Global: A GraphRAG Approach to Query-Focused Summarization.** Microsoft Research, 2024. arXiv:2404.16130
+9. Gutiérrez, B. J., Shu, Y., Gu, Y. 외. **HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models.** NeurIPS 2024. arXiv:2405.14831
+10. Li, S., He, Y., Guo, H. 외. **GraphReader: Building Graph-based Agent to Enhance Long-Context Abilities of Large Language Models.** Alibaba Group, 2024. arXiv:2406.14550
+11. Ma, S., Xu, C., Jiang, X. 외. **Think-on-Graph 2.0: Deep and Faithful Large Language Model Reasoning with Knowledge-guided Retrieval Augmented Generation.** ICLR 2025. arXiv:2407.10805
+12. Luo, H., E, H., Chen, G. 외. **HyperGraphRAG: Retrieval-Augmented Generation via Hypergraph-Structured Knowledge Representation.** NeurIPS 2025.
+13. Huang, M., Bu, C., He, Y. 외. **Relink: Constructing Query-Driven Evidence Graph On-the-Fly for GraphRAG.** AAAI-26.
+14. Yu, C., Zhao, K., Li, Y. 외. **GraphRAG-R1: Graph Retrieval-Augmented Generation with Process-Constrained Reinforcement Learning.** WWW '26. doi:10.1145/3774904.3792589
+
+**진단과 평가**
+
+15. Basak, D., Bose, D., Goswami, K., Desarkar, M. S. **Diagnosing Evidence Utilization in Multimodal Document Question Answering.** KDD '26. doi:10.1145/3770855.3817956
+
+**멀티에이전트**
+
+16. Li, G., Hammoud, H. A. A. K., Itani, H. 외. **CAMEL: Communicative Agents for "Mind" Exploration of Large Language Model Society.** NeurIPS 2023. arXiv:2303.17760
+17. Wu, Q., Bansal, G., Zhang, J. 외. **AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation.** Microsoft Research, 2023. arXiv:2308.08155
+18. Miserendino, S., Wang, M., Patwardhan, T., Heidecke, J. **SWE-Lancer: Can Frontier LLMs Earn $1 Million from Real-World Freelance Software Engineering?** OpenAI, ICML 2025. arXiv:2502.12115
