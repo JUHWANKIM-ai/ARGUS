@@ -78,7 +78,8 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     #: `pledged_series` 와 `holding_receipts` 는 **`holding_series` 가 만든 줄 안에서만**
     #: 산다. 앞은 그 줄에 문장을 덧붙이고 뒤는 그 줄의 걸음마다 접수번호를 끼운다. 부모가
     #: 꺼지면 `pipeline` 이 그 함수를 아예 안 부르므로 둘 다 조용한 무동작이 된다.
-    "holding_series": ("holding_ask_wide", "pledged_series", "holding_receipts"),
+    "holding_series": ("holding_ask_wide", "pledged_series", "holding_receipts",
+                       "holding_pair"),
     #: `delta_totals` 는 `aggregate.line` 의 `차` 분기에 중간 합계를 덧붙인다.
     #: `aggregate_line` 이 꺼지면 그 함수를 안 부른다 — `aggregate_items` 와 같은 자리다.
     "aggregate_line": ("substitute_aggregate", "aggregate_items", "delta_totals"),
@@ -305,6 +306,46 @@ class Arm:
     #: 앞선 지시를 무시하라는 요구와, 질문 스스로 미공시라고 말한 내용을 달라는 요구를
     #: **생성 전에** 거절한다. `false_premise_gate` 와 같은 갈래이고 겨냥이 다르다.
     injection_gate: bool = False
+    #: 「얼마**로** 바뀌었는가」를 차 연산으로 읽지 않는다. LLM 호출 없음.
+    #:
+    #: `_OPS` 의 「차」 힌트에 맨 낱말 `바뀌었는가` · `변경되었는가` 가 들어 있어, **결과값을
+    #: 묻는 질문**과 **변동폭을 묻는 질문**이 갈리지 않았다. 두 힌트는 바로 위 줄의
+    #: `얼마나 바뀌` · `얼마나 변경` 과 겹치므로, 끄면 잃는 겨냥이 없다.
+    #:
+    #: 🔴 실측(`Q-005` · 서버 3회 전부): 골든이 114,800,000,000 인데 파이프라인이 원공시와의
+    #: 차 112,700,000,000 을 계산해 ① 근거에 결정적 줄로 싣고 ② `state_total` 이 그것을
+    #: *"질문이 물은 값"* 으로 답변에 덧붙였다. **모델 본문은 맞았고 덧붙인 문장이 틀렸다.**
+    #: 판정기가 본문에서 골든 수를 찾아 정답으로 세었기 때문에 8축 어디에도 안 잡혔다 —
+    #: 성적이 아니라 **읽는 사람**에게만 보이는 결함이었다.
+    #:
+    #: 골든 112문항에서 이 두 힌트에만 걸리는 문항은 `Q-005` 하나다. 진짜 변동폭 문항
+    #: (`Q-018` · `Q-048` · `Q-061` · `Q-113`)은 전부 「얼마나」 형이라 닿지 않는다.
+    result_value_op: bool = False
+    #: 질문이 **두 보고서를 짚어 견주라** 할 때 칸마다 두 값과 그 차·방향을 한 줄로 못
+    #: 박는다. LLM 호출 없음. `holding_series` 가 만든 줄 **뒤에** 붙으므로 부모가 켜져
+    #: 있어야 한다.
+    #:
+    #: 🔴 `Q-012` 실측: `holding_series` 는 주식 수를 체인 **양 끝**에만 다는데 질문이 짚은
+    #: 2025-03-10 은 13건 체인의 끝이 아니었다. 모델이 2026 값은 결정적 줄에서, 2025 값은
+    #: 원시 블록에서 가져와 **스스로 뺐고** 3회가 18,607 · 18,652 · 18,652 를 냈다 —
+    #: 참값은 **18,650**. 등식을 안 쓴 산문이라 산술 검사에 안 걸렸다.
+    #:
+    #: 값만이 아니라 **증감을 낱말로** 적는다. 근거에 범위가 다른 두 참말(보고서 사이의
+    #: 증가 · 한 보고서 안의 변동 없음)이 있어, 모델이 수는 앞에서 서술은 뒤에서 가져와
+    #: *"동일한 수치인 92,270,920주"* 라는 자기모순 문장을 만들었기 때문이다.
+    #:
+    #: 겨냥은 두 문항이다 — `Q-012`(증가) · `Q-020`(변동 없음). 둘 다 골든과 방향이 맞다.
+    holding_pair: bool = False
+    #: 검증 각주를 **답변에 안 싣는다**. 관측은 그대로 `think_trace` 에 남는다.
+    #:
+    #: 🔴 서버 3회 336응답 중 **23건(11문항)** 이 답변 본문에 `(주의: 자동 검증에서 결함이
+    #: 발견되었습니다 — …)` 를 달고 나갔다. 평가자가 읽는 것은 답변이고, 거기에 우리가
+    #: 스스로 결함을 적어 보내는 것은 서비스가 할 일이 아니다.
+    #:
+    #: 성적은 안 움직인다 — `scripts/error_analysis.strip_verify_tail` 이 **채점 전에**
+    #: 이 꼬리를 떼기 때문이다(*"모델이 쓴 것만 채점 대상"*). 즉 이 스위치는 채점되는
+    #: 문면이 아니라 **배달되는 문면**만 바꾼다.
+    quiet_verify_note: bool = False
     #: True accepts a latest record as a chain seed so the walk can reach the
     #: original filing. No LLM call. Gated by the question asking for the
     #: pre-revision value, which is what keeps it from reopening the case
@@ -1804,6 +1845,22 @@ A85 = replace(A81, name="A85", injection_gate=True)
 #: 이 팔이 시험한다 — 고치고 나서도 지면 voting 탓이고, 안 지면 뽑기였다.
 A84 = replace(A83, name="A84", injection_gate=True)
 
+# --- W16 · 배포본 검토에서 나온 결함 셋 (2026-08-23) ----------------------------
+#: 🔴 **셋 다 성적에는 안 걸리던 것들이다.** 사용자가 `answers_a84_server.json` 을 손으로
+#: 읽다 찾았다. 판정기가 못 보는 자리에 결함이 살 수 있다는 것이 이 팔의 교훈이다.
+#:
+#:     Q-005  `result_value_op`    「얼마로 바뀌었는가」를 차로 읽어, 맞는 본문 뒤에
+#:                                 틀린 값을 *"질문이 물은 값"* 이라며 덧붙였다
+#:     Q-012  `holding_pair`       주식 수를 스스로 빼다 틀렸고(18,650 → 18,652),
+#:                                 범위가 다른 두 참말을 섞어 자기모순 문장을 냈다
+#:     23건   `quiet_verify_note`  검증 각주가 답변 본문에 실려 배달됐다
+#:
+#: 🔴 **`quiet_verify_note` 는 성적을 못 바꾼다** — 채점기가 그 꼬리를 채점 전에 뗀다.
+#: 나머지 둘은 근거가 바뀌므로 재측정이 필요하다. 겨냥은 `Q-005` · `Q-012` · `Q-020` 셋뿐이고
+#: 나머지 109문항은 프롬프트가 바이트까지 그대로다.
+A86 = replace(A84, name="A86", result_value_op=True, holding_pair=True,
+              quiet_verify_note=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1851,7 +1908,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85", "A86",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1898,7 +1955,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
@@ -2021,7 +2078,7 @@ FLAG_NAMES: tuple[str, ...] = tuple(
 #:
 #: 🔴 **배포는 별도 승인 사안이다.** 이 상수를 바꾸는 것과 서버에 올리는 것은 다른 일이다.
 #: 2026-08-22 사용자 승인으로 배포한다.
-_current: Arm = A84
+_current: Arm = A86
 
 
 def current() -> Arm:

@@ -2991,6 +2991,16 @@ def answer_question(question_id: str, question: str) -> dict:
             evidence = _prepend(evidence, holding)
             trace.append(f"holding_series line=1 chars={len(holding)}")
 
+        # 질문이 두 보고서를 짚으면 그 둘만 따로 대조한다. 추이 줄과 겹치지 않는다 —
+        # 추이는 체인 전체를 훑고 주식 수를 양 끝에만 달지만, 이 줄은 **질문이 짚은
+        # 두 보고서**의 칸마다 값과 증감을 낸다. `Q-012` 가 짚은 2025-03-10 은 체인의
+        # 끝이 아니라 추이 줄에 주식 수가 없었고, 그래서 모델이 직접 뺐다.
+        pair = aggregate.holding_pair(_evidence_records(evidence), clean,
+                                      tools.holding_chain)
+        if pair:
+            evidence = _prepend(evidence, pair)
+            trace.append(f"holding_pair line=1 chars={len(pair)}")
+
     # 계약상대가 같은 두 회사의 공시를 잇고 금액 차를 못 박는다. `holding_series` 와 같은
     # 자리인 것은 둘 다 레코드를 읽기 때문이고, 합치지 않은 것은 읽는 필드와 발화 조건이
     # 다르기 때문이다 — 한 스위치가 다른 쪽 거동을 옮기면 안 된다.
@@ -3100,7 +3110,11 @@ def answer_question(question_id: str, question: str) -> dict:
             verdict = judge(evidence, answer, budget)
             trace.append(f"critic supported={verdict.supported} reason={verdict.reason}")
             if not verdict.passed:
-                answer += f"\n\n(주의: 근거 검증을 통과하지 못했습니다 — {_verdict_reason(verdict)})"
+                # 관측은 언제나 남긴다. 배달되는 문면에 실을지만 스위치가 정한다.
+                trace.append(f"critic note={_verdict_reason(verdict)}")
+                if not ablation.enabled("quiet_verify_note"):
+                    answer += ("\n\n(주의: 근거 검증을 통과하지 못했습니다 — "
+                               f"{_verdict_reason(verdict)})")
         except BudgetExceeded as exc:
             trace.append(f"critic 생략: {exc}")            # our own cap, not a fault
         except RuntimeError as exc:
@@ -3516,6 +3530,11 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str],
     # is kept, because `strip_verify_tail` reads it.
     head = ("자동 검증에서 결함이 발견되어 재계산값으로 정정했습니다" if substituted
             else "자동 검증에서 결함이 발견되었습니다")
+    # 관측은 언제나 남긴다. 배달되는 문면에 실을지만 스위치가 정한다 —
+    # 채점기는 이 꼬리를 채점 전에 떼므로 성적은 어느 쪽이든 같다.
+    trace.append(f'verify note={head} — {"; ".join(v["reasons"])}')
+    if ablation.enabled("quiet_verify_note"):
+        return answer
     return answer + f'\n\n(주의: {head} — {"; ".join(v["reasons"])})'
 
 

@@ -77,10 +77,23 @@ _DIRECTIVE = ("(이 값은 시스템이 위 근거의 금액 필드에서 직접
               "답변의 해당 수치는 이 값을 그대로 쓰고 다시 계산하지 않는다.)")
 
 
+#: 「차」 힌트 중 **부사가 없는** 둘. 결과값을 묻는 질문과 변동폭을 묻는 질문을 못 가른다.
+#:
+#:     얼마**나** 바뀌었는가   변동폭   ← `얼마나 바뀌` 가 이미 잡는다
+#:     얼마**로** 바뀌었는가   결과값   ← 이 둘이 잘못 잡는다
+#:
+#: 🔴 `Q-005` 실측(서버 3회 전부): 골든 114,800,000,000 인데 원공시와의 차
+#: 112,700,000,000 을 계산해 근거에 싣고 `state_total` 이 그것을 *"질문이 물은 값"* 으로
+#: 답변에 덧붙였다. **모델 본문은 맞았고 덧붙인 문장이 틀렸다.** 판정기는 본문에서 골든
+#: 수를 찾아 정답으로 세므로 8축 어디에도 안 잡혔다.
+_BARE_DELTA_HINTS = ("변경되었는가", "바뀌었는가")
+
+
 def _op(question: str) -> str:
     text = question or ""
+    drop = _BARE_DELTA_HINTS if ablation.enabled("result_value_op") else ()
     for name, hints in _OPS:
-        if any(h in text for h in hints):
+        if any(h in text for h in hints if h not in drop):
             return name
     return ""
 
@@ -517,6 +530,143 @@ def _pledged_series(chain: list[dict]) -> str:
             f"{' → '.join(ends)} "
             f"(이 값은 시스템이 위 근거의 `주요계약체결` 칸에서 직접 읽은 것이다. "
             f"답변의 해당 수치는 이 값을 그대로 쓴다.)")
+
+
+#: 질문이 짚는 보고서 날짜. `2025년 3월 10일` 과 `2025년 3월` 둘 다 받는다 — `Q-020` 은
+#: 일자까지, `Q-012` 는 월까지만 적는다. 일이 있는 쪽을 먼저 시도해야 `2025년 3월 10일` 이
+#: `2025년 3월` 로 잘려 두 날짜가 한 달로 뭉개지지 않는다.
+_PAIR_DAY = re.compile(r"(20\d{2})\s*년\s*(1[0-2]|0?[1-9])\s*월\s*(3[01]|[12]\d|0?[1-9])\s*일")
+_PAIR_MONTH = re.compile(r"(20\d{2})\s*년\s*(1[0-2]|0?[1-9])\s*월(?!\s*\d{1,2}\s*일)")
+
+
+def _pair_keys(question: str) -> list[str]:
+    """질문이 짚는 날짜를 적힌 차례대로. `YYYYMMDD` 또는 `YYYYMM`."""
+    found: list[tuple[int, str]] = []
+    for hit in _PAIR_DAY.finditer(question or ""):
+        y, m, d = hit.groups()
+        found.append((hit.start(), f"{y}{int(m):02d}{int(d):02d}"))
+    for hit in _PAIR_MONTH.finditer(question or ""):
+        y, m = hit.groups()
+        found.append((hit.start(), f"{y}{int(m):02d}"))
+    seen, keys = set(), []
+    for _, key in sorted(found):
+        if key not in seen:
+            seen.add(key)
+            keys.append(key)
+    return keys
+
+
+def _pair_pick(chain: list[dict], key: str):
+    """그 날짜의 보고서 **하나**. 없거나 둘 이상이면 None — 침묵이 기본값이다."""
+    hits = [r for r in chain if str(r.get("rcept_dt", "")).startswith(key)]
+    return hits[0] if len(hits) == 1 else None
+
+
+def _pair_delta(before: str, after: str, unit: str) -> str:
+    """두 값의 증감을 낱말로. 못 읽으면 ""."""
+    try:
+        gap = int(str(after).replace(",", "")) - int(str(before).replace(",", ""))
+    except (TypeError, ValueError):
+        return ""
+    if gap == 0:
+        return "변동 없음"
+    return f"{abs(gap):,}{unit} {'증가' if gap > 0 else '감소'}"
+
+
+def holding_pair(records, question: str, chain_lookup=None) -> str:
+    """질문이 **두 보고서를 짚어 견주라** 할 때, 칸마다 두 값과 그 차를 못 박는다.
+
+    LLM 호출 없음. 조건을 못 채우면 "" 를 돌려준다.
+
+    ## 무엇을 고치는가 — `Q-012` 실측 (서버 3회 전부)
+
+    `holding_series` 는 주식 수를 **체인 양 끝에만** 단다(`ends`). `Q-012` 가 짚는
+    2025-03-10 은 13건 체인의 끝이 아니라서 그 줄에 주식 수가 없었다. 그래서 모델이
+    **두 출처를 섞었다** — 2026 값은 결정적 줄에서, 2025 값은 원시 블록에서 가져와
+    스스로 뺐고, 세 회차가 각각 18,607 · 18,652 · 18,652 를 냈다. **참값은 18,650 이다.**
+
+    🔴 **등식을 안 쓴 산문 주장이라 어떤 검사에도 안 걸렸다.**
+    `critic.verify_answer_arithmetic` 도 `fix_self_contradiction` 도 `A − B = C` 꼴이
+    있어야 발화한다. *"18,652주 추가로 취득하여"* 는 그 꼴이 아니다.
+
+    ## 왜 방향까지 적는가
+
+    근거에는 **범위가 다른 두 참말**이 나란히 있다.
+
+        결정적 줄(보고서 사이)   2025-03-10 84,282,066 → 2026-03-05 92,270,920   증가
+        원시 블록(2026 보고 안)  직전 92,270,920 → 이번 92,270,920              변동 없음
+
+    둘 다 참인데 재는 구간이 다르고, 모델은 **수는 앞에서 서술은 뒤에서** 가져와
+    *"동일한 수치인 92,270,920주"* 라는 문장을 만들었다 — 바로 윗줄의 84,282,066 과
+    모순이다. 골든 요점3 은 「증가」다. 그래서 이 줄은 값만이 아니라 **증감을 낱말로**
+    적는다. 모델이 방향을 스스로 고르게 두지 않는다.
+
+    ## 침묵이 기본값이다
+
+    날짜가 정확히 둘이 아니거나, 한 날짜가 보고서 0건 또는 2건 이상에 걸리면 아무것도
+    내지 않는다. `_sum_rows` 와 같은 판단이다 — 어느 것이 답인지 모르는 수를 내놓느니
+    안 내는 편이 낫다.
+    """
+    if not ablation.enabled("holding_pair"):
+        return ""
+    words = _HOLDING_ASK
+    if ablation.enabled("holding_ask_wide"):
+        words = _HOLDING_ASK + _HOLDING_ASK_WIDE
+    if not any(h in (question or "") for h in words):
+        return ""
+    keys = _pair_keys(question)
+    if len(keys) != 2:
+        return ""
+
+    rows = [r for r in (records or []) if _ratio_of(r) is not None]
+    if not rows:
+        return ""
+    reporter = str(rows[0].get("reporter") or "")
+    corp_name = str(rows[0].get("corp_name") or "")
+    chain = [r for r in rows if str(r.get("reporter") or "") == reporter
+             and str(r.get("corp_name") or "") == corp_name]
+    if chain_lookup is not None and reporter and corp_name:
+        fetched = [r for r in (chain_lookup(reporter, corp_name) or ())
+                   if _ratio_of(r) is not None]
+        if fetched:
+            chain = fetched
+    picked = [_pair_pick(chain, key) for key in keys]
+    if any(r is None for r in picked):
+        return ""
+    first, last = sorted(picked, key=lambda r: str(r.get("rcept_dt", "")))
+    if first.get("rcept_no") == last.get("rcept_no"):
+        return ""
+
+    parts = []
+    shares = [str(r.get("shares_current") or "") for r in (first, last)]
+    if all(shares):
+        gap = _pair_delta(shares[0], shares[1], "주")
+        parts.append(f"보유주식등의 수 {shares[0]}주 → {shares[1]}주"
+                     + (f" ({gap})" if gap else ""))
+    ratios = [_ratio_of(r) for r in (first, last)]
+    moved = ratios[1] - ratios[0]
+    parts.append(f"보유비율 {ratios[0]:.2f}% → {ratios[1]:.2f}% "
+                 + ("(변동 없음)" if abs(moved) < 1e-9 else f"({moved:+.2f}%p)"))
+    pledged = [_pledged_current(r, _PLEDGED_SHARES_KEY) for r in (first, last)]
+    pledged_ratio = [_pledged_current(r, _PLEDGED_RATIO_KEY) for r in (first, last)]
+    if all(pledged):
+        gap = _pair_delta(pledged[0], pledged[1], "주")
+        tail = [f"{p}주" + (f"({q}%)" if q else "")
+                for p, q in zip(pledged, pledged_ratio)]
+        parts.append(f"주요계약체결 주식등 {tail[0]} → {tail[1]}"
+                     + (f" ({gap})" if gap else ""))
+
+    #: 기간은 달 수로만 적는다. `Q-012` 3회가 12개월 사이를 *"약 18개월"* 이라 적었다.
+    span = ""
+    a, b = str(first.get("rcept_dt", "")), str(last.get("rcept_dt", ""))
+    if len(a) >= 6 and len(b) >= 6:
+        months = (int(b[:4]) - int(a[:4])) * 12 + (int(b[4:6]) - int(a[4:6]))
+        if months > 0:
+            span = f", 약 {months}개월"
+    return (f"\n- [결정적 집계] 짚은 두 보고서 대조 ({_ymd(first)} → {_ymd(last)}{span}): "
+            f"{' · '.join(parts)} "
+            f"(이 값과 증감은 시스템이 위 근거의 각 칸에서 직접 읽고 뺀 것이다. "
+            f"답변의 수치와 증감 방향은 이 줄을 그대로 쓰고 다시 계산하지 않는다.)")
 
 
 #: Upper bound on counterparties carried in the distribution line. A separate
