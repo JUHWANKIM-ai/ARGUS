@@ -346,6 +346,17 @@ class Arm:
     #: 이 꼬리를 떼기 때문이다(*"모델이 쓴 것만 채점 대상"*). 즉 이 스위치는 채점되는
     #: 문면이 아니라 **배달되는 문면**만 바꾼다.
     quiet_verify_note: bool = False
+    #: 결정적 줄을 인용 후보에서 뺀다. LLM 호출 없음.
+    #:
+    #: 🔴 **결정적 줄은 공시가 아닌데 인용 라벨이 되고 있었다.** 블록 파서가 `##` 로만
+    #: 쪼개므로 머리글 앞의 결정적 줄들이 한 블록이 되고, 그 줄에 박힌 접수번호
+    #: (`holding_receipts`)가 그 블록을 인용 가능하게 만든다.
+    #:
+    #: 실측: `A84` 서버 3회의 `Q-020` 3회가
+    #: *"(근거: - [결정적 집계] (주)두산 보고 보유비율 추이 (13건 중 10건 표시): …"* 를 달고
+    #: 나갔다. **종전부터 있던 결함**이고, `A86` 의 `holding_pair` 가 답변에만 있는 수를
+    #: 공급하자 `Q-012` 로도 번졌다.
+    decisive_not_citable: bool = False
     #: True accepts a latest record as a chain seed so the walk can reach the
     #: original filing. No LLM call. Gated by the question asking for the
     #: pre-revision value, which is what keeps it from reopening the case
@@ -1859,7 +1870,7 @@ A84 = replace(A83, name="A84", injection_gate=True)
 #: 나머지 둘은 근거가 바뀌므로 재측정이 필요하다. 겨냥은 `Q-005` · `Q-012` · `Q-020` 셋뿐이고
 #: 나머지 109문항은 프롬프트가 바이트까지 그대로다.
 A86 = replace(A84, name="A86", result_value_op=True, holding_pair=True,
-              quiet_verify_note=True)
+              quiet_verify_note=True, decisive_not_citable=True)
 
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
@@ -2332,6 +2343,30 @@ def _cite_terms(text: str) -> set[str]:
     return {t for t in _CITE_TERM.findall(text or "") if t not in _CITE_STOP}
 
 
+#: 결정적 줄의 머리. 셋 다 **우리가 계산해 실은 줄**이고 공시가 아니다.
+_DECISIVE_HEADS = ("[결정적 집계]", "[결정적 조회]", "[결정적 단위]")
+
+
+def _drop_decisive_lines(evidence: str) -> str:
+    """인용 후보를 세기 전에 결정적 줄을 걷어낸다.
+
+    🔴 **결정적 줄은 공시가 아니다.** 그런데 그 줄에는 걸음마다 접수번호가 박혀 있고
+    (`holding_receipts`), 블록 파서는 `##` 로만 쪼개므로 **머리글 앞의 모든 것이 한
+    블록**이 된다. 그래서 그 블록이 인용 단위가 되고, 라벨이 결정적 줄 **전문**이 된다.
+
+    실측(`A84` 서버 3회): `Q-020` 3회가
+    *"(근거: - [결정적 집계] (주)두산 보고 보유비율 추이 (13건 중 10건 표시): …"* 를 달고
+    나갔다. `A86` 에서 `holding_pair` 가 답변에만 있는 수(18,650 · 7,988,854)를 공급하자
+    `cite_used` 가 그 블록을 짚어 `Q-012` 로도 번졌다.
+
+    걷어내면 그 줄에만 있던 접수번호는 인용 후보에서 사라진다. **그것이 옳다** — 근거
+    블록에 없는 공시를 답변이 인용하면 안 되고, 그 번호는 이미 줄 안에 적혀 있다.
+    """
+    kept = [ln for ln in (evidence or "").split("\n")
+            if not any(head in ln for head in _DECISIVE_HEADS)]
+    return "\n".join(kept)
+
+
 def _citation_units(evidence: str, provenance: dict[str, dict] | None = None) -> list[dict]:
     """One evidence block becomes one citation. A block with no receipt number
     cannot be cited and is dropped.
@@ -2347,6 +2382,8 @@ def _citation_units(evidence: str, provenance: dict[str, dict] | None = None) ->
     See docs/design-rationale.md#citation-attachment
     """
     provenance = provenance or {}
+    if enabled("decisive_not_citable"):
+        evidence = _drop_decisive_lines(evidence)
     units: list[dict] = []
     for block in re.split(r"(?m)^##\s+", evidence or ""):
         if not block.strip():

@@ -198,7 +198,51 @@ def test_부모가_꺼지면_세울_수_없다():
         replace(ablation.ARMS["A0"], name="TEST", holding_pair=True)
 
 
-# --- ③ `quiet_verify_note` — 각주를 배달되는 문면에 안 싣는다 --------------------
+# --- ③ `decisive_not_citable` — 결정적 줄은 공시가 아니다 -----------------------
+
+#: 결정적 줄 + 근거 블록 하나. 실제 근거의 모양 그대로다.
+_EVIDENCE = (
+    "- [결정적 집계] (주)두산 보고 보유비율 추이 (13건 중 10건 표시): "
+    "2023-02-17 30.78% (196,452,737주) (접수번호 20230217001569) → "
+    "2026-03-05 30.68% (196,506,795주) (접수번호 20260305001006)\n"
+    "\n"
+    "## 대량보유상황보고서 (2025-03-10)\n"
+    "- 공시일: 2025-03-10 (접수번호 20250310000839)\n"
+    "- 보유주식등의 수: 직전 196,452,737주 → 이번 196,488,145주\n"
+)
+
+
+def _labels(arm):
+    with ablation.use(arm):
+        return [u["label"] for u in ablation._citation_units(_EVIDENCE)]
+
+
+def test_결정적_줄은_인용_단위가_아니다():
+    """🔴 `A84` 서버 3회의 `Q-020` 이 결정적 줄 **전문**을 인용 라벨로 달고 나갔다.
+
+    블록 파서가 `##` 로만 쪼개므로 머리글 앞의 결정적 줄들이 한 블록이 되고, 그 줄에
+    박힌 접수번호가 그 블록을 인용 가능하게 만든다. 공시가 아닌 것을 근거로 대는 셈이다.
+    """
+    assert any("결정적" in lb for lb in _labels("A84")), "종전 거동이 안 움직였다는 뜻이다"
+    labels = _labels("A86")
+    assert labels and not any("결정적" in lb for lb in labels)
+
+
+def test_그_줄에만_있던_접수번호는_인용_후보에서_빠진다():
+    """근거 블록에 없는 공시를 답변이 인용하면 안 된다. 번호는 줄 안에 이미 적혀 있다."""
+    with ablation.use("A86"):
+        numbers = {u["rcept_no"] for u in ablation._citation_units(_EVIDENCE)}
+    assert numbers == {"20250310000839"}
+
+
+def test_근거_블록의_인용은_그대로다():
+    """겨냥 밖을 깎지 않았다는 단정이다."""
+    with ablation.use("A86"):
+        units = ablation._citation_units(_EVIDENCE)
+    assert [u["label"] for u in units] == ["대량보유상황보고서 (2025-03-10)"]
+
+
+# --- ④ `quiet_verify_note` — 각주를 배달되는 문면에 안 싣는다 --------------------
 
 _NOTE = re.compile(r"\(주의:")
 
