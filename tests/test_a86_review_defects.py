@@ -174,6 +174,19 @@ def test_그_달에_보고서가_둘이면_침묵한다():
         assert aggregate.holding_pair(twin, Q012, lambda *_: twin) == ""
 
 
+def test_줄이_줄바꿈으로_시작하지_않는다():
+    """🔴 서버 실측으로 잡은 결함이다.
+
+    `_prepend` 가 이 줄을 홀로 세우므로 앞에 줄바꿈을 붙이면 근거 첫 줄이 빈 문자열이
+    되고, `attach_citation` 의 블록 파서가 그 빈 줄을 머리글로 읽어
+    **`(근거: , 접수번호 …)`** 라는 라벨 없는 인용을 낸다. `A84` 336응답에는 0건이던
+    모양이라 이 줄이 만든 것이 분명했다.
+    """
+    out = pair(Q012)
+    assert out and not out.startswith("\n")
+    assert out.startswith("- [결정적 집계]")
+
+
 def test_스위치가_꺼지면_침묵한다():
     assert pair(Q012, arm="A84") == ""
 

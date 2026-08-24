@@ -663,7 +663,11 @@ def holding_pair(records, question: str, chain_lookup=None) -> str:
         months = (int(b[:4]) - int(a[:4])) * 12 + (int(b[4:6]) - int(a[4:6]))
         if months > 0:
             span = f", 약 {months}개월"
-    return (f"\n- [결정적 집계] 짚은 두 보고서 대조 ({_ymd(first)} → {_ymd(last)}{span}): "
+    #: 🔴 앞에 `\n` 을 붙이지 않는다. `_pledged_series` 는 **다른 줄 뒤에 이어 붙는** 것이라
+    #: 줄바꿈을 스스로 달지만, 이 줄은 `_prepend` 가 홀로 세운다. 붙이면 근거 첫 줄이 빈
+    #: 문자열이 되고, `attach_citation` 의 블록 파서가 그 빈 줄을 머리글로 읽어
+    #: **`(근거: , 접수번호 …)`** 라는 라벨 없는 인용을 낸다 — 서버 실측으로 확인했다.
+    return (f"- [결정적 집계] 짚은 두 보고서 대조 ({_ymd(first)} → {_ymd(last)}{span}): "
             f"{' · '.join(parts)} "
             f"(이 값과 증감은 시스템이 위 근거의 각 칸에서 직접 읽고 뺀 것이다. "
             f"답변의 수치와 증감 방향은 이 줄을 그대로 쓰고 다시 계산하지 않는다.)")
