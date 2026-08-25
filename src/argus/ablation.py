@@ -357,6 +357,15 @@ class Arm:
     #: 나갔다. **종전부터 있던 결함**이고, `A86` 의 `holding_pair` 가 답변에만 있는 수를
     #: 공급하자 `Q-012` 로도 번졌다.
     decisive_not_citable: bool = False
+    #: 결정적 줄의 **지시문**이 답변에 베껴졌으면 뗀다. LLM 호출 없음.
+    #:
+    #: 🔴 모델에게 한 말이 평가자에게 배달되고 있었다 — *"답변의 수치와 증감 방향은 이
+    #: 줄을 그대로 쓰고 다시 계산하지 않는다"* 가 답변 본문에 실렸다. 실측(서버 3회 ×
+    #: 네 실행): `A84` 6건(`Q-005`·`Q-012`·`Q-020`) · `A86` 3건(`Q-020`) — **3/3 재현**.
+    #:
+    #: 수치는 안 건드린다. 지우는 것은 괄호 속 지시문뿐이고 옮겨 적힌 값과 서술은 남는다 —
+    #: 그 값은 결정적 줄이 계산한 참값이므로 지울 이유가 없다. 근거도 안 건드린다.
+    strip_copied_directive: bool = False
     #: True accepts a latest record as a chain seed so the walk can reach the
     #: original filing. No LLM call. Gated by the question asking for the
     #: pre-revision value, which is what keeps it from reopening the case
@@ -1870,7 +1879,8 @@ A84 = replace(A83, name="A84", injection_gate=True)
 #: 나머지 둘은 근거가 바뀌므로 재측정이 필요하다. 겨냥은 `Q-005` · `Q-012` · `Q-020` 셋뿐이고
 #: 나머지 109문항은 프롬프트가 바이트까지 그대로다.
 A86 = replace(A84, name="A86", result_value_op=True, holding_pair=True,
-              quiet_verify_note=True, decisive_not_citable=True)
+              quiet_verify_note=True, decisive_not_citable=True,
+              strip_copied_directive=True)
 
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the

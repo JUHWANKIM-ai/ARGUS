@@ -3177,6 +3177,15 @@ def answer_question(question_id: str, question: str) -> dict:
         if repaired:
             trace.append(f'unit_paren fixed={len(repaired)} {" · ".join(repaired)}')
 
+    # 결정적 줄의 지시문이 답변에 베껴졌으면 뗀다. 모델에게 한 말이지 평가자에게 할
+    # 말이 아니다. 수치는 안 건드린다 — 그 값은 결정적 줄이 계산한 참값이다.
+    if ablation.enabled("strip_copied_directive"):
+        from argus.agent import aggregate
+
+        answer, dropped = aggregate.strip_copied_directive(answer)
+        if dropped:
+            trace.append(f"directive stripped={dropped}")
+
     # Rounding restoration, the mirror of the conversion fix: that one repairs
     # a correct figure with a wrong parenthesis, this one a parenthesis with no
     # figure. It runs after the conversion fix so that the pairs it creates are

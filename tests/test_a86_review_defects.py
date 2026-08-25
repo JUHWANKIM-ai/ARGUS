@@ -242,7 +242,69 @@ def test_근거_블록의_인용은_그대로다():
     assert [u["label"] for u in units] == ["대량보유상황보고서 (2025-03-10)"]
 
 
-# --- ④ `quiet_verify_note` — 각주를 배달되는 문면에 안 싣는다 --------------------
+# --- ④ `strip_copied_directive` — 모델에게 한 말이 배달되면 안 된다 --------------
+
+#: `Q-020` r1 의 꼬리를 줄인 것. 모델이 결정적 줄을 통째로 옮겨 적은 모양 그대로다.
+_COPIED = (
+    "두 보고서 모두 동일한 보유비율을 나타냅니다.\n\n"
+    "정리하면 짚은 두 보고서 대조 (2025-03-10 → 2025-05-14, 약 2개월): "
+    "보유주식등의 수 196,488,145주 → 196,488,145주 (변동 없음) · "
+    "보유비율 30.67% → 30.67% (변동 없음) "
+    "(이 값과 증감은 시스템이 위 근거의 각 칸에서 직접 읽고 뺀 것이다. "
+    "답변의 수치와 증감 방향은 이 줄을 그대로 쓰고 다시 계산하지 않는다.)"
+)
+
+
+def test_지시문을_뗀다():
+    """🔴 서버 3회 × 네 실행에서 `Q-020` 이 3/3 으로 이것을 달고 나갔다."""
+    out, n = aggregate.strip_copied_directive(_COPIED)
+    assert n == 1
+    assert "시스템이" not in out
+    assert "그대로 쓰고 다시 계산하지 않는다" not in out
+
+
+def test_수치와_서술은_남긴다():
+    """지우는 것은 지시문뿐이다. 값은 결정적 줄이 계산한 참값이라 지울 이유가 없다."""
+    out, _ = aggregate.strip_copied_directive(_COPIED)
+    for keep in ("196,488,145주", "30.67%", "변동 없음", "2025-03-10 → 2025-05-14"):
+        assert keep in out
+
+
+@pytest.mark.parametrize("directive", [
+    "(이 값은 시스템이 위 근거의 금액 필드에서 직접 계산한 것이다.)",
+    "(이 값은 시스템이 위 근거의 비율 필드에서 직접 읽은 것이다. "
+    "답변의 해당 수치는 이 값을 그대로 쓴다.)",
+    "(이 값은 시스템이 위 근거의 `주요계약체결` 칸에서 직접 읽은 것이다. "
+    "답변의 해당 수치는 이 값을 그대로 쓴다.)",
+])
+def test_지시문_판마다_다_뗀다(directive):
+    """`aggregate` 가 쓰는 지시문은 한 판이 아니다. 하나만 잡으면 나머지가 샌다."""
+    out, n = aggregate.strip_copied_directive("답은 100,000원이다. " + directive)
+    assert n == 1 and "시스템이" not in out
+    assert "100,000원" in out
+
+
+def test_괄호_없는_판도_뗀다():
+    """`revision_diff` 는 괄호 없이 문장으로 붙인다."""
+    out, n = aggregate.strip_copied_directive(
+        "정정 전 100,000원 → 정정 후 200,000원\n"
+        "이 값은 시스템이 위 근거의 문면에서 그대로 옮긴 것이다 — 다시 계산하지 않는다.")
+    assert n == 1 and "시스템이" not in out
+    assert "200,000원" in out
+
+
+def test_지시문이_없으면_손대지_않는다():
+    plain = "답은 **100,000원**입니다.\n\n(근거: 공급계약 체결, 접수번호 20230131800162)"
+    out, n = aggregate.strip_copied_directive(plain)
+    assert n == 0 and out == plain
+
+
+def test_A86_은_이_스위치를_켠다():
+    assert ablation.ARMS["A86"].strip_copied_directive is True
+    assert ablation.ARMS["A84"].strip_copied_directive is False
+
+
+# --- ⑤ `quiet_verify_note` — 각주를 배달되는 문면에 안 싣는다 --------------------
 
 _NOTE = re.compile(r"\(주의:")
 
