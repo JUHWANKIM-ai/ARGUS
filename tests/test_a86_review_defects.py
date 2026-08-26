@@ -388,29 +388,54 @@ def test_합치지_말라를_붙인다():
     **진짜 합(1,081,829,074,942)과도 다른 수**였다. 대표 계약 행이 이미 있으므로
     더할 이유가 없다는 것을 문면으로 말한다.
     """
-    assert "합계는 내지 않는다" in _roster("A90")
+    for arm in ("A90", "A91"):
+        assert "합계는 내지 않는다" in _roster(arm)
     assert "합계는 내지 않는다" not in _roster("A89")
 
 
-def test_대표_계약_행이_없으면_안_붙인다():
-    """할 말의 전제가 *"위 대표 계약"* 이다. 그 행이 없으면 가리킬 것이 없다."""
-    out = _roster("A90", loaded={})
+def test_다듬은_문면은_인용_수를_안_건드린다():
+    """🔴 `A90` 의 앞절이 「한 건만 적으라」로도 읽혔다.
+
+    `Q-114` 가 삼성중공업 두 번째 공시(20231218800177)를 3회 중 2회 안 적어
+    근거 표시(골든 일치)가 0·0·0 → 1·0·1 이 됐다. 겨냥은 합계 금지 하나뿐이다.
+    """
+    assert "위 대표 계약을 적고" in _roster("A90")
+    assert "위 대표 계약을 적고" not in _roster("A91")
+    assert "한 회사의 여러 공시를 더한 합계는 내지 않는다" in _roster("A91")
+
+
+def test_두_문면은_배타다():
+    """둘 다 켜면 `A90` 문면이 이긴다 — 그 자리를 시험으로 못 박는다."""
+    from dataclasses import replace
+
+    both = replace(ablation.ARMS["A91"], name="BOTH", roster_no_total=True)
+    with ablation.use(both):
+        from argus.agent import pipeline
+
+        out = pipeline._roster_line("한국수력원자력(주)", ["한전기술", "현대건설"], _LOADED)
+    assert "위 대표 계약을 적고" in out
+
+
+@pytest.mark.parametrize("arm", ["A90", "A91"])
+def test_대표_계약_행이_없으면_안_붙인다(arm):
+    """할 말의 전제가 **위 행**이다. 그 행이 없으면 가리킬 것이 없다."""
+    out = _roster(arm, loaded={})
     assert "합계는 내지 않는다" not in out
     assert "빠짐없이 적고 임의로 줄이지 않는다" in out, "종전 문장은 남는다"
 
 
-def test_종전_문장을_안_지운다():
+@pytest.mark.parametrize("arm", ["A90", "A91"])
+def test_종전_문장을_안_지운다(arm):
     """🔴 덧붙이는 것이지 갈아 끼우는 것이 아니다. 열거 지시가 사라지면 안 된다."""
-    out = _roster("A90")
-    assert "빠짐없이 적고 임의로 줄이지 않는다" in out
-    assert "회사마다 위 대표 계약을 적고" in out
+    assert "빠짐없이 적고 임의로 줄이지 않는다" in _roster(arm)
 
 
 def test_부모가_꺼지면_세울_수_없다():
     from dataclasses import replace
 
-    with pytest.raises(ValueError, match="roster_no_total"):
-        replace(ablation.ARMS["A0"], name="TEST", roster_no_total=True)
+    for flag in ("roster_no_total", "roster_sum_ban"):
+        with pytest.raises(ValueError, match=flag):
+            replace(ablation.ARMS["A0"], name="TEST", **{flag: True})
 
 
 # --- ⑦ `quiet_verify_note` — 각주를 배달되는 문면에 안 싣는다 --------------------

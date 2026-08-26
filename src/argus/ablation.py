@@ -74,7 +74,8 @@ FLAG_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     #: `roster_items` 는 `_roster_line` 이 만드는 줄에 항목을 덧붙인다. 부모가 꺼지면
     #: `roster_out` 자체를 안 넘기므로 자식은 조용한 무동작이 된다. `roster_counts` 도
     #: 같은 줄에 붙으므로 같은 부모를 갖는다.
-    "roster_line": ("roster_items", "roster_counts", "roster_no_total"),
+    "roster_line": ("roster_items", "roster_counts", "roster_no_total",
+                    "roster_sum_ban"),
     #: `pledged_series` 와 `holding_receipts` 는 **`holding_series` 가 만든 줄 안에서만**
     #: 산다. 앞은 그 줄에 문장을 덧붙이고 뒤는 그 줄의 걸음마다 접수번호를 끼운다. 부모가
     #: 꺼지면 `pipeline` 이 그 함수를 아예 안 부르므로 둘 다 조용한 무동작이 된다.
@@ -397,6 +398,15 @@ class Arm:
     #: 🔴 기대는 낮게 잡는다. 지시 문장은 이 저장소에서 여러 번 안 들었다
     #: (`counterparty_pair` 1/3 · `roster_counts` 3회 그대로). 안 들으면 기각한다.
     roster_no_total: bool = False
+    #: 같은 겨냥의 **다듬은 문면**. `roster_no_total` 과 배타다.
+    #:
+    #:     A90  회사마다 위 대표 계약을 적고, 한 회사의 여러 공시를 더한 합계는 내지 않는다.
+    #:     A91  한 회사의 여러 공시를 더한 합계는 내지 않는다.
+    #:
+    #: 🔴 `A90` 의 앞절이 「한 건만 적으라」로도 읽혔다 — `Q-114` 가 삼성중공업
+    #: 두 번째 공시(20231218800177)를 3회 중 2회 안 적어 근거 표시(골든 일치)가
+    #: 0·0·0 → 1·0·1 이 됐다. 겨냥은 합계 금지 하나뿐이므로 그 앞절을 뺀다.
+    roster_sum_ban: bool = False
     #: True accepts a latest record as a chain seed so the walk can reach the
     #: original filing. No LLM call. Gated by the question asking for the
     #: pre-revision value, which is what keeps it from reopening the case
@@ -1921,7 +1931,12 @@ A89 = replace(A86, name="A89", wide_counterparty_slots=True)
 
 # --- W18 · 합치지 말라 (2026-08-26) --------------------------------------------
 #: `A89` 위에 한 줄이다. 넓힌 칸이 만든 부작용 하나만 겨냥한다.
-A90 = replace(A89, name="A90", roster_no_total=True)
+A90 = replace(A89, name="A90", roster_no_total=True)   # 🔴 문면 기각 (Q-114 인용 −1)
+
+# --- W18b · 문면을 다듬는다 (2026-08-27) ---------------------------------------
+#: `A90` 이 정확성 112·112·112 와 근거 완전성 168/168 을 **둘 다** 냈는데 근거
+#: 표시에서 `Q-114` 를 2/3 회차 잃었다. 얻은 것은 지키고 잃은 것만 되돌린다.
+A91 = replace(A89, name="A91", roster_sum_ban=True)
 
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
@@ -1970,7 +1985,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85", "A86", "A89", "A90",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85", "A86", "A89", "A90", "A91",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -2017,7 +2032,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86, A89, A90)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86, A89, A90, A91)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
@@ -2140,7 +2155,7 @@ FLAG_NAMES: tuple[str, ...] = tuple(
 #:
 #: 🔴 **배포는 별도 승인 사안이다.** 이 상수를 바꾸는 것과 서버에 올리는 것은 다른 일이다.
 #: 2026-08-22 사용자 승인으로 배포한다.
-_current: Arm = A90
+_current: Arm = A91
 
 
 def current() -> Arm:
