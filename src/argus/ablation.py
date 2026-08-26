@@ -366,6 +366,21 @@ class Arm:
     #: 수치는 안 건드린다. 지우는 것은 괄호 속 지시문뿐이고 옮겨 적힌 값과 서술은 남는다 —
     #: 그 값은 결정적 줄이 계산한 참값이므로 지울 이유가 없다. 근거도 안 건드린다.
     strip_copied_directive: bool = False
+    #: 계약상대 갈래의 근거 칸을 6 → **8** 로 넓히고 파트너당 최소 2건을 준다.
+    #: LLM 호출 없음.
+    #:
+    #: 🔴 `Q-110` 은 한 회사가 두 갈래를 맡는다 — 두산퓨얼셀의 「연료전지 공급 계약」과
+    #: 「장기유지보수(LTSA)」다. 골든 요점5 가 둘을 함께 말하는데 칸이 회사당 1개라
+    #: 반쪽만 실렸다. 회수는 35건을 다 가져오므로 **회수가 아니라 배분 문제**다.
+    #:
+    #: 🔴 **LLM 으로 고르는 길을 먼저 재고 기각했다**(`scratch/proto_llm_slot.py`).
+    #: 파트너마다 한 번씩 물어 대표 공시를 고르게 했더니 골든 적중이 5/6 → 5/6 으로
+    #: 한 칸도 안 움직였다. 「어느 것」이 아니라 「몇 개」 문제였기 때문이다.
+    #:
+    #: 상한을 8 로 둔 근거는 오프라인 산술이다(`scratch/proto_slot_cap.py`) —
+    #: 골든 적중이 8칸에서 최대치에 닿고 9·10·12 는 근거만 길어진다. 근거는 길수록
+    #: 위험하다(`ORACLE` 에서 옆 블록을 치웠더니 세 문항이 정답이 됐다).
+    wide_counterparty_slots: bool = False
     #: True accepts a latest record as a chain seed so the walk can reach the
     #: original filing. No LLM call. Gated by the question asking for the
     #: pre-revision value, which is what keeps it from reopening the case
@@ -1882,6 +1897,12 @@ A86 = replace(A84, name="A86", result_value_op=True, holding_pair=True,
               quiet_verify_note=True, decisive_not_citable=True,
               strip_copied_directive=True)
 
+# --- W17 · 계약상대 칸 넓힘 (2026-08-26) ---------------------------------------
+#: `A86` 위에 하나다. 근거가 바뀌는 문항은 셋(`Q-109`·`Q-110`·`Q-116`)이고
+#: 나머지 109문항은 프롬프트가 바이트까지 같다. 기대는 근거 완전성 167 → 168 이고,
+#: 위험은 근거가 길어지는 데서 오는 희석이다 — `Q-109` 는 골든이 안 느는데 2건 는다.
+A89 = replace(A86, name="A89", wide_counterparty_slots=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1929,7 +1950,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85", "A86",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85", "A86", "A89",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -1976,7 +1997,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86, A89)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
@@ -2099,7 +2120,7 @@ FLAG_NAMES: tuple[str, ...] = tuple(
 #:
 #: 🔴 **배포는 별도 승인 사안이다.** 이 상수를 바꾸는 것과 서버에 올리는 것은 다른 일이다.
 #: 2026-08-22 사용자 승인으로 배포한다.
-_current: Arm = A86
+_current: Arm = A89
 
 
 def current() -> Arm:

@@ -304,7 +304,64 @@ def test_A86_은_이_스위치를_켠다():
     assert ablation.ARMS["A84"].strip_copied_directive is False
 
 
-# --- ⑤ `quiet_verify_note` — 각주를 배달되는 문면에 안 싣는다 --------------------
+# --- ⑤ `wide_counterparty_slots` — 한 회사가 두 갈래를 맡는 자리 ----------------
+
+def test_칸이_6에서_8로_넓어진다():
+    from argus.agent import pipeline
+
+    with ablation.use("A86"):
+        assert pipeline._counterparty_cap() == 6
+    with ablation.use("A89"):
+        assert pipeline._counterparty_cap() == 8
+
+
+def test_파트너당_최소_두_건을_준다():
+    """🔴 `Q-110` 두산퓨얼셀은 「공급 계약」과 「LTSA」 둘을 맡는다.
+
+    골든 요점5 가 둘을 함께 말하는데 회사당 1건이면 반쪽만 실린다.
+    """
+    from argus.agent import pipeline
+
+    with ablation.use("A86"):
+        assert pipeline._partner_quota(6) == 1
+        assert pipeline._partner_quota(3) == 1
+    with ablation.use("A89"):
+        assert pipeline._partner_quota(6) == 2
+        assert pipeline._partner_quota(3) == 2
+
+
+def test_파트너가_적으면_종전_배분이_이미_더_넓다():
+    """두 곳짜리 노드는 이미 2건씩이었다. 넓힘이 그것을 줄이면 안 된다."""
+    from argus.agent import pipeline
+
+    for arm in ("A86", "A89"):
+        with ablation.use(arm):
+            assert pipeline._partner_quota(2) == 2
+
+
+def test_상한을_8로_둔_근거를_한_자리에_박는다():
+    """🔴 9·10·12 는 골든을 더 못 싣고 근거만 길어진다(오프라인 산술).
+
+    근거는 길수록 위험하다 — `ORACLE` 에서 옆 블록을 **치웠더니** 세 문항이 정답이 됐다.
+    이 수를 올리려면 그 측정을 다시 해야 한다.
+    """
+    from argus.agent import pipeline
+
+    assert pipeline.WIDE_COUNTERPARTY_EVIDENCE == 8
+    assert pipeline.MAX_COUNTERPARTY_EVIDENCE == 6
+
+
+def test_기본_인자가_아니라_호출_시점에_푼다():
+    """🔴 기본 인자로 두면 import 때 굳어 스위치가 안 닿는다."""
+    import inspect
+
+    from argus.agent import pipeline
+
+    sig = inspect.signature(pipeline._gather_counterparty)
+    assert sig.parameters["limit"].default is None
+
+
+# --- ⑥ `quiet_verify_note` — 각주를 배달되는 문면에 안 싣는다 --------------------
 
 _NOTE = re.compile(r"\(주의:")
 

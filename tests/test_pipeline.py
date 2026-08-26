@@ -1523,19 +1523,35 @@ def test_partner_quota_holds_at_the_boundaries():
     폭이 클 때 몫이 0 이 되어 **아무 파트너도 근거를 못 받는다**. 둘 다 데이터 없이
     검증되는 순수 함수라 비용이 0 이다.
     """
-    quota = pipeline._partner_quota
-    assert quota(0) == 1                       # 방어적 경로, 0 나눗셈도 무발화도 없다
-    assert quota(1) == 1                       # 노드의 83%
-    assert quota(2) == 2                       # 유일하게 몫 2 (삼성전자, 독스트링의 실측)
-    assert quota(3) == 1
-    assert quota(6) == 1                       # 최대 폭, 모든 파트너가 한 칸씩
-    assert quota(pipeline.MAX_EVIDENCE) == 1
-    assert quota(pipeline.MAX_EVIDENCE + 15) == 1
+    from argus import ablation
 
-    # 불변 둘: 몫은 1 이상이고, 깊이는 폭을 넘지 않는다.
-    for width in range(1, 40):
-        assert quota(width) >= 1
-        assert quota(width) <= width
+    quota = pipeline._partner_quota
+    #: 🔴 팔을 명시한다. 2026-08-26 에 `wide_counterparty_slots` 가 이 몫을 바꿨고,
+    #: 팔을 안 정하면 이 시험이 그때그때의 운영 기본값을 따라 흔들린다.
+    with ablation.use("A86"):
+        assert quota(0) == 1                   # 방어적 경로, 0 나눗셈도 무발화도 없다
+        assert quota(1) == 1                   # 노드의 83%
+        assert quota(2) == 2                   # 유일하게 몫 2 (삼성전자, 독스트링의 실측)
+        assert quota(3) == 1
+        assert quota(6) == 1                   # 최대 폭, 모든 파트너가 한 칸씩
+        assert quota(pipeline.MAX_EVIDENCE) == 1
+        assert quota(pipeline.MAX_EVIDENCE + 15) == 1
+
+    #: 넓힌 팔은 파트너당 최소 2건이다 — 다만 **깊이는 폭을 못 넘는다**.
+    with ablation.use("A89"):
+        assert quota(0) == 1                   # 폭이 없으면 하한도 안 선다
+        assert quota(1) == 1
+        assert quota(2) == 2
+        assert quota(3) == 2                   # 여기가 갈리는 자리
+        assert quota(6) == 2
+        assert quota(pipeline.MAX_EVIDENCE + 15) == 2
+
+    # 불변 둘: 몫은 1 이상이고, 깊이는 폭을 넘지 않는다. 두 팔에서 다 성립해야 한다.
+    for arm in ("A86", "A89"):
+        with ablation.use(arm):
+            for width in range(1, 40):
+                assert quota(width) >= 1
+                assert quota(width) <= width
     # 담기는 레코드는 근거 칸 상한 안에 든다 (파트너가 실제로 그만큼 있을 때).
     for width in range(1, 40):
         assert min(quota(width) * width, pipeline.MAX_COUNTERPARTY_EVIDENCE) \

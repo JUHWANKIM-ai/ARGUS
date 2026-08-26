@@ -681,6 +681,23 @@ def _expand_chain(picked: list[dict], seen: set, budget: Budget,
 #: Evidence slots available to counterparty results. The graph maximum is six
 #: partners, so one record per partner always fits.
 MAX_COUNTERPARTY_EVIDENCE = 6
+#: 넓힌 상한. 🔴 **8 이다.** 6·8·9·10·12 를 오프라인 산술로 재봤더니 골든 적중이
+#: 8 에서 이미 최대치에 닿고 그 위로는 근거만 길어졌다.
+#:
+#:     문항     6칸    8칸    9칸    10칸   12칸
+#:     Q-110   4/6    5/8    5/9    5/10   5/10
+#:     Q-116   2/3    3/5    3/5    3/5    3/5
+#:     Q-109   2/6    2/8    2/9    2/10   2/10   (골든 안 늚 — 순수 비용)
+#:
+#: 근거는 길어질수록 위험하다 — `ORACLE` 실측에서 옆 블록을 **치웠더니** 세 문항이
+#: 정답이 됐다(희석). 그래서 얻는 것이 같은 최소값을 고른다.
+WIDE_COUNTERPARTY_EVIDENCE = 8
+
+
+def _counterparty_cap() -> int:
+    """계약상대 갈래가 근거에 놓을 수 있는 칸 수."""
+    return (WIDE_COUNTERPARTY_EVIDENCE if ablation.enabled("wide_counterparty_slots")
+            else MAX_COUNTERPARTY_EVIDENCE)
 
 
 def _partner_quota(n_partners: int) -> int:
@@ -697,7 +714,15 @@ def _partner_quota(n_partners: int) -> int:
     See docs/design-rationale.md#partner-quota
     """
     width = max(n_partners, 1)
-    return max(1, min(width, MAX_EVIDENCE // 2 // width))
+    base = max(1, min(width, MAX_EVIDENCE // 2 // width))
+    #: 넓힌 팔에서는 파트너당 **최소 2건**이다. 한 회사가 두 갈래를 맡는 문항
+    #: (`Q-110` 두산퓨얼셀 — 공급 계약과 LTSA)이 1건으로는 반쪽만 실린다.
+    if ablation.enabled("wide_counterparty_slots"):
+        #: 🔴 `width` 로 다시 조인다. 깊이는 폭을 못 넘는다 — 파트너가 0곳이거나 1곳일 때
+        #: 하한 2 를 그대로 두면 열거가 아니라 한 회사 목록이 되고, 경계 시험이 그것을
+        #: 잡는다(`test_partner_quota_holds_at_the_boundaries`).
+        return min(width, max(2, base))
+    return base
 
 
 def _lane_scores(question: str, records: list[dict]) -> list[float]:
@@ -963,7 +988,7 @@ def _roster_line(display: str, partners: Sequence[str],
 
 
 def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[str],
-                         take, limit: int = MAX_COUNTERPARTY_EVIDENCE,
+                         take, limit: int | None = None,
                          prefer: Sequence[str] = (),
                          roster_out: list[str] | None = None) -> int:
     """Collect per-partner evidence from the counterparty graph. No LLM call,
@@ -998,6 +1023,9 @@ def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[st
     # name makes the non-specific guard miss. All 145 graph nodes were checked
     # to confirm the display form canonicalises identically, so the lookup
     # result is unchanged.
+    #: 기본 인자로 두면 import 때 굳어 스위치가 안 닿는다. 여기서 푼다.
+    if limit is None:
+        limit = _counterparty_cap()
     name = router_module.counterparty_display(hub) or hub
     out = tools.execute("query_by_counterparty", {"name": name})
     if "error" in out:
@@ -1879,7 +1907,7 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
     #: Slots the counterparty lane may place in the final evidence. Grows by
     #: `MAX_EXTRA_HUB_EVIDENCE` per additional hub bound, and stays at the base
     #: constant with a single hub.
-    cp_cap = MAX_COUNTERPARTY_EVIDENCE
+    cp_cap = _counterparty_cap()
 
     def _remember(record: dict | None) -> None:
         """Record which filings were used as evidence.
@@ -2130,7 +2158,7 @@ def _gather_evidence(r, question: str = "", budget: Budget | None = None,
                      if ablation.enabled("roster_line") and from_question else {})
             _gather_counterparty(
                 hub, question, budget, trace, _take_cp,
-                limit=MAX_COUNTERPARTY_EVIDENCE if from_question else MAX_EXTRA_HUB_EVIDENCE,
+                limit=_counterparty_cap() if from_question else MAX_EXTRA_HUB_EVIDENCE,
                 prefer=() if from_question else tuple(r.companies or ()), **extra)
 
     # Truncation keeps chain members first. A chain can push the collected
