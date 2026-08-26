@@ -964,11 +964,13 @@ def _roster_line(display: str, partners: Sequence[str],
         count_of = {corp: f" {counts[corp]['total']}건"
                           f"(최신본 {counts[corp]['latest']}건)"
                     for corp in partners if corp in counts}
+    wrote_items = False
     if ablation.enabled("roster_items") and loaded:
         rows = [f"  · {corp}{count_of.get(corp, '')} — {loaded[corp]['subject']}"
                 f" {loaded[corp]['amount']} (접수번호 {loaded[corp]['rcept_no']})"
                 for corp in partners if corp in loaded]
         if rows:
+            wrote_items = True
             #: 🔴 `=` 이 아니라 `+=` 다. 종전은 대입이라 앞서 쓴 줄을 통째로 덮었다 —
             #: 줄이 붙은 줄 알고 3회를 잰 뒤에야 드러났다.
             detail += ("\n" + "\n".join(rows)
@@ -982,9 +984,19 @@ def _roster_line(display: str, partners: Sequence[str],
         #: `roster_items` 가 꺼져 있으면 붙일 행이 없다. 그때는 회사 이름 뒤에 붙인다.
         detail += ("\n" + "\n".join(f"  · {corp}{count_of[corp]}"
                                    for corp in partners if corp in count_of))
+    #: 🔴 합치지 말라고 못 박는다. 칸을 8로 넓힌 뒤 한 회사에 근거가 여러 건 실리자
+    #: 모델이 그것을 **스스로 더했다** — `Q-110` A89 r1 이 한전기술 3건을 합해
+    #: 1,080,964,550,138원 을 냈고, 진짜 합(1,081,829,074,942)과도 다른 수였다.
+    #: 위 행이 회사마다 대표 계약을 이미 주므로 더할 이유가 없다.
+    no_total = ""
+    #: 🔴 **행이 실제로 실렸을 때만** 붙인다. *"위 대표 계약"* 이 가리킬 것이 없으면
+    #: 그 문장은 거짓말이 된다 — 시험이 이것을 잡았다.
+    if wrote_items and ablation.enabled("roster_no_total"):
+        no_total = (" 회사마다 위 대표 계약을 적고, 한 회사의 여러 공시를 더한"
+                    " 합계는 내지 않는다.")
     return (head + detail + "\n"
             f"(이 목록은 시스템이 계약상대 그래프에서 직접 열거한 것이다. "
-            f"답변은 이 {len(partners)}곳을 빠짐없이 적고 임의로 줄이지 않는다.)")
+            f"답변은 이 {len(partners)}곳을 빠짐없이 적고 임의로 줄이지 않는다.{no_total})")
 
 
 def _gather_counterparty(hub: str, question: str, budget: Budget, trace: list[str],

@@ -361,7 +361,59 @@ def test_기본_인자가_아니라_호출_시점에_푼다():
     assert sig.parameters["limit"].default is None
 
 
-# --- ⑥ `quiet_verify_note` — 각주를 배달되는 문면에 안 싣는다 --------------------
+# --- ⑥ `roster_no_total` — 여러 공시를 더하지 말라고 못 박는다 -------------------
+
+_LOADED = {
+    "한전기술": {"rcept_no": "20230417800192",
+              "subject": "2023년도 가동원전 계통설계 기술용역",
+              "amount": "25,605,030,000원"},
+    "현대건설": {"rcept_no": "20231211800339",
+              "subject": "신한울 3,4호기 주설비공사",
+              "amount": "1,715,754,987,100원"},
+}
+
+
+def _roster(arm, loaded=None):
+    from argus.agent import pipeline
+
+    with ablation.use(arm):
+        return pipeline._roster_line("한국수력원자력(주)", ["한전기술", "현대건설"],
+                                     _LOADED if loaded is None else loaded)
+
+
+def test_합치지_말라를_붙인다():
+    """🔴 칸을 8로 넓히자 모델이 한 회사의 여러 공시를 스스로 더했다.
+
+    `Q-110` A89 r1 이 한전기술 3건을 합해 1,080,964,550,138원 을 냈고, 그것은
+    **진짜 합(1,081,829,074,942)과도 다른 수**였다. 대표 계약 행이 이미 있으므로
+    더할 이유가 없다는 것을 문면으로 말한다.
+    """
+    assert "합계는 내지 않는다" in _roster("A90")
+    assert "합계는 내지 않는다" not in _roster("A89")
+
+
+def test_대표_계약_행이_없으면_안_붙인다():
+    """할 말의 전제가 *"위 대표 계약"* 이다. 그 행이 없으면 가리킬 것이 없다."""
+    out = _roster("A90", loaded={})
+    assert "합계는 내지 않는다" not in out
+    assert "빠짐없이 적고 임의로 줄이지 않는다" in out, "종전 문장은 남는다"
+
+
+def test_종전_문장을_안_지운다():
+    """🔴 덧붙이는 것이지 갈아 끼우는 것이 아니다. 열거 지시가 사라지면 안 된다."""
+    out = _roster("A90")
+    assert "빠짐없이 적고 임의로 줄이지 않는다" in out
+    assert "회사마다 위 대표 계약을 적고" in out
+
+
+def test_부모가_꺼지면_세울_수_없다():
+    from dataclasses import replace
+
+    with pytest.raises(ValueError, match="roster_no_total"):
+        replace(ablation.ARMS["A0"], name="TEST", roster_no_total=True)
+
+
+# --- ⑦ `quiet_verify_note` — 각주를 배달되는 문면에 안 싣는다 --------------------
 
 _NOTE = re.compile(r"\(주의:")
 
