@@ -1,65 +1,139 @@
-<mxfile host="app.diagrams.net" agent="argus" version="24.0.0">
-  <diagram name="ARGUS 서비스 흐름" id="argus-service-flow">
-    <mxGraphModel dx="1600" dy="1200" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1340" math="0" shadow="0">
-      <root>
-        <mxCell id="0"/>
-        <mxCell id="1" parent="0"/>
-
-        <mxCell id="sft1" value="질문이 들어와서 답이 나가기까지" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=27;fontStyle=1;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="60" y="22" width="800" height="34" as="geometry"/></mxCell>
-        <mxCell id="sft2" value="ARGUS — 기업 공시 질의응답 서비스의 흐름" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=15;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="60" y="58" width="800" height="22" as="geometry"/></mxCell>
-        <mxCell id="sft3" value="다루는 범위 :  70개 상장사 · 2023년 1월 ~ 2026년 3월에 접수된 공시" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=14;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="60" y="82" width="800" height="22" as="geometry"/></mxCell>
-
-        <mxCell id="sflg0" value="색이 뜻하는 것" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#7A7A7A;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=14;spacingTop=6;fontSize=14;fontStyle=1;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="960" y="20" width="400" height="180" as="geometry"/></mxCell>
-        <mxCell id="sflg1" value="&lt;b&gt;규칙과 색인이 처리하는 단계&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;AI 모델을 부르지 않는다 — 빠르고, 매번 같은 결과가 나온다&lt;/font&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=13;verticalAlign=middle;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="982" y="58" width="356" height="44" as="geometry"/></mxCell>
-        <mxCell id="sflg2" value="&lt;b&gt;AI 모델이 글을 쓰는 단계&lt;/b&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#C87A2F;fontSize=13;verticalAlign=middle;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="982" y="108" width="172" height="36" as="geometry"/></mxCell>
-        <mxCell id="sflg3" value="&lt;b&gt;검사 · 안전&lt;/b&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B3453F;fontSize=13;verticalAlign=middle;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="1166" y="108" width="172" height="36" as="geometry"/></mxCell>
-        <mxCell id="sflg4" value="&lt;b&gt;갈림길&lt;/b&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#C9A227;fontSize=13;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="982" y="150" width="172" height="38" as="geometry"/></mxCell>
-        <mxCell id="sflg5" value="일곱 단계 중&lt;br&gt;AI 는 두 곳에서만 쓴다" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="1166" y="150" width="172" height="38" as="geometry"/></mxCell>
-
-        <mxCell id="sfb1" value="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#555555;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="104" y="204" width="56" height="56" as="geometry"/></mxCell>
-        <mxCell id="sfs1" value="&lt;b&gt;질문이 들어온다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;「삼성중공업이 2023년에 수주한 원유운반선 계약금액은 얼마인가요?」 처럼 공시에 관한 질문을 받는다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#555555;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="180" y="176" width="640" height="110" as="geometry"/></mxCell>
-
-        <mxCell id="sfb2" value="2" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3A6FA8;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="104" y="334" width="56" height="56" as="geometry"/></mxCell>
-        <mxCell id="sfs2" value="&lt;b&gt;무엇을 묻는지 읽는다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;어느 회사의 · 언제의 · 무엇을 묻는지 가려낸다. 그리고 우리가 가진 공시로 답할 수 있는 질문인지 &lt;b&gt;먼저&lt;/b&gt; 판단한다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="180" y="306" width="640" height="110" as="geometry"/></mxCell>
-        <mxCell id="sfd1" value="&lt;b&gt;답할 수 있는 질문인가&lt;/b&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#C9A227;fontSize=14;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="860" y="306" width="200" height="110" as="geometry"/></mxCell>
-        <mxCell id="sfstop" value="&lt;b&gt;아니면 여기서 멈춘다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;지어내지 않는다. 대신 무엇을 물으면 답해 드릴 수 있는지 되묻는다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B3453F;fontSize=14;verticalAlign=middle;align=left;spacingLeft=12;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="1090" y="320" width="270" height="82" as="geometry"/></mxCell>
-
-        <mxCell id="sfb3" value="3" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3A6FA8;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="104" y="464" width="56" height="56" as="geometry"/></mxCell>
-        <mxCell id="sfs3" value="&lt;b&gt;공시를 찾는다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;쌓아 둔 공시 문서에서 질문과 맞는 대목을 추려 온다. 근거가 모자라면 조건을 넓혀 다시 찾는다 — 정해진 횟수까지만.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="180" y="436" width="640" height="110" as="geometry"/></mxCell>
-        <mxCell id="sfn3" value="공시 문서 &lt;b&gt;4,204건&lt;/b&gt; · 70개 회사 · 2023년 1월 ~ 2026년 3월 접수분.&lt;br&gt;계약 · 증자 · 지분 · 사업보고서까지 종류마다 따로 색인해 둔다." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="860" y="452" width="500" height="78" as="geometry"/></mxCell>
-
-        <mxCell id="sfb4" value="4" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3A6FA8;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="104" y="594" width="56" height="56" as="geometry"/></mxCell>
-        <mxCell id="sfs4" value="&lt;b&gt;문서 사이의 관계를 따라간다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;공시는 한 건으로 끝나지 않는다. 나중에 정정된 것 · 뒤에 해지된 것 · 같은 발주처와 계약한 다른 회사까지 이어서 본다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="180" y="566" width="640" height="110" as="geometry"/></mxCell>
-        <mxCell id="sfn4" value="정정된 공시를 못 따라가면 &lt;b&gt;옛 금액을 답하게 된다.&lt;/b&gt;&lt;br&gt;관계를 따라가는 이 단계가 정확도를 가장 크게 갈랐다." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="860" y="582" width="500" height="78" as="geometry"/></mxCell>
-
-        <mxCell id="sfb5" value="5" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C87A2F;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="104" y="724" width="56" height="56" as="geometry"/></mxCell>
-        <mxCell id="sfs5" value="&lt;b&gt;근거를 읽고 답을 쓴다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;찾아온 공시만 보고 답한다. 어느 보고서의 어느 대목에서 나온 값인지 답변 안에 함께 밝힌다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#C87A2F;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="180" y="696" width="640" height="110" as="geometry"/></mxCell>
-        <mxCell id="sfn5" value="&lt;b&gt;AI 모델이 글을 쓰는 곳은 여기와 6번, 두 군데뿐이다.&lt;/b&gt;&lt;br&gt;나머지 다섯 단계는 규칙과 색인이 처리한다 — 그래서 답이 매번 같고, 비용도 질문 하나당 미리 정해져 있다." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="860" y="708" width="500" height="86" as="geometry"/></mxCell>
-
-        <mxCell id="sfb6" value="6" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3453F;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="104" y="854" width="56" height="56" as="geometry"/></mxCell>
-        <mxCell id="sfs6" value="&lt;b&gt;답을 검사하고, 어긋나면 한 번 다시 쓴다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;계산이 맞는지 · 빠뜨린 것이 없는지 · 답에 쓴 숫자가 근거 문서에 실제로 있는지 확인한다. 어긋나면 그 이유를 알려 주고 &lt;b&gt;딱 한 번&lt;/b&gt; 다시 쓰게 한다. 다시 쓴 답도 통과하지 못하면 처음 답을 그대로 쓴다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B3453F;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="180" y="826" width="640" height="110" as="geometry"/></mxCell>
-        <mxCell id="sfn6" value="&lt;b&gt;검사는 AI 가 아니라 정해진 규칙이 한다.&lt;/b&gt;&lt;br&gt;그래서 검사 결과가 흔들리지 않고, 같은 답에는 늘 같은 판정이 나온다. 다시 쓰는 일은 검사가 걸렸을 때만 일어난다." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="860" y="838" width="500" height="86" as="geometry"/></mxCell>
-
-        <mxCell id="sfb7" value="7" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#555555;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="104" y="984" width="56" height="56" as="geometry"/></mxCell>
-        <mxCell id="sfs7" value="&lt;b&gt;답을 내보낸다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;답변과 함께 &lt;b&gt;근거 문서&lt;/b&gt;와 &lt;b&gt;판단 과정&lt;/b&gt;을 돌려준다. 주민번호 · 연락처 같은 개인정보는 가리고, 도중에 문제가 생겨도 빈손으로 돌려보내지 않는다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#555555;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="180" y="956" width="640" height="110" as="geometry"/></mxCell>
-
-        <mxCell id="sfc0" value="우리가 지키는 세 가지" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#333333;strokeWidth=2.5;verticalAlign=top;align=left;spacingLeft=16;spacingTop=8;fontSize=17;fontStyle=1;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="104" y="1104" width="1256" height="196" as="geometry"/></mxCell>
-        <mxCell id="sfc1" value="&lt;b&gt;공시에 없는 것은 없다고 말한다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;모르는 것을 지어내지 않는 것이 맞히는 것만큼 중요하다. 범위 밖 질문은 AI 를 부르기도 전에 정직하게 알린다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=14;verticalAlign=middle;align=left;spacingLeft=14;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="128" y="1158" width="396" height="112" as="geometry"/></mxCell>
-        <mxCell id="sfc2" value="&lt;b&gt;숫자는 계산기가 낸다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;금액 · 기간 · 비율은 AI 가 암산하지 않는다. 정해진 계산으로 미리 내어 근거에 적어 두고, 답을 쓴 뒤 한 번 더 대조한다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=14;verticalAlign=middle;align=left;spacingLeft=14;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="548" y="1158" width="396" height="112" as="geometry"/></mxCell>
-        <mxCell id="sfc3" value="&lt;b&gt;답에는 늘 출처가 붙는다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;어느 보고서의 어느 대목에서 나온 값인지 함께 준다. 사용자가 원문을 직접 확인할 수 있어야 한다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=14;verticalAlign=middle;align=left;spacingLeft=14;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" vertex="1" parent="1"><mxGeometry x="968" y="1158" width="368" height="112" as="geometry"/></mxCell>
-
-        <mxCell id="sfe1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" edge="1" parent="1" source="sfs1" target="sfs2"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="sfe2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" edge="1" parent="1" source="sfs2" target="sfd1"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="sfe3" value="아니오" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#B3453F;strokeWidth=2.4;dashed=1;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" edge="1" parent="1" source="sfd1" target="sfstop"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="sfe4" value="예" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="sfd1" target="sfs3"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="sfe5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" edge="1" parent="1" source="sfs2" target="sfs3"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="sfe6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" edge="1" parent="1" source="sfs3" target="sfs4"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="sfe7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" edge="1" parent="1" source="sfs4" target="sfs5"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="sfe8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" edge="1" parent="1" source="sfs5" target="sfs6"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="sfe9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" edge="1" parent="1" source="sfs6" target="sfs7"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="sfe10" value="여기서도 답을 돌려준다" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#B3453F;strokeWidth=2.4;dashed=1;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="sfstop" target="sfs7"><mxGeometry relative="1" as="geometry"/></mxCell>
-
-      </root>
-    </mxGraphModel>
-  </diagram>
+<mxfile host="65bd71144e">
+    <diagram name="ARGUS 서비스 흐름" id="argus-service-flow">
+        <mxGraphModel dx="1679" dy="1129" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1340" background="#ffffff" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="sft1" value="질문이 들어와서 답이 나가기까지" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=27;fontStyle=1;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="22" width="800" height="34" as="geometry"/>
+                </mxCell>
+                <mxCell id="sft2" value="ARGUS — 기업 공시 질의응답 서비스의 흐름" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=15;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="58" width="800" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="sft3" value="다루는 범위 :  70개 상장사 · 2023년 1월 ~ 2026년 3월에 접수된 공시" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=14;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="82" width="800" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="sflg0" value="색이 뜻하는 것" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#7A7A7A;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=14;spacingTop=6;fontSize=14;fontStyle=1;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="960" y="20" width="400" height="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="sflg1" value="&lt;b&gt;규칙과 색인이 처리하는 단계&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;AI 모델을 부르지 않는다 — 빠르고, 매번 같은 결과가 나온다&lt;/font&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=13;verticalAlign=middle;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="982" y="58" width="356" height="44" as="geometry"/>
+                </mxCell>
+                <mxCell id="sflg2" value="&lt;b&gt;AI 모델이 글을 쓰는 단계&lt;/b&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#C87A2F;fontSize=13;verticalAlign=middle;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="982" y="108" width="172" height="36" as="geometry"/>
+                </mxCell>
+                <mxCell id="sflg3" value="&lt;b&gt;검사 · 안전&lt;/b&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B3453F;fontSize=13;verticalAlign=middle;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="1166" y="108" width="172" height="36" as="geometry"/>
+                </mxCell>
+                <mxCell id="sflg4" value="&lt;b&gt;갈림길&lt;/b&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#C9A227;fontSize=13;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="982" y="150" width="172" height="38" as="geometry"/>
+                </mxCell>
+                <mxCell id="sflg5" value="일곱 단계 중&lt;br&gt;AI 는 두 곳에서만 쓴다" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="1166" y="150" width="172" height="38" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfb1" value="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#555555;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="104" y="204" width="56" height="56" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfs1" value="&lt;b&gt;질문이 들어온다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;「삼성중공업이 2023년에 수주한 원유운반선 계약금액은 얼마인가요?」 처럼 공시에 관한 질문을 받는다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#555555;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="180" y="176" width="640" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfb2" value="2" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3A6FA8;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="104" y="334" width="56" height="56" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfs2" value="&lt;b&gt;무엇을 묻는지 읽는다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;어느 회사의 · 언제의 · 무엇을 묻는지 가려낸다. 그리고 우리가 가진 공시로 답할 수 있는 질문인지 &lt;b&gt;먼저&lt;/b&gt; 판단한다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="180" y="306" width="640" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfd1" value="&lt;b&gt;답할 수 있는 질문인가&lt;/b&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#C9A227;fontSize=14;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="860" y="306" width="200" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfstop" value="&lt;b&gt;아니면 여기서 멈춘다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;지어내지 않는다. 대신 무엇을 물으면 답해 드릴 수 있는지 되묻는다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B3453F;fontSize=14;verticalAlign=middle;align=left;spacingLeft=12;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="1090" y="320" width="270" height="82" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfb3" value="3" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3A6FA8;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="104" y="464" width="56" height="56" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfs3" value="&lt;b&gt;공시를 찾는다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;쌓아 둔 공시 문서에서 질문과 맞는 대목을 추려 온다. 근거가 모자라면 조건을 넓혀 다시 찾는다 — 정해진 횟수까지만.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="180" y="436" width="640" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfn3" value="공시 문서 &lt;b&gt;4,204건&lt;/b&gt; · 70개 회사 · 2023년 1월 ~ 2026년 3월 접수분.&lt;br&gt;계약 · 증자 · 지분 · 사업보고서까지 종류마다 따로 색인해 둔다." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="860" y="452" width="500" height="78" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfb4" value="4" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3A6FA8;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="104" y="594" width="56" height="56" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfs4" value="&lt;b&gt;문서 사이의 관계를 따라간다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;공시는 한 건으로 끝나지 않는다. 나중에 정정된 것 · 뒤에 해지된 것 · 같은 발주처와 계약한 다른 회사까지 이어서 본다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="180" y="566" width="640" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfn4" value="정정된 공시를 못 따라가면 &lt;b&gt;옛 금액을 답하게 된다.&lt;/b&gt;&lt;br&gt;관계를 따라가는 이 단계가 정확도를 가장 크게 갈랐다." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="860" y="582" width="500" height="78" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfb5" value="5" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C87A2F;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="104" y="724" width="56" height="56" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfs5" value="&lt;b&gt;근거를 읽고 답을 쓴다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;찾아온 공시만 보고 답한다. 어느 보고서의 어느 대목에서 나온 값인지 답변 안에 함께 밝힌다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#C87A2F;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="180" y="696" width="640" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfn5" value="&lt;b&gt;AI 모델이 글을 쓰는 곳은 여기와 6번, 두 군데뿐이다.&lt;/b&gt;&lt;br&gt;나머지 다섯 단계는 규칙과 색인이 처리한다 — 그래서 답이 매번 같고, 비용도 질문 하나당 미리 정해져 있다." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="860" y="708" width="500" height="86" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfb6" value="6" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3453F;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="104" y="854" width="56" height="56" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfs6" value="&lt;b&gt;답을 검사하고, 어긋나면 한 번 다시 쓴다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;계산이 맞는지 · 빠뜨린 것이 없는지 · 답에 쓴 숫자가 근거 문서에 실제로 있는지 확인한다. 어긋나면 그 이유를 알려 주고 &lt;b&gt;딱 한 번&lt;/b&gt; 다시 쓰게 한다. 다시 쓴 답도 통과하지 못하면 처음 답을 그대로 쓴다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B3453F;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="180" y="826" width="640" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfn6" value="&lt;b&gt;검사는 AI 가 아니라 정해진 규칙이 한다.&lt;/b&gt;&lt;br&gt;그래서 검사 결과가 흔들리지 않고, 같은 답에는 늘 같은 판정이 나온다. 다시 쓰는 일은 검사가 걸렸을 때만 일어난다." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=13;whiteSpace=wrap;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="860" y="838" width="500" height="86" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfb7" value="7" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#555555;fontSize=24;fontStyle=1;strokeWidth=2.5;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="104" y="984" width="56" height="56" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfs7" value="&lt;b&gt;답을 내보낸다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:13px&quot;&gt;답변과 함께 &lt;b&gt;근거 문서&lt;/b&gt;와 &lt;b&gt;판단 과정&lt;/b&gt;을 돌려준다. 주민번호 · 연락처 같은 개인정보는 가리고, 도중에 문제가 생겨도 빈손으로 돌려보내지 않는다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#555555;fontSize=17;verticalAlign=middle;align=left;spacingLeft=16;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="180" y="956" width="640" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfc0" value="우리가 지키는 세 가지" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#333333;strokeWidth=2.5;verticalAlign=top;align=left;spacingLeft=16;spacingTop=8;fontSize=17;fontStyle=1;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="104" y="1104" width="1256" height="196" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfc1" value="&lt;b&gt;공시에 없는 것은 없다고 말한다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;모르는 것을 지어내지 않는 것이 맞히는 것만큼 중요하다. 범위 밖 질문은 AI 를 부르기도 전에 정직하게 알린다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=14;verticalAlign=middle;align=left;spacingLeft=14;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="128" y="1158" width="396" height="112" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfc2" value="&lt;b&gt;숫자는 계산기가 낸다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;금액 · 기간 · 비율은 AI 가 암산하지 않는다. 정해진 계산으로 미리 내어 근거에 적어 두고, 답을 쓴 뒤 한 번 더 대조한다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=14;verticalAlign=middle;align=left;spacingLeft=14;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="548" y="1158" width="396" height="112" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfc3" value="&lt;b&gt;답에는 늘 출처가 붙는다&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;어느 보고서의 어느 대목에서 나온 값인지 함께 준다. 사용자가 원문을 직접 확인할 수 있어야 한다.&lt;/font&gt;" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3A6FA8;fontSize=14;verticalAlign=middle;align=left;spacingLeft=14;strokeWidth=2;fontFamily=Times New Roman;fontColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="968" y="1158" width="368" height="112" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfe1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" parent="1" source="sfs1" target="sfs2" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfe2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" parent="1" source="sfs2" target="sfd1" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfe3" value="아니오" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#B3453F;strokeWidth=2.4;dashed=1;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" parent="1" source="sfd1" target="sfstop" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfe4" value="예" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="sfd1" target="sfs3" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfe5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" parent="1" source="sfs2" target="sfs3" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfe6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" parent="1" source="sfs3" target="sfs4" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfe7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" parent="1" source="sfs4" target="sfs5" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfe8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" parent="1" source="sfs5" target="sfs6" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfe9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#333333;strokeWidth=2.4;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;" parent="1" source="sfs6" target="sfs7" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="sfe10" value="여기서도 답을 돌려준다" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#B3453F;strokeWidth=2.4;dashed=1;endArrow=block;endFill=1;endSize=9;fontSize=12;labelBackgroundColor=#FFFFFF;fontFamily=Times New Roman;fontColor=#000000;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="sfstop" target="sfs7" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
 </mxfile>

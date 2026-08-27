@@ -1,4 +1,4 @@
-r"""ARGUS **배포 기준** 상세 구조도 (`A84` · 2026-08-22 배포). LLM 0회 · 0원.
+r"""ARGUS **배포 기준** 상세 구조도 (`A91` · 2026-08-27 배포). LLM 0회 · 0원.
 
     PYTHONIOENCODING=utf-8 python scripts/build_figure_v7.py
 
@@ -54,13 +54,13 @@ DRAWIO = ROOT / "docs/figures/argus-deploy-v7.drawio"
 
 #: 🔴 **사람이 옮겨 적는 유일한 자리다.** 출처를 주석에 함께 적는다.
 FACT = {
-    "arm": "A84",
+    "arm": "A91",
     "골든셋": "골든셋 112/112 · 평가 서버 3회 동일",   # scratch/audit/axis_compare.json
-    "축": "8축 중 7축 만점 · 근거 완전성 167/168",
-    "미공개셋": "미공개셋 50~53/54 · 3회",            # scratch/audit/heldout_a84_rounds.json
-    "지연": "지연 중앙값 10.6초 · 최대 46.7초 · 상한 300초의 15.6%",
+    "축": "9축 전부 실패 0 · 근거 완전성 168/168",
+    "미공개셋": "미공개셋 51~52/54 · 3회",            # scratch/audit/heldout_a91h_rounds.json
+    "지연": "지연 중앙값 11.0초 · 최대 37.9초 · 상한 300초의 12.6%",
     "비용": "질의당 48.1원 · 호출 평균 2.54회 · 상한 6회",
-    "시험": "1,958건",
+    "시험": "2,001건",
 }
 
 BLUE, ORANGE, GREEN, GREY, RED = ("#dae8fc", "#ffe6cc", "#d5e8d4", "#f2f2f2", "#f8cecc")
@@ -135,7 +135,7 @@ PANELS = [
                        "think_trace · answer", GREY),
          ]),
     dict(key="F", x=950, y=700, w=930, cols=2,
-         title="E.  배포 산출물", tag="2026-08-22",
+         title="E.  배포 산출물", tag="2026-08-27",
          items=[
              ("오프라인 색인", "exchange · major · holding BM25\n"
                           "section_index · counterparty_graph\n"
@@ -144,6 +144,8 @@ PANELS = [
                     "공인 IP 223.130.129.131", GREY),
              ("정적 사이트", "기업 70 · 정정 631 · 거래상대 145\n"
                          "서버 · DB · 런타임 API 없음", GREEN),
+             ("계약상대 칸", "상한 8 · 파트너당 최소 2건\n"
+                          "로스터 줄이 합계 금지를 명시", BLUE),
              ("배포 제외", "원본 5.3GB · 임베딩 API", RED),
          ]),
 ]
