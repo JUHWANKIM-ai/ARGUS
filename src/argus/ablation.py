@@ -407,6 +407,19 @@ class Arm:
     #: 두 번째 공시(20231218800177)를 3회 중 2회 안 적어 근거 표시(골든 일치)가
     #: 0·0·0 → 1·0·1 이 됐다. 겨냥은 합계 금지 하나뿐이므로 그 앞절을 뺀다.
     roster_sum_ban: bool = False
+    #: True 면 **근거에 없고 답변이 나열한 금액으로도 안 닿는 총액 문장**을 지운다.
+    #: LLM 호출 없음. 바른 합을 계산해 써 넣지 않는다 — 그 수가 근거에 글자로 없으면
+    #: 써 넣는 것은 우리가 만든 수를 답변에 넣는 일이다(`fix_broken_equation` 과 같은
+    #: 판단).
+    #:
+    #: 미공개 `H-005` 가 골든 요점 둘을 다 적고도 묻지 않은 계약을 덧붙여
+    #: `160,038,036,031 + 291,548,177,545` 를 452,586,203,566 으로 맺었다(실제
+    #: 451,586,213,576). `+`·`=` 를 안 써서 등식 정규식에 안 걸린다.
+    #:
+    #: 🔴 조인 자리는 오발화 실측으로 정했다 — 골든 `Q-051`(`자산총계` 의 `총`, 뺄셈)과
+    #: 미공개 `N-008`(`총 2,636억여원` 을 원 단위와 견줌)이 각각 3/3 오발화했다.
+    #: 조인 뒤 골든셋 672응답(`A91`·`A84`) 발화 0.
+    drop_unsourced_total: bool = False
     #: True accepts a latest record as a chain seed so the walk can reach the
     #: original filing. No LLM call. Gated by the question asking for the
     #: pre-revision value, which is what keeps it from reopening the case
@@ -1938,6 +1951,11 @@ A90 = replace(A89, name="A90", roster_no_total=True)   # 🔴 문면 기각 (Q-1
 #: 표시에서 `Q-114` 를 2/3 회차 잃었다. 얻은 것은 지키고 잃은 것만 되돌린다.
 A91 = replace(A89, name="A91", roster_sum_ban=True)
 
+# --- W19 · 근거에 없는 총액을 지운다 (2026-08-28) -------------------------------
+#: `A91` 위에 한 줄이다. 미공개셋 아홉 축 검사에서 나온 `H-005` 하나만 겨냥한다.
+#: `roster_sum_ban` 은 로스터 줄에만 붙어 그리드 문항인 `H-005` 에 안 닿았다.
+A92 = replace(A91, name="A92", drop_unsourced_total=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -1985,7 +2003,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85", "A86", "A89", "A90", "A91",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85", "A86", "A89", "A90", "A91", "A92",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -2032,7 +2050,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86, A89, A90, A91)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86, A89, A90, A91, A92)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
@@ -2155,7 +2173,10 @@ FLAG_NAMES: tuple[str, ...] = tuple(
 #:
 #: 🔴 **배포는 별도 승인 사안이다.** 이 상수를 바꾸는 것과 서버에 올리는 것은 다른 일이다.
 #: 2026-08-22 사용자 승인으로 배포한다.
-_current: Arm = A91
+#:
+#: 🔴 2026-08-28 `A92` 로 올린다. 미공개셋 아홉 축 검사에서 나온 `H-005` 하나를
+#: 겨냥한 `drop_unsourced_total` 한 줄 차이다. 사용자 승인으로 배포한다.
+_current: Arm = A92
 
 
 def current() -> Arm:

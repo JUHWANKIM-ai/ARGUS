@@ -24,6 +24,8 @@ import difflib
 import re
 
 from argus import ablation
+#: 배수 표지 읽기는 `critic` 이 정본이다. 여기서 다시 만들면 두 곳이 갈라진다.
+from argus.agent.critic import _unit_at
 
 #: Operation requested by the question. Order matters: difference must be
 #: tested before sum so that growth phrasings do not fall through to sum.
@@ -1588,6 +1590,114 @@ def fix_broken_equation(answer: str, evidence: str) -> tuple[str, list[str]]:
         fixes.append(f"{left:,} {match.group(2)} {right:,} = {result:,} "
                      f"(실제 {got:,}) 유도를 지웠다")
     return body + tail, fixes
+
+
+#: 총액 표지. 낱말로 서야 한다 — `자산총계` 처럼 한글에 붙은 `총` 은 표지가 아니다.
+#: 골든셋 `Q-051`(*"연결 자산총계와 별도 자산총계의 차이는 12,646,848백만 원"*)이 첫 판에서
+#: 3/3 오발화한 자리다.
+_TOTAL_MARK = re.compile(
+    r"(?<![가-힣])(?:총액|합계|총)\s*[^.\n]{0,20}?(\d{1,3}(?:,\d{3})+)")
+
+#: 총액 문장 앞에서 나열을 찾아볼 범위. 답변이 목록을 적고 결론을 맺는 폭이다.
+_TOTAL_LOOKBACK = 12
+
+#: 한 문장에서 조합해 볼 금액의 최대 개수. 2^n 이라 상한이 필요하고, 열거가 이보다
+#: 길면 뒤쪽 — 총액 바로 앞 — 을 남긴다.
+_TOTAL_POOL = 8
+
+
+def _sentences(body: str):
+    for part in re.split(r"(?<=[.!?])\s+|\n+", body):
+        if part.strip():
+            yield part.strip()
+
+
+def _signed_sums(pool: list[int]) -> set[int]:
+    """나열한 금액을 ± 로 조합해 닿는 값 전부. 합도 차도 여기 들어온다.
+
+    합만 보면 답변이 뺀 값을 「안 맞는 총액」으로 읽는다. 골든셋 `Q-051` 이 그것이고,
+    `Q-115`(계약 넷을 열거하고 둘만 합산)도 부분합이라 여기서 걸러진다.
+    """
+    out = {0}
+    for value in pool:
+        out |= {s + value for s in out} | {s - value for s in out}
+    return {abs(v) for v in out}
+
+
+def drop_unsourced_total(answer: str, evidence: str) -> tuple[str, list[str]]:
+    """근거에 없고 **답변이 나열한 금액으로도 안 닿는** 총액 문장을 지운다.
+
+    (고친 답변, 무엇을 지웠는지) 를 돌려준다. 아니면 (원본, []). LLM 호출 없음.
+
+    ## 왜 필요한가
+
+    미공개셋 `H-005` 는 2024-04-17 공시 **한 건**의 계약상대와 금액을 묻는다. 답변은 골든
+    요점 둘을 다 적고도 같은 날 다른 계약을 자진해 덧붙여 총액으로 결론을 맺었다.
+
+        - 계약 금액: 160,038,036,031원
+        - 계약 금액: 291,548,177,545원
+        따라서 ... 총 **452,586,203,566원** 규모의 계약을 체결하였습니다.
+
+    `160,038,036,031 + 291,548,177,545 = 451,586,213,576` 이다. 답변이 적은 총액은
+    999,989,990 만큼 어긋난다. `+`·`=` 를 안 써서 `critic._equation_mismatches` 의
+    등식 정규식에 안 걸리고, 총액이 근거에 없어 `verify_number_provenance` 만 발화한다.
+
+    ## 🔴 왜 바른 합을 써 넣지 않는가
+
+    `fix_broken_equation` 과 같은 판단이다. 451,586,213,576 은 근거 어디에도 글자로
+    없다. 써 넣는 것은 **우리가 만든 수를 답변에 넣는 일**이다. 거짓 문장을 지우면
+    근거에서 옮겨 온 금액 둘이 남고, 그 둘이 골든 요점이다.
+
+    ## 🔴 언제 침묵하는가 — 실측으로 조인 자리들
+
+        1. 표지가 낱말로 안 섰다 — `자산총계` 의 `총` (골든 `Q-051`, 첫 판 3/3 오발화)
+        2. 총액이 근거에 있다 — 우리가 판단할 값이 아니다
+        3. 배수 표지가 다르다 — `총 2,636억여원` 을 원 단위와 견주면 안 된다
+           (미공개 `N-008`, 둘째 판 3/3 오발화)
+        4. 총액이 나열의 최댓값보다 작다 — 단위 어긋남의 2차 방어
+        5. 나열의 ± 조합으로 닿는다 — 답변이 스스로 유도한 값이다
+        6. 견줄 나열이 둘 미만 — 틀렸는지 알 수 없다
+        7. 꼬리(시스템이 붙인 註)는 안 건드린다 — `split_tail` 의 규율
+
+    조인 뒤 실측(2026-08-28): 골든셋 672응답(`A91`·`A84`) 발화 0, 미공개셋 162응답 중
+    `H-005` 3건뿐.
+    See docs/design-rationale.md#self-contradiction
+    """
+    if not ablation.enabled("drop_unsourced_total"):
+        return answer, []
+    body, tail = split_tail(answer or "")
+    known = {int(t.replace(",", "")) for t in _ANSWER_NUM.findall(evidence or "")}
+    if not known:
+        return answer, []
+
+    sentences = list(_sentences(body))
+    fixes: list[str] = []
+    #: 뒤에서부터 지운다 — 앞에서 지우면 뒤 문장의 자리가 밀린다.
+    for index in range(len(sentences) - 1, -1, -1):
+        match = _TOTAL_MARK.search(sentences[index])
+        if match is None:
+            continue
+        total = int(match.group(1).replace(",", ""))
+        if total in known:
+            continue
+        unit = _unit_at(sentences[index], match.end(1))
+        listed: list[int] = []
+        for prev in sentences[max(0, index - _TOTAL_LOOKBACK):index]:
+            for found in _ANSWER_NUM.finditer(prev):
+                value = int(found.group(0).replace(",", ""))
+                if value in known and _unit_at(prev, found.end()) == unit:
+                    listed.append(value)
+        pool = list(dict.fromkeys(listed))[-_TOTAL_POOL:]
+        if len(pool) < 2 or total < max(pool):
+            continue
+        if total in _signed_sums(pool):
+            continue
+        body = body.replace(sentences[index], "", 1)
+        fixes.append("근거에 없고 나열({0})로 안 닿는 총액 {1:,} 문장을 지웠다"
+                     .format(" · ".join(format(v, ",") for v in pool), total))
+    if not fixes:
+        return answer, []
+    return re.sub(r"\n{3,}", "\n\n", body).rstrip() + tail, fixes
 
 
 def _conclusion(answer: str) -> str:

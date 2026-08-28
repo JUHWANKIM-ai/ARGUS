@@ -3255,6 +3255,14 @@ def answer_question(question_id: str, question: str) -> dict:
         answer, dropped = aggregate.fix_broken_equation(answer, evidence)
         if dropped:
             trace.append(f'broken_eq {" · ".join(dropped)}')
+    # 등식 꼴이 아닌 거짓 총액도 같은 자리에서 지운다. `fix_broken_equation` 은 `+`·`=`
+    # 를 쓴 유도만 보므로, 목록 뒤에 「총 …원」만 적은 결론에는 안 닿는다.
+    if ablation.enabled("drop_unsourced_total"):
+        from argus.agent import aggregate
+
+        answer, cut = aggregate.drop_unsourced_total(answer, evidence)
+        if cut:
+            trace.append(f'unsourced_total {" · ".join(cut)}')
     if ablation.enabled("self_consistency_fix"):
         from argus.agent import aggregate
 
