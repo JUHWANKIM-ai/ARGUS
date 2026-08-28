@@ -41,7 +41,9 @@ _spec.loader.exec_module(_sh)
 
 SUFFIX = ("", "_r2", "_r3")
 BASE = Path("scratch/ablation/v6")
-OUT = Path("scratch/audit/axis_heldout.json")
+#: 팔 이름을 파일에 넣는다. 한 파일에 쓰면 다음 팔이 앞 팔의 기록을 덮는다
+#: (2026-08-28 에 `A91h` 를 실제로 덮었다).
+OUT = Path("scratch/audit/axis_heldout.json")   # main() 에서 팔 이름을 붙인다
 
 
 def collect(arm: str, suffix: str, records: dict):
@@ -126,8 +128,9 @@ def main() -> int:
     print()
     print("  근거 전량 실림 (필수 주석 없어 전량 기준) ", " ".join(evidence_ratio))
 
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps({
+    out_path = OUT.with_name("axis_heldout_%s.json" % args.arm)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps({
         "생성": "scratch/axis_heldout.py",
         "팔": args.arm,
         "축 정의": "scratch/failure_histogram_a56.py::axis_failures 를 그대로 씀",
