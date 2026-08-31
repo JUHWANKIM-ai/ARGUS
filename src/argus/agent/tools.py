@@ -64,10 +64,12 @@ def _group_records(group: str) -> dict[str, dict]:
         base, kind = _group_records_fields(group), "fields"
     else:
         base, kind = _group_records_raw(group), "raw"
-    # 🔴 `stale_note` 는 앞의 셋을 **대체하지 않고 겹친다.** 계획서 과제 1 단계 4 는 이
-    # 분기를 맨 앞에 두고 바로 돌려주게 적었는데, `A56` 이 `correction_fields` 를 켜 두고
-    # 있으므로 그러면 `A63` 이 그 분기를 조용히 잃는다 — 스위치와 무관한 근거 변화가
-    # 델타에 섞인다. 어느 바탕 위에 각인했는지를 캐시 키에 넣어 팔별로 따로 담는다.
+    # `stale_note` does not **replace** the three above; it layers over them.
+    # Task 1 step 4 of the plan put this branch first and returned immediately,
+    # but `A56` runs with `correction_fields` on, so doing that would make `A63`
+    # lose the branch silently -- an evidence change unrelated to the switch
+    # would leak into the delta. Which base the note was stamped onto goes into
+    # the cache key, so every arm keeps its own.
     if arm.stale_note:
         return _group_records_stale(group, kind)
     return base
@@ -267,17 +269,21 @@ def _correction_lines(record: dict) -> list[str]:
 
 
 def _stale_line(record: dict, latest: dict | None) -> str | None:
-    """대체본 각인. 최신본이 같은 그룹에 있을 때 최신 금액까지 적는다.
+    """Stamp a superseded block, adding the latest amount when the latest
+    revision sits in the same group.
 
-    🔴 `정정체인:` 과 `대체됨` 은 하중을 받는 낱말이다. `critic._STALE_NOTE`
-    (`정정체인:.*대체됨`)가 이 어구로 블록의 체인 위치를 읽어 `stale_value` 검사를 돈다.
-    바꾸면 그 검사의 전제가 사라진다.
+    `정정체인:` and `대체됨` are load-bearing words. `critic._STALE_NOTE`
+    (`정정체인:.*대체됨`) reads a block's position in the chain from this phrasing
+    and runs the `stale_value` check on it. Change the wording and that check
+    loses its premise.
 
-    🔴 최신본 접수번호는 적지 않는다. 근거에 안 실린 공시의 14자리를 블록에 쓰면
-    `error_analysis._blocks` 가 그것을 **적재된 골든**으로 읽어 우리 재현율만 오른다 —
-    `pipeline._roster_line` 이 `loaded` 로 제한한 것과 같은 근거다. 금액은 14자리가
-    아니라 그 회계에 안 들어간다.
-    See docs/superpowers/plans/2026-08-21-raw-preprocessing.md 과제 1
+    The latest filing's receipt number is deliberately left out. Writing the
+    14 digits of a filing that is not in the evidence would let
+    `error_analysis._blocks` read it as **golden evidence that was loaded**,
+    inflating our own recall -- the same reason `pipeline._roster_line` is
+    limited to `loaded`. An amount is not 14 digits, so it does not enter that
+    accounting.
+    See docs/superpowers/plans/2026-08-21-raw-preprocessing.md task 1
     """
     if record.get("is_latest", True):
         return None
@@ -293,11 +299,13 @@ def _stale_line(record: dict, latest: dict | None) -> str | None:
 
 @lru_cache(maxsize=len(RECORD_GROUPS) * 3)
 def _group_records_stale(group: str, kind: str = "raw") -> dict[str, dict]:
-    """각인한 사본. 원본 매핑은 절대 변형하지 않는다 — 같은 프로세스에서 다른 팔을
-    돌리면 그 팔의 근거가 조용히 오염된다. `_group_records_nary` 와 같은 규율이다.
+    """A stamped copy. The original mapping is never mutated -- running another
+    arm in the same process would silently contaminate that arm's evidence. The
+    same discipline as `_group_records_nary`.
 
-    `kind` 는 어느 바탕 위에 각인하는가다(`raw` · `fields` · `nary`). 캐시를 바탕별로
-    나누지 않으면 첫 팔의 매핑이 뒤의 팔에 재생돼 없던 델타를 0 으로 보고한다.
+    `kind` says which base the note is stamped onto (`raw`, `fields`, `nary`).
+    Without splitting the cache by base, the first arm's mapping replays into
+    later arms and a real delta gets reported as zero.
     """
     base = {"nary": _group_records_nary, "fields": _group_records_fields}.get(
         kind, _group_records_raw)(group)
@@ -535,26 +543,30 @@ def _section_body(record: dict) -> str:
     return parts[index] if index < len(parts) else text
 
 
-#: 분기보고서의 분기 이름. `base_month` 는 코퍼스 전체에서 3 또는 9 두 값뿐이라
-#: (실측 2026-08-21: quarter/3 30,125건 · quarter/9 21,503건) 사상이 유일하다.
+#: The quarter name for a quarterly report. Across the whole corpus
+#: `base_month` takes only two values, 3 and 9 (measured 2026-08-21:
+#: quarter/3 in 30,125 cases, quarter/9 in 21,503), so the mapping is unique.
 _QUARTER_NAME = {"3": "1분기", "9": "3분기"}
 
 
 @lru_cache(maxsize=1)
 def _base_month_by_rcept() -> dict[str, str]:
-    """접수번호 -> 기준월. 대장에서 읽는다.
+    """Receipt number -> base month, read from the manifest.
 
-    🔴 **섹션 색인의 chunk 레코드에는 `base_month` 가 없다.** `record_at` 이 내는 필드는
-    `base_year` · `doc_subtype` · `rcept_dt` 까지이고 기준월은 색인에 담기지 않았다. 첫
-    구현이 `record.get("base_month")` 를 읽어 **112문항 전수에서 표지가 하나도 바뀌지
-    않았다** — 조용한 무동작이었다.
+    **The chunk records in the section index carry no `base_month`.** The fields
+    `record_at` emits stop at `base_year`, `doc_subtype` and `rcept_dt`; the base
+    month was never put in the index. The first implementation read
+    `record.get("base_month")` and **not one marker changed across all 112
+    questions** -- a silent no-op.
 
-    접수일로 유도하는 길은 막혀 있다. 실측(2026-08-21): 분기보고서의 접수월은 05월이
-    `base_month` 3 이 28,983건이면서 9 도 66건, 02월도 양쪽에 걸린다(정정본이 늦게 접수된
-    다). 유일하게 결정되지 않으므로 README §4.3 의 규칙대로 유도하지 않는다.
+    Deriving it from the receipt date is closed off. Measured 2026-08-21: for
+    quarterly reports, receipts in May carry `base_month` 3 in 28,983 cases but
+    also 9 in 66, and February falls on both sides (corrections are filed late).
+    It is not uniquely determined, so per README section 4.3 it is not derived.
 
-    대장에는 `base_month` 가 있고 `load_manifest` 가 이미 `lru_cache` 로 한 번만 읽는다.
-    색인을 다시 만드는 것(제출 산출물 변경)보다 이쪽이 싸고 안전하다.
+    The manifest does carry `base_month`, and `load_manifest` already reads it
+    once behind an `lru_cache`. That is cheaper and safer than rebuilding the
+    index, which would change a submission artifact.
     """
     from argus.corpus.manifest import load_manifest
 
@@ -569,7 +581,7 @@ def _base_month_by_rcept() -> dict[str, str]:
 def _period_label(record: dict) -> str:
     """Report kind and period, as it appears inside the evidence header brackets.
 
-    🔴 Returns the year too, so the quarter can follow it. The first version
+    Returns the year too, so the quarter can follow it. The first version
     returned only the kind and let `_section_markdown` append the year, which
     put the tokens in the wrong order -- `[분기보고서 1분기 2025]`. The natural
     reading is `[분기보고서 2025 1분기]`, and the evidence header is text the model
@@ -609,13 +621,15 @@ PERIODIC_CHAINS_NAME = "periodic_chains.jsonl"
 
 @lru_cache(maxsize=1)
 def _periodic_chains() -> dict[str, dict]:
-    """periodic 정정본 -> 그 정정이 무엇을 정정한 것인가.
+    """A periodic correction -> what that correction corrects.
 
-    `scripts/build_periodic_chains.py` 가 대장 조인으로 만든다 — 원문 파싱도 LLM 도 없고
-    모호 0건이다. 파일이 없으면 빈 매핑이라 이 처방은 조용한 무동작이 된다.
+    `scripts/build_periodic_chains.py` builds it by joining on the manifest --
+    no source parsing, no LLM, and zero ambiguous cases. With the file absent
+    the mapping is empty and this treatment becomes a silent no-op.
 
-    exchange·major·holding 은 `corpus.corrections.build_chains` 가 잇는데 periodic 은 그
-    경로를 안 탄다. `periodic_sections.jsonl` 은 `is_correction` 불리언만 갖는다.
+    `corpus.corrections.build_chains` links exchange, major and holding, but
+    periodic never takes that path: `periodic_sections.jsonl` carries only an
+    `is_correction` boolean.
     """
     path = settings().artifacts_root / PERIODIC_CHAINS_NAME
     if not path.exists():
@@ -631,16 +645,21 @@ def _periodic_chains() -> dict[str, dict]:
 
 
 def _section_chain_line(rcept_no: str) -> str:
-    """정정본 블록이 무엇을 정정한 것인지 밝히는 줄. 아니면 "".
+    """The line naming what a correction block corrects, or "".
 
-    🔴 **이 줄은 우리 근거 완전성 회계에 들어간다.** `error_analysis._blocks` 가 근거를
-    `^## ` 로 쪼개고 `evidence_hit` 이 블록 안의 14자리를 「실린 골든」으로 읽으므로,
-    원공시가 골든이면 **본문이 하나도 안 실렸는데** 적재로 세어진다. 실측: 겨냥한 넷 중
-    셋(`Q-054`·`Q-068`·`Q-082`)이 그 경우이고 167/168 -> 170/168 로 오른다.
+    **This line enters our evidence-completeness accounting.**
+    `error_analysis._blocks` splits evidence on `^## ` and `evidence_hit` reads
+    any 14 digits inside a block as *golden evidence that was loaded*, so when
+    the original filing is the golden one it counts as loaded **even though none
+    of its text was included**. Measured: three of the four cases targeted
+    (`Q-054`, `Q-068`, `Q-082`) are exactly that, and the figure rises from
+    167/168 to 170/168.
 
-    그래서 이 스위치를 채택 판정할 때는 근거 완전성을 **두 가지로** 낸다 — 날값과 포인터
-    줄을 뺀 값. 날값만 보면 아무것도 안 싣고 얻은 3점을 이득으로 읽는다.
-    See docs/superpowers/plans/2026-08-21-raw-preprocessing.md 과제 3
+    So when judging whether to adopt this switch, evidence completeness is
+    reported **two ways** -- raw, and with the pointer lines removed. Read the
+    raw number alone and three points gained while loading nothing look like a
+    win.
+    See docs/superpowers/plans/2026-08-21-raw-preprocessing.md task 3
     """
     row = _periodic_chains().get(str(rcept_no))
     if not row:

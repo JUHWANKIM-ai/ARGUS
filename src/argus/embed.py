@@ -378,8 +378,9 @@ def query_vector(text: str) -> np.ndarray:
 
 
 def cache_dir() -> Path:
-    #: 임베딩은 재고 후 기각한 갈래이고 운영 경로가 열지 않는다. 제출물이 아니므로
-    #: `scratch_root` 아래에 둔다 (config.settings 의 두 루트 주석 참고).
+    #: Embeddings are a branch we measured and rejected, and the production
+    #: path never opens them. Being no part of the submission, they live under
+    #: `scratch_root` (see the two-roots comment in `config.settings`).
     path = settings().scratch_root / EMBED_CACHE_DIRNAME
     path.mkdir(parents=True, exist_ok=True)
     return path

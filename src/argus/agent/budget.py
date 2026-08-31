@@ -16,17 +16,22 @@ class Budget:
     max_steps: int = 8          # organiser reference architecture ceiling
     max_hops: int = 3           # ToG-2 iteration depth
     max_llm_calls: int = 6
-    #: 🔴 2026-08-22 에 20,000 -> 100,000. 종전 값을 정한 두 근거 중 하나가 이미
-    #: 없어졌다 — 08-08 당시엔 응답 타임아웃이 미확정이라 지연을 지키려는 몫이 있었는데,
-    #: 08-12 주최측 답변으로 **문항당 300초**가 확정됐고 우리 실측 지연은 중앙값 4.3초 ·
-    #: 최대 38.1초(상한의 12.7%)다. 지연 근거는 소멸했다.
+    #: Raised from 20,000 to 100,000 on 2026-08-22. One of the two reasons
+    #: behind the old value is already gone: on 08-08 the response timeout was
+    #: still undecided, so part of the ceiling was there to protect latency. The
+    #: organisers fixed it at **300s per question** on 08-12, and our measured
+    #: latency is a 4.3s median with a 38.1s maximum (12.7% of the ceiling). The
+    #: latency argument no longer holds.
     #:
-    #: 남은 근거는 배급이다 — 답변 단계가 혼자 태우면 `critic` 과 검증이 굶는다. 그런데
-    #: 20,000 은 그 배급조차 못 지켰다. 근거가 7~8천 토큰인 문항은 `답변 + critic +
-    #: 재생성` 세 번만으로 21,000~24,000 이라, 실측에서 `A81` 이 재생성을 3회,
-    #: `A83` 이 `critic` 을 15회 굶었다(`verify regen=skip_budget` · `critic 생략`).
+    #: What remains is rationing: if the answer step burns the whole budget,
+    #: `critic` and verification starve. 20,000 failed even at that. A question
+    #: whose evidence runs 7-8k tokens reaches 21,000-24,000 on `answer +
+    #: critic + regenerate` alone, and in measurement `A81` starved
+    #: regeneration 3 times and `A83` starved `critic` 15 times
+    #: (`verify regen=skip_budget`, `critic omitted`).
     #:
-    #: 🔴 이 값은 팔로 안 가른다. 모든 팔의 거동이 함께 바뀐다 — 배포본 `A65` 도 포함이다.
+    #: This value is not split per arm. Every arm's behaviour moves together,
+    #: the deployed `A65` included.
     max_tokens: int = 100_000
 
     steps: int = field(default=0, init=False)

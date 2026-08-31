@@ -10,6 +10,27 @@ CLOVA_HOST = "https://clovastudio.stream.ntruss.com"
 MODEL = "HCX-005"
 CLOVA_PATH = f"/testapp/v3/chat-completions/{MODEL}"
 
+#: A tuned model is addressed by its training task id --
+#: `/testapp/v3/tasks/{taskId}/chat-completions`. The path was found by probing,
+#: not from the documentation: the training-status response leaves `tuningModel`
+#: null, so nothing in the API docs names the inference route.
+#:
+#: An environment variable decides it, for the sake of reverting. Hard-coding
+#: the path here would make both adopting and withdrawing a source edit, and
+#: reverting would mean digging through git. One line in `.env` selects the
+#: tuned model; deleting that line returns to the base model.
+TUNED_PATH = "/testapp/v3/tasks/{task}/chat-completions"
+
+
+def _tuned_task() -> str:
+    """The configured tuning task id, or an empty string when unset."""
+    return os.environ.get("CLOVA_TUNED_TASK_ID", "").strip()
+
+
+def _chat_path() -> str:
+    task = _tuned_task()
+    return TUNED_PATH.format(task=task) if task else CLOVA_PATH
+
 
 def _find_repo_root(start: Path | None = None) -> Path:
     """Walk upwards from `start` until a directory holding pyproject.toml."""
@@ -50,11 +71,13 @@ def settings() -> Settings:
     """Resolved settings for this repository checkout. Cached per process."""
     root = _find_repo_root()
     _load_dotenv(root)
-    #: 🔴 두 루트를 가른다. `artifacts_root` 는 **제출 대상 전처리 산출물만** 담는다
-    #: (런타임이 여는 15개). 실험·측정·캐시처럼 제출물이 아닌 것은 `scratch_root` 로
-    #: 간다. 한 루트에 섞어 두었더니 업로드 스크립트가 손으로 관리하는 `--exclude`
-    #: 목록을 들고 다녀야 했고, 그 목록을 안 쓴 zip 이 15개 대신 25,551개를 실었다.
-    #: `tests/test_artifacts_layout.py` 가 이 경계를 지킨다.
+    #: Two roots, kept apart. `artifacts_root` holds **only the preprocessing
+    #: artifacts that ship** (the 15 the runtime opens). Anything that is not a
+    #: submission artifact -- experiments, measurements, caches -- goes to
+    #: `scratch_root`. Mixing them under one root forced the upload script to
+    #: carry a hand-maintained `--exclude` list, and one zip built without that
+    #: list shipped 25,551 files instead of 15.
+    #: `tests/test_artifacts_layout.py` holds this boundary.
     artifacts = root / "artifacts"
     artifacts.mkdir(exist_ok=True)
     scratch = root / "scratch"
@@ -65,6 +88,6 @@ def settings() -> Settings:
         artifacts_root=artifacts,
         scratch_root=scratch,
         clova_api_key=os.environ.get("CLOVA_API_KEY", ""),
-        clova_url=CLOVA_HOST + CLOVA_PATH,
-        model=MODEL,
+        clova_url=CLOVA_HOST + _chat_path(),
+        model=_tuned_task() or MODEL,
     )
