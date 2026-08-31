@@ -419,8 +419,12 @@ def test_default_arm_is_the_submission_configuration():
     #: 겨냥한 `drop_unsourced_total` 한 줄 차이다. 근거에 없고 답변이 나열한 금액으로도
     #: 안 닿는 총액 문장을 지운다. 조인 자리는 오발화 실측으로 정했다 — 골든 `Q-051`
     #: (`자산총계` 의 `총`)과 미공개 `N-008`(`총 2,636억여원`)이 각각 3/3 오발화했다.
-    assert ablation.current() == ablation.A92
-    assert ablation.current().name == "A92"
+    #: 2026-08-31, W20: `A92` -> `A93`. 미공개셋 `K-015` 하나를 겨냥한
+    #: `align_series_amounts` 한 줄 차이다. 결정적 줄이 이미 준 금액을 두고 답변이
+    #: 무관한 계약의 금액을 네 걸음 전부에 붙인 전사 실패를 되돌린다. 저장된 응답
+    #: 실측으로 골든 8응답 발화 0 · 미공개 16응답 중 `K-015` 하나다.
+    assert ablation.current() == ablation.A93
+    assert ablation.current().name == "A93"
     # 2026-08-21 채택 넷. 기각한 `latest_pin` 은 꺼져 있어야 한다.
     assert ablation.current().cite_used is True
     assert ablation.current().period_label is True
@@ -2750,7 +2754,7 @@ def test_temperature_moved_to_the_arm_but_the_default_is_still_zero():
     #: 결정적이지 않다는 실측(수치까지 갈리는 문항 38/112) 위에 선 설계다. 그래서
     #: `sc_k>1` 이지만 온도 예외 목록에는 안 들어간다 — 아래 `sc_k` 단정만 비켜 간다.
     #: `A84`(= `A83` + 관문) · `A86`(= `A84` + 결함 수정 셋)도 같은 성질이라 함께 담는다.
-    DRAWS_AT_ZERO = ("A83", "A84", "A86", "A89", "A90", "A91", "A92")
+    DRAWS_AT_ZERO = ("A83", "A84", "A86", "A89", "A90", "A91", "A92", "A93")
     for name, arm in ablation.ARMS.items():
         if name in MOVES_TEMPERATURE:
             continue
@@ -3379,17 +3383,17 @@ def test_a47_is_not_registered():
     assert "A47" not in ab.ARMS
 
 
-def test_the_operational_default_has_moved_to_a92():
+def test_the_operational_default_has_moved_to_a93():
     """운영 기본값의 이름을 한 자리에서 못 박는다.
 
     2026-08-20 에 `A43` -> `A49`, 2026-08-21 에 `A49` -> `A56` -> `A65`, 2026-08-22 에
     `A84`, 2026-08-23 에 `A86`, 2026-08-26 에 `A89` · `A90`, 2026-08-27 에 `A91`,
-    2026-08-28 에 `A92` 로 옮겼다. 이 시험은 이름을 바꿔 가며 따라간다 — 종전
+    2026-08-28 에 `A92`, 2026-08-31 에 `A93` 으로 옮겼다. 이 시험은 이름을 바꿔 가며 따라간다 — 종전
     이름(`..._has_moved_to_a56`)을 그대로 두면 참이 아닌 문장이 시험 이름으로 남는다.
     """
     from argus import ablation as ab
 
-    assert ab.current().name == "A92"
+    assert ab.current().name == "A93"
 
 
 def test_project_scope_cannot_be_enabled_without_counterparty_relevance():

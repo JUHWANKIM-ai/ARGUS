@@ -2719,6 +2719,96 @@ def decisive_lines(evidence: str) -> list[str]:
     return out
 
 
+#: The decisive series line `revision_series` writes, and the date-amount steps
+#: inside it. Only wording we produced ourselves is read, which is what bounds
+#: the false-positive rate structurally -- the same discipline as `_roster_of`.
+_SERIES_LINE = re.compile(r"(?m)^- \[결정적 집계\] 접수일 순 금액 추이 \(\d+건\):.*$")
+_SERIES_STEP = re.compile(r"(\d{4}-\d{2}-\d{2})\s+([\d,]+)원")
+#: An amount in the answer. Two comma groups or more, so a year, a ratio or a
+#: 억원 annotation (`1조 5,588억원`) is never taken for a contract amount.
+_SERIES_MONEY = re.compile(r"\d{1,3}(?:,\d{3}){2,}")
+
+
+def align_series_amounts(answer: str, evidence: str) -> tuple[str, list[str]]:
+    """Realign a revision timeline's amounts to the decisive series line.
+
+    Returns (repaired answer, what was repaired), otherwise (original, []). No
+    LLM call.
+
+    ## Why it is needed
+
+    Held-out `K-015` asks for the revision history of one contract with the
+    amount at each step. The evidence opens with the decisive line, which
+    already lays the whole chain out:
+
+        - [결정적 집계] 접수일 순 금액 추이 (4건): 2024-04-30 1,457,049,721,180원
+          → 2024-06-11 1,457,049,721,180원 → 2025-01-02 1,457,049,721,180원
+          → 2025-10-13 1,481,561,966,798원
+
+    The answer nevertheless attached `1,558,826,903,000원` to every step. That
+    figure is in the evidence, but it belongs to **a different contract** in the
+    last block (대전 도안2-2지구 공동주택 신축공사, receipt 20240415800078,
+    counterparty 주식회사유토개발2차). The correct figure appears 6 times in the
+    evidence and the wrong one once, so this is not an evidence-placement
+    problem: the retrieved evidence is byte-identical to the rounds that
+    answered correctly (sha c71b5ad3e4, 2,899 characters). It is a transcription
+    failure, and it reproduced across three configurations -- A84, A92 and the
+    LoRA-tuned model -- which is why a prompt rule was not the remedy.
+
+    ## What is rewritten, and what is not
+
+    A stray amount is replaced only when it is **also present in the evidence**,
+    which is what marks it as transcribed from another block. A figure the answer
+    derived itself is left alone: `24,512,245,638원` (the delta it computed) is
+    in no block, so it is not touched -- `drop_unsourced_total` and
+    `fix_broken_equation` are what handle derived-but-wrong figures.
+
+    Each replacement is anchored on a date the decisive line names, and the
+    window runs to the next such date. Without an anchor nothing is rewritten.
+    At least two anchors must appear in the answer, since one date is not a
+    timeline.
+
+    The system tail is never touched -- the discipline of `split_tail`.
+
+    ## Where it runs
+
+    Before `fix_unit_parens`, so that replacing the body figure also refreshes
+    the parenthesised 억원 conversion the model derived from the wrong one.
+    """
+    if not ablation.enabled("align_series_amounts"):
+        return answer, []
+    line = _SERIES_LINE.search(evidence or "")
+    if not line:
+        return answer, []
+    steps = _SERIES_STEP.findall(line.group(0))
+    if len(steps) < 2:
+        return answer, []
+    by_date = dict(steps)
+    good = set(by_date.values())
+
+    body, tail = split_tail(answer or "")
+    anchors = sorted((hit.start(), date)
+                     for date in by_date
+                     for hit in re.finditer(re.escape(date), body))
+    if len(anchors) < 2:
+        return answer, []
+
+    edits, fixes = [], []
+    for index, (start, date) in enumerate(anchors):
+        stop = anchors[index + 1][0] if index + 1 < len(anchors) else len(body)
+        for hit in _SERIES_MONEY.finditer(body, start, stop):
+            found = hit.group(0)
+            if found in good or found not in (evidence or ""):
+                continue
+            edits.append((hit.start(), hit.end(), by_date[date]))
+            fixes.append(f"{date} {found} -> {by_date[date]}")
+    if not edits:
+        return answer, []
+    for start, stop, value in reversed(edits):
+        body = body[:start] + value + body[stop:]
+    return body + tail, fixes
+
+
 def repair_gap(answer: str, evidence: str) -> tuple[str, str]:
     """Append a decisive line's content when the answer dropped most of it.
 

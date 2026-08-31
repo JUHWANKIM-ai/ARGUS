@@ -3287,6 +3287,16 @@ def answer_question(question_id: str, question: str) -> dict:
         if repaired:
             trace.append(f"gap_repair {repaired}")
 
+    # Realign a revision timeline's amounts to the decisive series line. Runs
+    # before `fix_unit_parens` so that replacing a body figure also refreshes
+    # the parenthesised 억원 conversion derived from the wrong one.
+    if ablation.enabled("align_series_amounts"):
+        from argus.agent import aggregate
+
+        answer, aligned = aggregate.align_series_amounts(answer, evidence)
+        if aligned:
+            trace.append(f'series_align {" · ".join(aligned)}')
+
     # Rewrite the parenthesised unit conversion. Runs after substitution:
     # replacing the body figure alone leaves behind the parenthesised value the
     # model derived from its own wrong figure.

@@ -420,6 +420,30 @@ class Arm:
     #: 미공개 `N-008`(`총 2,636억여원` 을 원 단위와 견줌)이 각각 3/3 오발화했다.
     #: 조인 뒤 골든셋 672응답(`A91`·`A84`) 발화 0.
     drop_unsourced_total: bool = False
+    #: True realigns a revision timeline's amounts to the decisive series line.
+    #: No LLM call.
+    #:
+    #: Held-out `K-015` attached one unrelated contract's amount
+    #: (`1,558,826,903,000`, receipt 20240415800078, 대전 도안2-2지구) to every step
+    #: of a chain whose decisive line already gave the correct figures. The
+    #: correct amount appears 6 times in the evidence and the wrong one once, and
+    #: the evidence is byte-identical to the rounds that answered correctly, so
+    #: neither retrieval nor evidence shaping is at fault. The same failure
+    #: reproduced on A84, A92 and the LoRA-tuned model, which is why a prompt
+    #: rule was not the remedy.
+    #:
+    #: A stray amount is rewritten only when it is also present in the evidence,
+    #: marking it as transcribed from another block; a figure the answer derived
+    #: itself is left to `drop_unsourced_total` and `fix_broken_equation`.
+    #:
+    #: Reach: the decisive series line attaches to 2 golden questions
+    #: (`Q-023`, `Q-081`) and 4 held-out ones (`H-015`, `H-016`, `K-015`,
+    #: `K-016`). Golden 448 responses fire 0 times.
+    #:
+    #: This switch was chosen after reading a held-out failure, so `K-015` is no
+    #: longer an independent measurement. Any later citation of the held-out
+    #: score has to say so.
+    align_series_amounts: bool = False
     #: True accepts a latest record as a chain seed so the walk can reach the
     #: original filing. No LLM call. Gated by the question asking for the
     #: pre-revision value, which is what keeps it from reopening the case
@@ -1956,6 +1980,14 @@ A91 = replace(A89, name="A91", roster_sum_ban=True)
 #: `roster_sum_ban` 은 로스터 줄에만 붙어 그리드 문항인 `H-005` 에 안 닿았다.
 A92 = replace(A91, name="A92", drop_unsourced_total=True)
 
+# --- W20 · 정정 추이 금액을 결정적 줄에 맞춘다 (2026-08-31) ----------------------
+#: `A92` 위에 한 줄이다. 미공개셋 `K-015` 하나만 겨냥한다 — 결정적 줄이 이미 준
+#: 금액을 두고 답변이 무관한 계약의 금액을 네 걸음 전부에 붙였다.
+#:
+#: 🔴 이 팔은 **미공개셋 실패를 보고** 만들었다. `A92` 를 최종 베이스라인으로 둔
+#: 채 따로 재는 이유가 그것이다 — `K-015` 는 이 뒤로 독립 측정이 아니다.
+A93 = replace(A92, name="A93", align_series_amounts=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -2003,7 +2035,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85", "A86", "A89", "A90", "A91", "A92",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85", "A86", "A89", "A90", "A91", "A92", "A93",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -2050,7 +2082,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86, A89, A90, A91, A92)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86, A89, A90, A91, A92, A93)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
@@ -2176,7 +2208,23 @@ FLAG_NAMES: tuple[str, ...] = tuple(
 #:
 #: 🔴 2026-08-28 `A92` 로 올린다. 미공개셋 아홉 축 검사에서 나온 `H-005` 하나를
 #: 겨냥한 `drop_unsourced_total` 한 줄 차이다. 사용자 승인으로 배포한다.
-_current: Arm = A92
+#:
+#: 🔴 2026-08-31 `A93` 으로 올린다. 미공개셋 `K-015` 하나를 겨냥한
+#: `align_series_amounts` 한 줄 차이다. 결정적 줄이 이미 준 금액을 두고 답변이 무관한
+#: 계약(대전 도안2-2지구, 접수번호 20240415800078)의 금액을 네 걸음 전부에 붙였다.
+#: 근거는 정답 회차와 바이트까지 같고 바른 금액이 6회·오인된 금액이 1회 나오므로,
+#: 검색도 근거 배치도 아닌 전사 실패다. `A84`·`A92`·LoRA 튜닝 모델 세 구성에서
+#: 재현됐다.
+#:
+#: 실측: 저장된 응답에 걸어 골든 8응답 발화 0 · 미공개 16응답 중 `K-015` 하나.
+#: 로컬 1회 — 미공개 53/54(남은 오답은 골든 과잉 명세인 `N-006` 뿐) · 골든 111/112.
+#: 골든 퇴행 `Q-114` 는 **이 스위치와 무관하다** — 112문항 전체에서 발화 0이고
+#: 그 문항 trace 에 `series_align` 이 없다. 로컬↔서버 조건 차이와 표집 흔들림이다.
+#:
+#: 🔴 **이 팔은 미공개셋 실패를 보고 만들었다.** 그러므로 `K-015` 는 이 뒤로 독립
+#: 측정이 아니고, 미공개셋 성적을 인용할 때 그 사실이 함께 적혀야 한다. 사용자가 그
+#: 값을 알고 승인했다.
+_current: Arm = A93
 
 
 def current() -> Arm:
