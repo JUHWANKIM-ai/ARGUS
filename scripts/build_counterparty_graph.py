@@ -1,29 +1,37 @@
-"""counterparty 를 노드로 승격한 2-hop 그래프.
+"""A 2-hop graph that promotes counterparties to nodes.
 
-직접 기업-기업 엣지는 20쌍(완결도 1.2% 미만)으로 기각됐지만, 발주처를 중개 노드로
-두면 44쌍이 되고 원전·방산 밸류체인이 드러난다. 근거로 인용하려면 '어느 발주처를
-거쳤는가'(`via`)가 남아야 한다.
+Direct company-to-company edges were rejected at 20 pairs (under 1.2%
+completeness), but placing the ordering party as an intermediate node yields 44
+pairs and exposes the nuclear and defence value chains. To cite one as evidence,
+which ordering party the link ran through (`via`) has to survive.
 
-## B1, "회사명"이 아니라 "안내문 문장"이 counterparty 값으로 들어간 사례
+## B1, where a boilerplate sentence rather than a company name lands in the
+## counterparty field
 
-`exchange_records.jsonl` 462개 유일 원문 전량 대조(Task 3, 2026-08-10)로 확인했다.
-"계약상대는 경영상 비밀유지 사유로 2024년 6월 30일 이전 공개될 예정이며,해당 일자는
-추후 변동 가능함" 류 안내문이 27종 표기·34건 있다. 날짜만 다른 거의 동일한 문장이
-`canonical()`로 접히면(공백만 다른 두 표기가 같은 canonical 키로 합쳐지는 식으로)
-`count >= 2`가 되어 노드로 승격된다. 실제로 이 필터 없이 빌드하면 정확히 11개의
-"안내문 문장"이 노드가 된다(각각 count=2, partners 0~1개). 회사명은 저 어휘를 쓰지
-않는다. `BOILERPLATE_NOTE` 는 462건 전량 대조로 오탐 0건을 확인했다
+Confirmed by checking all 462 unique source values in `exchange_records.jsonl`
+(Task 3, 2026-08-10). Notices of the form "계약상대는 경영상 비밀유지 사유로 2024년
+6월 30일 이전 공개될 예정이며,해당 일자는 추후 변동 가능함" occur as 27 spellings
+across 34 records. Near-identical sentences differing only in the date fold
+together under `canonical()` (two spellings differing only in whitespace collapse
+onto the same canonical key), reach `count >= 2`, and get promoted to nodes.
+Building without this filter promotes exactly 11 such notices (each count=2, with
+0 to 1 partners). Company names do not use that vocabulary. `BOILERPLATE_NOTE`
+was checked against all 462 values with zero false positives
 (`tests/test_counterparty.py::test_boilerplate_filter_does_not_cut_real_company_names`).
 
-거른 항목은 조용히 버리지 않고 `excluded_boilerplate`에 원문·건수·사유를 기록한다.
+What is filtered is not dropped silently: the source text, count and reason go
+into `excluded_boilerplate`.
 
-## B2, 국가+일반명사 조합("사우디 소재 EPC" 등)은 `classify()`를 고치지 않고 그대로 둔다
+## B2, country-plus-generic-noun labels ("사우디 소재 EPC" and the like) are left
+## alone rather than fixed in `classify()`
 
-Task 2 가 `EPC`·`기업`·`국방부` 를 vague 트리거로 넣지 않기로 한 결정을 유지한다.
-실명 회사 오탐 위험이 더 크다. 이 스크립트는 그 값들이 노드로 올라오는지만 확인하고
-`partners` 를 그대로 노출한다. 여러 universe 기업이 같은 모호한 라벨에 걸리면(=서로
-다른 실체가 한 노드로 뭉쳤다는 신호) `tests/test_counterparty.py::
-test_country_plus_generic_noun_hubs_are_reported_not_silently_promoted` 가 잡는다.
+Task 2's decision not to add `EPC`, `기업` or `국방부` as vague triggers stands: the
+risk of catching real company names is larger. This script only checks whether
+such values reach node status and exposes `partners` as they are. When several
+universe companies attach to the same vague label -- a sign that distinct
+entities have merged into one node --
+`tests/test_counterparty.py::test_country_plus_generic_noun_hubs_are_reported_not_silently_promoted`
+catches it.
 """
 from __future__ import annotations
 
@@ -42,38 +50,47 @@ RECORDS_PATH = ROOT / "artifacts/exchange_records.jsonl"
 DEFAULT_OUT = ROOT / "artifacts/counterparty_graph.json"
 MIN_COUNT = 2  # 1회 등장(실측 356개 노드 후보 중 211개, 59.3%)은 노드 가치가 없다
 
-#: B1, 비밀유지/공시유보 안내문 전체 또는 "(삭제)" 마커가 counterparty 값으로 들어간
-#: 사례. 회사명은 이 어휘를 쓰지 않는다(462개 유일 원문 전량 대조로 오탐 0건 확인).
-#: "비공개사항" 은 이미 `ANON_COUNTERPARTY`("비공개")가 잡지만 방어적으로 남겨 둔다.
-#: 이 정규식이 단독으로도 안내문을 완결하게 걸러낸다는 걸 보여준다.
+#: B1, a whole confidentiality or deferred-disclosure notice, or a "(삭제)"
+#: marker, landing in the counterparty field. Company names do not use this
+#: vocabulary (zero false positives across all 462 unique values). "비공개사항" is
+#: already caught by `ANON_COUNTERPARTY` ("비공개") but is kept defensively, to
+#: show this regex filters the notices completely on its own.
 BOILERPLATE_NOTE = re.compile(r"비밀\s*유지|공시유보|비공개사항|^\(?삭제\)?$")
 
-#: B/I-11, 어휘(`BOILERPLATE_NOTE`)만으로는 **문장이 노드 키가 되는 사고**를 못 막는다.
-#: 462종 전량 재대조로 `BOILERPLATE_NOTE` 도 `classify()` 도 안 걸러 승격 후보로
-#: 올라오는 '문장' 14종을 찾았다(안내문·열거문·필드라벨 오염). 전부 현재 `count == 1`
-#: 이라 지금 막고 있는 것은 `MIN_COUNT=2` 뿐이고, **그 방어막은 중복 한 건 거리**다.
-#: 걸린 것 중 두 종은 `"… 10개월 이내에 …"` / `"… 8개월 이내에 …"` 로 **개월 수만 다른
-#: 쌍둥이**이므로, 같은 발행사가 같은 템플릿을 한 번 더 쓰면 그 순간 문장이 노드가 된다.
+#: B/I-11, vocabulary alone (`BOILERPLATE_NOTE`) cannot prevent **a sentence
+#: becoming a node key**. Rechecking all 462 values found 14 sentences that
+#: neither `BOILERPLATE_NOTE` nor `classify()` filters and that reach promotion
+#: (notices, enumerations, field-label contamination). All currently sit at
+#: `count == 1`, so the only thing stopping them is `MIN_COUNT=2` -- **a defence
+#: one duplicate away from failing**. Two of them are twins differing only in a
+#: month count (`"… 10개월 이내에 …"` / `"… 8개월 이내에 …"`), so the moment one
+#: issuer reuses that template the sentence becomes a node.
 #:
-#: 어휘가 아니라 **구조**로 막는다. 회사명은 (1) 열거 머리표지로 시작하지 않고
-#: (2) 문장 종결어미·지시어(`상기`·`해당 일자`)를 쓰지 않는다.
+#: Blocked by **structure** rather than vocabulary. A company name (1) does not
+#: begin with an enumeration marker and (2) does not use sentence endings or
+#: deictic words (`상기`, `해당 일자`).
 #:
-#: 길이 단독 조건은 **채택하지 않았다.** 리뷰어 처방은 "40자 초과 · 머리표지 · 문장어미
-#: 중 **하나라도**" 였고 "승격 402종 중 40자 초과는 그 문장들뿐" 이라고 했으나, 전량
-#: 재대조 결과 40자 초과는 **43종**이고 그중 32종이 실명이다. `방위사업청 (Defense
+#: A length-only condition was **not adopted**. The reviewer's prescription was
+#: "over 40 characters, or a leading marker, or a sentence ending -- **any one**",
+#: on the claim that "of the 402 promoted values, only those sentences exceed 40
+#: characters". Rechecking every value, **43** exceed 40 characters and 32 of them
+#: are real names. `방위사업청 (Defense
 #: Acquisition Program Administration)`(count 91, **최대 허브**) ·
 #: `한국항공우주산업㈜ (KOREA AEROSPACE INDUSTRIES, LTD.)`(13) ·
 #: `MPA (Maritime and Port Authority of Singapore)`(7) 등. 그대로 넣으면 그래프가 무너진다.
-#: 길이는 오탐 방어용 **하한**으로만 쓴다(짧은 실명 회사명이 `함$` 류에 걸리는 것을 막는다).
+#: Length is used only as a **floor** guarding against false positives (it keeps
+#: a short real company name from matching patterns like `함$`).
 SENTENCE_LIKE_MIN_LEN = 20
-#: 열거·조항 머리표지: `- ` · `※ ` · `1) ` · `3. ` · `바. `
+#: Enumeration and clause markers: `- `, `※ `, `1) `, `3. `, `바. `
 _SENTENCE_LEAD = re.compile(r"^\s*[-–—※]\s|^\s*\d+\s*[).]\s|^\s*[가-힣]\.\s")
-#: 문장 종결어미·지시어. 회사명은 이 어휘를 쓰지 않는다(402종 전량 대조).
+#: Sentence endings and deictic words. Company names do not use this vocabulary
+#: (checked across all 402 values).
 _SENTENCE_BODY = re.compile(r"습니다|입니다|바랍니다|(?:^|\s)상기|해당\s*일자|[함임]\.?$")
 
 
 def sentence_like(value: str) -> str:
-    """문장·열거문이면 사유 문자열, 아니면 빈 문자열. 노드로 승격하지 않는다."""
+    """A reason string when the value is a sentence or an enumeration, otherwise an
+    empty string. Such values are not promoted to nodes."""
     if len(value) < SENTENCE_LIKE_MIN_LEN:
         return ""
     if _SENTENCE_LEAD.search(value):
@@ -92,11 +109,13 @@ def _load_records() -> list[dict]:
 
 
 def build_graph(out: Path = DEFAULT_OUT, min_count: int = MIN_COUNT) -> dict:
-    """`exchange_records.jsonl` 에서 그래프를 다시 계산해 `out` 에 쓰고 반환한다.
+    """Recompute the graph from `exchange_records.jsonl`, write it to `out` and
+    return it.
 
-    `main()` 의 argparse 를 거치지 않는 순수 함수라 테스트가 인자 없이 직접 부를 수
-    있다(예: fixture 에서 산출물이 없을 때 값싸게 재생성), `eda_counterparty.build_profile`
-    과 같은 패턴이다.
+    A pure function that does not go through `main()`'s argparse, so a test can
+    call it directly with no arguments (to regenerate the artifact cheaply when a
+    fixture finds it missing, for instance). The same pattern as
+    `eda_counterparty.build_profile`.
     """
     recs = _load_records()
 
@@ -178,16 +197,18 @@ def build_graph(out: Path = DEFAULT_OUT, min_count: int = MIN_COUNT) -> dict:
             }
             for raw, c in sorted(excluded_boilerplate.items(), key=lambda x: -x[1])
         ],
-        # B/I-11, 어휘 필터가 못 걸러 `MIN_COUNT` 하나에만 기대고 있던 문장들.
-        # 조용히 버리지 않고 원문·건수·사유를 남긴다 (걸러진 기록이 없으면 다음 사람이
-        # "안 걸렸다" 와 "없었다" 를 구별할 수 없다).
+        # B/I-11, the sentences the vocabulary filter misses, which were leaning
+        # on `MIN_COUNT` alone. They are not dropped silently: the source text,
+        # count and reason are kept, because without a record of what was filtered
+        # the next reader cannot tell "not caught" from "not there".
         "excluded_sentence_like": [
             {"raw": raw, "count": c,
              "reason": f"I-11: 회사명이 아니라 문장·열거문이 counterparty 값이다 — "
                        f"{sentence_reason[raw]}"}
             for raw, c in sorted(excluded_sentence.items(), key=lambda x: -x[1])
         ],
-        # 종전에는 건수만 남고 원문이 없어 오탐 여부를 사후에 확인할 수 없었다.
+        # Previously only the count survived, with no source text, so whether a
+        # filter had misfired could not be checked afterwards.
         "excluded_vague": [
             {"raw": raw, "count": c,
              "reason": "비실명 계약상대(ANON_COUNTERPARTY) — 어느 기업인지 원문에 없어 "

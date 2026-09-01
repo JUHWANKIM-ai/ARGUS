@@ -22,9 +22,10 @@ import sys
 
 OUT = pathlib.Path("deploy/preprocessing_manifest.json")
 
-#: 제출 대상 20개. 런타임이 여는 파일(deploy/RUNBOOK.md) 전부와, 그 파일들을 만든
-#: 전처리가 읽는 대장·기업목록을 더한 것이다. 🔴 이 목록이 제출물의 정의다 --
-#: 여기서 빠지면 심사자가 받는 묶음에서도 빠진다.
+#: The 20 files that ship. Every file the runtime opens (deploy/RUNBOOK.md),
+#: plus the manifest and company list the preprocessing that built them reads.
+#: This list *is* the definition of the submission: anything missing here is
+#: missing from the bundle the evaluators receive.
 FILES = [
     "artifacts/counterparty_graph.json",
     "artifacts/eval_report.json",
@@ -36,10 +37,12 @@ FILES = [
     "artifacts/major_records.jsonl",
     "artifacts/nary_records.jsonl",
     "artifacts/nary_records.meta.json",
-    #: 🔴 2026-08-21 추가. 런타임이 여는 파일이므로 이 목록에 들어간다 — 빠지면 심사자가
-    #: 받는 묶음에 없고, 그러면 `section_chain_note` 가 **조용한 무동작**이 된다(없는
-    #: 파일은 빈 매핑을 돌려주게 만들어 서버가 죽지는 않는다).
-    #: 이 줄이 늘면 구글 드라이브의 전처리 산출물 묶음도 다시 올려야 한다.
+    #: Added 2026-08-21. The runtime opens this file, so it belongs in the list:
+    #: without it the evaluators' bundle lacks it, and `section_chain_note`
+    #: becomes a **silent no-op** (a missing file yields an empty mapping rather
+    #: than killing the server).
+    #: Whenever this list grows, the preprocessing bundle on Google Drive has to
+    #: be re-uploaded as well.
     "artifacts/periodic_chains.jsonl",
     "artifacts/periodic_sections.jsonl",
     "artifacts/periodic_sections.txt",
@@ -77,7 +80,7 @@ def entries() -> list[dict]:
     for name in FILES:
         path = pathlib.Path(name)
         if not path.exists():
-            sys.exit("🔴 제출 대상이 없습니다: %s" % name)
+            sys.exit("제출 대상이 없습니다: %s" % name)
         size, sha = digest(path)
         out.append({"path": name, "bytes": size, "sha256": sha})
     return out
@@ -104,8 +107,9 @@ def build(as_of: str) -> dict:
            "파일": rows}
     raw = raw_totals()
     if raw is None:
-        #: raw 가 없는 기계에서 돌리면 이전 값을 옮겨 적지 않는다. 재지 않은 수를
-        #: 잰 것처럼 적는 것이 빈 칸보다 나쁘다.
+        #: Run on a machine without raw/, the previous value is not carried
+        #: over. Recording an unmeasured number as if it were measured is worse
+        #: than leaving the field empty.
         doc["🔴 raw 포함 시"] = "이 기계에 raw/ 가 없어 재지 않았다"
         doc["총계(raw 포함)"] = "미측정"
     else:

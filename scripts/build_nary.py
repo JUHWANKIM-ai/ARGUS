@@ -1,44 +1,54 @@
-"""`A18` = `T1-targeted`, 규칙이 못 파싱한 238건의 **원문**에서 n-ary 관계를 뽑는다.
+"""`A18` = `T1-targeted`. Extract n-ary relations from the **source text** of the
+238 filings the rules failed to parse.
 
-    python scripts/build_nary.py --arity                 # 0원 사전 점검 (LLM 0회)
-    python scripts/build_nary.py --limit 5 --budget-won 200    # 소규모 검증
-    python scripts/build_nary.py --budget-won 5100             # 전량 238건
+    python scripts/build_nary.py --arity                 # free pre-check (no LLM call)
+    python scripts/build_nary.py --limit 5 --budget-won 200    # small validation
+    python scripts/build_nary.py --budget-won 5100             # all 238
 
-**`artifacts/*_records.jsonl` 을 고치지 않는다.** 산출물은 새 파일
-`artifacts/nary_records.jsonl` 하나이고, 기존 레코드는 한 바이트도 안 바뀐다.
-바꾸면 BM25 색인 문자열이 갈려 v1~v4 의 측정이 전량 무효가 된다. arm `A18` 이
-켜졌을 때만 `agent/tools.py` 가 이 파일을 읽어 근거 마크다운에 **덧붙인다**
-(덮어쓰기가 아니라 합집합, 규칙이 뽑은 줄은 그대로 둔다).
+**`artifacts/*_records.jsonl` is never modified.** The output is one new file,
+`artifacts/nary_records.jsonl`; not a byte of the existing records changes.
+Changing them would alter the BM25 index strings and invalidate every measurement
+from v1 through v4. Only when arm `A18` is on does `agent/tools.py` read this file
+and **append** to the evidence markdown -- a union, not an overwrite, leaving the
+lines the rules extracted in place.
 
-## 모집단, 왜 238건인가
+## The population, and why it is 238
 
-`schema_matched` 는 `corpus/normalize.py` 가 *"계약·투자 서식인데 금액을 뽑았는가"* 로
-정한다. `False` 인 238건(exchange 233 · major 5 · holding 0)이 **규칙이 못 뽑은 전량**이고,
-나머지 2,912건은 규칙이 이미 구조화했다. 같은 표를 LLM 에 다시 먹이면 같은 값이 나오므로
-정보 이득이 정의상 0 이다 (계획서 §0 `T1-md` 기각 사유).
+`schema_matched` is decided by `corpus/normalize.py` as *"this is a contract or
+investment form, and was an amount extracted?"*. The 238 where it is `False`
+(exchange 233, major 5, holding 0) are **everything the rules failed to extract**;
+the remaining 2,912 the rules already structured. Feeding the same table to an LLM
+returns the same values, so the information gain is zero by definition (the
+rejection ground for `T1-md`, plan section 0).
 
-## 이 스크립트가 재기 **전에** 답을 반쯤 알고 있다. `--arity`
+## The script half-knows the answer **before** it measures: `--arity`
 
-HyperGraphRAG 자신의 ablation 이 *"arity ≤ 2 면 하이퍼그래프의 이득이 0"* 을 보고한다
-(이항 관계는 일반 그래프로 그대로 표현된다). `--arity` 는 LLM 0회 · 0원으로 238건의
-관계 논항 수를 세어 그 전제가 우리 데이터에 맞는지 먼저 판정한다. 지출은 그 다음이다.
+HyperGraphRAG's own ablation reports that *"with arity <= 2 the hypergraph gains
+nothing"* (a binary relation is expressible in an ordinary graph as it is).
+`--arity` counts the argument counts of the 238 relations with no LLM call and no
+cost, deciding first whether that premise holds for our data. Spending comes
+after.
 
-## 단일 창구 · 이중 회계
+## One gateway, double accounting
 
-`argus.clova.chat` 만 부른다. 직접 HTTP 를 치면 요청 캐시와 비용 계정을 우회한다.
-캐시는 `scripts/ablation.RequestCache` 를 그대로 쓴다(같은 `scratch/ablation/cache`).
-온도 0.0 이라 같은 원문은 같은 응답이고, 재실행이 크레딧을 두 번 쓰지 않는다.
+Only `argus.clova.chat` is called. Issuing HTTP directly would bypass the request
+cache and the cost accounting. The cache is `scripts/ablation.RequestCache` as is
+(the same `scratch/ablation/cache`). At temperature 0.0 the same source yields the
+same response, so a rerun does not spend credits twice.
 
-**`--budget-won` 정지선이 필수다.** 238콜이 한 번에 나가므로 프롬프트가 잘못 서면
-전액이 한 실행에서 날아간다. 상한에 닿으면 그 자리에서 멈추고 **부분 산출물을 남긴다.**
+**The `--budget-won` stop line is mandatory.** All 238 calls go out in one run, so
+a badly formed prompt burns the whole amount at once. On reaching the ceiling the
+run stops where it is and **keeps the partial output**.
 
-## 추출값을 믿지 않는다. 원문 대조를 함께 기록한다
+## The extracted values are not trusted: a source check is recorded alongside
 
-`R0-1` 이 실측한 위험이 하나 있다: 238건 중 **67건이 발행사 유보**(`계약금액(원)` = `-`)이고
-그 원문에 있는 큰 수는 **최근매출액·자기자본**이다. LLM 이 그것을 계약금액으로 태깅하면
-`Q-077`(정답 580,000,000,000)이 정면으로 뒤집힌다. 그래서 필드마다 **원문에 그 문자열이
-실제로 있는가**(`verbatim`)를 결정적으로 대조해 함께 적는다. **거르지는 않는다**.
-거르면 Δ=0 이 측정이 아니라 필터의 성질이 된다. 판정은 측정 뒤에 한다.
+`R0-1` measured one risk: of the 238, **67 are issuer-withheld** (`계약금액(원)` =
+`-`), and the large numbers present in their source text are **recent revenue and
+equity**. If the LLM tags one of those as the contract amount, `Q-077` (correct
+answer 580,000,000,000) inverts outright. So for every field a deterministic check
+records **whether that exact string is actually in the source** (`verbatim`).
+Nothing is **filtered out**: filtering would make a delta of 0 a property of the
+filter rather than a measurement. Judgement comes after measurement.
 """
 from __future__ import annotations
 
@@ -60,21 +70,24 @@ from scripts import error_analysis as ea                           # noqa: E402
 from scripts.ablation import CACHE_DIR, RequestCache               # noqa: E402
 
 RECORD_GROUPS = ("exchange", "major", "holding")
-#: **새 파일이다.** 기존 `*_records.jsonl` 을 덮지 않는다.
+#: **A new file.** The existing `*_records.jsonl` are never overwritten.
 OUT_NAME = "nary_records.jsonl"
 
-#: 추출 상한. 원문 p90 = 2,110자 · 최대 3,110자라 전건이 한 번에 들어간다 (`R0-1` §5).
+#: Extraction ceiling. Source text runs to a p90 of 2,110 characters and a
+#: maximum of 3,110, so every case fits in one call (`R0-1` section 5).
 MAX_SOURCE_CHARS = 6_000
 MAX_OUTPUT_TOKENS = 512
-#: 기본 정지선. `R0-1` 견적 2,809원 × 1.5 = 4,214 를 덮고 고점 3,361 × 1.5 = 5,042 도 덮는다.
+#: The default stop line. It covers `R0-1`'s estimate of 2,809 won x 1.5 =
+#: 4,214, and the high case of 3,361 x 1.5 = 5,042 as well.
 DEFAULT_BUDGET_WON = 5_100.0
 
 
 # --- Step 0, arity 사전 점검 (LLM 0회 · 0원) --------------------------------
 #
-# 슬롯 넷이 곧 `T1` 이 뽑으려는 것이다. arity = 1(주체 = 공시 기업) + 채워진 슬롯 수.
-# 라벨만 있고 값이 `-` 인 칸은 세지 않는다. 유보 서식이 라벨을 전부 갖고 있어서
-# 라벨로 세면 arity 가 통째로 부풀려진다.
+# The four slots are exactly what `T1` sets out to extract. arity = 1 (the
+# subject, the filing company) + the number of filled slots. A cell that has a
+# label but a value of `-` is not counted: withheld forms carry every label, so
+# counting by label inflates arity wholesale.
 
 ARITY_SLOTS = {
     "counterparty": re.compile(
@@ -114,7 +127,7 @@ def _value_ok(slot: str, value: str) -> bool:
 
 
 def slot_filled(record: dict, slot: str, pattern: re.Pattern) -> bool:
-    """라벨이 있고 **그 라벨의 값 칸이 실제로 채워졌는가.**"""
+    """Whether the label is present **and its value cell is actually filled.**"""
     for row in record.get("raw_rows") or []:
         if not isinstance(row, list):
             continue
@@ -151,8 +164,10 @@ def report_arity(targets: list[dict], control: list[dict]) -> dict:
     total = len(targets) or 1
     ge3 = sum(v for a, v in hist.items() if a >= 3)
 
-    #: 대조군을 **같은 문서군으로 좁힌다.** holding 1,083건은 지분보고라 계약 슬롯이
-    #: 애초에 없어(arity 1) 섞으면 대조군 arity 가 통째로 내려간다. 없는 차이를 만든다.
+    #: The control group is **narrowed to the same document groups.** The 1,083
+    #: holding filings are ownership reports with no contract slots at all
+    #: (arity 1); mixing them in drags the control's arity down wholesale and
+    #: manufactures a difference that is not there.
     groups = {r["_group"] for r in targets}
     control = [r for r in control if r["_group"] in groups]
     ctrl = Counter(arity_of(r)[0] for r in control)
@@ -162,7 +177,7 @@ def report_arity(targets: list[dict], control: list[dict]) -> dict:
     print(f"\n=== arity 분포 · schema_matched=False {len(targets)}건 ===")
     for a in sorted(hist):
         print(f"  arity {a}: {hist[a]:5d}건 ({hist[a] / total * 100:5.1f}%)")
-    print(f"  🔴 arity >= 3 : {ge3:5d}건 ({ge3 / total * 100:5.1f}%)")
+    print(f"  arity >= 3 : {ge3:5d}건 ({ge3 / total * 100:5.1f}%)")
     print(f"     arity <= 2 : {total - ge3:5d}건 ({(total - ge3) / total * 100:5.1f}%)")
     print("\n  슬롯별 실충전")
     for s in ARITY_SLOTS:
@@ -176,17 +191,17 @@ def report_arity(targets: list[dict], control: list[dict]) -> dict:
     print(f"\n=== 대조군 schema_matched=True {len(control)}건 ===")
     for a in sorted(ctrl):
         print(f"  arity {a}: {ctrl[a]:5d}건 ({ctrl[a] / ctrl_total * 100:5.1f}%)")
-    print(f"  🔴 arity >= 3 : {ctrl_ge3:5d}건 ({ctrl_ge3 / ctrl_total * 100:5.1f}%)")
+    print(f"  arity >= 3 : {ctrl_ge3:5d}건 ({ctrl_ge3 / ctrl_total * 100:5.1f}%)")
     return {"target_hist": dict(hist), "target_ge3": ge3, "target_n": len(targets),
             "slots": dict(slots), "control_hist": dict(ctrl),
             "control_ge3": ctrl_ge3, "control_n": len(control),
             "by_bucket": {k: dict(v) for k, v in by_bucket.items()}}
 
 
-# --- 모집단 --------------------------------------------------------------------
+# --- Population -----------------------------------------------------------------
 
 def load_records() -> tuple[list[dict], list[dict]]:
-    """(`schema_matched=False` 전량, 대조군 `True` 전량). 읽기만 한다."""
+    """(all `schema_matched=False`, and all `True` as the control group). Read only."""
     targets, control = [], []
     for group in RECORD_GROUPS:
         path = settings().artifacts_root / f"{group}_records.jsonl"
@@ -204,7 +219,8 @@ def load_records() -> tuple[list[dict], list[dict]]:
 
 
 def source_text(record: dict) -> str:
-    """원문 = `raw_rows` 전량. `markdown` 이 아니다. 그것은 규칙의 산출물이다."""
+    """The source is all of `raw_rows`, not `markdown` -- the latter is the rules'
+    own output."""
     lines = []
     for row in record.get("raw_rows") or []:
         if isinstance(row, list):
@@ -214,13 +230,15 @@ def source_text(record: dict) -> str:
     return "\n".join(lines)[:MAX_SOURCE_CHARS]
 
 
-# --- 추출 ----------------------------------------------------------------------
+# --- Extraction -----------------------------------------------------------------
 
-#: **최상위를 객체로 감싼 것은 실측 때문이다.** 첫 판(배열 직접 요구)에서 HCX-005 가
-#: 238건 중 **135건에 `"["` 한 글자만 돌려주고 `finishReason=stop`** 으로 끝냈다. 같은
-#: 원문에 객체 스키마 + 예시 하나를 주니 `{"relations": []}` 로 정확히 답한다(3/3 재현).
-#: 즉 그 135건은 "뽑을 것이 없다" 가 맞았는데 **추출기가 그 사실을 말하지 못한 것**이고,
-#: 그 상태로 재면 Δ=0 이 데이터의 성질이 아니라 **깨진 도구의 성질**이 된다.
+#: **Wrapping the top level in an object came out of measurement.** In the first
+#: version, which asked for a bare array, HCX-005 returned **the single character
+#: `"["` with `finishReason=stop` for 135 of the 238**. Given an object schema
+#: plus one example on the same source, it answers `{"relations": []}` exactly
+#: (reproduced 3/3). So those 135 were right that there was nothing to extract,
+#: but **the extractor could not say so**, and measuring in that state would make
+#: a delta of 0 a property of **a broken tool** rather than of the data.
 SYSTEM = """당신은 한국 DART 공시 원문에서 n-ary 관계를 추출하는 도구입니다.
 규칙 기반 파서가 이 문서에서 아무 필드도 뽑지 못했습니다. 원문만 보고 뽑으십시오.
 
@@ -271,23 +289,30 @@ USER = """다음은 공시 원문입니다.
 _FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.M)
 _OBJECT = re.compile(r"\{.*\}", re.S)
 _ARRAY = re.compile(r"\[.*\]", re.S)
-#: **JSON 이 허용하지 않는 이스케이프.** 실측으로 걸렸다. `20250325800001`(`Q-101` 의
-#: 근거 레코드)에서 모델이 `"… 투자금액 : \$58억"` 을 냈고, `\$` 는 JSON 규격에 없는
-#: 이스케이프라 통째로 `bad_json` 이 됐다. 나머지 필드는 전부 멀쩡했다.
-#: **되돌릴 수 있는 서식 오류는 되돌린다**. 안 되돌리면 그 레코드의 추출이 통째로
-#: 사라지고, 하필 그것이 평가셋 근거에 노출된 9건 중 하나다. 즉 `Δ=0` 이 데이터가
-#: 아니라 **파서의 성질**이 될 뻔했다. 값은 한 글자도 안 고친다. 백슬래시만 뗀다.
+#: **An escape JSON does not allow.** Caught by measurement. On `20250325800001`
+#: (the evidence record for `Q-101`) the model emitted `"… 투자금액 : \$58억"`, and
+#: `\$` is not a JSON escape, so the whole response became `bad_json`. Every other
+#: field was intact.
+#: **A recoverable formatting error is recovered.** Left alone, that record's
+#: extraction vanishes entirely -- and it happens to be one of the nine exposed in
+#: the evaluation set's evidence. A delta of 0 would have become a property of
+#: **the parser** rather than of the data. Not one character of the value is
+#: changed; only the backslash is removed.
 _BAD_ESCAPE = re.compile(r'\\(?=[^"\\/bfnrtu])')
 
 
 def parse_relations(text: str) -> tuple[list[dict], str]:
-    """모델 응답 -> 관계 목록. 실패는 예외가 아니라 **사유 문자열**로 돌려준다.
+    """Model response -> relation list. A failure returns a **reason string**, not an
+    exception.
 
-    **파싱 실패를 조용히 빈 목록으로 접으면 안 된다.** 첫 판에서 135건이 `"["` 한
-    글자로 돌아왔는데, 사유를 안 남겼으면 그것이 *"뽑을 것이 없었다"* 로 보고돼
-    Δ=0 의 근거가 됐을 것이다. 사유가 남아 있어서 도구 결함임을 잡아냈다.
+    **A parse failure must not fold silently into an empty list.** In the first
+    version 135 responses came back as the single character `"["`; with no reason
+    recorded, that would have been reported as *"there was nothing to extract"*
+    and become the grounds for a delta of 0. The reason is what caught it as a
+    tooling defect.
 
-    배열도 받는다. 옛 산출물과 형식이 갈리면 안 된다.
+    A bare array is accepted too: the format must not diverge from the earlier
+    output.
     """
     raw = _FENCE.sub("", text or "").strip()
     if not raw:
@@ -310,15 +335,17 @@ def parse_relations(text: str) -> tuple[list[dict], str]:
 
 
 _DIGITS = re.compile(r"\D")
-#: 모델이 "없음" 을 스키마의 `null` 대신 **원문 서식의 빈 칸 기호**로 돌려준다
-#: (실측 스모크 5건에서 `period_start: "-"` 가 나왔다). 그대로 두면 근거에
-#: `- 기간: - ~ -` 같은 줄이 실린다. 값이 아니라 서식이므로 여기서 없앤다.
+#: The model returns "absent" as **the source form's empty-cell marker** rather
+#: than the schema's `null` (a five-case smoke test produced
+#: `period_start: "-"`). Left as is, the evidence carries lines like
+#: `- 기간: - ~ -`. That is formatting, not a value, so it is removed here.
 _NULLISH = {"-", "–", "—", "null", "none", "n/a", "na", "미정", "없음", "해당없음",
             "해당사항없음", "해당사항 없음", "확인되지 않음", "미확정", "비공개", "유보"}
 
 
 def clean_value(value):
-    """빈 칸 기호를 `None` 으로 접는다. **값을 고치지는 않는다**. 판정은 측정 뒤다."""
+    """Fold empty-cell markers into `None`. **Values are never corrected** --
+    judgement comes after measurement."""
     if value is None:
         return None
     if isinstance(value, (int, float)):
@@ -328,7 +355,8 @@ def clean_value(value):
 
 
 def clean_amount(value):
-    """`"1,234,567원"` 처럼 와도 정수로 접는다. **자릿수를 보정하지 않는다.**"""
+    """Fold a value like `"1,234,567원"` into an integer. **No digit correction is
+    applied.**"""
     value = clean_value(value)
     if value is None:
         return None
@@ -339,10 +367,12 @@ def clean_amount(value):
 
 
 def verbatim_flags(relation: dict, body: str) -> dict:
-    """**결정적 원문 대조.** 뽑힌 값이 원문에 실제로 있는가. 거르지는 않는다.
+    """**A deterministic source check.** Is the extracted value actually in the source
+    text? Nothing is filtered out.
 
-    `R0-1` 이 지목한 위험(유보 67건에서 최근매출액을 계약금액으로 오인)이 실제로
-    일어났는지를 나중에 셀 수 있어야 한다. 판정은 측정 뒤에 한다.
+    Whether the risk `R0-1` named -- mistaking recent revenue for the contract
+    amount in the 67 withheld filings -- actually occurred has to remain countable
+    afterwards. Judgement comes after measurement.
     """
     flat = " ".join(body.split())
     digits = _DIGITS.sub("", flat)
@@ -371,7 +401,8 @@ def extract_one(record: dict, max_tokens: int = MAX_OUTPUT_TOKENS) -> dict:
                     form=record.get("form") or record.get("doc_subtype") or "",
                     rcept_dt=record.get("rcept_dt", ""),
                     rcept_no=record["rcept_no"], body=body)}]
-    #: 온도 0.0, §I-3 의 통제 변수다. 여기서 올리면 재실행이 재현되지 않는다.
+    #: Temperature 0.0, the control variable of section I-3. Raising it here
+    #: would stop reruns from reproducing.
     result = clova.chat(messages, max_tokens=max_tokens, temperature=0.0, tag="nary")
     relations, error = parse_relations(result.text)
     for relation in relations:
@@ -396,11 +427,11 @@ def extract_one(record: dict, max_tokens: int = MAX_OUTPUT_TOKENS) -> dict:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="A18 T1-targeted n-ary 추출")
     ap.add_argument("--arity", action="store_true",
-                    help="🔴 0원 사전 점검만 한다 (LLM 0회). 지출 전에 이것부터.")
+                    help="0원 사전 점검만 한다 (LLM 0회). 지출 전에 이것부터.")
     ap.add_argument("--limit", type=int, default=0,
                     help="앞에서 N 건만 추출한다. 소규모 검증용.")
     ap.add_argument("--budget-won", type=float, default=DEFAULT_BUDGET_WON,
-                    help="🔴 정지선. 넘으면 그 자리에서 멈추고 부분 산출물을 남긴다.")
+                    help="정지선. 넘으면 그 자리에서 멈추고 부분 산출물을 남긴다.")
     ap.add_argument("--out", default="", help=f"산출 경로 (기본 artifacts/{OUT_NAME})")
     ap.add_argument("--offline", action="store_true",
                     help="요청 캐시만 쓴다. 미적중이면 예외 — 크레딧 0원 증명.")
@@ -417,9 +448,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     out_path = Path(args.out) if args.out else settings().artifacts_root / OUT_NAME
-    #: 기존 코퍼스 파일을 절대 덮지 않는다. 실수 하나가 전 세대 측정을 무효로 만든다.
+    #: An existing corpus file is never overwritten. One slip invalidates every
+    #: measurement of the previous generations.
     if out_path.name.endswith("_records.jsonl") and out_path.name != OUT_NAME:
-        raise SystemExit(f"🔴 코퍼스 파일에 쓰려 합니다: {out_path}. 새 파일에만 씁니다.")
+        raise SystemExit(f"코퍼스 파일에 쓰려 합니다: {out_path}. 새 파일에만 씁니다.")
 
     chosen = targets[:args.limit] if args.limit else targets
     if args.dry:
@@ -437,13 +469,15 @@ def main(argv: list[str] | None = None) -> int:
     for i, record in enumerate(chosen, 1):
         if cache.fresh_won > args.budget_won:
             stopped = record["rcept_no"]
-            print(f"\n🔴 정지선 {args.budget_won:,.0f}원 도달 — {stopped} 앞에서 멈춥니다 "
+            print(f"\n정지선 {args.budget_won:,.0f}원 도달 — {stopped} 앞에서 멈춥니다 "
                   f"(누적 {cache.fresh_won:,.1f}원)")
             break
-        #: **429 를 재시도로 넘긴다.** 전수 실행 중 rate limit 한 번에 죽으면 그때까지
-        #: 쓴 크레딧이 산출물 없이 날아간다 (응답은 캐시에 남지만 나머지가 안 돈다).
-        #: `error_analysis.with_retry` 를 그대로 쓴다. 백오프 상수를 두 곳에 적으면
-        #: 한쪽만 고쳐지는 이 저장소의 단골 결함이 된다.
+        #: **A 429 is carried through by retrying.** Dying on one rate limit
+        #: mid-sweep throws away the credits spent so far with no output (the
+        #: responses stay in the cache, but the rest never runs).
+        #: `error_analysis.with_retry` is reused as is: writing the backoff
+        #: constants in two places is this repository's standing defect, where
+        #: only one of them gets fixed.
         hits_before = cache.hits
         rows.append(ea.with_retry(extract_one, record))
         if cache.hits == hits_before:          # 캐시 적중이면 API 를 안 쳤으니 쉬지 않는다
@@ -489,7 +523,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n{out_path} · {len(rows)}행")
     print(f"  값이 하나라도 나온 레코드 {with_any} / {len(rows)}")
     print(f"  필드별 {dict(filled)}")
-    print(f"  🔴 원문 대조 실패 {dict(verbatim_bad)}")
+    print(f"  원문 대조 실패 {dict(verbatim_bad)}")
     print(f"  토큰 {meta['prompt_tokens']:,} + {meta['completion_tokens']:,} · "
           f"실지출 {meta['spent_won']:,.1f}원 (단가 {ea.PRICE_WON_PER_1K}원/1K)")
     print(f"  meta -> {meta_path}")

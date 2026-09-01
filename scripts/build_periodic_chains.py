@@ -1,19 +1,23 @@
-"""periodic 정정 체인. LLM 호출 없음. 원문도 안 읽는다 — 대장 하나로 나온다.
+"""Correction chains for periodic filings. No LLM call, and no source
+document is read -- the manifest alone yields them.
 
     python scripts/build_periodic_chains.py
-    python scripts/build_periodic_chains.py --check     # 재생성 없이 대조만
+    python scripts/build_periodic_chains.py --check     # compare without rebuilding
 
-exchange·major·holding 은 `corpus/corrections.build_chains` 가 원문의 `정정관련 제출일` 과
-`※관련공시` 를 읽어 잇는다. periodic 은 그 경로를 안 탄다 — `scripts/build_index.py` 가
-그 세 그룹만 돌고, `periodic_sections.jsonl` 은 `is_correction` 불리언만 갖는다. 그래서
-정정본이 무엇을 정정한 것인지 런타임이 알 방법이 없었다.
+For exchange, major and holding, `corpus/corrections.build_chains` links filings
+by reading `정정관련 제출일` and `※관련공시` from the source. Periodic never takes
+that path: `scripts/build_index.py` covers only those three groups, and
+`periodic_sections.jsonl` carries nothing but an `is_correction` boolean. So the
+runtime had no way to know what a correction corrected.
 
-periodic 은 원문을 열 필요가 없다. `report_nm` 이 서식과 기간을 글자로 갖고 있어
-(기업 · 서식 · 기간) 이 키가 된다. 실측(2026-08-21): 정정 159건 중 157건이 **유일한**
-원공시로 확정되고, 모호 0건, 못 이은 2건은 원공시가 코퍼스에 없는 경우다.
+Periodic needs no source document. `report_nm` carries the form and the period as
+text, which makes (company, form, period) the key. Measured 2026-08-21: 157 of 159
+corrections resolve to a **unique** original filing, none are ambiguous, and the
+two that fail are cases where the original is absent from the corpus.
 
-🔴 못 이은 것을 버리지 않고 `reason` 에 적는다. `corpus/references.py` 의 규율과 같다 —
-파서 실패와 진짜 부재가 구별돼야 한다.
+What cannot be linked is recorded in `reason` rather than dropped, the same
+discipline as `corpus/references.py`: a parser failure has to stay
+distinguishable from a genuine absence.
 """
 from __future__ import annotations
 
@@ -30,8 +34,8 @@ from argus.config import settings                      # noqa: E402
 
 OUT_NAME = "periodic_chains.jsonl"
 
-#: 정정 태그를 지나 서식과 기간을 읽는다. 태그는 `[기재정정]` 외 형태도 있어(`[첨부추가]`)
-#: 대괄호 내용을 특정하지 않는다.
+#: Reads the form and period past the correction tag. Tags other than
+#: `[기재정정]` occur (`[첨부추가]`), so the bracket content is left unspecified.
 REPORT_KEY = re.compile(
     r"^(?:\[[^\]]*\])?\s*(사업보고서|반기보고서|분기보고서)\s*\((\d{4})\.(\d{2})\)")
 
@@ -42,7 +46,8 @@ def _key(row: dict) -> tuple | None:
 
 
 def build_chains(manifest: list[dict]) -> list[dict]:
-    """정정본마다 한 줄. periodic 이 아닌 것과 정정이 아닌 것은 안 낸다."""
+    """One row per correction. Non-periodic filings and non-corrections are
+    not emitted."""
     periodic = [r for r in manifest if r.get("doc_group") == "periodic"]
     buckets: dict[tuple, list[dict]] = defaultdict(list)
     for row in periodic:
@@ -66,8 +71,9 @@ def build_chains(manifest: list[dict]) -> list[dict]:
                    if r["rcept_no"] != row["rcept_no"] and r["rcept_dt"] <= row["rcept_dt"]]
         reason = ""
         if len(originals) > 1:
-            # 실측 0건. 일어나면 잇지 않는다 — 여럿 중 하나를 고르면 무관한 보고서를
-            # 대체된 것으로 표시하게 된다. `corpus/corrections` 의 같은 판단이다.
+            # Measured at zero. Should it happen, nothing is linked: picking
+            # one of several would mark an unrelated report as superseded. The
+            # same judgement as `corpus/corrections`.
             reason = f"원공시 후보가 {len(originals)}건이라 확정 못 한다"
         elif not originals:
             reason = "원공시가 코퍼스에 없다"
@@ -103,7 +109,7 @@ def main() -> None:
     body = "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows)
     if args.check:
         same = out.exists() and out.read_text(encoding="utf-8") == body
-        print("일치" if same else "🔴 불일치 — 재생성이 필요하다")
+        print("일치" if same else "불일치 — 재생성이 필요하다")
         raise SystemExit(0 if same else 1)
     out.write_text(body, encoding="utf-8")
     print(f"완료: {out}")

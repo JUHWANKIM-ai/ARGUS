@@ -31,7 +31,8 @@ OUT_STEM = "section_index"
 
 def iter_sections(index_path: Path, blob_path: Path, limit: int | None = None,
                   include_stubs: bool = False):
-    """(record, text) 스트림. 블롭은 한 번만 열고 seek 한다 (레코드가 오프셋 순서다)."""
+    """A (record, text) stream. The blob is opened once and seeked, since the
+    records are in offset order."""
     blob = blob_path.open("rb") if blob_path.exists() else None
     try:
         with index_path.open(encoding="utf-8") as fh:
@@ -72,10 +73,11 @@ def main() -> None:
     parser.add_argument("--chunk-chars", type=int, default=SECTION_CHUNK_CHARS,
                         help="2차 분할 상한. 표 경계는 깨지 않는다 (0 = 분할 안 함)")
     parser.add_argument("--tokenizer", default="bigram", choices=("bigram", "word"))
-    # 스텁은 **색인에 넣는다**. 배제는 `list_sections` 가 한다 (§7.7 ④), 스텁 자체가
-    # 답인 문항이 있다. Q-053 '내부통제에 관한 사항' 은 79자, Q-059 '이사의 경영진단'
-    # 은 63자로 둘 다 '기재 생략' 이고, 그 사실을 짚는 것이 정답이다. 색인에서 빼면
-    # 도구가 스텁을 열 수조차 없다.
+    # Stubs **go into the index**. Exclusion is `list_sections`' job (section
+    # 7.7 item 4), because some questions are answered by the stub itself.
+    # Q-053 '내부통제에 관한 사항' is 79 characters and Q-059 '이사의 경영진단' is
+    # 63, both reading '기재 생략', and naming that fact is the correct answer.
+    # Dropped from the index, the tool could not even open them.
     parser.add_argument("--exclude-stubs", action="store_true",
                         help="100자 미만 스텁을 색인에서 뺀다 (기본은 포함)")
     args = parser.parse_args()

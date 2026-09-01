@@ -1,4 +1,4 @@
-"""T1 인덱스 빌드. LLM 호출 없음."""
+"""Build the T1 index. No LLM call."""
 from __future__ import annotations
 
 import argparse
