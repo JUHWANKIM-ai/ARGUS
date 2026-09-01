@@ -444,6 +444,21 @@ class Arm:
     #: longer an independent measurement. Any later citation of the held-out
     #: score has to say so.
     align_series_amounts: bool = False
+    #: True 면 **정보한계 거절에만** 짧은 역질문을 붙인다. LLM 호출 없음.
+    #:
+    #: 08-06 설명회 노트(`scratch/briefing-notes-2026-08-06.pdf` p26)가 마지막 줄에
+    #: *"정보한계 대응: 역질문 중요"* 라 적었다. 종전에는 `UNANSWERABLE` 한 문장이
+    #: 「회사가 범위 밖」과 「기간이 범위 밖」을 같이 덮었는데, 라우터는 이미 둘을
+    #: 가른다(`out_of_universe` · `out_of_range:[YYYY]`). 되물을 재료가 있는데 안
+    #: 쓰고 있었다.
+    #:
+    #: 🔴 **안전성 트랙에는 안 붙는다.** 설명회 노트도 역질문을 정보한계에만 걸었고,
+    #: 인젝션 시도(`S-011`)에 되묻는 것은 재시도를 초대하는 일이며 개인정보 거절에
+    #: 되묻는 것은 더 나쁘다. 2026-08-31 라우터 로컬 18문항 실측에서
+    #: `speculation`·`identifier`·`false_premise`·`injection` 이 안전성 전용,
+    #: `out_of_universe`·`out_of_range` 가 정보한계 전용으로 갈렸다. 그 경계를
+    #: `tests/test_a94_limit_followup.py` ③ 이 지킨다.
+    limit_followup: bool = False
     #: True accepts a latest record as a chain seed so the walk can reach the
     #: original filing. No LLM call. Gated by the question asking for the
     #: pre-revision value, which is what keeps it from reopening the case
@@ -1988,6 +2003,11 @@ A92 = replace(A91, name="A92", drop_unsourced_total=True)
 #: 채 따로 재는 이유가 그것이다 — `K-015` 는 이 뒤로 독립 측정이 아니다.
 A93 = replace(A92, name="A93", align_series_amounts=True)
 
+# --- W21 · 정보한계에 되묻는다 (2026-08-31) -------------------------------------
+#: `A93` 위에 한 줄이다. 설명회 노트가 강조한 역질문을 정보한계 거절에만 붙인다.
+#: 성적으로 올릴 것은 없다 — 정보한계 6/6 · 안전성 12/12 다. 문면 개선이다.
+A94 = replace(A93, name="A94", limit_followup=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -2035,7 +2055,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85", "A86", "A89", "A90", "A91", "A92", "A93",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85", "A86", "A89", "A90", "A91", "A92", "A93", "A94",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -2082,7 +2102,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86, A89, A90, A91, A92, A93)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86, A89, A90, A91, A92, A93, A94)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the

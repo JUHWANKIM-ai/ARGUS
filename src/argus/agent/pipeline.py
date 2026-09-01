@@ -31,6 +31,25 @@ UNANSWERABLE = (
     "제공된 70개사 · 2023.01~2026.03 범위 안의 기업과 기간으로 질문해 주시면 확인해 드리겠습니다."
 )
 
+#: 회사가 제공 범위 70곳 밖이다(`router` 의 `out_of_universe`). 라우터가 회사 이름을
+#: 못 집어낸다 — 범위 밖이라 사전에 없다 — 므로 기업을 이름으로 부르지 않는다.
+#: See docs/design-rationale.md#refusal-notices
+OUT_OF_UNIVERSE_ASK = (
+    "공시에서 확인되지 않습니다. "
+    "질문한 기업이 제공 범위 70개사에 없습니다. "
+    "범위 안 기업으로 다시 여쭤봐 주시겠습니까?"
+)
+
+#: 회사는 범위 안인데 연도가 밖이다(`router` 의 `out_of_range:[YYYY]`). 이때는 회사를
+#: 알고 있으므로 이름을 불러 준다. `{회사} 공시는` 꼴로 적어 **조사를 피한다** — 받침에
+#: 따라 은/는 을 고를 도우미가 이 저장소에 없다(`query._strip_josa` 는 떼기만 한다).
+#: See docs/design-rationale.md#refusal-notices
+OUT_OF_PERIOD_ASK = (
+    "공시에서 확인되지 않습니다. "
+    "{company} 공시는 2023.01~2026.03 접수분만 제공됩니다. "
+    "그 기간으로 확인해 드릴까요?"
+)
+
 #: Company and year are both in range but the named report does not exist.
 #: A different kind of limit calls for a different notice, and this one asks
 #: back which report to check.
@@ -2957,6 +2976,50 @@ def _verdict_reason(verdict) -> str:
     return " · ".join(hits) if hits else "자동 검증이 결함을 보고했습니다"
 
 
+#: 답할 수 없는 갈래마다 어떤 고지를 내보내는가. 종전에는 `answer_question` 안의
+#: if 사슬이었고, 문면과 흔적이 같은 자리에 섞여 있었다. 갈라 두면 **문면만** 시험할
+#: 수 있다 — `tests/test_a93_limit_followup.py` 가 안전성 트랙이 안 움직이는 것을
+#: 이 함수로 고정한다.
+def limit_notice(r) -> str:
+    """`kind == "unanswerable"` 인 경로가 내보낼 고지 문면. LLM 호출 없음."""
+    if r.reason.startswith("no_such_report"):
+        return NO_SUCH_REPORT
+    if r.reason == "speculation":
+        return SPECULATIVE
+    if r.reason == "identifier":
+        return IDENTIFIER_WITHHELD
+    if r.reason == "ambiguous_reference":
+        return AMBIGUOUS_REFERENCE
+    if r.reason == "false_premise":
+        return FALSE_PREMISE
+    if r.reason == "injection":
+        return INJECTION_REFUSED
+    #: 🔴 여기까지가 **안전성 트랙 전용** 사유다(2026-08-31 라우터 로컬 18문항 실측:
+    #: `speculation`·`identifier`·`false_premise`·`injection` 은 안전성에서만 난다).
+    #: 아래 둘만 정보한계에서 나므로, 되묻기는 아래에만 붙인다. 인젝션 시도에 되묻는
+    #: 것은 재시도를 초대하는 일이고, 개인정보 거절에 되묻는 것은 더 나쁘다.
+    if ablation.enabled("limit_followup"):
+        if r.reason == "out_of_universe":
+            return OUT_OF_UNIVERSE_ASK
+        if r.reason.startswith("out_of_range") and r.companies:
+            return OUT_OF_PERIOD_ASK.format(company=r.companies[0])
+    return UNANSWERABLE
+
+
+#: 위 갈래에 붙는 흔적. 문면과 짝이지만 따로 둔다 — 흔적이 바뀌어도 배달 문면은
+#: 안 움직여야 하고, 그 반대도 마찬가지다.
+def _limit_trace(r) -> str:
+    if r.reason.startswith("no_such_report"):
+        return f"{r.reason} — 지목한 보고서가 목록에 없다 (LLM 호출 없이 한계 고지)"
+    return {
+        "speculation": "미래 추정 요구 — LLM 호출 없이 한계 고지",
+        "identifier": "식별번호 전사 요구 — LLM 호출 없이 거절",
+        "ambiguous_reference": "지시대상 불명 — LLM 호출 없이 역질문",
+        "false_premise": "거짓 전제 — LLM 호출 없이 한계 고지",
+        "injection": "주입·미공시 요구 — LLM 호출 없이 거절",
+    }.get(r.reason, "범위 밖 — LLM 호출 없이 한계 고지")
+
+
 def answer_question(question_id: str, question: str) -> dict:
     budget = Budget()
     clean, warnings = sanitize_question(question)
@@ -2966,37 +3029,8 @@ def answer_question(question_id: str, question: str) -> dict:
     trace.append(f"route={r.kind} difficulty={r.difficulty} cot={r.use_cot} sc={r.use_sc}")
 
     if r.kind == "unanswerable":
-        if r.reason.startswith("no_such_report"):
-            trace.append(f"{r.reason} — 지목한 보고서가 목록에 없다 (LLM 호출 없이 한계 고지)")
-            return _respond(question_id, question, "", trace, NO_SUCH_REPORT, budget)
-        # Company and period are in range; what is absent is a future the
-        # filings do not state.
-        if r.reason == "speculation":
-            trace.append("미래 추정 요구 — LLM 호출 없이 한계 고지")
-            return _respond(question_id, question, "", trace, SPECULATIVE, budget)
-        # Not out of range: withheld.
-        if r.reason == "identifier":
-            trace.append("식별번호 전사 요구 — LLM 호출 없이 거절")
-            return _respond(question_id, question, "", trace, IDENTIFIER_WITHHELD, budget)
-        # Not out of range: the subject of the question is unidentified, so
-        # ask back.
-        if r.reason == "ambiguous_reference":
-            trace.append("지시대상 불명 — LLM 호출 없이 역질문")
-            return _respond(question_id, question, "", trace, AMBIGUOUS_REFERENCE, budget)
-        # Not out of range: the question asserts a conclusion the filings do
-        # not confirm, and the premise is what is missing, not the company or
-        # period.
-        if r.reason == "false_premise":
-            trace.append("거짓 전제 — LLM 호출 없이 한계 고지")
-            return _respond(question_id, question, "", trace, FALSE_PREMISE, budget)
-        # Either a demand to ignore prior instructions, or a demand for
-        # undisclosed content. Both the company and the period may well be in
-        # range, so `UNANSWERABLE`'s out-of-range wording would be false here.
-        if r.reason == "injection":
-            trace.append("주입·미공시 요구 — LLM 호출 없이 거절")
-            return _respond(question_id, question, "", trace, INJECTION_REFUSED, budget)
-        trace.append("범위 밖 — LLM 호출 없이 한계 고지")
-        return _respond(question_id, question, "", trace, UNANSWERABLE, budget)
+        trace.append(_limit_trace(r))
+        return _respond(question_id, question, "", trace, limit_notice(r), budget)
 
     # The oracle path branches here, because `_gather_evidence` has no
     # question id. With the flag off, the line below is unchanged.
