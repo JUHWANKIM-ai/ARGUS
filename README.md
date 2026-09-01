@@ -16,8 +16,7 @@ ARGUS: **A**gentic **R**etrieval and **G**rounded **U**nderstanding of **S**ecur
 4. [최종 목표와 단계별 목표](#4-최종-목표와-단계별-목표)
 5. [시스템 아키텍처](#5-시스템-아키텍처)
 6. [핵심 기술](#6-핵심-기술)
-7. [서버 기준 결과물 생성 절차](#7-서버-기준-결과물-생성-절차)
-8. [참고 문헌](#8-참고-문헌)
+7. [참고 문헌](#7-참고-문헌)
 
 ---
 
@@ -165,8 +164,8 @@ DART 접수번호를 근거로 답변하며, 열람 서비스에서는 관련 �
 코퍼스 규모는 `data/dart-disclosures/manifest.jsonl`, 구성 스위치는
 [`src/argus/ablation.py`](src/argus/ablation.py) 를 따른다. 응답 지연은 서버 3회 336응답
 실측이다([`docs/open-issues-v3.md`](docs/open-issues-v3.md) §12.2). 정확도의 회차별 원본은
-`scratch/audit/axis_compare.json` 과 `scratch/audit/axis_heldout_A92h.json` 이며, 해당 디렉터리는
-저장소에 포함하지 않으므로 [7장](#7-서버-기준-결과물-생성-절차)의 절차로 생성한다.
+`scratch/audit/axis_compare.json` 과 `scratch/audit/axis_heldout_A92h.json` 이다. 해당 디렉터리는
+저장소에 포함하지 않으며 `scripts/server_sweep.py` 와 `scripts/axis_compare.py` 로 생성한다.
 
 ---
 
@@ -323,7 +322,7 @@ aggregation)를 결합하여, 단일 문서에 답이 존재하지 않는 질의
 
 ## 6. 핵심 기술
 
-대괄호 번호는 [8장 참고 문헌](#8-참고-문헌)을 가리킨다.
+대괄호 번호는 [7장 참고 문헌](#7-참고-문헌)을 가리킨다.
 
 ### 6.1 관계 축을 따라가는 다단 회수
 
@@ -415,7 +414,8 @@ Toolformer [4]는 동일한 문제를 모델의 자율적 도구 호출로 해�
 `DIAGNOSTIC_ARMS` 에 등록되어 성적으로 인용되지 않는다.
 
 **복수 회차 판정.** 회차별 성적과 회차 간 실패 문항의 합집합·교집합을 함께 보고하여 상시 실패와
-회차 의존 실패를 구분한다. 절차는 [7장](#7-서버-기준-결과물-생성-절차)에 있다.
+회차 의존 실패를 구분한다. 수집과 채점은 `scripts/server_sweep.py` 와
+`scripts/score_server.py` 가 수행한다.
 
 **상시 프롬프트 규칙의 최소화.** 기본 규칙을 7개로 제한하고 단위, 비교, 연결, 거절 등 특수 규칙은
 질의가 요구할 때만 조건부로 부착한다([`src/argus/agent/prompts.py`](src/argus/agent/prompts.py)).
@@ -469,119 +469,7 @@ Toolformer [4]는 동일한 문제를 모델의 자율적 도구 호출로 해�
 
 ---
 
-## 7. 서버 기준 결과물 생성 절차
-
-배포된 서버에서 본 저장소의 성적표를 처음부터 재생성하는 절차다. 로컬 실행이 아니라 공인 IP에
-상주하는 서비스에 실제로 질의하여 산출물을 생성하며, 평가자가 수행하는 경로와 동일하다.
-
-### 7.0 전제
-
-[1.1 환경 구성](#11-환경-구성)의 `artifacts/` 와 `data/` 를 저장소 루트에 배치하고, HyperCLOVA X
-자격증명을 담은 `.env` 를 준비한다. 파이썬 3.12 이상에서 `pip install -e ".[dev]"` 로 설치한다.
-
-### 7.1 구성 고정
-
-서버가 사용할 구성은 다음 한 줄이 결정한다.
-
-```python
-# src/argus/ablation.py
-_current: Arm = A92
-```
-
-배포본은 `A92` 다. 이 값을 변경하여 재배포하면 다른 구성이 동작하므로 이전 회차와 병렬 비교할 수
-없다. 팔의 계보와 각 팔의 변경 내용은 동일 파일의 주석에 기록되어 있다.
-
-### 7.2 배포
-
-절차의 정본은 [`deploy/README.md`](deploy/README.md) 에 있다.
-
-```bash
-scp -r . root@<IP>:/opt/argus
-ssh root@<IP> 'bash /opt/argus/deploy/setup.sh'
-scp .env root@<IP>:/opt/argus/.env
-scp -r artifacts root@<IP>:/opt/argus/
-ssh root@<IP> 'cp /opt/argus/deploy/argus.service /etc/systemd/system/ && \
-  systemctl daemon-reload && systemctl enable --now argus'
-```
-
-다섯 키 JSON이 반환되면 정상이다.
-
-```bash
-curl -s "http://<IP>/answer?question_id=Q-001&question=테스트"
-```
-
-### 7.3 회차 수집
-
-생성은 표집이므로 1회 실행은 1개 표본에 해당한다. 따라서 회차를 분리하여 복수 수집한다.
-
-```bash
-# 골든셋 계열 (88 + 12 + 12 문항)
-PYTHONIOENCODING=utf-8 python scripts/server_sweep.py 223.130.129.131 \
-    --arm A92 --round 4 full safety valuechain
-
-# 미공개셋 계열 (18 + 16 + 20 = 54 문항)
-PYTHONIOENCODING=utf-8 python scripts/server_sweep.py 223.130.129.131 \
-    --arm A92h --round 4 heldout_v2 heldout_v3 newset
-```
-
-`--round N` 은 회차별 디렉터리에 기록한다(1회차는 접미 없음, 이후 `_r2`, `_r3`, `_r4`). 미공개셋은
-팔 이름에 `h` 를 부여하여 골든셋 산출물과 분리한다. 코호트당 두 종의 산출물이 생성된다.
-
-```
-scratch/ablation/v6/server_<코호트>[_rN]/<팔>/responses/<qid>.json   러너의 채점 대상 형식
-eval_server/<코호트>[_rN].json                                       다섯 키 답변. 러너 없이 열람
-```
-
-요청은 순차적이며 간격을 둔다. 상류에 분당 요청 한도가 있어 초과 시 답변 대신 한계 고지가
-반환되어 오답으로 계수되기 때문이며, 해당 표식이 부착된 응답은 대기를 확대하여 자동 재시도한다.
-
-### 7.4 채점
-
-채점 규칙을 재구현하지 않고, 저장된 응답을 러너의 채점 경로로 재입력한다. 닫힌 문항은
-`score_closed`, 열린 문항은 언어 모델 판정기를 경유한다.
-
-```bash
-# 골든셋
-PYTHONIOENCODING=utf-8 python scripts/score_server.py --arm A92 --rounds 4
-
-# 미공개셋
-PYTHONIOENCODING=utf-8 python scripts/score_heldout_rounds.py --arm A92h --rounds 4
-```
-
-### 7.5 아홉 축 분해
-
-정확성, 근거 완전성, 요구사항 충족, 근거 기반, 추론 논리성, 안전성·신뢰성, 정보한계 대응, 근거
-표시(골든 일치), 근거 표시(표기 유무)의 아홉 축으로 실패를 분해하여 문항 ID를 기록한다. 서버를
-재호출하지 않고 기수집 응답을 재입력한다.
-
-```bash
-PYTHONIOENCODING=utf-8 python scripts/axis_compare.py               # 골든셋
-PYTHONIOENCODING=utf-8 python scripts/axis_heldout.py --arm A92h    # 미공개셋
-```
-
-산출물은 `scratch/audit/axis_compare.json` 과 `scratch/audit/axis_heldout_A92h.json` 이다.
-`scratch/` 는 `.gitignore` 대상이므로 위 명령으로 생성한다. 성적 인용 시 요약본이 아니라 이
-파일을 참조한다.
-
-### 7.6 결과 해석
-
-**단일 세트의 3회로 구성을 비교하지 않는다.** 상류는 온도 0에서도 결정적이지 않다. 프롬프트가
-바이트 단위로 동일한 두 실행에서 답변 문면이 43~48% 상이하고, 금액과 비율까지 상이한 문항이
-34%다. 동일 구성을 두 세트 수집하여 이를 확인했다.
-
-**회차별 성적과 합집합·교집합을 병행 검토한다.** 전 회차에서 오답인 문항(교집합)은 상시 실패이며
-구성 개선의 대상이다. 단일 회차에서만 오답인 문항은 회차 의존 실패이며, 해당 문항을 겨냥한 수정은
-후속 회차가 그 효과를 입증하지 못한다.
-
-**미공개셋의 근거 완전성 분모는 골든셋과 상이하다.** 미공개 54문항에는 필수·선택 주석이 없어 골든
-근거 전량을 필수로 계수한다. 골든셋의 168칸과 직접 비교할 수 없다.
-
-**`ORACLE` 팔의 수치는 성적이 아니다.** 평가 시점에 재현 불가능한 정보를 사용하므로 제출 구성이
-될 수 없으며, 러너가 표와 함께 경고를 출력한다.
-
----
-
-## 8. 참고 문헌
+## 7. 참고 문헌
 
 기술제안서가 인용한 문헌 전체를 수록한다.
 
