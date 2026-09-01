@@ -2329,7 +2329,7 @@ def _gather_golden(question_id: str, question: str,
     golden = ablation.oracle_golden_for(question_id)
     trace: list[str] = [
         f"oracle=golden n_golden={len(golden)} "
-        "🔴 진단 전용 — 검색을 골든으로 대체했다 (제출 구성이 될 수 없다)"]
+        "진단 전용 — 검색을 골든으로 대체했다 (제출 구성이 될 수 없다)"]
 
     # Each golden record gets a fair share, the same reason `_gather_sections`
     # quotas its (company, path) cells. Without it a single golden entry that
