@@ -31,7 +31,12 @@ ARGUS: **A**gentic **R**etrieval and **G**rounded **U**nderstanding of **S**ecur
 git clone <repository>
 cd ARGUS
 pip install -r requirements.txt
+pip install -e . --no-deps
 ```
+
+`requirements.txt` 는 서드파티 의존성만 고정한다. 소스가 `src` 레이아웃이므로 `argus` 패키지
+자체는 두 번째 줄로 설치해야 하며, 생략하면 1.2의 서버 기동이 `ModuleNotFoundError: No module
+named 'argus'` 로 실패한다. `--no-deps` 는 첫 줄에서 고정한 판이 덮이지 않게 한다.
 
 전처리 산출물과 코퍼스 대장은 용량 문제로 저장소에 포함하지 않았다. 아래에서 내려받아 저장소
 루트에 배치한다.
@@ -49,23 +54,16 @@ data        https://drive.google.com/drive/folders/1IPNdXxBFVXq3dSCyARAzD_m1fiEO
 `data/dart-disclosures/manifest.jsonl` 과 `universe.csv` 가 없으면 라우터가 대상 기업 70곳을
 읽지 못해 모든 질의가 범위 밖으로 처리되므로 반드시 함께 배치한다.
 
-무결성 대조표는 `deploy/preprocessing_manifest.json` 에 있다. 파일 20개의 SHA256과 바이트 수를
-수록하며 기준일은 2026-08-20이다.
-
-```bash
-python scripts/build_preprocessing_manifest.py --check
-```
-
 ### 1.2 실행
 
 ```bash
-# API 서버
 python -m uvicorn argus.api.server:app --host 0.0.0.0 --port 8000
-# 평가 서버는 systemd 로 포트 80에서 구동한다. deploy/README.md 참고
+```
 
-# 테스트
-pip install -e ".[dev]"
-python -m pytest -q
+기동 후 다섯 키 JSON이 반환되면 정상이다.
+
+```bash
+curl -s "http://127.0.0.1:8000/answer?question_id=Q-001&question=테스트"
 ```
 
 ### 1.3 전처리 재실행
@@ -113,16 +111,31 @@ GET http://223.130.129.131/answer?question_id={id}&question={질의}
 실패하면 해당 문항이 0점 처리되므로, 상류 장애 시에도 스키마를 준수한 한계 고지를 반환하는 편이
 안전하다.
 
-```python
-import requests
-
-resp = requests.get(
-    "http://223.130.129.131/answer",
-    params={"question_id": "Q-001", "question": "평가 질의"},
-    timeout=300,
-)
-result = resp.json()
+```bash
+curl -s "http://223.130.129.131/answer?question_id=Q-001&question=테스트"
 ```
+
+### 1.5 예시 질의 실행
+
+`examples/questions.json` 에 골든셋에서 뽑은 질의 5건이 있다. `test.py` 가 이를 순서대로 API에
+던지고 응답 다섯 키를 `examples/answers.json` 에 기록한다. 표준 라이브러리만 사용하므로 위
+1.1의 `pip install` 외에 준비할 것이 없으며, 채점은 수행하지 않는다.
+
+```bash
+python test.py                                     # 배포 서버로 5건
+python test.py --host 127.0.0.1:8000               # 1.2로 띄운 로컬 서버로 5건
+```
+
+| 질의 | 검증 대상 |
+|---|---|
+| Q-001 | 단일 문서 추출 |
+| Q-005 | 정정 체인 추적 |
+| Q-023 | 다중 정정의 시간순 서술 |
+| Q-049 | 두 기업 정기공시 대조 |
+| Q-041 | 답변 불가 질의의 거절 |
+
+저장소에 포함된 `examples/answers.json` 은 배포 서버 실측 결과이며, 응답 소요는 순서대로 6.3초,
+13.0초, 24.3초, 18.7초, 3.7초였다.
 
 ---
 
@@ -159,7 +172,6 @@ DART 접수번호를 근거로 답변하며, 열람 서비스에서는 관련 �
 | 평가셋 정확도 | 112 · 112 · 112 · 112 / 112 (평가 서버 4회, 회차마다 캐시 없이 재생성) |
 | 미공개 문항 정확도 | 52 · 52 · 53 · 51 / 54 (평가 서버 4회) |
 | 응답 지연 | 중앙값 10.6초, p95 29.3초, 최대 46.7초. 규약 상한 300초 초과 0건 |
-| 자동화 시험 | 2,027건 |
 
 코퍼스 규모는 `data/dart-disclosures/manifest.jsonl`, 구성 스위치는
 [`src/argus/ablation.py`](src/argus/ablation.py) 를 따른다. 응답 지연은 서버 3회 336응답
