@@ -168,7 +168,7 @@ DART 접수번호를 근거로 답변하며, 열람 서비스에서는 관련 �
 |---|---|
 | 생성 모델 | HyperCLOVA X (HCX-005), 온도 0.0 |
 | 대상 코퍼스 | 상장사 70곳, 2023.01 ~ 2026.03, 공시 4,204건 |
-| 배포 구성 | `A92`. 구성 스위치 92개 중 73개 활성 |
+| 배포 구성 | `A94`. 구성 스위치 93개 중 75개 활성 |
 | 평가셋 정확도 | 112 · 112 · 112 · 112 / 112 (평가 서버 4회, 회차마다 캐시 없이 재생성) |
 | 미공개 문항 정확도 | 52 · 52 · 53 · 51 / 54 (평가 서버 4회) |
 | 응답 지연 | 중앙값 10.6초, p95 29.3초, 최대 46.7초. 규약 상한 300초 초과 0건 |
@@ -176,7 +176,7 @@ DART 접수번호를 근거로 답변하며, 열람 서비스에서는 관련 �
 코퍼스 규모는 `data/dart-disclosures/manifest.jsonl`, 구성 스위치는
 [`src/argus/ablation.py`](src/argus/ablation.py) 를 따른다. 응답 지연은 서버 3회 336응답
 실측이다([`docs/open-issues-v3.md`](docs/open-issues-v3.md) §12.2). 정확도의 회차별 원본은
-`scratch/audit/axis_compare.json` 과 `scratch/audit/axis_heldout_A92h.json` 이다. 해당 디렉터리는
+`scratch/audit/axis_compare.json` 과 `scratch/audit/axis_heldout_A93h.json` 이다. 해당 디렉터리는
 저장소에 포함하지 않으며 `scripts/server_sweep.py` 와 `scripts/axis_compare.py` 로 생성한다.
 
 ---

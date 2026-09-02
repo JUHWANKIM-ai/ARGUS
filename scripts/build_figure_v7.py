@@ -1,4 +1,4 @@
-r"""ARGUS **배포 기준** 상세 구조도 (`A92` · 2026-08-28 배포). LLM 0회 · 0원.
+r"""ARGUS **배포 기준** 상세 구조도 (`A94`). LLM 0회 · 0원.
 
     PYTHONIOENCODING=utf-8 python scripts/build_figure_v7.py
 
@@ -54,7 +54,7 @@ DRAWIO = ROOT / "docs/figures/argus-deploy-v7.drawio"
 
 #: 🔴 **사람이 옮겨 적는 유일한 자리다.** 출처를 주석에 함께 적는다.
 FACT = {
-    "arm": "A92",
+    "arm": "A94",
     "골든셋": "골든셋 112/112 · 평가 서버 3회 동일",   # scratch/audit/axis_compare.json
     "축": "9축 전부 실패 0 · 근거 완전성 168/168",
     "미공개셋": "미공개셋 52~53/54 · 3회",            # scratch/audit/heldout_a92h_rounds.json

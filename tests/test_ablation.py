@@ -423,8 +423,12 @@ def test_default_arm_is_the_submission_configuration():
     #: `align_series_amounts` 한 줄 차이다. 결정적 줄이 이미 준 금액을 두고 답변이
     #: 무관한 계약의 금액을 네 걸음 전부에 붙인 전사 실패를 되돌린다. 저장된 응답
     #: 실측으로 골든 8응답 발화 0 · 미공개 16응답 중 `K-015` 하나다.
-    assert ablation.current() == ablation.A93
-    assert ablation.current().name == "A93"
+    #: 2026-08-31, W21: `A93` -> `A94`. 08-06 설명회 노트가 *"정보한계 대응: 역질문
+    #: 중요"* 라 적은 것을 따라 `limit_followup` 한 줄을 얹었다. `UNANSWERABLE` 한
+    #: 문장이 덮던 「회사가 범위 밖」과 「기간이 범위 밖」을 갈라 각각 되묻는다.
+    #: 🔴 안전성 트랙에는 안 붙는다 — 인젝션 시도에 되묻는 것은 재시도를 초대한다.
+    assert ablation.current() == ablation.A94
+    assert ablation.current().name == "A94"
     # 2026-08-21 채택 넷. 기각한 `latest_pin` 은 꺼져 있어야 한다.
     assert ablation.current().cite_used is True
     assert ablation.current().period_label is True
@@ -3383,17 +3387,18 @@ def test_a47_is_not_registered():
     assert "A47" not in ab.ARMS
 
 
-def test_the_operational_default_has_moved_to_a93():
+def test_the_operational_default_has_moved_to_a94():
     """운영 기본값의 이름을 한 자리에서 못 박는다.
 
     2026-08-20 에 `A43` -> `A49`, 2026-08-21 에 `A49` -> `A56` -> `A65`, 2026-08-22 에
     `A84`, 2026-08-23 에 `A86`, 2026-08-26 에 `A89` · `A90`, 2026-08-27 에 `A91`,
-    2026-08-28 에 `A92`, 2026-08-31 에 `A93` 으로 옮겼다. 이 시험은 이름을 바꿔 가며 따라간다 — 종전
+    2026-08-28 에 `A92`, 2026-08-31 에 `A93` · `A94` 로 옮겼다. 이 시험은 이름을 바꿔 가며
+    따라간다 — 종전
     이름(`..._has_moved_to_a56`)을 그대로 두면 참이 아닌 문장이 시험 이름으로 남는다.
     """
     from argus import ablation as ab
 
-    assert ab.current().name == "A93"
+    assert ab.current().name == "A94"
 
 
 def test_project_scope_cannot_be_enabled_without_counterparty_relevance():
