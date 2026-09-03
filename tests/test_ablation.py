@@ -427,8 +427,13 @@ def test_default_arm_is_the_submission_configuration():
     #: 중요"* 라 적은 것을 따라 `limit_followup` 한 줄을 얹었다. `UNANSWERABLE` 한
     #: 문장이 덮던 「회사가 범위 밖」과 「기간이 범위 밖」을 갈라 각각 되묻는다.
     #: 🔴 안전성 트랙에는 안 붙는다 — 인젝션 시도에 되묻는 것은 재시도를 초대한다.
-    assert ablation.current() == ablation.A94
-    assert ablation.current().name == "A94"
+    #: 2026-09-02, W22: `A94` -> `A95`. 재생성이 다시 쓴다고 선언한 첫 문장
+    #: (*"앞서 제시된 문제에서 지적된 부분을 수정하여…"*)이 배달 문면에 남던 것을
+    #: 뗀다. `quiet_verify_note` 가 닫은 검증 각주와 같은 갈래다.
+    #: 🔴 첫 문장을 무턱대고 지우지 않는다 — 수집 답변 5,950건에서 `앞서` 로 여는
+    #: 108건 중 63건은 답을 담은 정상 답변이다. 실측 지움 45 · 남김 63 · 놓침 0.
+    assert ablation.current() == ablation.A95
+    assert ablation.current().name == "A95"
     # 2026-08-21 채택 넷. 기각한 `latest_pin` 은 꺼져 있어야 한다.
     assert ablation.current().cite_used is True
     assert ablation.current().period_label is True
@@ -2758,7 +2763,7 @@ def test_temperature_moved_to_the_arm_but_the_default_is_still_zero():
     #: 결정적이지 않다는 실측(수치까지 갈리는 문항 38/112) 위에 선 설계다. 그래서
     #: `sc_k>1` 이지만 온도 예외 목록에는 안 들어간다 — 아래 `sc_k` 단정만 비켜 간다.
     #: `A84`(= `A83` + 관문) · `A86`(= `A84` + 결함 수정 셋)도 같은 성질이라 함께 담는다.
-    DRAWS_AT_ZERO = ("A83", "A84", "A86", "A89", "A90", "A91", "A92", "A93", "A94")
+    DRAWS_AT_ZERO = ("A83", "A84", "A86", "A89", "A90", "A91", "A92", "A93", "A94", "A95")
     for name, arm in ablation.ARMS.items():
         if name in MOVES_TEMPERATURE:
             continue
@@ -3387,18 +3392,18 @@ def test_a47_is_not_registered():
     assert "A47" not in ab.ARMS
 
 
-def test_the_operational_default_has_moved_to_a94():
+def test_the_operational_default_has_moved_to_a95():
     """운영 기본값의 이름을 한 자리에서 못 박는다.
 
     2026-08-20 에 `A43` -> `A49`, 2026-08-21 에 `A49` -> `A56` -> `A65`, 2026-08-22 에
     `A84`, 2026-08-23 에 `A86`, 2026-08-26 에 `A89` · `A90`, 2026-08-27 에 `A91`,
-    2026-08-28 에 `A92`, 2026-08-31 에 `A93` · `A94` 로 옮겼다. 이 시험은 이름을 바꿔 가며
+    2026-08-28 에 `A92`, 2026-08-31 에 `A93` · `A94`, 2026-09-02 에 `A95` 로 옮겼다. 이 시험은 이름을 바꿔 가며
     따라간다 — 종전
     이름(`..._has_moved_to_a56`)을 그대로 두면 참이 아닌 문장이 시험 이름으로 남는다.
     """
     from argus import ablation as ab
 
-    assert ab.current().name == "A94"
+    assert ab.current().name == "A95"
 
 
 def test_project_scope_cannot_be_enabled_without_counterparty_relevance():

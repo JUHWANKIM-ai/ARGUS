@@ -3436,6 +3436,7 @@ def answer_question(question_id: str, question: str) -> dict:
         answer, compacted = compact_after_refusal(answer)
         if compacted:
             trace.append(f"refusal_compaction dropped={len(compacted)}")
+    answer = _quiet_regen_preface(answer, trace)
     return _respond(question_id, question, evidence, trace, mask_pii(answer), budget)
 
 
@@ -3726,6 +3727,22 @@ def _verify(question: str, answer: str, evidence: str, r, trace: list[str],
     if ablation.enabled("quiet_verify_note"):
         return answer
     return answer + f'\n\n(주의: {head} — {"; ".join(v["reasons"])})'
+
+
+def _quiet_regen_preface(answer: str, trace: list[str]) -> str:
+    """재생성이 다시 쓴다고 선언한 첫 문장을 배달 문면에서 뗀다.
+
+    `_verify_note` 와 같은 자리다 — 재생성이 끝난 뒤, 답변이 나가기 직전. 관찰은 흔적에
+    남기고 배달 문면에서만 지운다(`quiet_verify_note` 와 같은 규율).
+    """
+    if not ablation.enabled("quiet_regen_preface"):
+        return answer
+    from argus.agent import aggregate
+
+    fixed, removed = aggregate.strip_regen_preface(answer)
+    if removed:
+        trace.append(f"regen_preface 제거 — {removed}")
+    return fixed
 
 
 def _respond(question_id: str, question: str, evidence: str, trace: list[str],

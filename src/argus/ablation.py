@@ -459,6 +459,21 @@ class Arm:
     #: `out_of_universe`·`out_of_range` 가 정보한계 전용으로 갈렸다. 그 경계를
     #: `tests/test_a94_limit_followup.py` ③ 이 지킨다.
     limit_followup: bool = False
+    #: True 면 **재생성이 다시 쓴다고 선언한 첫 문장**을 배달 문면에서 뗀다. LLM 호출 없음.
+    #:
+    #: `REGENERATE_INSTRUCTION` 이 *"앞선 답변에 대해 자동 검증이 아래 결함을 찾았습니다"*
+    #: 로 열고 모델이 그 틀을 답변 첫 문장에 옮겨 적는다. `quiet_verify_note` 가 닫은
+    #: 검증 각주와 같은 갈래다.
+    #:
+    #: 🔴 프롬프트를 안 고친다 — 그 지시가 무엇을 고칠지 알려 주는 장치라, 언급을 금지하면
+    #: 교정이 약해져 재생성 채택률이 떨어질 수 있다. 생성 경로는 그대로 두고 배달 문면만
+    #: 손댄다.
+    #:
+    #: 🔴 첫 문장을 무턱대고 지우면 안 된다. 수집 답변 5,950건에서 `앞서`/`앞선` 으로 여는
+    #: 108건 중 **63건은 정상 답변**이고 그 문장이 답을 담는다. 그래서 「다시 하겠다는
+    #: 선언으로 닫고 · 숫자가 없고 · 뒤에 본문이 남을 때」만 뗀다. 실측: 지움 45 · 남김 63
+    #: · 놓친 머리말 0.
+    quiet_regen_preface: bool = False
     #: True accepts a latest record as a chain seed so the walk can reach the
     #: original filing. No LLM call. Gated by the question asking for the
     #: pre-revision value, which is what keeps it from reopening the case
@@ -2008,6 +2023,12 @@ A93 = replace(A92, name="A93", align_series_amounts=True)
 #: 성적으로 올릴 것은 없다 — 정보한계 6/6 · 안전성 12/12 다. 문면 개선이다.
 A94 = replace(A93, name="A94", limit_followup=True)
 
+# --- W22 · 재생성 흔적을 배달 문면에서 뗀다 (2026-09-02) ------------------------
+#: `A94` 위에 한 줄이다. 성적으로 올릴 것은 없다 — 정답 판정에 안 걸리는 문면 결함이다.
+#: `answers.json`(서버 1회)에 `Q-115` 하나, `answers2.json`(로컬 1회)에 `H-005`·`Q-115`
+#: 둘이 남아 있었다.
+A95 = replace(A94, name="A95", quiet_regen_preface=True)
+
 # --- Function calling actually enabled, off the ladder ----------------------
 #: One flag apart from the top arm, passing the tool specifications to the
 #: answer generation call so the model calls tools itself.
@@ -2055,7 +2076,7 @@ RUN_ORDER = ("A8", "L1", "L2", "L3", "L4", "L6", "L7", "L8",
              "A31", "A32", "A33", "A29a", "A29a+A33", "A29a+A20",
              "A29s", "A29s+A20", "A29s+A20+A33", "A29b", "A29all", "A29c", "A30",
              "A34", "A35", "A36", "A37", "A38", "A39", "A40", "A41", "A42", "A43", "A44",
-             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85", "A86", "A89", "A90", "A91", "A92", "A93", "A94",
+             "A45", "A46", "V8-1", "V8-2", "V8-3", "V8-4", "A48", "A49", "A50", "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58", "A59", "A60", "A61", "A62", "A63", "A64", "A65", "A66", "A67", "A68", "A69", "A70", "A71", "A72", "A73", "A74", "A75", "A76", "A77", "A78", "A79", "A80", "A81", "A82", "A83", "A84", "A85", "A86", "A89", "A90", "A91", "A92", "A93", "A94", "A95",
              "A21", "A22", "A10", "V7-1", "V7-2", "V7-3", "V7-4", "V7-5", "A18", "A24",
              "A24b", "A24b+A20", "A2F", "A2", "ORACLE")
 
@@ -2102,7 +2123,7 @@ ARMS: dict[str, Arm] = {a.name: a for a in
                          A29A, A29A_A33, A29A_A20, A29S, A29S_A20, A29S_A20_A33,
                          A29B, A29_ALL, A29C, A30, A34, A35, A36, A37, A38, A39, A40, A41, A42,
                          V7SC, V7REGEN, V7CMP, V7UNIT, V7REGION, A43, A44, A45,
-                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86, A89, A90, A91, A92, A93, A94)}
+                         A46, V8PROJ, V8HOLD, V8REPAIR, V8REF, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A58, A59, A60, A61, A62, A63, A64, A65, A66, A67, A68, A69, A70, A71, A72, A73, A74, A75, A76, A77, A78, A79, A80, A81, A82, A83, A84, A85, A86, A89, A90, A91, A92, A93, A94, A95)}
 
 #: Side branches: neither ladder steps, leave-one-outs, nor diagnostics. The
 #: list is derived rather than written by hand, because the summary and the
@@ -2249,7 +2270,7 @@ FLAG_NAMES: tuple[str, ...] = tuple(
 #: 🔴 **이 팔은 미공개셋 실패를 보고 만들었다.** 그러므로 `K-015` 는 이 뒤로 독립
 #: 측정이 아니고, 미공개셋 성적을 인용할 때 그 사실이 함께 적혀야 한다. 사용자가 그
 #: 값을 알고 승인했다.
-_current: Arm = A94
+_current: Arm = A95
 
 
 def current() -> Arm:

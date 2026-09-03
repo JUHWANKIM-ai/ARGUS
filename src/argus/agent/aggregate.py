@@ -109,6 +109,9 @@ def _op(question: str) -> str:
 #: are required so that years and ratios are not treated as amounts.
 _ANSWER_NUM = re.compile(r"\d{1,3}(?:,\d{3})+")
 
+#: 자릿수 구분 없는 것까지 포함한 아무 숫자. 머리말 판정에만 쓴다.
+_ANY_DIGIT = re.compile(r"\d")
+
 #: Openers of a concluding sentence. Candidate selection uses position
 #: rather than magnitude: the figure an answer presents as its result
 #: appears in the conclusion. A magnitude guard was tried and rejected,
@@ -571,6 +574,100 @@ def _pledged_series(chain: list[dict]) -> str:
 _DIRECTIVE_SPAN = re.compile(
     r"\s*[(（]\s*이 값(?:과 증감)?은 시스템이[^)）]*[)）]"
     r"|\s*이 값(?:과 증감)?은 시스템이[^\n]*")
+
+
+#: 재생성 머리말. 셋을 **모두** 만족해야 머리말로 본다.
+#:
+#:     ① `앞서`/`앞선` 으로 연다
+#:     ② 다시 하겠다는 **선언**으로 닫는다
+#:     ③ 숫자가 없다 (아래 `strip_regen_preface` 가 따로 본다)
+#:
+#: ②가 잣대의 전부다. 정상 답변도 같은 낱말로 열지만 *"앞서 제공된 공시 근거에 따르면,
+#: … 616,800,000,000원입니다"* 처럼 **답을 담고** `…입니다`·`…같습니다` 로 닫는다.
+#: 실측(수집 답변 5,950건): `앞서` 로 여는 108건 중 머리말 45 · 정상 63.
+_REGEN_PREFACE = re.compile(
+    r"^\s*(?:앞서|앞선)[^.。\n]{0,80}"
+    r"(?:하겠습니다|드리겠습니다|보완하겠습니다|작성하겠습니다|검토하겠습니다|"
+    r"계산하겠습니다|제공하겠습니다|수정하겠습니다|재검토하겠습니다|"
+    r"발견되었습니다|인지했습니다)[.。]")
+
+
+#: 머리말의 **뒤 문장**. 접속 부사로 열고 다시 하겠다는 선언으로 닫는다. 앞 문장을
+#: 뗀 자리에서만 본다 — `strip_regen_preface` 의 주석 참조.
+_REGEN_CONT = re.compile(
+    r"^(?:이에\s*따라|이에|그에\s*따라|그래서|따라서|아래와\s*같이|다음과\s*같이)"
+    r"[^.。\n]{0,70}(?:하겠습니다|드리겠습니다|드립니다)[.。]")
+
+
+def strip_regen_preface(answer: str) -> tuple[str, str]:
+    """재생성이 다시 쓴다는 **선언**을 답변 머리에서 뗀다. LLM 호출 없음.
+
+    (고친 답변, 뗀 문장) 을 돌려준다. 아니면 (원본, "").
+
+    ## 무엇이 새는가
+
+    검증이 실패하면 답변을 한 번 다시 쓴다. 그 프롬프트(`prompts.REGENERATE_INSTRUCTION`)
+    가 *"앞선 답변에 대해 자동 검증이 아래 결함을 찾았습니다"* 로 열고, 모델이 그 틀을
+    답변 첫 문장에 그대로 옮겨 적는다.
+
+        앞서 제공한 답변 중 일부 오류가 발견되었습니다. 이에 따라 아래와 같이 …
+        앞서 제시된 문제에서 지적된 부분을 수정하여 답변을 다시 드리겠습니다.
+
+    **내부 사정이 심사자에게 배달된다.** `quiet_verify_note` 가 닫은 검증 각주와 같은
+    갈래고, 같은 자리에 붙는다.
+
+    ## 🔴 왜 프롬프트를 안 고치는가
+
+    `REGENERATE_INSTRUCTION` 에 *"지적을 언급하지 말라"* 한 줄을 더하는 것이 근본
+    처방이다. 하지 않는다 — 그 지시가 **무엇을 고칠지 알려 주는 장치**라서, 언급을
+    금지하면 교정이 약해질 수 있고 그러면 재생성 채택률이 떨어져 원본의 결함이 남는다.
+    거동을 바꾸는 일이므로 골든셋 3회를 다시 사야 판단할 수 있다. 여기서는 **배달
+    문면만** 손대고 생성 경로는 그대로 둔다.
+
+    ## 🔴 첫 문장을 무턱대고 지우면 안 된다
+
+    수집된 답변 5,950건에서 `앞서`/`앞선` 으로 여는 답변이 108건인데 **63건은 정상
+    답변**이고 그 문장이 답을 담는다.
+
+        앞서 제공된 공시 근거에 따르면, … 계약금액 합계는 **616,800,000,000원**입니다.
+
+    그래서 셋을 다 볼 때만 뗀다.
+
+        ① `_REGEN_PREFACE` 가 무는가 — 다시 하겠다는 선언으로 닫는가
+        ② 그 문장에 **숫자가 없는가** — 금액을 담은 문장은 어떤 꼴이든 안 건드린다
+        ③ 뒤에 본문이 남는가 — 지워서 빈 답변이 될 바엔 머리말이 낫다
+
+    실측: 지움 45건(관찰된 11가지 문면 전부) · 남김 63건 · 놓친 머리말 0건.
+    See docs/design-rationale.md#self-contradiction
+    """
+    if not ablation.enabled("quiet_regen_preface"):
+        return answer, ""
+    match = _REGEN_PREFACE.match(answer or "")
+    if match is None:
+        return answer, ""
+    head = match.group(0)
+    if _ANY_DIGIT.search(head):
+        return answer, ""
+    rest = (answer or "")[match.end():].lstrip()
+    if not rest:
+        return answer, ""
+    #: 🔴 머리말이 **두 문장**인 판이 있다.
+    #:
+    #:     앞서 제공한 답변 중 일부 오류가 발견되었습니다.      ← 위에서 뗐다
+    #:     이에 따라 아래와 같이 수정하여 정확한 정보를 …       ← 여기서 뗀다
+    #:
+    #: 첫 판은 앞 문장만 떼고 뒤를 남겼고, 그래서 *"이에 따라 수정하여"* 라는 **앞말이
+    #: 없어 뜻이 서지 않는 문장**이 답변 첫 줄에 남았다(2026-09-02 서버 `H-005`).
+    #:
+    #: 🔴 **앞 문장을 뗀 뒤에만 본다.** 이어짐을 확인하는 자리라서, 정상 답변이 우연히
+    #: `이에 따라` 로 열어도 절대 안 걸린다. 실측(수집 답변 5,950건): 앞 문장 없이 이
+    #: 꼴로 여는 원본 답변은 **0건**이다. 세 번째로 이어진 것도 0건이라 한 번만 본다.
+    tail = _REGEN_CONT.match(rest)
+    if tail and not _ANY_DIGIT.search(tail.group(0)):
+        after = rest[tail.end():].lstrip()
+        if after:
+            return after, " ".join((head + " " + tail.group(0)).split())
+    return rest, " ".join(head.split())
 
 
 def strip_copied_directive(answer: str) -> tuple[str, int]:
