@@ -1,35 +1,27 @@
-
+# 비밀. 평가 서버의 CLOVA 키가 여기 있다.
 .env
 .env.local
 *.pem
 *.key
 secrets/
-data/dart-disclosures/
 
 
-scratch/
-.ipynb_checkpoints/
-__pycache__/
-*.pyc
-.venv/
-venv/
+# 대용량 자산. 저장소에 넣지 않고 README 1.1 의 링크로 배포한다.
+# periodic_sections.txt 883MB, section_index.npz 189MB 로 깃허브 파일 상한
+# 100MB 를 넘어 커밋되면 push 자체가 거절된다.
+artifacts/
+artifacts.zip
 data/
 paper/
 
+# 실험·측정 산출물
+scratch/
 
-
-artifacts/
-
-# 제출용으로 만든 묶음. 326MB 라 실수로 커밋되면 곤란하다.
-artifacts.zip
-
-
-site/node_modules/
-site/.next/
-site/out/
-site/public/data/
-site/tsconfig.tsbuildinfo
-
-.claude/
+# 파이썬
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+venv/
 .pytest_cache/
-.superpowers/
+.ipynb_checkpoints/

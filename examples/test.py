@@ -36,7 +36,7 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--host", default=DEFAULT_HOST,
                     help=f"API 호스트 (기본 {DEFAULT_HOST})")
-    ap.add_argument("--questions", default="examples/questions.json",
+    ap.add_argument("--questions", default="examples/questions_all.json",
                     help="질의 JSON 경로")
     ap.add_argument("--out", default="examples/answers.json",
                     help="응답을 적을 JSON 경로")
