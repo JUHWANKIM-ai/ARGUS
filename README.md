@@ -293,7 +293,7 @@ DART 접수번호를 근거로 답변하며, 열람 서비스에서는 관련 �
 
 ### 3.2 정정공시가 정답을 바꾸는 구조
 
-하나의 계약이 최초 공시 이후 여러 차례 정정되며 [10], 최신본만 참조하면 변경의 경위를 알 수
+하나의 계약이 최초 공시 이후 여러 차례 정정되며 [4], 최신본만 참조하면 변경의 경위를 알 수
 없고 원본만 참조하면 이미 폐기된 수치를 사용하게 된다. 현행 도구는 정정본과 원공시를 별개
 문서로 나열할 뿐 체인으로 연결하지 않으므로, 낡은 값이 보고서와 평가 모형에 유입되는 위험이
 상존한다. 사후 정정이 잦은 대형 계약일수록 금액 규모가 커 실무 영향이 크다.
@@ -304,7 +304,7 @@ DART 접수번호를 근거로 답변하며, 열람 서비스에서는 관련 �
 ### 3.3 생성형 AI 적용의 신뢰성 부족
 
 언어모델로 공시를 요약·질의응답하려는 시도가 확대되고 있으나, 출처를 지목하지 않거나 문서에
-없는 사실을 생성하는 문제로 규제·감사 대상 업무에 그대로 적용하기 어렵다 [9]. 또한 답할 수
+없는 사실을 생성하는 문제로 규제·감사 대상 업무에 그대로 적용하기 어렵다 [3]. 또한 답할 수
 없는 질의를 식별해 거절하는 장치가 없을 경우 그럴듯한 오답이 가장 큰 위험이 되며, 응답 지연이
 큰 구조에서는 실시간 확인 흐름에 편입되지 못한다.
 
@@ -315,7 +315,7 @@ DART 접수번호를 근거로 답변하며, 열람 서비스에서는 관련 �
 ### 3.4 핵심 가치와 대응 구조
 
 근거 추적 가능성(traceability), 문서 간 관계 추론, 응답 속도, 답변 불가의 식별을 동시에
-만족시켜야 하는 융합 영역이다 [11]. 각 요구는 다음과 같이 대응한다.
+만족시켜야 하는 융합 영역이다 [5]. 각 요구는 다음과 같이 대응한다.
 
 | 요구 | 대응 |
 |---|---|
@@ -331,8 +331,8 @@ DART 접수번호를 근거로 답변하며, 열람 서비스에서는 관련 �
 질의응답 엔진과 열람 서비스가 하나의 프레임워크에서 동일한 자산을 공유하므로 답변과 화면이
 어긋나지 않으며, 신규 화면이나 신규 질의 유형이 추가되어도 기반을 재구축할 필요가 없다. 고정
 스키마 API 형태이므로 리서치·감사·IR 시스템에 결합 가능하고, 대상 종목·기간·공시 유형의
-확대만으로 적용 범위가 확장된다. 공시정보의 디지털 활용 수요는 확대 추세에 있으며 [12],
-자동화된 규제 준수와 리스크 관리를 대상으로 하는 RegTech 시장의 성장이 이를 뒷받침한다 [13].
+확대만으로 적용 범위가 확장된다. 공시정보의 디지털 활용 수요는 확대 추세에 있으며 [6],
+자동화된 규제 준수와 리스크 관리를 대상으로 하는 RegTech 시장의 성장이 이를 뒷받침한다 [7].
 
 ## 4. 핵심 기술
 
@@ -367,13 +367,11 @@ Hop Ladder 는 네 단계이며 단계마다 후보 수가 다르다
 | `global` | 전체 범위 | 10 |
 
 각 단계 끝에서 모인 근거가 충분한지 결정적 규칙으로 판정한다. 충분하면 종료하고, 부족하면 다음
-단계로 넘어가며, 정정 이력이 더 이어지지 않으면 남은 단계를 쓰지 않는다. 얕은 검색과 과잉 탐색을
-함께 통제하는 것이 다단 검색의 과제로 보고되어 있다 [7].
+단계로 넘어가며, 정정 이력이 더 이어지지 않으면 남은 단계를 쓰지 않는다.
 
 공시에는 원공시와 정정본, 계약 체결과 해지처럼 표현이 비슷한데 의미와 시점이 다른 문서가
-구조적으로 존재한다. 질의 인식 랭커를 범용 임베딩 코사인 유사도로 대체하면 상대 EM 이 최대
-19.4% 감소한다는 보고가 있다 [6]. 따라서 범용 유사도에 의존하지 않고 질의에서 도출한 관계 축과
-결정적 조건으로 후보를 선별한다. 검색 경로는 네 가지다.
+구조적으로 존재한다. 따라서 범용 유사도에 의존하지 않고 질의에서 도출한 관계 축과 결정적
+조건으로 후보를 선별한다. 검색 경로는 네 가지다.
 
 | 경로 | 대상 | 용도 |
 |---|---|---|
@@ -382,19 +380,14 @@ Hop Ladder 는 네 단계이며 단계마다 후보 수가 다르다
 | 섹션 색인 | 정기공시 목차 경로 | 사업보고서 안으로 들어가기 |
 | 계약상대 그래프 | 같은 발주처 관계 | 다른 기업 공시와 잇기 |
 
-검색과 추론을 번갈아 수행하는 구조는 ReAct [3]에서 가져왔으나, 다음에 무엇을 검색할지는 모델이
-아니라 코드가 정한다.
+검색과 추론을 번갈아 수행하되, 다음에 무엇을 검색할지는 모델이 아니라 코드가 정한다.
 
 ### 4.2 생성 전 결정적 근거 결합 및 집계
 
 공시 질의는 단일 문서 추출보다 복수 공시의 금액 합산, 차액 계산, 구성표 검산, 정정 전후 비교처럼
-여러 근거를 결합해야 하는 경우가 많다. 그런데 골든 근거를 직접 제공한 통제 조건에서도 다중 근거
-결합에서 성능이 크게 떨어진다는 진단이 있다 [8]. GPT-4o 는 단일 텍스트 근거 92.76에서 다중 근거
-결합 56.26으로 하락하고, 모델별 근거 유형 간 격차는 22.83에서 46.63점에 이른다. 지도 미세조정
-이후에도 교차 문단 결합이 23.73점 저하되어, 학습 부족이 아닌 구조적 한계로 제시된다.
+여러 근거를 결합해야 하는 경우가 많다.
 
-이 진단을 처방으로 옮긴다. 합계, 차액, 구성표 검산, 정정 전후 대조를 생성 이전에 코드가 확정해
-근거 맨 앞에 놓고, 각 값에 접수번호와 항목과 시점을 연결한다. 계산 조건이 하나로 정해지지 않으면
+그래서 합계, 차액, 구성표 검산, 정정 전후 대조를 생성 이전에 코드가 확정해 근거 맨 앞에 놓고, 각 값에 접수번호와 항목과 시점을 연결한다. 계산 조건이 하나로 정해지지 않으면
 어떤 값도 넣지 않는다. 접수번호 14자리도 모델이 옮겨 적지 않고 시스템이 부착한다.
 
 생성 이후에는 네 가지를 다시 확인한다.
@@ -408,15 +401,14 @@ Hop Ladder 는 네 단계이며 단계마다 후보 수가 다르다
 
 어긋나면 각주 부착, 재계산값 치환, 1회 재생성, 출처 부착, 단위 환산, 반올림 복원, 근거에 없는
 총액 삭제 중 해당하는 처분을 적용한다. 모두 코드가 수행하며 언어 모델을 다시 부르지 않는다.
-계산을 모델 밖으로 빼는 방식은 Chain-of-Thought 부록 B [1]의 외부 계산기에서 왔다. 이로써 모델이
-취약한 연산을 생성에서 분리하면서도 최종 값에서 DART 원문까지 역추적할 수 있다.
+계산을 모델 밖으로 빼서 모델이 취약한 연산을 생성에서 분리하면서도 최종 값에서 DART 원문까지
+역추적할 수 있다.
 
 ### 4.3 회수와 집계와 생성을 분리한 통제형 검증체계
 
 최종 답변의 오류는 세 곳에서 난다. 근거 문서를 찾지 못한 회수 오류, 찾은 근거를 잘못 결합한 집계
-오류, 올바른 근거가 주어졌는데 다른 내용을 만든 생성 오류다. 검색 오류를 제거한 통제 실험에서도
-근거 활용 능력 자체에 큰 차이가 남는다는 관측 [8]은 최종 정답률만으로 신뢰성을 판단할 수 없음을
-보여 준다.
+오류, 올바른 근거가 주어졌는데 다른 내용을 만든 생성 오류다. 최종 정답률만으로는 어느 단계에서
+틀렸는지 알 수 없다.
 
 따라서 세 단계를 분리해 검증한다. 실제 검색 결과를 쓰는 배포 조건과 골든 근거를 직접 주입하는
 진단 조건을 따로 관리해 오류 발생 단계를 가른다. 진단 조건은 `golden_oracle` 스위치로 분리되어
@@ -444,14 +436,13 @@ Hop Ladder 는 네 단계이며 단계마다 후보 수가 다르다
 5.1에서 5.3까지가 큰 축이라면, 그 아래의 개별 처방은 스위치 단위로 세워 본 코퍼스에서 측정하고
 그 결과로 채택 여부를 정했다. 배포 구성에 채택한 것은 다음과 같다.
 
-| 처방 | 적용 방식 | 스위치 |
-|---|---|---|
-| Chain-of-Thought 부록 B [1] | 생성된 등식을 코드로 재계산하고 결과를 전파 | `verify_answer_arithmetic`, `substitute_verified`, `regenerate_on_verify` |
-| ReAct [3] | Hop Ladder 로 구현. 다음 행동은 코드가 결정 | `hop_ladder` |
-| GraphRAG-R1 [7] | 단계마다 충분성 판정. 예산 가드는 steps 8, hops 3, calls 6, tokens 100K | `_sufficiency`, `budget` |
-| Diagnosing Evidence Utilization [8] | 근거 이용률을 분리 측정하는 진단 구성 | `golden_oracle` |
-| Self-Consistency [2] | 온도 0.0에서 금액 문항에 한정해 표본 3개의 다수결 | `sc_k`, `sc_figures_only`, `sc_key_set` |
-| Relink [6] | 임베딩 유사도 대신 관계 조건으로 후보를 가리는 설계 근거 | 해당 없음 |
+| 적용 방식 | 스위치 |
+|---|---|
+| 생성된 등식을 코드로 재계산하고 결과를 전파 | `verify_answer_arithmetic`, `substitute_verified`, `regenerate_on_verify` |
+| 검색과 추론을 번갈아 수행하되 다음 행동은 코드가 결정 | `hop_ladder` |
+| 단계마다 충분성 판정. 예산 가드는 steps 8, hops 3, calls 6, tokens 100K | `_sufficiency`, `budget` |
+| 근거 이용률을 분리 측정하는 진단 구성 | `golden_oracle` |
+| 온도 0.0에서 금액 문항에 한정해 표본 3개의 다수결 | `sc_k`, `sc_figures_only`, `sc_key_set` |
 
 스위치 정의는 [`src/argus/ablation.py`](src/argus/ablation.py) 에 있으며, 측정 후 기각한 구성도
 저장소에 보존되어 재현 가능하다.
@@ -529,21 +520,15 @@ Hop Ladder 는 네 단계이며 단계마다 후보 수가 다르다
 
 **학술 문헌**
 
-1. Wei, J., Wang, X., Schuurmans, D. et al. Chain-of-Thought Prompting Elicits Reasoning in Large Language Models. NeurIPS 2022. arXiv:2201.11903
-2. Wang, X., Wei, J., Schuurmans, D. et al. Self-Consistency Improves Chain of Thought Reasoning in Language Models. ICLR 2023. arXiv:2203.11171
-3. Yao, S., Zhao, J., Yu, D. et al. ReAct: Synergizing Reasoning and Acting in Language Models. ICLR 2023. arXiv:2210.03629
-4. Schick, T., Dwivedi-Yu, J., Dessì, R. et al. Toolformer: Language Models Can Teach Themselves to Use Tools. Meta AI Research, 2023. arXiv:2302.04761
-5. Luo, H., E, H., Chen, G. et al. HyperGraphRAG: Retrieval-Augmented Generation via Hypergraph-Structured Knowledge Representation. NeurIPS 2025.
-6. Huang, M., Bu, C., He, Y. et al. Relink: Constructing Query-Driven Evidence Graph On-the-Fly for GraphRAG. Proceedings of the AAAI Conference on Artificial Intelligence, Vol. 40, No. 37, 2026.
-7. Yu, C., Zhao, K., Li, Y. et al. GraphRAG-R1: Graph Retrieval-Augmented Generation with Process-Constrained Reinforcement Learning. Proceedings of the ACM Web Conference 2026. doi:10.1145/3774904.3792589
-8. Basak, D., Bose, D., Goswami, K., Desarkar, M. S. Diagnosing Evidence Utilization in Multimodal Document Question Answering. Proceedings of the 32nd ACM SIGKDD Conference on Knowledge Discovery and Data Mining V.2, 2026. doi:10.1145/3770855.3817956
-9. National Institute of Standards and Technology. Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile. NIST AI 600-1, 2024. doi:10.6028/NIST.AI.600-1
+1. Schick, T., Dwivedi-Yu, J., Dessì, R. et al. Toolformer: Language Models Can Teach Themselves to Use Tools. Meta AI Research, 2023. arXiv:2302.04761
+2. Luo, H., E, H., Chen, G. et al. HyperGraphRAG: Retrieval-Augmented Generation via Hypergraph-Structured Knowledge Representation. NeurIPS 2025.
+3. National Institute of Standards and Technology. Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile. NIST AI 600-1, 2024. doi:10.6028/NIST.AI.600-1
 
 **제도 및 시장 자료**
 
-10. 금융감독원. 전자공시시스템(DART) 정정신고서 이용 시 유의사항. https://dart.fss.or.kr/introduction/content4.do
-11. 금융위원회. 정부와 금융권이 함께 금융권 AX를 가속화해 나가겠습니다. 보도자료, 2025. https://www.fsc.go.kr/no010101/87142
-12. 디지털헬스데일리. 금감원, 영문 DART 2단계 개편 공개. 공시 콘텐츠 확장. https://www.dhdaily.co.kr/news/articleView.html?idxno=22217
-13. Grand View Research. Regulatory Technology Market Size, Share and Trends Analysis Report. https://www.grandviewresearch.com/industry-analysis/regulatory-technology-market
+4. 금융감독원. 전자공시시스템(DART) 정정신고서 이용 시 유의사항. https://dart.fss.or.kr/introduction/content4.do
+5. 금융위원회. 정부와 금융권이 함께 금융권 AX를 가속화해 나가겠습니다. 보도자료, 2025. https://www.fsc.go.kr/no010101/87142
+6. 디지털헬스데일리. 금감원, 영문 DART 2단계 개편 공개. 공시 콘텐츠 확장. https://www.dhdaily.co.kr/news/articleView.html?idxno=22217
+7. Grand View Research. Regulatory Technology Market Size, Share and Trends Analysis Report. https://www.grandviewresearch.com/industry-analysis/regulatory-technology-market
 
 ---
